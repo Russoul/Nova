@@ -1,5 +1,5 @@
-distilled 1 modules (20 items) to out
-elided 16 of 16 ∈-annotations and motives, blanked 0 arguments
+distilled 1 modules (22 items) to out
+elided 17 of 17 ∈-annotations and motives, blanked 0 arguments
 round-trip OK: ASTs identical, kernel Σ α-identical.
 -- distill golden: identity-tier round trip over one file exercising
 -- fixity interleaving, operator items, chains, ⋆ using, clausal and
@@ -60,3 +60,7 @@ def five : ℕ ≔ 5
 def addPair : (a b : ℕ) → ℕ ≔ λa. λb. a + b
 
 def addPair' : (a b : ℕ) → a + b ≡ addPair a b using (addPair.eq) ≔ λa. λb. ⋆
+
+def swapPair : (p : ℕ × ℕ) → ℕ × ℕ ≔ λp. sigma-elim (a b. b, a) p
+
+def onWholeVar : (p : ℕ × ℕ) (q r s : ℕ) → p ≡ p ≔ λp. λq. λr. λs. sigma-elim (a b. ⋆) p

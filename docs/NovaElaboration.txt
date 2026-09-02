@@ -327,6 +327,9 @@ t{2} ::= λx. t{≥0}                    # the body extends MAXIMALLY:
                                                               #   right case, scrutinee
        | class t{≥4}
        | quot-elim (z. T{≥0}) (a. t{≥0}) t{≥4}                # motive, case fn, scrutinee
+       | sigma-elim (x y. t{≥0}) t{≥4}                        # components, SCRUTINEE —
+                                                              #   a VARIABLE of a × type;
+                                                              #   no motive (see e-sigmaelim)
        | ν F{≥2}                                              # the ν CODE (⇒ 𝕌)
        | out t{≥4}
        | corec (x : t{≥0}. t{≥0}) t{≥4}                       # carrier code + coalgebra
@@ -714,6 +717,58 @@ componentwise at F × G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 # silent; otherwise "f respects R" is surfaced as an ordinary equational
 # obligation. This is the intended shape for all content-bearing side
 # conditions: they become obligations, not errors and not annotations.
+
+Γ = Γ₀ ▷ w:(A × B) ▷ Γ₁    # the scrutinee is the VARIABLE ☐ᵢ, i = |Γ₁|
+Γ′ ⊢ t ⇐ C[ρ] ⇝ t̂
+--------------------------------------------------------------- (e-sigmaelim)
+Γ ⊢ sigma-elim (x y. t) w ⇐ C ⇝ t̂[υ]
+
+Γ = Γ₀ ▷ w:(A × B) ▷ Γ₁
+Γ′ ⊢ t ⇒ C′ ⇝ t̂
+------------------------------------------------------- (e-sigmaelim-infer)
+Γ ⊢ sigma-elim (x y. t) w ⇒ C′[υ] ⇝ t̂[υ]
+
+# with the ELIMINATION CONTEXT and the two substitutions between it and
+# Γ, all three fixed by the variable's position:
+#
+#     Γ′  ≜  Γ₀ ▷ x:A ▷ y:B ▷ Γ₁[ρ]
+#     ρ   ≜  (↑ ∘ ↑, (☐₁, ☐₀))⁺ᶦ  : Γ′ ⇒ Γ    the PAIRING substitution
+#     υ   ≜  (↑, ☐₀ .π₁, ☐₀ .π₂)⁺ᶦ : Γ  ⇒ Γ′   the SPLIT substitution
+#
+# The variable is GONE in Γ′ — the body's context has no entry for it,
+# and naming it is a resolution error — and its two components stand
+# where it stood, so every entry AFTER it is refined at the pair they
+# form, exactly as the goal is. There is no motive and none is needed:
+# abstracting the variable in the expected type IS substituting the
+# pair for it, so C[ρ] is recovered, never searched for.
+#
+# ρ ∘ υ is the identity by EL-SIGMA-ETA — it is (id, (☐ᵢ .π₁, ☐ᵢ .π₂))
+# — which is the rule's whole content and the one conversion the site
+# owes: C[ρ][υ] ≐ C. The elaborator spends it as a REWRITE RULE rather
+# than a conversion final, because the equation is owed underneath
+# whatever head the goal has and a congruence descent cannot carry an
+# η final through; the site emits the instance
+# ((☐ᵢ .π₁, ☐ᵢ .π₂) ≡ ☐ᵢ) as an inline definition of its own — proved
+# by ⋆, where el-sigma-eta applies on the nose — and reflects it into
+# a ground rule for its own conversions.
+#
+# The refined entries and goal are β-CONTRACTED after the substitution.
+# That is not cosmetic: the pair lands wherever the variable stood, so
+# `w .π₁` becomes `(x, y) .π₁`, and a bare pair is not inferable — in
+# the core as on the surface — so a projection of one left standing is
+# a type nothing can check. Display normalizes the same way, so the
+# operator reads what they wrote.
+#
+# t̂[υ] is the RULE. The elaborator does not perform that substitution:
+# a substituted term no longer has the shape its certificate records,
+# so the body is installed as an INLINE DEFINITION over Γ′ and the site
+# is that definition applied to υ's spine — judgementally the same
+# term, with the certificate left where it was checked. See INLINE
+# DEFINITIONS below.
+#
+# The scrutinee must be a VARIABLE: nothing else has a context entry to
+# eliminate. `sigma-elim (x y. t) (u, v)` is a structural error naming
+# the remedy (name the scrutinee, or project it).
 
 # Universe codes infer at 𝕌, mirroring their formation rules:
 Γ ⊢ 𝟘 ⇒ 𝕌 ⇝ 𝟘      (likewise 𝟙, ℕ)                            # (𝟘 : 𝕌) etc.
@@ -1334,6 +1389,34 @@ def x : T              extends Σ with (ε ⊦ x : A)
 # it — by design (see report semantics): one run surfaces ALL
 # obligations, at the price that obligations surfaced downstream of an
 # assumption are provisional until it is proven.
+
+//////////// Inline definitions /////////////
+
+A Σ-LEVEL LET: a machine-named entry an ELABORATION RULE mints for a
+subterm it elaborated in a context the site does not have. The entry
+is Π-CLOSED over that context — so its references weaken for free —
+and TRANSPARENT: its unfolding is licensed at every site,
+citation-free, like el-let's inside a body. The name carries `#`,
+which no surface identifier can take, so the entry can neither be
+written by the operator nor collide with anything they wrote; it is
+`<item>#<role><n>`, and n counts the item's inline definitions in that
+role, which makes the whole set a function of the module's text —
+reruns and the distill Σ-gate see the same Σ.
+
+WHY AN ENTRY, rather than a substitution. A term and its CERTIFICATE
+travel together: the skeleton records the term's SHAPE, position by
+position, and a substituted term no longer has that shape (a variable
+becomes a projection, an application, a pair). Moving the term would
+mean rebuilding the certificate, which is the elaborator's whole job
+done twice. An entry of its own keeps the two aligned — it is
+kernel-checked in the context it was elaborated in, exactly as an
+item is — and reduces the site to an ordinary application spine,
+whose certificate the ordinary rules produce.
+
+The obligations and holes a lifted subterm leaves stay where they
+were elaborated, which is the point of lifting it at all: they are
+stated in the context the operator asked for. e-sigmaelim is the
+caller.
 
 //////////// QIIT signatures: the data item /////////////
 
@@ -2174,7 +2257,12 @@ are not distinct variables (Future work).
 //// The retype tier ////
 
 A Σ variable is eliminated by NAMING ITS COMPONENTS and restating the
-goal at the pair they form:
+goal at the pair they form. (This is the tier's EMISSION — text for a
+hole, in the goal's own vocabulary. The term-level form that removes
+the variable outright, refining every later entry with it, is
+`sigma-elim` — e-sigmaelim above; what the tier emits here keeps the
+variable, and its later entries with it, which is what a hole's
+context can afford to leave alone.)
 
   let x1 ≔ x .π₁ in
   let x2 ≔ x .π₂ in

@@ -60,6 +60,16 @@ run accepted. The elaborator is deterministic, so (a) implies (b) at
 the identity tier; the harness keeps both checks so the contract
 survives the tier where (a) stops holding.
 
+One form's indices are DERIVED rather than read: a `sigma-elim` body
+is parsed against the site's binders with the two components pushed
+innermost — the scrutinee is only read afterwards — and then
+reindexed against the elimination context, where the eliminated
+variable is gone (docs/NovaElaboration.txt, e-sigmaelim). The AST
+therefore holds indices no printed name maps to directly. The
+contract survives it because the printer emits NAMES and the
+derivation is a function of the text: re-parsing pushes the same two
+slots, reads the same scrutinee, and recomputes the same shift.
+
 Two printer MODES over one engine:
 
   * DISTILL — the contract above holds. For: rewriting files into

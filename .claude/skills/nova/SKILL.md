@@ -144,6 +144,13 @@ the ∈-slot takes a TYPE, so write `∈ El a` for a code `a`);
 `⊎-elim (w. T) (a. l) (b. r) t` (motive, left case, right case,
 scrutinee — β on both injections);
 `class t` (quotient intro); `quot-elim (x. T) (a. f) q`;
+`sigma-elim (x y. t) w` (the Σ VARIABLE elimination: `w` must be a
+VARIABLE of a × type, and `t` is written where `w` is GONE — `x` and
+`y` stand in its slot and every later hypothesis, plus the goal, reads
+at `(x, y)`. No motive: it is recovered by substituting the pair. Use
+it instead of `let x1 ≔ w .π₁ in …` when a hypothesis stated AT `w`
+must become usable at its components — the lets keep `w`, this
+removes it. Naming `w` inside the body is an error);
 `out t` (the coinductive observation — infers, like the projections)
 and `corec (x : a. f) u` (corecursor: carrier code `a`, coalgebra
 body `f` over `x : El a`, seed `u` — checking-only, the polynomial

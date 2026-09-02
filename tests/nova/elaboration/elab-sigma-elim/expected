@@ -1,0 +1,32 @@
+defined P
+defined D
+defined swap
+defined onWhole
+defined onLater
+defined dep
+defined fst3
+defined useInf
+defined hole [+1 declaration]
+open holes (1):
+  [?g] (a : ℕ) (b : ℕ) (q : (P (a, b))) ⊢ ?g : (P (a, b))
+      at: input.nova:31:67: def hole
+--- the scrutinee's two structural errors:
+errors.nova:2:56: error: def notVar: sigma-elim eliminates a VARIABLE of a × type — this scrutinee is not one (name it first: `let w ≔ …` , or project with .π₁ / .π₂)
+2 | def notVar : (p : ℕ × ℕ) → ℕ ≔ λp. sigma-elim (a b. a) (p .π₁, p .π₂)
+  |                                                        ^^^^^^^^^^^^^^
+declared notVar [+1 declaration]
+errors.nova:4:34: error: def notSigma: sigma-elim eliminates a variable of type ℕ, which is not a × type
+4 | def notSigma : (n : ℕ) → ℕ ≔ λn. sigma-elim (a b. a) n
+  |                                  ^^^^^^^^^^^^^^^^^^^^^
+declared notSigma [+1 declaration]
+open declarations (2):
+  [notVar] ⊢ ? : (ℕ × ℕ) → ℕ
+      at: errors.nova:2:1: def notVar
+  [notSigma] ⊢ ? : ℕ → ℕ
+      at: errors.nova:4:1: def notSigma
+Error: 2 items failed to elaborate
+--- the body cannot name what it eliminates:
+scope.nova:3:58: error: expected a sigma-elim body free of 'p' — the variable this eliminates, so the body's context has no such entry (its components are a and b), but reached the end of the file
+3 | def gone : (p : ℕ × ℕ) → ℕ ≔ λp. sigma-elim (a b. p .π₁) p
+  |                                                          ^
+  note: while parsing the construct beginning at 3:45

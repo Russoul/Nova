@@ -1,0 +1,6 @@
+#!/bin/sh
+"$1" elab input.nova
+echo "--- the scrutinee's two structural errors:"
+"$1" elab errors.nova
+echo "--- the body cannot name what it eliminates:"
+"$1" elab scope.nova

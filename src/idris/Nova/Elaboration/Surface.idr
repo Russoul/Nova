@@ -10,6 +10,7 @@ module Nova.Elaboration.Surface
 -- Elaboration erases those. Binder names are retained purely as display
 -- metadata for the obligation report; no rule ever consults them.
 
+import Data.Maybe
 import Data.SnocList
 import Data.String
 
@@ -134,6 +135,18 @@ mutual
     ||| quot-elim (z. T)? (a. f) q — motive-first; motive optional in
     ||| checking position
     SQuotElim : Maybe (SName, STy) -> (a : SName) -> SElem -> SElem -> SElem
+    ||| sigma-elim (x y. t) w — the Σ VARIABLE elimination
+    ||| (docs/NovaElaboration.txt, e-sigmaelim). w is a VARIABLE of a
+    ||| × type, and t is elaborated in the context that variable's
+    ||| ELIMINATION gives: w gone, its two components x and y standing
+    ||| where it stood, every entry after it (and the goal) refined at
+    ||| the pair they form. No motive: abstracting w in the expected
+    ||| type IS the motive, and the substitution recovers it.
+    |||
+    ||| The body's indices are counted against THAT context, not
+    ||| against the site's — the parser reindexes it once it has read
+    ||| the scrutinee (Parser.sigmaElimBody).
+    SSigmaElim : (nx, ny : SName) -> (body : SElem) -> (scrutinee : SElem) -> SElem
     ||| ν F — the ν CODE (infers at 𝕌)
     SNuC : SPoly -> SElem
     ||| out t — the coinductive observation (infers, like the
@@ -302,6 +315,7 @@ mutual
   stripPos (SClass t) = SClass (stripPos t)
   stripPos (SQuotElim mot a f q) =
     SQuotElim (map (\(z, m) => (z, stripPosTy m)) mot) a (stripPos f) (stripPos q)
+  stripPos (SSigmaElim nx ny b w) = SSigmaElim nx ny (stripPos b) (stripPos w)
   stripPos (SNuC f) = SNuC (stripPosPoly f)
   stripPos (SOut t) = SOut (stripPos t)
   stripPos (SCorec x a f u) = SCorec x (stripPos a) (stripPos f) (stripPos u)
@@ -347,6 +361,119 @@ mutual
   stripPosPoly (SPSum f g) = SPSum (stripPosPoly f) (stripPosPoly g)
   stripPosPoly (SPSigma x a f) = SPSigma x (stripPos a) (stripPosPoly f)
   stripPosPoly (SPPi x a f) = SPPi x (stripPos a) (stripPosPoly f)
+
+
+-- ===== Free-variable reindexing =====
+--
+-- The indexed surface AST is de Bruijn, so a term written against one
+-- binder stack can be READ against another by remapping its free
+-- indices. One traversal serves it, `Maybe`-valued: a map that
+-- declines an index (the target context has no such entry) aborts the
+-- whole rewrite rather than fabricating a reference.
+--
+-- The one caller today is `sigma-elim`, whose body is parsed against
+-- the site's binders plus the two components and then reindexed
+-- against the ELIMINATION context, where the eliminated variable is
+-- gone (docs/NovaElaboration.txt, e-sigmaelim).
+
+mutual
+  ||| Remap the FREE variable indices of a term: `f d i` maps an
+  ||| occurrence of index i seen under d of the term's own binders
+  ||| (occurrences with i < d are bound here and never offered).
+  public export
+  covering
+  mapVarsE : (f : Nat -> Nat -> Maybe Nat) -> Nat -> SElem -> Maybe SElem
+  mapVarsE f d e@(SVar r n i) = if i < d then Just e else SVar r n <$> f d i
+  mapVarsE f d e@(SSig _ _) = Just e
+  mapVarsE f d SUnitI = Just SUnitI
+  mapVarsE f d SZeroN = Just SZeroN
+  mapVarsE f d (SSuc t) = SSuc <$> mapVarsE f d t
+  mapVarsE f d (SLam x b) = SLam x <$> mapVarsE f (S d) b
+  mapVarsE f d (SLet x e b) = [| SLet (pure x) (mapVarsE f d e) (mapVarsE f (S (S d)) b) |]
+  mapVarsE f d (SApp h a) = [| SApp (mapVarsE f d h) (mapVarsE f d a) |]
+  mapVarsE f d (SPair a b) = [| SPair (mapVarsE f d a) (mapVarsE f d b) |]
+  mapVarsE f d (SProj1 t) = SProj1 <$> mapVarsE f d t
+  mapVarsE f d (SProj2 t) = SProj2 <$> mapVarsE f d t
+  mapVarsE f d SZeroC = Just SZeroC
+  mapVarsE f d SOneC = Just SOneC
+  mapVarsE f d SNatC = Just SNatC
+  mapVarsE f d (SPiC x a b) = [| SPiC (pure x) (mapVarsE f d a) (mapVarsE f (S d) b) |]
+  mapVarsE f d (SSigmaC x a b) = [| SSigmaC (pure x) (mapVarsE f d a) (mapVarsE f (S d) b) |]
+  mapVarsE f d (SSumC a b) = [| SSumC (mapVarsE f d a) (mapVarsE f d b) |]
+  mapVarsE f d (SQuotC a x y r) =
+    [| SQuotC (mapVarsE f d a) (pure x) (pure y) (mapVarsE f (S (S d)) r) |]
+  mapVarsE f d (SEqC rng l r t) =
+    [| SEqC (pure rng) (mapVarsE f d l) (mapVarsE f d r) (traverse (mapVarsTy f d) t) |]
+  mapVarsE f d (SZeroElim t) = SZeroElim <$> mapVarsE f d t
+  mapVarsE f d (SNatElim mot z n2 ih s t) =
+    [| SNatElim (traverse (\(n, m) => (n,) <$> mapVarsTy f (S d) m) mot) (mapVarsE f d z)
+                (pure n2) (pure ih) (mapVarsE f (S (S d)) s) (mapVarsE f d t) |]
+  mapVarsE f d (SInj1 t) = SInj1 <$> mapVarsE f d t
+  mapVarsE f d (SInj2 t) = SInj2 <$> mapVarsE f d t
+  mapVarsE f d (SSumElim mot a l b r t) =
+    [| SSumElim (traverse (\(z, m) => (z,) <$> mapVarsTy f (S d) m) mot) (pure a)
+                (mapVarsE f (S d) l) (pure b) (mapVarsE f (S d) r) (mapVarsE f d t) |]
+  mapVarsE f d (SClass t) = SClass <$> mapVarsE f d t
+  mapVarsE f d (SQuotElim mot a g q) =
+    [| SQuotElim (traverse (\(z, m) => (z,) <$> mapVarsTy f (S d) m) mot) (pure a)
+                 (mapVarsE f (S d) g) (mapVarsE f d q) |]
+  mapVarsE f d (SSigmaElim nx ny b w) =
+    [| SSigmaElim (pure nx) (pure ny) (mapVarsE f (S (S d)) b) (mapVarsE f d w) |]
+  mapVarsE f d (SNuC p) = SNuC <$> mapVarsPoly f d p
+  mapVarsE f d (SOut t) = SOut <$> mapVarsE f d t
+  mapVarsE f d (SCorec x a g u) =
+    [| SCorec (pure x) (mapVarsE f d a) (mapVarsE f (S d) g) (mapVarsE f d u) |]
+  mapVarsE f d (SCoind nx ny r pw mx my mh q) =
+    [| SCoind (pure nx) (pure ny) (mapVarsE f (S (S d)) r) (mapVarsE f d pw)
+              (pure mx) (pure my) (pure mh) (mapVarsE f (S (S (S d))) q) |]
+  mapVarsE f d (SSquash t) = SSquash <$> mapVarsTy f d t
+  mapVarsE f d e@(SStar _) = Just e
+  mapVarsE f d (SStarWit e) = SStarWit <$> mapVarsE f d e
+  mapVarsE f d e@(SStarUsing _ _) = Just e
+  mapVarsE f d (SSquashElim e x b) =
+    [| SSquashElim (mapVarsE f d e) (pure x) (mapVarsE f (S d) b) |]
+  mapVarsE f d (SChain h ls) =
+    [| SChain (mapVarsE f d h)
+              (traverse (\(j, m) => [| MkPair (mapVarsE f d j) (mapVarsE f d m) |]) ls) |]
+  mapVarsE f d (SAnn t ty) = [| SAnn (mapVarsE f d t) (mapVarsTy f d ty) |]
+  mapVarsE f d (SImpArg t) = SImpArg <$> mapVarsE f d t
+  mapVarsE f d (SNoIns t) = SNoIns <$> mapVarsE f d t
+  mapVarsE f d e@(SBlank _) = Just e
+  mapVarsE f d e@(SHole _ _) = Just e
+  mapVarsE f d (SPos r t) = SPos r <$> mapVarsE f d t
+
+  public export
+  covering
+  mapVarsTy : (f : Nat -> Nat -> Maybe Nat) -> Nat -> STy -> Maybe STy
+  mapVarsTy f d STyZero = Just STyZero
+  mapVarsTy f d STyOne = Just STyOne
+  mapVarsTy f d STyNat = Just STyNat
+  mapVarsTy f d STyUniv = Just STyUniv
+  mapVarsTy f d t@(STySig _) = Just t
+  mapVarsTy f d (STyPi x a b) = [| STyPi (pure x) (mapVarsTy f d a) (mapVarsTy f (S d) b) |]
+  mapVarsTy f d (STyImpPi x a b) = [| STyImpPi (pure x) (mapVarsTy f d a) (mapVarsTy f (S d) b) |]
+  mapVarsTy f d (STySigma x a b) = [| STySigma (pure x) (mapVarsTy f d a) (mapVarsTy f (S d) b) |]
+  mapVarsTy f d (STySum a b) = [| STySum (mapVarsTy f d a) (mapVarsTy f d b) |]
+  mapVarsTy f d (STyQuot a x y r) =
+    [| STyQuot (mapVarsTy f d a) (pure x) (pure y) (mapVarsE f (S (S d)) r) |]
+  mapVarsTy f d (STyEq rng l r t) =
+    [| STyEq (pure rng) (mapVarsE f d l) (mapVarsE f d r) (traverse (mapVarsTy f d) t) |]
+  mapVarsTy f d (STyEl e) = STyEl <$> mapVarsE f d e
+  mapVarsTy f d STyProp = Just STyProp
+  mapVarsTy f d (STyNu p) = STyNu <$> mapVarsPoly f d p
+  mapVarsTy f d (STyPos r t) = STyPos r <$> mapVarsTy f d t
+
+  public export
+  covering
+  mapVarsPoly : (f : Nat -> Nat -> Maybe Nat) -> Nat -> SPoly -> Maybe SPoly
+  mapVarsPoly f d SPHole = Just SPHole
+  mapVarsPoly f d (SPConst e) = SPConst <$> mapVarsE f d e
+  mapVarsPoly f d (SPProd p q) = [| SPProd (mapVarsPoly f d p) (mapVarsPoly f d q) |]
+  mapVarsPoly f d (SPSum p q) = [| SPSum (mapVarsPoly f d p) (mapVarsPoly f d q) |]
+  mapVarsPoly f d (SPSigma x a p) =
+    [| SPSigma (pure x) (mapVarsE f d a) (mapVarsPoly f (S d) p) |]
+  mapVarsPoly f d (SPPi x a p) =
+    [| SPPi (pure x) (mapVarsE f d a) (mapVarsPoly f (S d) p) |]
 
 
 --
@@ -417,6 +544,9 @@ mutual
   headRange (SSumElim Nothing _ _ _ _ t) = headRange t
   headRange (SQuotElim (Just ((_, r), _)) _ _ _) = r
   headRange (SQuotElim Nothing _ _ q) = headRange q
+  -- sigma-elim has no motive: the scrutinee's head places it (the
+  -- variable it eliminates is what every message here is about)
+  headRange (SSigmaElim _ _ _ w) = headRange w
 
   public export
   headRangeTy : STy -> Maybe Range
@@ -456,86 +586,23 @@ mutual
 -- pushes exactly (a let pushes TWO slots: the value and the unfolding
 -- hypothesis).
 
-mutual
-  public export
-  covering
-  shiftElem : (c : Nat) -> SElem -> SElem
-  shiftElem c (SVar r x i) = SVar r x (if i >= c then S i else i)
-  shiftElem c e@(SSig _ _) = e
-  shiftElem c SUnitI = SUnitI
-  shiftElem c SZeroN = SZeroN
-  shiftElem c (SSuc t) = SSuc (shiftElem c t)
-  shiftElem c (SLam x b) = SLam x (shiftElem (S c) b)
-  shiftElem c (SLet x d b) = SLet x (shiftElem c d) (shiftElem (S (S c)) b)
-  shiftElem c (SApp f a) = SApp (shiftElem c f) (shiftElem c a)
-  shiftElem c (SPair a b) = SPair (shiftElem c a) (shiftElem c b)
-  shiftElem c (SProj1 t) = SProj1 (shiftElem c t)
-  shiftElem c (SProj2 t) = SProj2 (shiftElem c t)
-  shiftElem c SZeroC = SZeroC
-  shiftElem c SOneC = SOneC
-  shiftElem c SNatC = SNatC
-  shiftElem c (SPiC x a b) = SPiC x (shiftElem c a) (shiftElem (S c) b)
-  shiftElem c (SSigmaC x a b) = SSigmaC x (shiftElem c a) (shiftElem (S c) b)
-  shiftElem c (SSumC a b) = SSumC (shiftElem c a) (shiftElem c b)
-  shiftElem c (SQuotC a x y r) = SQuotC (shiftElem c a) x y (shiftElem (S (S c)) r)
-  shiftElem c (SEqC rng l r t) = SEqC rng (shiftElem c l) (shiftElem c r) (map (shiftTy c) t)
-  shiftElem c (SZeroElim t) = SZeroElim (shiftElem c t)
-  shiftElem c (SNatElim mot z n2 ih s t) =
-    SNatElim (map (\(n, m) => (n, shiftTy (S c) m)) mot) (shiftElem c z) n2 ih (shiftElem (S (S c)) s) (shiftElem c t)
-  shiftElem c (SInj1 t) = SInj1 (shiftElem c t)
-  shiftElem c (SInj2 t) = SInj2 (shiftElem c t)
-  shiftElem c (SSumElim mot a l b r t) =
-    SSumElim (map (\(z, m) => (z, shiftTy (S c) m)) mot) a (shiftElem (S c) l) b (shiftElem (S c) r) (shiftElem c t)
-  shiftElem c (SClass t) = SClass (shiftElem c t)
-  shiftElem c (SQuotElim mot a f q) =
-    SQuotElim (map (\(z, m) => (z, shiftTy (S c) m)) mot) a (shiftElem (S c) f) (shiftElem c q)
-  shiftElem c (SNuC f) = SNuC (shiftPoly c f)
-  shiftElem c (SOut t) = SOut (shiftElem c t)
-  shiftElem c (SCorec x a f u) = SCorec x (shiftElem c a) (shiftElem (S c) f) (shiftElem c u)
-  shiftElem c (SCoind nx ny r pw mx my mh q) =
-    SCoind nx ny (shiftElem (S (S c)) r) (shiftElem c pw) mx my mh (shiftElem (S (S (S c))) q)
-  shiftElem c (SSquash t) = SSquash (shiftTy c t)
-  shiftElem c e@(SStar _) = e
-  shiftElem c (SStarWit e) = SStarWit (shiftElem c e)
-  shiftElem c e@(SStarUsing _ _) = e
-  shiftElem c (SSquashElim e x b) = SSquashElim (shiftElem c e) x (shiftElem (S c) b)
-  shiftElem c (SChain h links) =
-    SChain (shiftElem c h) (map (\(j, m) => (shiftElem c j, shiftElem c m)) links)
-  shiftElem c (SAnn t ty) = SAnn (shiftElem c t) (shiftTy c ty)
-  shiftElem c (SImpArg t) = SImpArg (shiftElem c t)
-  shiftElem c (SNoIns t) = SNoIns (shiftElem c t)
-  shiftElem c e@(SBlank _) = e
-  shiftElem c e@(SHole _ _) = e
-  shiftElem c (SPos r e) = SPos r (shiftElem c e)
+||| The shift as a `mapVars` instance: at depth d the cutoff has moved
+||| to c + d, and an index at or past it goes up by one. Total — the
+||| map declines nothing — so the Nothing branch is unreachable.
+public export
+covering
+shiftElem : (c : Nat) -> SElem -> SElem
+shiftElem c e = fromMaybe e (mapVarsE (\d, i => Just (if i >= c + d then S i else i)) 0 e)
 
-  public export
-  covering
-  shiftTy : (c : Nat) -> STy -> STy
-  shiftTy c STyZero = STyZero
-  shiftTy c STyOne = STyOne
-  shiftTy c STyNat = STyNat
-  shiftTy c STyUniv = STyUniv
-  shiftTy c t@(STySig _) = t
-  shiftTy c (STyPi x a b) = STyPi x (shiftTy c a) (shiftTy (S c) b)
-  shiftTy c (STyImpPi x a b) = STyImpPi x (shiftTy c a) (shiftTy (S c) b)
-  shiftTy c (STySigma x a b) = STySigma x (shiftTy c a) (shiftTy (S c) b)
-  shiftTy c (STySum a b) = STySum (shiftTy c a) (shiftTy c b)
-  shiftTy c (STyQuot a x y r) = STyQuot (shiftTy c a) x y (shiftElem (S (S c)) r)
-  shiftTy c (STyEq rng l r t) = STyEq rng (shiftElem c l) (shiftElem c r) (map (shiftTy c) t)
-  shiftTy c (STyEl e) = STyEl (shiftElem c e)
-  shiftTy c STyProp = STyProp
-  shiftTy c (STyNu f) = STyNu (shiftPoly c f)
-  shiftTy c (STyPos r t) = STyPos r (shiftTy c t)
+public export
+covering
+shiftTy : (c : Nat) -> STy -> STy
+shiftTy c t = fromMaybe t (mapVarsTy (\d, i => Just (if i >= c + d then S i else i)) 0 t)
 
-  public export
-  covering
-  shiftPoly : (c : Nat) -> SPoly -> SPoly
-  shiftPoly c SPHole = SPHole
-  shiftPoly c (SPConst e) = SPConst (shiftElem c e)
-  shiftPoly c (SPProd f g) = SPProd (shiftPoly c f) (shiftPoly c g)
-  shiftPoly c (SPSum f g) = SPSum (shiftPoly c f) (shiftPoly c g)
-  shiftPoly c (SPSigma x a f) = SPSigma x (shiftElem c a) (shiftPoly (S c) f)
-  shiftPoly c (SPPi x a f) = SPPi x (shiftElem c a) (shiftPoly (S c) f)
+public export
+covering
+shiftPoly : (c : Nat) -> SPoly -> SPoly
+shiftPoly c p = fromMaybe p (mapVarsPoly (\d, i => Just (if i >= c + d then S i else i)) 0 p)
 
 -- ===== Operators are names =====
 --
@@ -786,6 +853,8 @@ mutual
     show (SClass t) = "Class (\{show t})"
     show (SQuotElim mot a f q) =
       "QuotElim \{maybe "_" (fst . fst) mot} (\{maybe "_" (show . snd) mot}) \{fst a} (\{show f}) (\{show q})"
+    show (SSigmaElim nx ny b w) =
+      "SigmaElim \{fst nx} \{fst ny} (\{show b}) (\{show w})"
     show (SNuC f) = "NuC (\{show f})"
     show (SOut e) = "Out (\{show e})"
     show (SCorec x a f u) =
