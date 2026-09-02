@@ -3724,6 +3724,44 @@ idxDesc : (count : Nat) -> (base : Nat) -> List Nat
 idxDesc Z _ = []
 idxDesc (S n) base = (base + n) :: idxDesc n base
 
+||| ↕ — the transposition Δ ▷ b ▷ a ⇒ Δ ▷ a ▷ b, exchanging the two
+||| innermost entries of a context.
+swapSub : Sub
+swapSub = Ext (Ext (Chain Wk Wk) (CtxVar 0)) (CtxVar 1)
+
+||| Exchange the entry at index i with the one standing immediately
+||| AFTER it (index i-1), re-indexing every entry that follows. Nothing
+||| when the later entry MENTIONS the earlier — the dependency that
+||| forbids the exchange — and the strengthening that tests it is also
+||| what re-expresses the entry without it.
+|||
+||| A context permutation is admissible when the dependencies allow it
+||| (Foundation's contexts are telescopes, nothing more), and this is
+||| the one step everything else is built from: e-eqelim slides the
+||| eliminated variable later until the equation's other side stands
+||| in its prefix.
+ctxSwapAt : (i : Nat) -> Ctx -> Maybe Ctx
+ctxSwapAt i ctx = do
+  (g0, a, rest) <- ctxSplitAt i ctx
+  (c0, tl) <- unconsSnoc (toList rest)
+  c0' <- strengthenElem 0 c0
+  let moved = zipWith (\e, p => substTy e (underN p swapSub)) tl (depths (length tl))
+  pure (((g0 :< c0') :< substTy a Wk) <>< moved)
+ where
+  unconsSnoc : List a -> Maybe (a, List a)
+  unconsSnoc [] = Nothing
+  unconsSnoc (y :: ys) = Just (y, ys)
+
+  ||| 0, 1, …, n-1 — the depth each entry after the pair stands at.
+  depths : Nat -> List Nat
+  depths Z = []
+  depths (S n) = depths n ++ [n]
+
+||| The same exchange, applied to a TERM standing over the whole
+||| context: the two entries sit at i and i-1, so i-1 of them follow.
+swapTermAt : (i : Nat) -> Elem -> Elem
+swapTermAt i e = substElem e (underN (minus i 1) swapSub)
+
 ||| The PAIRING substitution Γ₀ ▷ A ▷ B ⇒ Γ₀ ▷ (A × B) — (↑∘↑, (☐₁, ☐₀)).
 sigmaPairSub : Sub
 sigmaPairSub = Ext (Chain Wk Wk) (SigmaIntro (CtxVar 1) (CtxVar 0))
@@ -4322,111 +4360,108 @@ mutual
   elabEqElim ctx env site sp sx sw mty = do
     st <- getSt
     case (unPos sx, unPos sw) of
-      (SVar xr xn i, SVar wr wn j) =>
-        if j >= i
+      (SVar xr xn i0, SVar wr wn j) =>
+        if j >= i0
           then throwAt (wr <|> site.srange)
                  ("\{site}: ≡-elim: '\{wn}' must stand INSIDE '\{xn}' — its type names"
                    ++ " that variable, so it cannot be bound before it")
-          else case (ctxSplitAt i ctx, ctxSplitAt i env) of
-            (Just (g0, aTy, restC), Just (env0, _, restE)) =>
-              case (ctxSplitAt j restC, ctxSplitAt j restE) of
-                (Just (g1, _, g2), Just (env1, _, env2)) => do
-                  -- the equation w proves, read at the SITE's context
-                  wTy <- maybe (throwAt (wr <|> site.srange)
-                                 "\{site}: internal: ≡-elim's equation index escapes Γ")
-                               pure (ctxLookup ctx j)
-                  case exposeCode st wTy of
-                    Elem.EqTy l r aEq => do
-                      -- which side is the eliminated variable, and so
-                      -- what t is — both orientations, one rule
-                      (t, cl, cr) <- the (ElabM (Elem, Elem, Elem)) $
-                        if l == CtxVar i then pure (r, CtxVar i, r)
-                        else if r == CtxVar i then pure (l, l, CtxVar i)
-                        else throwShape site env
-                               "≡-elim: the equation proved by '\{wn}' is" wTy
-                               "one with '\{xn}' on a side"
-                      -- t must live OUTSIDE x's own entry: the entries
-                      -- between are refined AT it, so a t naming one
-                      -- of them (or x, or w) has nowhere to stand
-                      t0 <- maybe (throwAt (xr <|> site.srange)
-                                    ("\{site}: ≡-elim: the other side of '\{wn}' mentions"
-                                      ++ " '\{xn}' or a hypothesis after it, so it does not"
-                                      ++ " stand where the elimination needs it"))
-                                  pure (strengthenElemN (S i) t)
-                      -- the equation's OWN type, read over Γ₀: the
-                      -- reflexivity proof is stated at the spelling its
-                      -- occurrences are checked against, falling back to
-                      -- the variable's declared type where that spelling
-                      -- does not itself stand outside x
-                      let aEq0 = fromMaybe aTy (strengthenElemN (S i) aEq)
-                      -- [⋆/w] puts a ⋆ into a TYPE wherever the eliminated
-                      -- PROOF stood, and a ⋆ in a type needs an annotation
-                      -- the inline definition's type carries nowhere. Say so
-                      -- here, rather than let the kernel reject a term the
-                      -- operator never wrote
-                      -- WHAT STANDS WHERE THE ELIMINATED PROOF STOOD.
-                      -- ⋆ cannot, wherever w is named from a TYPE: it is
-                      -- an INTRODUCTION, so the kernel wants its el-eq-i
-                      -- payload, and a lifted definition's type is checked
-                      -- with an empty skeleton (ty-pi descends into a
-                      -- domain with that child's, no more). A REFERENCE
-                      -- infers, and a term whose inferred type already IS
-                      -- the expected one needs no payload at all — so the
-                      -- site mints the proof and substitutes that.
-                      --
-                      -- The proof to mint is fixed by the order of the two
-                      -- substitutions: [t/x] lands first, so the equation
-                      -- w proved reads t ≡ t by the time w's slot is
-                      -- filled. REFLEXIVITY, at the site's own t.
-                      let g2s = toList g2
-                      let wOccurs = any (\(m, c) => occursAt m c)
-                                        (zip (reverse (idxDesc (length g2s) 0)) g2s)
-                                      || maybe False (occursAt j) mty
-                      let n0 = length g0
-                      (wRepl, prfCands) <- the (ElabM (Elem, List Cand)) $
-                        if not wOccurs
-                          -- w is named from no type, so nothing is
-                          -- substituted for it and nothing need be minted
-                          then pure (Star, [])
-                          else do
-                            r <- attemptM (mintRefl g0 env0 aEq0 t0 n0 i j wTy)
-                            case r of
-                              Just x => pure x
-                              Nothing => throwAt (wr <|> site.srange)
-                                ("\{site}: ≡-elim: the goal or a hypothesis after '\{wn}' names"
-                                  ++ " the PROOF '\{wn}', and the reflexivity proof that would"
-                                  ++ " stand in its place did not discharge. Generalise that"
-                                  ++ " occurrence first")
-                      let subX = Ext Id t0
-                      let subW = Ext Id wRepl
-                      let nG1 = length g1
-                      let ctx' = refineAfter subX subW
-                                             (refineBetween subX g0 0 (toList g1))
-                                             nG1 0 (toList g2)
-                      let env' = (env0 <>< toList env1) <>< toList env2
-                      (prf', prfTy, prfSk) <- the (ElabM (Elem, Ty, Skel)) $ case mty of
-                        Just ty => do
-                          let ty' = compTy (substTy (substTy ty (underN j subW))
-                                                    (underN (minus i 1) subX))
-                          (e, sk) <- checkElem ctx' env' site sp ty'
-                          pure (e, ty', sk)
-                        Nothing => inferElem ctx' env' site sp
-                      q <- emitInlineDef site "j" ctx' prfTy (Nd [] []) prf' prfSk
-                      let args = svarsE env0 (S i) ++ svarsE env1 (S j) ++ svarsE env2 0
-                      let spine = foldl SApp (SSig Nothing q) args
-                      withLocalCands (eqElimCand st j cl cr ++ prfCands) $
-                        withEqScope ("rw:eq-elim" :: "rw:eq-elim-prf" :: st.eqScope) $
-                          the (ElabM (Elem, Ty, Skel)) $ case mty of
-                            Just ty => do
-                              (e, sk) <- checkElem ctx env site spine ty
-                              pure (e, ty, sk)
-                            Nothing => inferElem ctx env site spine
-                    _ => throwShape site env "≡-elim: '\{wn}' has type" wTy
-                           "an equality proposition"
-                _ => throwAt (wr <|> site.srange)
-                       "\{site}: internal: ≡-elim's equation index escapes Γ"
-            _ => throwAt (xr <|> site.srange)
-                   "\{site}: internal: ≡-elim's variable index escapes Γ"
+          else do
+            -- the equation, read AT THE SITE. The rewrite rule the site
+            -- spends is stated in the operator's own indices, and the
+            -- slide below leaves those alone: it never crosses w
+            wTyS <- maybe (throwAt (wr <|> site.srange)
+                            "\{site}: internal: ≡-elim's equation index escapes Γ")
+                          pure (ctxLookup ctx j)
+            (cl, cr) <- the (ElabM (Elem, Elem)) $ case exposeCode st wTyS of
+              Elem.EqTy l r _ =>
+                if l == CtxVar i0 then pure (CtxVar i0, r)
+                else if r == CtxVar i0 then pure (l, CtxVar i0)
+                else throwShape site env
+                       "≡-elim: the equation proved by '\{wn}' is" wTyS
+                       "one with '\{xn}' on a side"
+              _ => throwShape site env "≡-elim: '\{wn}' has type" wTyS
+                     "an equality proposition"
+            -- THE VARIABLE SLIDES LATER. The equation's other side need
+            -- not stand before x WHERE THE OPERATOR BOUND x, only before
+            -- x ENDS UP: a context is a telescope, so x may change
+            -- places with any entry that does not mention it, and each
+            -- exchange is licensed by the strengthening that performs
+            -- it. A hypothesis that genuinely depends on x stops the
+            -- slide, and then the message below names the situation.
+            (i, ctxP, envP, ixs, mtyP) <- slide ctx env (siteIxs (length ctx)) mty i0 j i0
+            case (ctxSplitAt i ctxP, ctxSplitAt i envP, ctxSplitAt i ixs) of
+              (Just (g0, aTy, restC), Just (env0, _, restE), Just (ix0, _, ixR)) =>
+                case (ctxSplitAt j restC, ctxSplitAt j restE, ctxSplitAt j ixR) of
+                  (Just (g1, _, g2), Just (env1, _, env2), Just (ix1, _, ix2)) => do
+                    wTy <- maybe (throwAt (wr <|> site.srange)
+                                   "\{site}: internal: ≡-elim's equation index escapes Γ")
+                                 pure (ctxLookup ctxP j)
+                    case exposeCode st wTy of
+                      Elem.EqTy l r aEq => do
+                        t <- the (ElabM Elem) $
+                          if l == CtxVar i then pure r
+                          else if r == CtxVar i then pure l
+                          else throwShape site env
+                                 "≡-elim: the equation proved by '\{wn}' is" wTy
+                                 "one with '\{xn}' on a side"
+                        t0 <- maybe (throwAt (xr <|> site.srange)
+                                      ("\{site}: ≡-elim: the other side of '\{wn}' cannot"
+                                        ++ " stand before '\{xn}' — it names '\{xn}' itself,"
+                                        ++ " or a hypothesis that does, so no order of the"
+                                        ++ " context puts it first"))
+                                    pure (strengthenElemN (S i) t)
+                        let aEq0 = fromMaybe aTy (strengthenElemN (S i) aEq)
+                        let g2s = toList g2
+                        let wOccurs = any (\(m, c) => occursAt m c)
+                                          (zip (reverse (idxDesc (length g2s) 0)) g2s)
+                                        || maybe False (occursAt j) mtyP
+                        let n0 = length g0
+                        (wRepl, prfCands) <- the (ElabM (Elem, List Cand)) $
+                          if not wOccurs
+                            then pure (Star, [])
+                            else do
+                              rr <- attemptM (mintRefl g0 env0 aEq0 t0 n0 i j
+                                                (map CtxVar (toList ix0)) wTyS)
+                              case rr of
+                                Just x => pure x
+                                Nothing => throwAt (wr <|> site.srange)
+                                  ("\{site}: ≡-elim: the goal or a hypothesis after '\{wn}'"
+                                    ++ " names the PROOF '\{wn}', and the reflexivity proof"
+                                    ++ " that would stand in its place did not discharge."
+                                    ++ " Generalise that occurrence first")
+                        let subX = Ext Id t0
+                        let subW = Ext Id wRepl
+                        let nG1 = length g1
+                        let ctx' = refineAfter subX subW
+                                               (refineBetween subX g0 0 (toList g1))
+                                               nG1 0 (toList g2)
+                        let env' = (env0 <>< toList env1) <>< toList env2
+                        (prf', prfTy, prfSk) <- the (ElabM (Elem, Ty, Skel)) $ case mtyP of
+                          Just ty => do
+                            let ty' = compTy (substTy (substTy ty (underN j subW))
+                                                      (underN (minus i 1) subX))
+                            (e, sk) <- checkElem ctx' env' site sp ty'
+                            pure (e, ty', sk)
+                          Nothing => inferElem ctx' env' site sp
+                        q <- emitInlineDef site "j" ctx' prfTy (Nd [] []) prf' prfSk
+                        -- the spine is the PERMUTED order at the SITE's
+                        -- own indices: the reordering is the lifted
+                        -- definition's business and reaches no further
+                        let args = svarsIx env0 ix0 ++ svarsIx env1 ix1 ++ svarsIx env2 ix2
+                        let spine = foldl SApp (SSig Nothing q) args
+                        withLocalCands (eqElimCand st j cl cr ++ prfCands) $
+                          withEqScope ("rw:eq-elim" :: "rw:eq-elim-prf" :: st.eqScope) $
+                            the (ElabM (Elem, Ty, Skel)) $ case mty of
+                              Just ty => do
+                                (e, sk) <- checkElem ctx env site spine ty
+                                pure (e, ty, sk)
+                              Nothing => inferElem ctx env site spine
+                      _ => throwShape site env "≡-elim: '\{wn}' has type" wTy
+                             "an equality proposition"
+                  _ => throwAt (wr <|> site.srange)
+                         "\{site}: internal: ≡-elim's equation index escapes Γ"
+              _ => throwAt (xr <|> site.srange)
+                     "\{site}: internal: ≡-elim's variable index escapes Γ"
       (SVar _ _ _, _) =>
         throwAt (headRange sw <|> site.srange)
           ("\{site}: ≡-elim eliminates a HYPOTHESIS — this equation is not one"
@@ -4454,6 +4489,59 @@ mutual
       let c' = substTy (substTy c (underN m sw)) (underN (nG1 + m) sx)
       in refineAfter sx sw (acc :< compTy c') nG1 (S m) cs
 
+    ||| The site index of every entry, innermost last — what the
+    ||| argument spine reads, since the site still refers to these
+    ||| variables where the operator bound them.
+    siteIxs : Nat -> SnocList Nat
+    siteIxs n = [<] <>< idxDesc n 0
+
+    ||| The exchange `ctxSwapAt` made, on a list that rides alongside
+    ||| the context.
+    swapAt : Nat -> SnocList a -> SnocList a
+    swapAt i xs = case ctxSplitAt i xs of
+      Just (g0, a, rest) => case toList rest of
+        (c0 :: tl) => ((g0 :< c0) :< a) <>< tl
+        [] => xs
+      Nothing => xs
+
+    ||| A run of surface variables at their SITE indices.
+    svarsIx : SnocList String -> SnocList Nat -> List SElem
+    svarsIx names ixs = zipWith (\n, d => SVar Nothing n d) (toList names) (toList ixs)
+
+    ||| Slide the eliminated variable LATER, one entry at a time, until
+    ||| the equation's other side stands in its prefix. Each exchange is
+    ||| `ctxSwapAt`, which is licensed exactly when the crossed entry
+    ||| does not mention the variable; the names and the site indices
+    ||| ride along, and the goal is re-indexed with them.
+    |||
+    ||| It stops at the equation itself — that entry names the variable,
+    ||| so no order gets past it — and at anything else that will not
+    ||| move. Stopping is not an error here: the caller's strengthening
+    ||| reports it, in terms of what the operator wrote.
+    slide : Ctx -> NameEnv -> SnocList Nat -> Maybe Ty -> (i, j, fuel : Nat) ->
+            ElabM (Nat, Ctx, NameEnv, SnocList Nat, Maybe Ty)
+    slide c e ix m i j Z = pure (i, c, e, ix, m)
+    slide c e ix m i j (S fuel) = do
+      st <- getSt
+      let done = pure (i, c, e, ix, m)
+      case ctxLookup c j of
+        Nothing => done
+        Just wTy => case exposeCode st wTy of
+          Elem.EqTy l r _ =>
+            let mt = if l == CtxVar i then Just r
+                     else if r == CtxVar i then Just l else Nothing in
+            case mt of
+              Nothing => done
+              Just t => case strengthenElemN (S i) t of
+                Just _ => done                      -- already in the prefix
+                Nothing =>
+                  if i == S j then done             -- the next entry is w itself
+                  else case ctxSwapAt i c of
+                    Nothing => done                 -- the crossed entry names it
+                    Just c' => slide c' (swapAt i e) (swapAt i ix)
+                                     (map (swapTermAt i) m) (minus i 1) j fuel
+          _ => done
+
     ||| The proof that stands where an eliminated equation variable
     ||| stood, and the rule that converts back to it: reflexivity at the
     ||| site's own t, minted as an inline definition, plus the
@@ -4472,8 +4560,8 @@ mutual
     ||| Γ₀ ▷ x ▷ Γ₁, where the [t/x] pass has not run yet, so Γ₀ begins
     ||| at i - j.
     mintRefl : Ctx -> NameEnv -> (aEq0, t0 : Elem) -> (n0, i, j : Nat) ->
-               (wTy : Ty) -> ElabM (Elem, List Cand)
-    mintRefl g0 env0 aEq0 t0 n0 i j wTy = do
+               (siteArgs : List Elem) -> (wTy : Ty) -> ElabM (Elem, List Cand)
+    mintRefl g0 env0 aEq0 t0 n0 i j siteArgs wTy = do
       let reflTy = Elem.EqTy t0 t0 aEq0
       (rp, rsk) <- withScope (Just []) (checkElem g0 env0 (sub site "\{site}: ≡-elim, reflexivity")
                                           (SStar Nothing) reflTy)
@@ -4483,7 +4571,10 @@ mutual
       -- stands; both sides inhabit a proposition, so its ⋆ closes on
       -- the spot (el-prf-prop) — which is exactly what a congruence
       -- descent could not do for it
-      let atSite = inst (S i)
+      -- at the SITE, the lemma is instantiated at those entries'
+      -- own site indices — the permutation reaches no further than
+      -- the lifted definition's telescope
+      let atSite = foldl PiApp (SigVar qr [<]) siteArgs
       -- stated at the type the SITE's conversion will have reached,
       -- not at w's own. The eliminating rule rewrites x ⇝ t
       -- everywhere, the ∈-annotation included, so a license stated at

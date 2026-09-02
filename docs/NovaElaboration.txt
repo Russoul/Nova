@@ -847,10 +847,28 @@ componentwise at F × G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 # motive and none is needed: t is READ OFF w's type, and substituting
 # it for x is what a motive would have abstracted.
 #
-# t MUST STAND IN Γ₀, outside x's own entry. Otherwise Γ₁[t/x] is not
-# even a context — an entry would name a later one — so a t mentioning
-# x, a hypothesis between, or w itself is a structural error naming
-# what it mentioned.
+# t must stand BEFORE x — but before x ENDS UP, not before where the
+# operator bound it. A context is a telescope, so x may change places
+# with any entry that does not mention it, and the site SLIDES x later,
+# one exchange at a time, until t stands in its prefix. Each exchange
+# is licensed by the strengthening that performs it: the crossed entry
+# is re-expressed without x, which is possible exactly when it never
+# named x. Γ₀ in the rule is therefore the prefix AFTER the slide, and
+# Γ₁ what is left between.
+#
+#   Γ₀ (x : A) Γ₁ᵃ Γ₁ᵇ (w : x ≡ t) Γ₂       Γ₀ Γ₁ᵃ ⊢ t : A
+#                                            Γ₁ᵃ does not name x
+#
+# The slide stops at w, whose type names x by construction, so a t
+# depending on w or on anything after it is a structural error — as is
+# one naming x itself, or a hypothesis that does. The message says so
+# in those terms: no ORDER of the context puts t first.
+#
+# The permutation reaches no further than the lifted definition's
+# telescope. The site still refers to these variables where the
+# operator bound them, so the argument spine carries their original
+# indices in the permuted order, and nothing the operator can observe
+# has moved.
 #
 # ρ ∘ υ is the identity by EL-REFLECT and EL-PRF-PROP: w is in scope in
 # Γ, so x ≐ t there, and w ≐ ⋆ since both inhabit a proposition. That is

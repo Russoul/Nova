@@ -34,3 +34,21 @@ def large : (x : 𝕌) (h : x) (w : x ≡ ℕ) → ℕ ≔ λx. λh. λw. ≡-el
 -- converts back through the irrelevance equation
 def proofInGoal : (x : ℕ) (w : x ≡ Z) → w ≡ w ∈ (x ≡ Z) ≔ λx. λw. ≡-elim ⋆ x w
 def proofInHyp : (x : ℕ) (w : x ≡ Z) (h : w ≡ w ∈ (x ≡ Z)) → ℕ ≔ λx. λw. λh. ≡-elim Z x w
+
+-- THE SLIDE: the equation's other side may name entries standing
+-- AFTER the eliminated variable. A context is a telescope, so the
+-- variable changes places with them — each exchange licensed by the
+-- crossed entry not mentioning it — until the other side stands in
+-- its prefix. The values are pinned, since the permutation is exactly
+-- the kind of thing that elaborates while meaning something else.
+def slid : (u : ℕ) (v : ℕ) (h : ℕ) (w : u ≡ S v) → ℕ ≔ λu. λv. λh. λw. ≡-elim h u w
+def slidPins : slid 3 2 7 ⋆ ≡ 7 using (slid.eq) ≔ ⋆
+
+def slidFar : (p : ℕ) (u : ℕ) (m : ℕ) (v : ℕ) (h : ℕ) (w : u ≡ S v) →
+  ℕ × (ℕ × (ℕ × ℕ))
+  ≔ λp. λu. λm. λv. λh. λw. ≡-elim (p, (m, (v, h))) u w
+def slidFarPins : slidFar 1 5 2 4 8 ⋆ ≡ (1, (2, (4, 8))) ∈ ℕ × (ℕ × (ℕ × ℕ))
+  using (slidFar.eq) ≔ ⋆
+
+-- and the goal is refined at the other side all the same
+def slidGoal : (u : ℕ) (v : ℕ) (w : u ≡ S v) → u ≡ S v ∈ ℕ ≔ λu. λv. λw. ≡-elim ⋆ u w
