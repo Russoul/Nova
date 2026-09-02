@@ -121,6 +121,7 @@ parameters (rm : RenameMap, resolve : String -> String)
       SClass t => SClass (rnE t)
       SQuotElim mot a f q =>
         SQuotElim (map (\(z, m) => (z, rnT m)) mot) a (rnE f) (rnE q)
+      SSigmaElim nx ny b w => SSigmaElim nx ny (rnE b) (rnE w)
       SNuC f => SNuC (rnP f)
       SOut t => SOut (rnE t)
       SCorec x a f u => SCorec x (rnE a) (rnE f) (rnE u)

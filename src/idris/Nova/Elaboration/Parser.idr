@@ -266,6 +266,30 @@ foldGroups : (String -> a -> b -> b) -> List (String, a) -> b -> b
 foldGroups f [] b = b
 foldGroups f ((x, t) :: rest) b = f x t (foldGroups f rest b)
 
+||| The body of `sigma-elim (x y. t) w`, reindexed from the context it
+||| was PARSED against — the site's binders Γ₀ ▷ w ▷ Γ₁ with x and y
+||| pushed innermost — to the ELIMINATION context Γ₀ ▷ x ▷ y ▷ Γ₁,
+||| where w (index i at the site) is gone and its two components stand
+||| where it stood. Nothing when the body mentions w itself: that
+||| context has no such entry, and the operator wrote the wrong name.
+|||
+||| Parsing reads the body BEFORE the scrutinee, so the two-slot push
+||| is the only environment available at the time; this remap is what
+||| pays for the surface order (docs/NovaElaboration.txt, e-sigmaelim).
+sigmaElimBody : (i : Nat) -> SElem -> Maybe SElem
+sigmaElimBody i b = mapVarsE remap 0 b
+ where
+  remap : Nat -> Nat -> Maybe Nat
+  remap d k = case minus k d of
+    -- the two pushed slots: y innermost, then x — they land where w
+    -- stood, y at w's own index and x one further out
+    Z         => Just (i + d)
+    (S Z)     => Just (S i + d)
+    (S (S m)) =>
+      if m < i then Just (m + d)               -- inside Γ₁: unchanged
+      else if m == i then Nothing              -- w itself: eliminated
+      else Just (S m + d)                      -- inside Γ₀: one further out
+
 -- ===== Types and elements (mutually recursive) =====
 
 mutual
@@ -764,6 +788,26 @@ mutual
             f <- parseSElem tbl (env :< fst a); sp; kwc ')'; sp
             q <- parseSElemAtom tbl env
             pure (SQuotElim Nothing a f q))
+        -- sigma-elim (x y. t) w — the Σ VARIABLE elimination. The
+        -- body is parsed against the site's binders with x and y
+        -- pushed innermost (the scrutinee is only read after it), and
+        -- REINDEXED against the elimination context once w's index is
+        -- known: a name resolution, so it belongs here and not in the
+        -- elaborator (docs/NovaElaboration.txt, e-sigmaelim)
+    <|> (do kw "sigma-elim"; space; commit
+            kwc '('; sp; x <- parseNameR; space; y <- parseNameR; sp; kwc '.'; sp
+            b <- parseSElem tbl (env :< fst x :< fst y); sp; kwc ')'; sp
+            w <- parseSElemAtom tbl env
+            case unPos w of
+              SVar wrng nm i => case sigmaElimBody i b of
+                Just b' => pure (SSigmaElim x y b' w)
+                Nothing =>
+                  let msg = "a sigma-elim body free of '\{nm}' — the variable this eliminates, so the body's context has no such entry (its components are \{fst x} and \{fst y})" in
+                  maybe (fail msg) (\r => failLoc r msg) (posOf w <|> wrng)
+              -- not a variable: the elaborator says so, at the
+              -- scrutinee's own span. The body keeps its parse
+              -- indices; nothing ever reads them
+              _ => pure (SSigmaElim x y b w))
     <|> (do kw "squash-elim"; space
             e <- parseSElemAtom tbl env; sp
             kwc '('; sp; x <- parseNameR; sp; kwc '.'; sp

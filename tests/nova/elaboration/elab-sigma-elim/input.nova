@@ -1,0 +1,31 @@
+-- sigma-elim: the Σ VARIABLE elimination (docs/NovaElaboration.txt,
+-- e-sigmaelim). The body is elaborated where the scrutinee variable is
+-- GONE and its two components stand in its place; every entry after it
+-- — and the goal — is refined at the pair they form.
+def P : ℕ × ℕ → 𝕌 ≔ λq. ℕ
+def D : ℕ → 𝕌 ≔ λn. ℕ
+
+-- the plain case: no dependency on the variable anywhere
+def swap : (p : ℕ × ℕ) → ℕ × ℕ ≔ λp. sigma-elim (a b. b, a) p
+
+-- the GOAL mentions the variable: the motive is RECOVERED — the pair
+-- goes in where the variable stood, and the site's switch closes by
+-- el-sigma-eta
+def onWhole : (p : ℕ × ℕ) → p ≡ p ∈ ℕ × ℕ ≔ λp. sigma-elim (a b. ⋆) p
+
+-- an entry AFTER the variable mentions it, and so does the goal: both
+-- are refined, so the hypothesis is usable where it stands
+def onLater : (p : ℕ × ℕ) (n : ℕ) (q : P p) → P p
+  ≔ λp. λn. λq. sigma-elim (a b. q) p
+
+-- a DEPENDENT Σ, with a later entry stated through a projection
+def dep : (p : (x : ℕ) × D x) (q : D (p .π₁)) → D (p .π₁)
+  ≔ λp. λq. sigma-elim (x h. q) p
+
+-- nested, and used in INFERENCE position
+def fst3 : (p : (ℕ × ℕ) × ℕ) → ℕ ≔ λp. sigma-elim (u c. sigma-elim (a b. a) u) p
+def useInf : (p : ℕ × ℕ) → ℕ ≔ λp. S (sigma-elim (a b. a) p)
+
+-- a HOLE in the body: its goal is stated in the ELIMINATION context —
+-- p is gone, a and b stand where it stood, and q reads at the pair
+def hole : (p : ℕ × ℕ) (q : P p) → P p ≔ λp. λq. sigma-elim (a b. ?g) p

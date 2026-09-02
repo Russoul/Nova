@@ -295,6 +295,13 @@ record ElabSt where
   ||| (the defining-equation lemma family). Consulted only by the
   ||| strict-conversion join.
   eqScope : List String
+  ||| INLINE DEFINITIONS: Σ-names whose unfolding is licensed at EVERY
+  ||| site, citation-free — Σ-level lets. Machine-minted (a subterm
+  ||| elaborated in a context the site does not have, installed
+  ||| Π-closed), so the set is determined by the module's own text and
+  ||| scoped-discharge determinism survives; it grows with Σ and is
+  ||| never scoped or restored.
+  transp : List String
   ||| SITE-LOCAL candidates, merged into every candidate set while
   ||| set: the reflected link justifications of a calc chain (§5.2).
   ||| Ground, at the site's own context — set transiently, like scope.
@@ -365,7 +372,7 @@ record ElabSt where
   qiits : SnocList QIITInfo
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<]
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<]
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -377,6 +384,9 @@ sInferForm e0 = case unPos e0 of
   SHole _ _ => False
   SLam _ _ => False
   SLet _ _ _ => False
+  -- sigma-elim propagates the ambient mode to its body, like let: it
+  -- infers when the body does, and REFINES THE GOAL when there is one
+  SSigmaElim _ _ _ _ => False
   SPair _ _ => False
   SInj1 _ => False
   SInj2 _ => False
@@ -647,6 +657,19 @@ withLocal cs d act = do
   modifySt { localCands := cs, depthOv := Just d, scope := Just [] }
   r <- act
   modifySt { localCands := oldC, depthOv := oldD, scope := oldS }
+  pure r
+
+||| Run an action with EXTRA site-local candidates in front of the
+||| standing ones — `withLocal`'s ground half alone, without the
+||| chain's empty Σ-scope and depth override.
+withLocalCands : List Cand -> ElabM a -> ElabM a
+withLocalCands [] act = act
+withLocalCands cs act = do
+  st <- getSt
+  let old = st.localCands
+  modifySt { localCands := cs ++ old }
+  r <- act
+  modifySt { localCands := old }
   pure r
 
 -- ===== Small core utilities =====
@@ -1595,6 +1618,10 @@ expOK st x =
   surveyMode
     || elem "exp:*" st.eqScope
     || elem x st.eqScope || elem ("exp:" ++ x) st.eqScope
+    -- an inline definition unfolds citation-free: it stands for a
+    -- subterm the operator WROTE at the site, and blocking it would
+    -- hide their own text behind a machine name
+    || elem x st.transp
 
 mutual
   exposeE : ElabSt -> Elem -> Elem
@@ -1688,7 +1715,7 @@ engNfE st e = compElem e
 ||| site's licensed unfoldings — for positions that must stay in the
 ||| join vocabulary (hop residues).
 engJoinE : ElabSt -> Elem -> Elem
-engJoinE st e = compElem (unfElem st.sig True st.eqScope e)
+engJoinE st e = compElem (unfElem st.sig True (st.transp ++ st.eqScope) e)
 
 engNfT : ElabSt -> Ty -> Ty
 engNfT st t = compTy t
@@ -3552,6 +3579,128 @@ preferPrf st ctx ty = if kIsPropB st.kernelSig kernelFuel ctx ty
                 tyX@(Squash _) => (\e => (tyX, Just e)) <$> exposeCert st ctx ty tyX
                 _ => Nothing
 
+||| they cannot be accepted anyway.
+kernelAccept : String -> (Sig -> Either KErr SigEntry) -> Bool -> ElabM ()
+kernelAccept name check clean = do
+  st <- getSt
+  if not clean
+    then pure ()
+    else
+      let t0 = nowNs () in
+      let res = check st.kernelSig in
+      case bump "kitem" (nowNs () - t0) res of
+        Right entry => modifySt $ { kernelSig $= (:< entry) }
+        Left err => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
+
+wrapLams : Nat -> Elem -> Elem
+wrapLams Z e = e
+wrapLams (S n) e = PiIntro (wrapLams n e)
+
+||| A skeleton nested under n λ-binders (child 0 each time).
+nestSkel : Nat -> Skel -> Skel
+nestSkel Z sk = sk
+nestSkel (S n) sk = Nd [] [nestSkel n sk]
+
+-- ===== Inline definitions =====
+--
+-- A Σ-level LET: a subterm elaborated in a context the site does not
+-- have, installed as a machine-named Σ definition — Π-CLOSED, so its
+-- references weaken for free — and marked TRANSPARENT, so its
+-- unfolding is licensed everywhere without a citation.
+--
+-- The point is that a term and its CERTIFICATE travel together. A
+-- subterm elaborated in another context could otherwise only be moved
+-- by substituting it, and a substituted term no longer has the shape
+-- its skeleton records; an entry of its own keeps the two aligned and
+-- reduces the site to an ordinary application. `sigma-elim` is the
+-- caller (e-sigmaelim): its body is elaborated where the eliminated
+-- variable is gone.
+
+||| A machine name for an inline definition — `<item>#<role><n>`. The
+||| `#` is a spelling no surface identifier can take, so the entry can
+||| never collide with, or be referenced by, the operator's own names.
+||| `n` counts the item's inline definitions in the role, which makes
+||| the name a function of the module's text: reruns and the distill
+||| Σ-gate see the same Σ.
+inlineName : (item : String) -> (role : String) -> Nat -> SigIdentifier
+inlineName item role n = "\{item}#\{role}\{show n}"
+
+||| Π-closure of a type over a context, innermost binder first.
+piClose : Ctx -> Ty -> Ty
+piClose [<] t = t
+piClose (c :< a) t = piClose c (PiTy a t)
+
+||| The first unused name in the role's counting sequence. The count
+||| is a function of the module's text, so it is stable between runs;
+||| the scan past a taken name is the guard that keeps it a NAME —
+||| a state that already holds one (a trial re-elaborating an item, a
+||| macro's second pass) must not have it shadowed.
+freeName : Sig -> (item, role : String) -> (fuel : Nat) -> Nat -> String
+freeName sig item role Z n = inlineName item role n
+freeName sig item role (S f) n =
+  let q = inlineName item role n in
+  case sigLookup q sig of
+    Nothing => q
+    Just _ => freeName sig item role f (S n)
+
+||| Install an inline definition — `ctx ⊦ body : ty`, Π-closed and
+||| kernel-checked as an ordinary item — and return the Σ NAME it took.
+||| The caller references it by an ordinary application spine, which is
+||| what keeps the site's own certificate ordinary.
+emitInlineDef : Site -> (role : String) -> Ctx -> Ty -> Elem -> Skel -> ElabM String
+emitInlineDef site role ctx ty body bodySk = do
+  st <- getSt
+  let item = if st.modPrefix == "" then st.curItem else "\{st.modPrefix}.\{st.curItem}"
+  let pfx = "\{item}#\{role}"
+  let n = length (filter (\e => maybe False (isPrefixOf pfx) (sigEntryName e)) (toList st.sig))
+  let q = freeName st.sig item role 64 n
+  let k = length ctx
+  let cty = piClose ctx ty
+  let cbody = wrapLams k body
+  after <- oblCount
+  kernelAccept "\{site} \{q}"
+    (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] cty (Nd [] []) cbody (nestSkel k bodySk)))
+    (after == 0)
+  modifySt $ { sig $= (:< SigDef [<] q cbody cty), transp $= (q ::) }
+  pure q
+
+-- ===== Σ-variable elimination (e-sigmaelim) =====
+--
+-- The context surgery `sigma-elim` runs on. Everything here is index
+-- arithmetic over the two substitutions the rule names:
+--
+--   PAIR   Γ₀ ▷ A ▷ B ⇒ Γ₀ ▷ (A × B)    (↑∘↑, (☐₁, ☐₀))
+--          — refines the entries AFTER the variable, and the goal
+--   SPLIT  Γ₀ ▷ (A × B) ⇒ Γ₀ ▷ A ▷ B    (↑, ☐₀ .π₁, ☐₀ .π₂)
+--          — carries the elaborated body back to the site
+--
+-- and their composite is (id, (☐₀ .π₁, ☐₀ .π₂)) — the identity by
+-- el-sigma-eta, which is the rule's whole content and the one
+-- conversion the site pays for.
+
+||| Split a context at a variable index: Γ₀, the variable's type over
+||| Γ₀, and the i entries standing after it (outermost first, each in
+||| its own scope).
+ctxSplitAt : Nat -> SnocList a -> Maybe (SnocList a, a, SnocList a)
+ctxSplitAt _ [<] = Nothing
+ctxSplitAt Z (g :< w) = Just (g, w, [<])
+ctxSplitAt (S k) (g :< a) = map (\(g0, w, g1) => (g0, w, g1 :< a)) (ctxSplitAt k g)
+
+||| σ⁺ⁿ — a substitution lifted past n binders.
+underN : Nat -> Sub -> Sub
+underN Z s = s
+underN (S n) s = under (underN n s)
+
+||| base+count-1, …, base — a run of indices, OUTERMOST first: the
+||| order an argument spine takes them in.
+idxDesc : (count : Nat) -> (base : Nat) -> List Nat
+idxDesc Z _ = []
+idxDesc (S n) base = (base + n) :: idxDesc n base
+
+||| The PAIRING substitution Γ₀ ▷ A ▷ B ⇒ Γ₀ ▷ (A × B) — (↑∘↑, (☐₁, ☐₀)).
+sigmaPairSub : Sub
+sigmaPairSub = Ext (Chain Wk Wk) (SigmaIntro (CtxVar 1) (CtxVar 0))
+
 ||| Attach a PExpose payload when exposure happened by normalization.
 withExpose : Maybe (Ty, ECert) -> Skel -> Skel
 withExpose Nothing sk = sk
@@ -3839,6 +3988,11 @@ mutual
     let hyp = Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk)
     (b', bTy, bSk) <- inferElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
     pure (Let e' b', substTy bTy (Ext (Ext Id e') Star), Nd [] [eSk, bSk])
+  inferElemAt ctx env site (SSigmaElim nx ny body w) = do
+    -- e-sigmaelim-infer: the body's own type, read back at the site
+    -- through the split spine. No motive is written and none is
+    -- needed — there is no goal to abstract
+    elabSigmaElim ctx env site nx ny body w Nothing
   inferElemAt ctx env site (SNatElim Nothing _ _ _ _ _) =
     throwAt site.srange "\{site}: ℕ-elim without a motive infers nothing — write (n. T), or use it in checking position"
   inferElemAt ctx env site (SSumElim Nothing _ _ _ _ _) =
@@ -3974,6 +4128,137 @@ mutual
     throwAt site.srange "\{site}: cannot infer the type of class\{structuralHint ()}"
   inferElemAt ctx env site (SZeroElim _) =
     throwAt site.srange "\{site}: cannot infer the type of 𝟘-elim\{structuralHint ()}"
+
+  ||| The η-equation the elimination site spends: an inline lemma
+  ||| `(☐ᵢ .π₁, ☐ᵢ .π₂) ≡ ☐ᵢ`, Π-closed over the site's own context,
+  ||| REFLECTED into a ground rewrite rule at that context.
+  |||
+  ||| A rewrite rule, not a license, because of WHERE the equation is
+  ||| owed. el-sigma-eta closes a conversion whose two sides ARE the
+  ||| pair and the variable, but the site's sides are a goal with the
+  ||| variable in it — under a stuck head, in general — and a
+  ||| congruence descent cannot carry an η final through (certificate
+  ||| assembly flattens step-based children only). As a rule it acts
+  ||| wherever the pair stands, which is exactly what the elimination
+  ||| needs and all it needs.
+  |||
+  ||| The lemma's OWN proof is the direct one: ⋆ at an equation whose
+  ||| two sides sit at a × type, where el-sigma-eta applies on the
+  ||| nose. If even that does not close (a variable whose × head only
+  ||| a store rewrite exposes), the site goes without: its conversions
+  ||| then stand or fall as any other's, and no obligation of ours is
+  ||| left behind.
+  sigmaEtaCand : Ctx -> NameEnv -> Site -> (i : Nat) -> (a, b : Ty) -> ElabM (List Cand)
+  sigmaEtaCand ctx env site i a b = map (fromMaybe []) (attemptM build)
+   where
+    ||| The lemma, its entry and the rule — or nothing at all. Both
+    ||| escapes restore the state they started from: a lemma that
+    ||| left an obligation would report a question nobody asked, and
+    ||| one the kernel refused (a × head only a store rewrite exposes
+    ||| — the kernel has no such rewrites) must not take the item
+    ||| down with it.
+    build : ElabM (List Cand)
+    build = do
+      before <- getSt
+      n0 <- oblCount
+      let wv = CtxVar i
+      let pairTy = substTy (Elem.SigmaTy a b) (wkN (S i))
+      let etaTy = Elem.EqTy (SigmaIntro (SigmaElim1 wv) (SigmaElim2 wv)) wv pairTy
+      -- the discharge needs el-sigma-eta and NOTHING else: no store,
+      -- so the site pays a fixed cost whatever the module holds
+      (prf, prfSk) <- withScope (Just []) (withEqScope ["sigma.eta"]
+                        (checkElem ctx env site (SStar Nothing) etaTy))
+      q <- emitInlineDef site "η" ctx etaTy prf prfSk
+      n1 <- oblCount
+      if n1 /= n0
+        then do modifySt (const before); pure []
+        else do
+          st <- getSt
+          let ref = foldl PiApp (SigVar q [<]) (toList (varSpine (length ctx)))
+          pure (closeCand (MkCand "sigma-eta" 0 []
+                  (engNfE st (SigmaIntro (SigmaElim1 wv) (SigmaElim2 wv))) (engNfE st wv)
+                  (\wk, _ => Just (weakenElemN wk ref, [])) [] []))
+
+  ||| e-sigmaelim — the Σ VARIABLE elimination, in both modes.
+  |||
+  ||| The body is elaborated in the ELIMINATION context: the scrutinee
+  ||| variable gone, its two components standing where it stood, every
+  ||| entry after it (and, in checking mode, the goal) refined at the
+  ||| pair they form. That is the whole point — a hole or an obligation
+  ||| the body leaves is stated in the context the operator asked for,
+  ||| with no mention of the variable they eliminated.
+  |||
+  ||| The result travels back as an INLINE DEFINITION applied to the
+  ||| split spine (☐₀ .π₁, ☐₀ .π₂ at the variable's slot): the body's
+  ||| certificate stays with its own context, and the site is an
+  ||| ordinary application, elaborated as ordinary surface. What that
+  ||| spine owes is el-sigma-eta at the variable — the rule's entire
+  ||| content — so the site brings its own: `sigmaEtaCand`'s rule, plus
+  ||| the `sigma.eta` license for the sides that are the pair and the
+  ||| variable outright. Neither is asked of the item's using clause.
+  elabSigmaElim : Ctx -> NameEnv -> Site -> (nx, ny : SName) ->
+                  (body : SElem) -> (scrutinee : SElem) -> Maybe Ty ->
+                  ElabM (Elem, Ty, Skel)
+  elabSigmaElim ctx env site (xn, xr) (yn, yr) body w mty = do
+    st <- getSt
+    case unPos w of
+      SVar wrng nm i => case (ctxSplitAt i ctx, ctxSplitAt i env) of
+        (Just (g0, wty, g1), Just (env0, _, env1)) =>
+          case preferSigma st g0 wty of
+            Nothing =>
+              throwShape site env "sigma-elim eliminates a variable of type"
+                (substTy wty (wkN (S i))) "a × type"
+            Just (a, b, _) => do
+              -- the elimination context, and the pairing substitution
+              -- that carries a type over Γ into it
+              let pair = underN i sigmaPairSub
+              let ctx' = refine (g0 :< a :< b) 0 (toList g1)
+              let env' = (env0 :< xn :< yn) <>< toList env1
+              recordBinder xr g0 env0 xn a
+              recordBinder yr (g0 :< a) (env0 :< xn) yn b
+              etaCands <- sigmaEtaCand ctx env site i a b
+              (body', bodyTy, bodySk) <- the (ElabM (Elem, Ty, Skel)) $ case mty of
+                Just ty => do
+                  (t, sk) <- checkElem ctx' env' site body (compTy (substTy ty pair))
+                  pure (t, compTy (substTy ty pair), sk)
+                Nothing => inferElem ctx' env' site body
+              q <- emitInlineDef site "σ" ctx' bodyTy body' bodySk
+              -- the site: the definition at the SPLIT spine
+              let wv = SVar wrng nm i
+              let args = svars env0 (S i) ++ [SProj1 wv, SProj2 wv] ++ svars env1 0
+              let spine = foldl SApp (SSig Nothing q) args
+              withLocalCands etaCands $
+                withEqScope ("sigma.eta" :: "rw:sigma-eta" :: st.eqScope) $
+                  the (ElabM (Elem, Ty, Skel)) $ case mty of
+                    Just ty => do
+                      (t, sk) <- checkElem ctx env site spine ty
+                      pure (t, ty, sk)
+                    Nothing => inferElem ctx env site spine
+        _ => throwAt (wrng <|> site.srange)
+               "\{site}: internal: sigma-elim's scrutinee index escapes Γ"
+      _ => throwAt (headRange w <|> site.srange)
+             ("\{site}: sigma-elim eliminates a VARIABLE of a × type — this scrutinee is not one"
+               ++ " (name it first: `let w ≔ …` , or project with .π₁ / .π₂)")
+   where
+    ||| The entries standing after the variable, each refined at the
+    ||| pair — one lift of the pairing substitution per entry crossed,
+    ||| then β-CONTRACTED. The contraction is not cosmetic: the pair
+    ||| lands wherever the variable stood, so `w .π₁` becomes
+    ||| `(x, y) .π₁`, and a bare pair is not INFERABLE — in the core
+    ||| as on the surface — so a projection of one left standing is a
+    ||| type the kernel cannot check. Display normalizes the same way,
+    ||| so nothing the operator reads changes.
+    refine : Ctx -> Nat -> List Ty -> Ctx
+    refine acc j [] = acc
+    refine acc j (c :: cs) = refine (acc :< compTy (substTy c (underN j sigmaPairSub))) (S j) cs
+
+    ||| A run of surface variables, outermost first: the argument
+    ||| spine for a stretch of the context that the elimination left
+    ||| exactly where it was.
+    svars : SnocList String -> (base : Nat) -> List SElem
+    svars names base =
+      let ns = toList names in
+      zipWith (\n, d => SVar Nothing n d) ns (idxDesc (length ns) base)
 
   export
   checkElem : Ctx -> NameEnv -> Site -> SElem -> Ty -> ElabM (Elem, Skel)
@@ -4287,6 +4572,13 @@ mutual
                 (body', bodySk) <- checkElem (ctx :< a) (env :< fst xn) site body (substTy q Wk)
                 pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
           _ => throwShape site env "squash-elim scrutinee has type" eTy "a ∥∥ proposition"
+  checkElemAt ctx env site (SSigmaElim nx ny body w) ty = do
+    -- CHECKING: the motive is RECOVERED — abstracting the eliminated
+    -- variable in the expected type is exactly substituting the pair
+    -- for it, so the body is checked at the refined goal and nothing
+    -- is searched for
+    (t, _, sk) <- elabSigmaElim ctx env site nx ny body w (Just ty)
+    pure (t, sk)
   checkElemAt ctx env site (SLet (x, xr) e b) ty = do
     -- e-let-check: let PROPAGATES the ambient mode to its body (a
     -- checking-only body form works under a let without ascription).
@@ -5455,19 +5747,6 @@ addLemma name delta ty = withEqScope ["exp:*"] $ do
               , candRest := re, candHops := hp, candRw := sh ++ re } st'
     _ => pure ()
 
-||| they cannot be accepted anyway.
-kernelAccept : String -> (Sig -> Either KErr SigEntry) -> Bool -> ElabM ()
-kernelAccept name check clean = do
-  st <- getSt
-  if not clean
-    then pure ()
-    else
-      let t0 = nowNs () in
-      let res = check st.kernelSig in
-      case bump "kitem" (nowNs () - t0) res of
-        Right entry => modifySt $ { kernelSig $= (:< entry) }
-        Left err => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
-
 liftQE : Site -> Either QErr a -> ElabM a
 liftQE site (Left e) = throwAt site.srange "\{site}: \{e}"
 liftQE site (Right x) = pure x
@@ -5502,15 +5781,6 @@ emitCoreTyDef site x ty tySk = do
     (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q ty TopTy) }
   addVis (x, q)
-
-wrapLams : Nat -> Elem -> Elem
-wrapLams Z e = e
-wrapLams (S n) e = PiIntro (wrapLams n e)
-
-||| A skeleton nested under n λ-binders (child 0 each time).
-nestSkel : Nat -> Skel -> Skel
-nestSkel Z sk = sk
-nestSkel (S n) sk = Nd [] [nestSkel n sk]
 
 ||| A skeleton nested under n Π-binders on the CODOMAIN side (child 1
 ||| each time, empty domains).
