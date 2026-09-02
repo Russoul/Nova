@@ -461,7 +461,16 @@ quotient that relates its representative), and ⇒ᴺ refuses intro
 heads — the historical exploits stay dead. Binder-crossing paths are
 excluded because the descent does not track crossed binders' types
 (the subterm's variables could not be resolved against Γ); that
-residue is an approximation in A1's spirit. The rule is what lets a
+residue is an approximation in A1's spirit. The SAME exclusion
+governs the ⇒ᴺ entries of the child-type table below, which are read
+off a neutral subterm at a position the descent may already have
+carried under binders: the subterm is strengthened past them first,
+so one standing clear of them types the position as it does at the
+site, and one that NAMES a crossed binder leaves the position
+undetermined (—). Reading such a child off Γ at the shifted indices
+would resolve a different entry and hand the positional check a type
+that was never the position's — a spurious mismatch, at a check whose
+whole job is to be exact. The rule is what lets a
 rewrite land inside an ARGUMENT of a stuck eliminator spine — the
 head's type needs the lost motive, but the argument being rewritten
 is typically a variable-headed spine that types itself. The child-type table (parent's expected

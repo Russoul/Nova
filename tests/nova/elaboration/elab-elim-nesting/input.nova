@@ -28,3 +28,24 @@ def hPins : h (inj₁ 7) (0, 0) ≡ 7 using (h.eq) ≔ ⋆
 def k : (p : ℕ × ℕ) (x : ℕ) (w : x ≡ Z) → ℕ
   ≔ λp. λx. λw. sigma-elim (a b. ≡-elim a x w) p
 def kPins : k (5, 0) Z ⋆ ≡ 5 using (k.eq) ≔ ⋆
+
+-- AND THE POSITION'S OWN TYPE. A goal component may stand under a
+-- binder the replay descends through — the SECOND component of a Σ is
+-- the everyday case — and the child types the kernel reads off a
+-- neutral subterm there are read at shifted indices. Resolving them
+-- against Γ as if the binder were not crossed picks a different entry,
+-- and the step is refused against a type that was never the
+-- position's. Both spellings below are the same equation; only the
+-- side of the × differs.
+def st : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
+def underSnd : {a : 𝕌} (v : st a) (u : st a)
+  (e : u ≡ corec (p : a × st a. p .π₁, out (p .π₂)) (out v) ∈ st a)
+  → ∥𝟙 × (out u .π₂ ≡ corec (p : a × st a. p .π₁, out (p .π₂)) (out (out v .π₂)) ∈ st a)∥
+  using (st.unfold) ≔
+  λa. λv. λu. λe. ≡-elim (⋆ ((), ⋆)) u e
+
+def underFst : {a : 𝕌} (v : st a) (u : st a)
+  (e : u ≡ corec (p : a × st a. p .π₁, out (p .π₂)) (out v) ∈ st a)
+  → ∥(out u .π₂ ≡ corec (p : a × st a. p .π₁, out (p .π₂)) (out (out v .π₂)) ∈ st a) × 𝟙∥
+  using (st.unfold) ≔
+  λa. λv. λu. λe. ≡-elim (⋆ (⋆, ())) u e
