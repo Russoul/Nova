@@ -4067,7 +4067,19 @@ mutual
   inferElemAt ctx env site SZeroC = pure (Elem.ZeroTy, UniverseTy, Nd [] [])
   inferElemAt ctx env site SOneC = pure (Elem.OneTy, UniverseTy, Nd [] [])
   inferElemAt ctx env site SNatC = pure (Elem.NatTy, UniverseTy, Nd [] [])
+  -- 𝕌 and Ω AS TERMS: typed at 𝕍 (the kernel's checkTyP takes them as
+  -- types and gives them no inference rule of their own). Inferring
+  -- 𝕍 here is what makes a code position REJECT them — `K 𝕌` fails
+  -- the 𝕌-check it is asked for, rather than failing to parse.
+  inferElemAt ctx env site SUnivC = pure (Elem.UniverseTy, TopTy, Nd [] [])
+  inferElemAt ctx env site SPropC = pure (Elem.PropTy, TopTy, Nd [] [])
   inferElemAt ctx env site (SPiC x a b) = do
+    (a', aSk) <- checkElem ctx env site a UniverseTy
+    (b', bSk) <- checkElem (ctx :< a') (env :< x) site b UniverseTy
+    pure (Elem.PiTy a' b', UniverseTy, Nd [] [aSk, bSk])
+  -- an implicit binder infers exactly as an explicit one: the core is
+  -- bare, implicitness is per-def METADATA (ElabSt.impls)
+  inferElemAt ctx env site (SImpPiC x a b) = do
     (a', aSk) <- checkElem ctx env site a UniverseTy
     (b', bSk) <- checkElem (ctx :< a') (env :< x) site b UniverseTy
     pure (Elem.PiTy a' b', UniverseTy, Nd [] [aSk, bSk])

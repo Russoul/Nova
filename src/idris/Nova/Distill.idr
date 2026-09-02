@@ -273,6 +273,7 @@ mutual
     SLam _ _ => CPrefix
     SLet _ _ _ => CPrefix
     SPiC _ _ _ => CNoComma
+    SImpPiC _ _ _ => CNoComma
     SSigmaC x _ _ => if x == wildcard then CProdC else CNoComma
     SQuotC _ _ _ _ => CNoComma
     SEqC _ _ _ _ => CNoComma
@@ -430,14 +431,15 @@ mutual
          Just ty => txt " ∈ " <-> pt tbl TArrow False ty
          Nothing => DNil)
     SSumC a b => pe tbl LProdC False a <-> txt " ⊎ " <-> pe tbl LSumC tr b
+    SImpPiC x a b => piCRun tbl tr [(True, x, a)] b
     SPiC x a b =>
       if x == wildcard
         then pe tbl LSumC False a <-> txt " → " <-> pe tbl LNoComma tr b
-        else piCRun tbl tr [(x, a)] b
+        else piCRun tbl tr [(False, x, a)] b
     SSigmaC x a b =>
       if x == wildcard
         then pe tbl LOp0 False a <-> txt " × " <-> pe tbl LProdC tr b
-        else sigmaCRun tbl tr [(x, a)] b
+        else sigmaCRun tbl tr [(False, x, a)] b
     SQuotC a (x, _) (y, _) r =>
       pe tbl LSumC False a <-> txt " / (\{x} \{y}. " <-> pe tbl LNoComma True r <-> txt ")"
     SVar _ x _ => txt x
@@ -449,6 +451,8 @@ mutual
     SZeroC => txt "𝟘"
     SOneC => txt "𝟙"
     SNatC => txt "ℕ"
+    SUnivC => txt "𝕌"
+    SPropC => txt "Ω"
     SAnn t ty => dparen (pe tbl LPair True t <-> txt " : " <-> pt tbl TTop True ty)
     SImpArg t => txt "{" <-> pe tbl LPair True t <-> txt "}"
     SNoIns t => pe tbl LApp False t <-> txt " {}"
@@ -486,16 +490,16 @@ mutual
         else (imp, names, first) :: coalesceTys ((imp', y, b) :: more)
     go names first prev [] = [(imp, names, first)]
 
-  coalesceElems : List (String, SElem) -> List (List String, SElem)
+  coalesceElems : List (Bool, String, SElem) -> List (Bool, List String, SElem)
   coalesceElems [] = []
-  coalesceElems ((x, a) :: rest) = go [x] a a rest
+  coalesceElems ((imp, x, a) :: rest) = go [x] a a rest
    where
-    go : List String -> SElem -> SElem -> List (String, SElem) -> List (List String, SElem)
-    go names first prev ((y, b) :: more) =
-      if show b == show (shiftElem 0 prev)
+    go : List String -> SElem -> SElem -> List (Bool, String, SElem) -> List (Bool, List String, SElem)
+    go names first prev ((imp', y, b) :: more) =
+      if imp' == imp && show b == show (shiftElem 0 prev)
         then go (names ++ [y]) first b more
-        else (names, first) :: coalesceElems ((y, b) :: more)
-    go names first prev [] = [(names, first)]
+        else (imp, names, first) :: coalesceElems ((imp', y, b) :: more)
+    go names first prev [] = [(imp, names, first)]
 
   ||| Compact a run of consecutively NAMED Π-binders into binder
   ||| groups — `(x y : A) (z : B) → C` — the corpus idiom; the
@@ -531,23 +535,26 @@ mutual
                DNest 2 (DLine <-> txt "\{arrow} " <-> pt tbl TTop True cod))
 
   ||| The 𝕌-code counterpart (parseBinderGroupsC folds the same way).
-  piCRun : FixTable -> (tr : Bool) -> List (String, SElem) -> SElem -> Doc
+  piCRun : FixTable -> (tr : Bool) -> List (Bool, String, SElem) -> SElem -> Doc
   piCRun tbl tr acc (SPiC x a b) =
     if x /= wildcard
-      then piCRun tbl tr (acc ++ [(x, a)]) b
+      then piCRun tbl tr (acc ++ [(False, x, a)]) b
       else cRunEnd tbl tr "→" acc (SPiC x a b)
+  piCRun tbl tr acc (SImpPiC x a b) = piCRun tbl tr (acc ++ [(True, x, a)]) b
   piCRun tbl tr acc cod = cRunEnd tbl tr "→" acc cod
 
-  sigmaCRun : FixTable -> (tr : Bool) -> List (String, SElem) -> SElem -> Doc
+  sigmaCRun : FixTable -> (tr : Bool) -> List (Bool, String, SElem) -> SElem -> Doc
   sigmaCRun tbl tr acc (SSigmaC x a b) =
     if x /= wildcard
-      then sigmaCRun tbl tr (acc ++ [(x, a)]) b
+      then sigmaCRun tbl tr (acc ++ [(False, x, a)]) b
       else cRunEnd tbl tr "×" acc (SSigmaC x a b)
   sigmaCRun tbl tr acc cod = cRunEnd tbl tr "×" acc cod
 
-  cRunEnd : FixTable -> (tr : Bool) -> (arrow : String) -> List (String, SElem) -> SElem -> Doc
+  cRunEnd : FixTable -> (tr : Bool) -> (arrow : String) -> List (Bool, String, SElem) -> SElem -> Doc
   cRunEnd tbl tr arrow acc cod =
-    let groups = map (\(ns, a) => dparen (txt (joinBy " " ns) <-> txt " : " <-> pe tbl LPair True a))
+    let groups = map (\(imp, ns, a) =>
+                       let inner = txt (joinBy " " ns) <-> txt " : " <-> pe tbl LPair True a in
+                       if imp then txt "{" <-> inner <-> txt "}" else dparen inner)
                      (coalesceElems acc)
     in DGroup (concatDoc (intersperse (DNest 2 DLine) groups) <->
                DNest 2 (DLine <-> txt "\{arrow} " <-> pe tbl LNoComma tr cod))
@@ -939,7 +946,10 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
       SZeroC => e
       SOneC => e
       SNatC => e
+      SUnivC => e
+      SPropC => e
       SPiC x a b => SPiC x (esE a) (esE b)
+      SImpPiC x a b => SImpPiC x (esE a) (esE b)
       SSigmaC x a b => SSigmaC x (esE a) (esE b)
       SSumC a b => SSumC (esE a) (esE b)
       SQuotC a x y r => SQuotC (esE a) x y (esE r)

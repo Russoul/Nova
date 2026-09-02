@@ -107,8 +107,21 @@ mutual
     SZeroC : SElem
     SOneC : SElem
     SNatC : SElem
+    ||| 𝕌 and Ω AS TERMS. They are typed at 𝕍, not at 𝕌 — the kernel
+    ||| accepts them as types (checkTyP) and gives them no inference
+    ||| rule of their own — so they reach a code position only to be
+    ||| REJECTED there, which is the point: `K 𝕌` becomes a type error
+    ||| instead of a parse error (docs/NovaElaboration.txt, THE TERM
+    ||| GRAMMAR MERGE)
+    SUnivC : SElem
+    SPropC : SElem
     ||| (x:t) → u  (code)
     SPiC : (name : String) -> SElem -> SElem -> SElem
+    ||| {x:t} → u  (code) — an IMPLICIT Π-binder, elaborating exactly
+    ||| as SPiC (the core is bare; implicitness is per-def metadata).
+    ||| The type level's STyImpPi twin, needed at the element level
+    ||| for the same reason every other former has one
+    SImpPiC : (name : String) -> SElem -> SElem -> SElem
     ||| (x:t) × u  (code)
     SSigmaC : (name : String) -> SElem -> SElem -> SElem
     ||| t ⊎ u  (code — non-dependent, no binder)
@@ -300,7 +313,10 @@ mutual
   stripPos SZeroC = SZeroC
   stripPos SOneC = SOneC
   stripPos SNatC = SNatC
+  stripPos SUnivC = SUnivC
+  stripPos SPropC = SPropC
   stripPos (SPiC x a b) = SPiC x (stripPos a) (stripPos b)
+  stripPos (SImpPiC x a b) = SImpPiC x (stripPos a) (stripPos b)
   stripPos (SSigmaC x a b) = SSigmaC x (stripPos a) (stripPos b)
   stripPos (SSumC a b) = SSumC (stripPos a) (stripPos b)
   stripPos (SQuotC a x y r) = SQuotC (stripPos a) x y (stripPos r)
@@ -397,7 +413,10 @@ mutual
   mapVarsE f d SZeroC = Just SZeroC
   mapVarsE f d SOneC = Just SOneC
   mapVarsE f d SNatC = Just SNatC
+  mapVarsE f d SUnivC = Just SUnivC
+  mapVarsE f d SPropC = Just SPropC
   mapVarsE f d (SPiC x a b) = [| SPiC (pure x) (mapVarsE f d a) (mapVarsE f (S d) b) |]
+  mapVarsE f d (SImpPiC x a b) = [| SImpPiC (pure x) (mapVarsE f d a) (mapVarsE f (S d) b) |]
   mapVarsE f d (SSigmaC x a b) = [| SSigmaC (pure x) (mapVarsE f d a) (mapVarsE f (S d) b) |]
   mapVarsE f d (SSumC a b) = [| SSumC (mapVarsE f d a) (mapVarsE f d b) |]
   mapVarsE f d (SQuotC a x y r) =
@@ -506,6 +525,8 @@ mutual
   headRange SZeroC = Nothing
   headRange SOneC = Nothing
   headRange SNatC = Nothing
+  headRange SUnivC = Nothing
+  headRange SPropC = Nothing
   -- spines and wrappers: the head carries the position
   -- an argument's span is better than none: a head with no range
   -- of its own (a numeral, say) still places the spine
@@ -529,6 +550,7 @@ mutual
   headRange (SNuC f) = headRangePoly f
   headRange (SSumC a b) = headRange a <|> headRange b
   headRange (SPiC _ a _) = headRange a
+  headRange (SImpPiC _ a _) = headRange a
   headRange (SSigmaC _ a _) = headRange a
   headRange (SQuotC a _ _ _) = headRange a
   -- binders: the bound name's own span
@@ -838,7 +860,10 @@ mutual
     show SZeroC = "𝟘c"
     show SOneC = "𝟙c"
     show SNatC = "ℕc"
+    show SUnivC = "𝕌"
+    show SPropC = "Ω"
     show (SPiC x a b) = "PiC \{x} (\{show a}) (\{show b})"
+    show (SImpPiC x a b) = "ImpPiC \{x} (\{show a}) (\{show b})"
     show (SSigmaC x a b) = "SigmaC \{x} (\{show a}) (\{show b})"
     show (SSumC a b) = "SumC (\{show a}) (\{show b})"
     show (SQuotC a x y r) = "QuotC (\{show a}) \{fst x} \{fst y} (\{show r})"

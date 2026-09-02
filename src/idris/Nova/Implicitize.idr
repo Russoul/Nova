@@ -207,7 +207,10 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
       SZeroC => e
       SOneC => e
       SNatC => e
+      SUnivC => e
+      SPropC => e
       SPiC x a b => SPiC x (xfE a) (xfE b)
+      SImpPiC x a b => SImpPiC x (xfE a) (xfE b)
       SSigmaC x a b => SSigmaC x (xfE a) (xfE b)
       SSumC a b => SSumC (xfE a) (xfE b)
       SQuotC a x y r => SQuotC (xfE a) x y (xfE r)
@@ -515,7 +518,10 @@ sitesOfUnit resolve q u = concatMap (\(_, it) => goItem it) u.mitems
       SZeroC => []
       SOneC => []
       SNatC => []
+      SUnivC => []
+      SPropC => []
       SPiC _ a b => goE a ++ goE b
+      SImpPiC _ a b => goE a ++ goE b
       SSigmaC _ a b => goE a ++ goE b
       SSumC a b => goE a ++ goE b
       SQuotC a _ _ r => goE a ++ goE r
