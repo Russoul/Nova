@@ -11,3 +11,6 @@ def notEq : (x : ℕ) (w : ℕ) → ℕ ≔ λx. λw. ≡-elim Z x w
 -- the other side must stand OUTSIDE the variable's own entry
 def notOutside : (x : ℕ) (w : x ≡ S x) → ℕ ≔ λx. λw. ≡-elim Z x w
 -- the proof may not name what it eliminates (see scope.nova)
+-- BLOCKED: the entry that would have to be crossed names the variable
+-- itself, so no order of the context puts the other side first
+def blocked : (u : ℕ) (k : ℕ ≡ u ∈ 𝕌) (v : ℕ) (w : u ≡ S v) → ℕ ≔ λu. λk. λv. λw. ≡-elim Z u w

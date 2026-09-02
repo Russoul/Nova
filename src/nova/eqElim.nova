@@ -42,3 +42,11 @@ def proofNamed : (x : ℕ) (w : x ≡ Z) → w ≡ w ≔ λx. λw. ≡-elim ⋆ 
 -- constant: here it names an earlier hypothesis
 def atTerm : (n x : ℕ) (h : x + x ≡ x) (w : x ≡ n + n) → n + n + (n + n) ≡ n + n ≔
   λn. λx. λh. λw. ≡-elim h x w
+
+-- THE SLIDE: the equation's other side may name entries standing
+-- AFTER the eliminated variable. A context is a telescope, so the
+-- variable changes places with them — each exchange licensed by the
+-- crossed entry not mentioning it — until that side stands in its
+-- prefix. Here n is bound after x, and x slides past it
+def slid : (x n : ℕ) (h : x + x ≡ x) (w : x ≡ n + n) → n + n + (n + n) ≡ n + n ≔
+  λx. λn. λh. λw. ≡-elim h x w

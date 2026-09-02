@@ -9,6 +9,11 @@ defined hole [+1 declaration]
 defined large
 defined proofInGoal
 defined proofInHyp
+defined slid
+defined slidPins
+defined slidFar
+defined slidFarPins
+defined slidGoal
 open holes (1):
   [?g] (h : (P Z)) ⊢ ?g : (P Z)
       at: input.nova:25:69: def hole
@@ -33,11 +38,18 @@ errors.nova:10:43: error: def notEq: ≡-elim: 'w' has type ℕ, which is not an
 10 | def notEq : (x : ℕ) (w : ℕ) → ℕ ≔ λx. λw. ≡-elim Z x w
    |                                           ^^^^^^^^^^^^
 declared notEq [+1 declaration]
-errors.nova:12:63: error: def notOutside: ≡-elim: the other side of 'w' mentions 'x' or a hypothesis after it, so it does not stand where the elimination needs it
+errors.nova:12:63: error: def notOutside: ≡-elim: the other side of 'w' cannot stand before 'x' — it names 'x' itself, or a hypothesis that does, so no order of the context puts it first
 12 | def notOutside : (x : ℕ) (w : x ≡ S x) → ℕ ≔ λx. λw. ≡-elim Z x w
    |                                                               ^
 declared notOutside [+1 declaration]
-open declarations (6):
+errors.nova:16:92: error: def blocked: ≡-elim: the other side of 'w' cannot stand before 'u' — it names 'u' itself, or a hypothesis that does, so no order of the context puts it first
+16 | def blocked : (u : ℕ) (k : ℕ ≡ u ∈ 𝕌) (v : ℕ) (w : u ≡ S v) → ℕ ≔ λu. λk. λv. λw. ≡-elim Z u w
+   |                                                                                            ^
+declared blocked [+1 obligation, +1 declaration]
+open obligations (1):
+  [1] (u : ℕ) ⊢ ℕ ≐ 𝕌 type
+      at: errors.nova:16:32: def blocked: inferred vs expected type
+open declarations (7):
   [notVar] ⊢ ? : (n:ℕ) → (n ≡ Z ∈ ℕ) → ℕ
       at: errors.nova:2:1: def notVar
   [notHyp] ⊢ ? : (n:ℕ) → (n ≡ Z ∈ ℕ) → ℕ
@@ -50,7 +62,9 @@ open declarations (6):
       at: errors.nova:10:1: def notEq
   [notOutside] ⊢ ? : (n:ℕ) → (n ≡ S n ∈ ℕ) → ℕ
       at: errors.nova:12:1: def notOutside
-Error: 6 items failed to elaborate
+  [blocked] ⊢ ? : (n:ℕ) → (ℕ ≡ n ∈ 𝕌) → (m:ℕ) → (n ≡ S m ∈ ℕ) → ℕ
+      at: errors.nova:16:1: def blocked
+Error: 7 items failed to elaborate
 --- the proof cannot name what it eliminates:
 scope.nova:3:55: error: expected a ≡-elim proof free of 'x' and 'w' — the variables this eliminates, so the proof's context has no such entry, but reached the end of the file
 3 | def gone : (x : ℕ) (w : x ≡ Z) → ℕ ≔ λx. λw. ≡-elim x x w
