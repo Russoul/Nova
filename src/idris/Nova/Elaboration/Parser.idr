@@ -1063,14 +1063,32 @@ mutual
         (do kwc '('; sp; t <- sqChain tbl tos ext; sp; kwc ')'; pure t)
     <|> sqChain tbl tos ext
 
+||| `El` where the literal's own sorts do not reach — the RETIRED
+||| Nova-level El (`El ℕ`), which the ToS's El only looks like. It had
+||| no bare counterpart to fall back on: the printer spells an external
+||| domain as the code it is (Distill.renderQDomain), so a literal
+||| written this way elaborated and then failed its own round trip,
+||| `El ℕ` re-parsing as the bare type it was printed as.
+|||
+||| A DIAGNOSIS, last and FATAL, for the reason the clause-head one is:
+||| a branch rejection here is outrun by whichever sibling read
+||| furthest, and the caret lands on the entry's `;` with nothing said
+||| about the `El` that caused it. `El` is a reserved word, so no
+||| sibling could have read it anyway.
+externalEl : Rule a
+externalEl = do
+  -- located at the `El` itself: a bare `fatal` can only synthesize the
+  -- position parsing stopped at, which is the domain past it
+  (r, _) <- bounds (kw "El")
+  let msg = "!El marks a domain in this literal's own sorts — an external domain IS its code: spell it bare"
+  space
+  maybe (fatal msg) (\r' => fatalLoc r' msg) r
+
 sqDomain : FixTable -> NameEnv -> NameEnv -> Rule (Either STy SQTm)
 sqDomain tbl tos ext =
       (do kw "El"; space; q <- sqCode tbl tos ext; pure (Right q))
-      -- the QIIT sublanguage keeps El: `El a` at a NON-ToS name is a
-      -- small EXTERNAL domain (the code as a type; canonical distill
-      -- form spells it bare)
-  <|> (do kw "El"; space; e <- parseSElemAtom tbl ext; pure (Left (STyEl e)))
   <|> (Left <$> parseSTy tbl ext)
+  <|> externalEl
 
 ||| An ANONYMOUS domain: like `sqDomain`, but the external case stops
 ||| below the arrow level (T{2}) — a greedy full type would swallow
@@ -1080,8 +1098,8 @@ sqDomain tbl tos ext =
 sqDomainNoArrow : FixTable -> NameEnv -> NameEnv -> Rule (Either STy SQTm)
 sqDomainNoArrow tbl tos ext =
       (do kw "El"; space; q <- sqCode tbl tos ext; pure (Right q))
-  <|> (do kw "El"; space; e <- parseSElemAtom tbl ext; pure (Left (STyEl e)))
   <|> (Left <$> parseSTyEl tbl ext)
+  <|> externalEl
 
 sqRes : FixTable -> NameEnv -> NameEnv -> Rule SQRes
 sqRes tbl tos ext =
