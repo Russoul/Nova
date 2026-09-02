@@ -302,23 +302,38 @@ sigmaElimBody i b = mapVarsE remap 0 b
       if m < i then Just (m + d)               -- inside Γ₁: unchanged
       else if m == i then Nothing              -- w itself: eliminated
       else Just (S m + d)                      -- inside Γ₀: one further out
-||| One step of a CODE SPINE standing in TYPE position (T{2}): an
-||| argument, or a projection. A code is an element, and the element it
-||| is may be reached by projecting — `P .π₁` is a perfectly good 𝕌
-||| when P : 𝕌 × 𝕌 — so the type grammar reads the projection steps
-||| too, not applications alone. Nothing else of the element grammar is
-||| readable here: an operator application, a keyword-headed form or an
-||| implicit override stands in type position PARENTHESIZED, which
-||| re-enters the element grammar whole.
-data CodeStep = CArg SElem | CProj1 | CProj2
+||| One step of a CODE SPINE standing in TYPE position (T{2}): the
+||| same steps the ELEMENT spine takes (Parser.parseSpine) — an
+||| argument, an implicit override, the no-insert marker, a projection.
+||| A code is an element, and the element it is may be reached by
+||| applying, overriding or projecting: `P .π₁` is a perfectly good 𝕌
+||| when P : 𝕌 × 𝕌, and `Vect {ℕ} n` is one wherever `Vect` is.
+|||
+||| The BRACE step and the implicit BINDER GROUP share their opening
+||| token and are told apart the way the reader tells them apart: a
+||| group carries a `:` (`{x : T}`, `{x y : T}`), and an override never
+||| can, since an ascription is parenthesized. They cannot collide in
+||| any case — a group is only ever read at the START of the T{1}
+||| binder branch, never after a spine head — but the brace step is
+||| ordered last of the delimited ones so a group's reading is the one
+||| that is tried first, wherever both could begin.
+|||
+||| What stays parenthesized in type position is what the ELEMENT
+||| ladder puts above a spine: an operator application, a keyword-headed
+||| form, a λ, a pair. Parentheses re-enter the element grammar whole.
+data CodeStep = CArg SElem | CImp SElem | CNoIns | CProj1 | CProj2
 
 applyStep : SElem -> CodeStep -> SElem
 applyStep h (CArg a) = SApp h a
+applyStep h (CImp a) = SApp h (SImpArg a)
+applyStep h CNoIns = SNoIns h
 applyStep h CProj1 = SProj1 h
 applyStep h CProj2 = SProj2 h
 
 isProj : CodeStep -> Bool
 isProj (CArg _) = False
+isProj (CImp _) = False
+isProj CNoIns = False
 isProj _ = True
 
 -- ===== Types and elements (mutually recursive) =====
@@ -455,9 +470,10 @@ mutual
             pure (x, y, r))
     <|> (do r <- parseSElemPrefix tbl (env :< wildcard :< wildcard); pure ((wildcard, Nothing), (wildcard, Nothing), r))
 
-  -- T{2}: ν / atoms and CODE SPINES — arguments AND projections (El is
-  -- retired: a code in type position is spelled directly — `Vect n`, a
-  -- bound 𝕌-variable, `P .π₁`, a computed code in parens)
+  -- T{2}: ν / atoms and CODE SPINES, whose steps are the element
+  -- spine's (El is retired: a code in type position is spelled
+  -- directly — `Vect n`, `Vect {ℕ} n`, a bound 𝕌-variable, `P .π₁`,
+  -- a computed code in parens)
   parseSTyEl : FixTable -> NameEnv -> Rule STy
   parseSTyEl tbl env = do
     (r, x) <- bounds (parseSTyElRaw tbl env)
@@ -472,6 +488,10 @@ mutual
     <|> (do t <- parseSTyAtom tbl env
             steps <- many (   (do sp; kw2 ".π₁" ".1"; pure CProj1)
                           <|> (do sp; kw2 ".π₂" ".2"; pure CProj2)
+                          <|> (do sp; kwc '{'; sp
+                                  (do kwc '}'; pure CNoIns)
+                                    <|> (do a <- parseSElem tbl env; sp; kwc '}'
+                                            pure (CImp a)))
                           <|> (do space; CArg <$> parseSElemAtom tbl env))
             case steps of
               [] => pure t

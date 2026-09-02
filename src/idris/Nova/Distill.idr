@@ -332,26 +332,24 @@ mutual
       else dparen (peRaw tbl True e)
 
   ||| Does the TYPE grammar read this code back BARE? Its spine is an
-  ||| ATOM head with ARGUMENT and PROJECTION steps, and nothing else
-  ||| (Parser.parseSTyElRaw — read the two together). So an implicit
-  ||| override or a `{}` marker, an infix application, a keyword-headed
-  ||| form, a λ or a pair prints PARENTHESIZED, which re-enters the
-  ||| element grammar whole, where every form is legible.
+  ||| ATOM head carrying the element spine's own steps — arguments,
+  ||| implicit overrides, the no-insert marker, projections — and
+  ||| nothing else (Parser.parseSTyElRaw — read the two together). So
+  ||| what parenthesizes is what the element ladder puts ABOVE a spine:
+  ||| an infix application, a keyword-headed form, a λ, a pair. The
+  ||| parens re-enter the element grammar whole, where every form is
+  ||| legible.
   readsAsType : FixTable -> SElem -> Bool
   readsAsType tbl e = case unPos e of
-    SApp f a => case infixView tbl (unPos e) of
+    SApp f _ => case infixView tbl (unPos e) of
       Just _ => False
-      Nothing => not (isImp a) && readsAsType tbl f
+      Nothing => readsAsType tbl f
+    SNoIns t => readsAsType tbl t
     SProj1 t => readsAsType tbl t
     SProj2 t => readsAsType tbl t
     h => case classE tbl h of
            CAtom => True
            _ => False
-   where
-    isImp : SElem -> Bool
-    isImp a = case unPos a of
-      SImpArg _ => True
-      _ => False
 
   peRaw : FixTable -> (tr : Bool) -> SElem -> Doc
   peRaw tbl tr e = case e of

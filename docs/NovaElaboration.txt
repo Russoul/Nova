@@ -243,7 +243,7 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # Types. Elaboration needs no rule keywords and no context prefixes —
 # the context is always implicit in where a subterm sits.
 T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | Ω | x | (T{≥0})
-T{2} ::= ν F{≥2} | ∥T{≥0}∥ | T{≥4} (t{≥4} | .π₁ | .π₂)* | t-atom
+T{2} ::= ν F{≥2} | ∥T{≥0}∥ | T{≥4} (t{≥4} | {t{≥0}} | {} | .π₁ | .π₂)* | t-atom
 # El and Prf are retired (Foundation, CUMULATIVITY and
 # PROP-CUMULATIVITY): a CODE or a PROP in type position IS the type —
 # a name atom resolving to a binder or a 𝕌-/Ω-classified item, an
@@ -255,12 +255,20 @@ T{2} ::= ν F{≥2} | ∥T{≥0}∥ | T{≥4} (t{≥4} | .π₁ | .π₂)* | t-a
 # at Ω, everything else at 𝕌. There is NO legacy `Prf` spelling —
 # the keyword is gone from the grammar and `Prf` is an ordinary
 # identifier.
-# THE SPINE'S STEPS ARE ARGUMENTS AND PROJECTIONS, and no more. An
-# implicit override — `Vect {ℕ} n` — stays parenthesized here, because
-# `{` opens an implicit BINDER GROUP at exactly this position, and one
-# spelling cannot be both. Parentheses re-enter the element grammar
-# whole, so every other element form reaches type position that way:
-# a keyword-headed code, an operator application, an override.
+# THE SPINE'S STEPS ARE THE ELEMENT SPINE'S (t{3}), to the token:
+# arguments, implicit overrides, the no-insert marker, projections —
+# `Vect n`, `Vect {ℕ} n`, `f {}`, `P .π₁`. A brace step and an implicit
+# BINDER GROUP share their opening token and are told apart the way a
+# reader tells them apart: a GROUP carries a `:` (`{x : T}`,
+# `{x y : T}`) and an OVERRIDE never can, an ascription being
+# parenthesized. They cannot meet in any case — a group is read only at
+# the START of the T{1} binder branch, never after a spine head — so
+# `{x : A} {y : B} → C` is two groups and `Vect {ℕ} n → C` is a spine,
+# with no spelling in between.
+# What stays PARENTHESIZED in type position is what the element ladder
+# puts ABOVE a spine: an operator application ((a ≤ b)), a
+# keyword-headed code ((out t)), a λ, a pair. The parens re-enter the
+# element grammar whole.
 T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ × T{≥0}
        | T{≥1½} → T{≥0} | T{≥1½} / (x y. t{≥1})
 T{1½} ::= T{≥1¾} ⊎ T{≥1½}
