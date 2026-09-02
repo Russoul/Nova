@@ -144,7 +144,6 @@ data ELvl
   | LOp0           -- entry into parseSElemOp (climb 0)
   | LOpBin Nat EqPol -- an infix operand: child op precedence must
                      -- exceed the level, or equal it per the policy
-  | LPrefix        -- t{2}: parseSElemPrefix
   | LProj          -- t{3}: the target of a .π₁/.π₂ — a keyword-headed
                    --   form stands bare here (the postfix marker is
                    --   unmistakable): out t .π₂
@@ -183,12 +182,9 @@ fitsE (COp p a) lvl = case lvl of
   ok : EqPol -> Bool
   ok NoEq = False
   ok (EqIf a') = a == a'
-fitsE CPrefix lvl = case lvl of
-  LProj => False; LApp => False; LAtom => False; _ => True
+fitsE CPrefix lvl = case lvl of LProj => False; LApp => False; LAtom => False; _ => True
 -- bare under a projection (out t .π₂), parenthesized as an application
--- head — see LProj/LApp above. NB a CODE standing as a type prints at
--- LPrefix, and the type grammar reads no keyword-headed code, so LProj
--- must not be reused there.
+-- head — see LProj/LApp above
 fitsE CKeyword lvl = case lvl of LApp => False; LAtom => False; _ => True
 fitsE CApp lvl = case lvl of LAtom => False; _ => True
 fitsE CAtom _ = True
@@ -325,6 +321,37 @@ mutual
     if fitsE (classE tbl e) lvl && (tr || not (swallows e))
       then peRaw tbl tr e
       else dparen (peRaw tbl True e)
+
+  ||| A CODE standing as a TYPE (El is retired: the code IS the type).
+  ||| Bracketed by what the TYPE grammar can read back rather than by
+  ||| the element ladder — the two disagree, and the grammar wins.
+  pcode : FixTable -> SElem -> Doc
+  pcode tbl e =
+    if readsAsType tbl e
+      then peRaw tbl True e
+      else dparen (peRaw tbl True e)
+
+  ||| Does the TYPE grammar read this code back BARE? Its spine is an
+  ||| ATOM head with ARGUMENT and PROJECTION steps, and nothing else
+  ||| (Parser.parseSTyElRaw — read the two together). So an implicit
+  ||| override or a `{}` marker, an infix application, a keyword-headed
+  ||| form, a λ or a pair prints PARENTHESIZED, which re-enters the
+  ||| element grammar whole, where every form is legible.
+  readsAsType : FixTable -> SElem -> Bool
+  readsAsType tbl e = case unPos e of
+    SApp f a => case infixView tbl (unPos e) of
+      Just _ => False
+      Nothing => not (isImp a) && readsAsType tbl f
+    SProj1 t => readsAsType tbl t
+    SProj2 t => readsAsType tbl t
+    h => case classE tbl h of
+           CAtom => True
+           _ => False
+   where
+    isImp : SElem -> Bool
+    isImp a = case unPos a of
+      SImpArg _ => True
+      _ => False
 
   peRaw : FixTable -> (tr : Bool) -> SElem -> Doc
   peRaw tbl tr e = case e of
@@ -588,7 +615,7 @@ mutual
       pt tbl TSum False a <-> txt " / (\{x} \{y}. " <-> pe tbl LNoComma True r <-> txt ")"
     STySum a b => pt tbl TProd False a <-> txt " ⊎ " <-> pt tbl TSum False b
     -- El retired: a code in type position prints as the code itself
-    STyEl e => pe tbl LPrefix False e
+    STyEl e => pcode tbl e
     STyNu f => txt "ν " <-> pp tbl PAtom f
     STySig x => txt x
     STyZero => txt "𝟘"
