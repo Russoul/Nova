@@ -363,6 +363,9 @@ t{2½} ::= 𝟘-elim t{≥4}
                                                                #   SCRUTINEE — a VARIABLE
                                                                #   of a ⊎ type; no motive
                                                                #   (see e-sumsplit)
+        | unsquash (x. t{≥0}) t{≥4}                            # witness, SCRUTINEE —
+                                                               #   a VARIABLE of a ∥∥
+                                                               #   type (see e-unsquash)
         | ≡-elim t{≥4} t{≥4} t{≥4}                             # proof, VARIABLE, EQUATION —
                                                                #   the last two are variables;
                                                                #   no motive (see e-eqelim)
@@ -971,6 +974,41 @@ componentwise at F × G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 # docs/NovaPerfectSurface.txt) — and here the written-motive remedy it
 # names is not available, since the motive is Π-closed over entries the
 # operator never spelled.
+
+Γ = Γ₀ ▷ w:∥A∥ ▷ Γ₁               # the scrutinee is the VARIABLE ☐ᵢ, i = |Γ₁|
+C a PROPOSITION, and w is named by NEITHER Γ₁ NOR C
+Γ₀ ▷ Γ₁ ▷ x:A ⊢ t ⇐ C[↑] ⇝ t̂
+------------------------------------------------------------------ (e-unsquash)
+Γ ⊢ unsquash (x. t) w ⇐ C ⇝ ⋆        # (squash-elim ☐ᵢ (x. t̂ ē))
+
+# CHECKING-ONLY, and the goal must be a proposition — both inherited
+# from el-squash-e-prf, which this is an ordinary use of. The site
+# builds `squash-elim w (x. …)` and lets that rule check them.
+#
+# THE WITNESS LANDS INNERMOST, and unlike the rest of the family that
+# is FORCED rather than chosen. el-squash-e-prf binds its witness
+# innermost, so putting it in the variable's slot would mean Π-closing
+# Γ₁ into the goal — e-sumsplit's move — and a Π IS NEVER A PROPOSITION
+# (kIsProp), which is the one thing this rule demands. There is no
+# arrangement of the context that gets around it.
+#
+# Nothing is lost by that. The other three refine because entries after
+# the eliminated variable can name its COMPONENTS or its VALUE; a
+# witness is NEW, so no entry could ever have named it. This is the one
+# member of the family that substitutes nothing, and its whole content
+# is that the variable GOES: a hypothesis traded for its witness rather
+# than joined by one, which is the difference from squash-elim.
+#
+# A type that names the variable therefore BLOCKS it — removing w
+# leaves no proof of ∥A∥ anywhere in Γ₀ to stand in its place, and
+# unlike e-eqelim's [refl/w] there is nothing to mint: a squash is
+# proof-irrelevant but not inhabited. The site says so and names
+# squash-elim, which keeps the variable.
+#
+# The two contexts have the SAME LENGTH — one entry for another — so
+# the body needs no re-indexing beyond dropping w's own slot, and the
+# site owes NO CONVERSION: the lifted body's type instantiated at the
+# survivors and the witness IS the goal weakened, on the nose.
 
 # Universe codes infer at 𝕌, mirroring their formation rules:
 Γ ⊢ 𝟘 ⇒ 𝕌 ⇝ 𝟘      (likewise 𝟙, ℕ)                            # (𝟘 : 𝕌) etc.

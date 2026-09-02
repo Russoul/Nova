@@ -1,0 +1,48 @@
+defined P
+defined plain
+defined around
+defined viaSum
+defined nested
+defined nestedTwice
+defined hole [+1 declaration]
+open holes (1):
+  [?g] (n : ℕ) (h : (P n)) (x : ℕ) ⊢ ?g : (P n)
+      at: input.nova:26:73: def hole
+--- what the scrutinee must be, and what may not name it:
+errors.nova:3:58: error: def notVar: unsquash eliminates a VARIABLE of a ∥∥ type — this scrutinee is not one (squash-elim takes any proof)
+3 | def notVar : (w : ∥ℕ∥) → Z ≡ Z ∈ ℕ ≔ λw. unsquash (x. ⋆) (⋆ Z)
+  |                                                          ^^^^^
+declared notVar [+1 declaration]
+errors.nova:5:43: error: def notSquash: unsquash eliminates a variable of type ℕ, which is not a ∥∥ proposition
+5 | def notSquash : (n : ℕ) → Z ≡ Z ∈ ℕ ≔ λn. unsquash (x. ⋆) n
+  |                                           ^^^^^^^^^^^^^^^^^
+declared notSquash [+1 declaration]
+errors.nova:9:60: error: def inGoal: unsquash: the goal names 'w', and the elimination removes it — a squash has no proof to leave behind. Use squash-elim, which keeps it
+9 | def inGoal : (w : ∥ℕ∥) → w ≡ w ∈ ∥ℕ∥ ≔ λw. unsquash (x. ⋆) w
+  |                                                            ^
+declared inGoal [+1 declaration]
+errors.nova:10:79: error: def inHyp: unsquash: a hypothesis after 'w' names it, and the elimination removes it — a squash has no proof to leave behind. Use squash-elim, which keeps it
+10 | def inHyp : (w : ∥ℕ∥) (h : w ≡ w ∈ ∥ℕ∥) → Z ≡ Z ∈ ℕ ≔ λw. λh. unsquash (x. ⋆) w
+   |                                                                               ^
+declared inHyp [+1 declaration]
+errors.nova:12:51: error: def notProp: squash-elim checked against ℕ, which is not a proposition (el-squash-e-prf reaches only further propositions)
+12 | def notProp : (w : ∥ℕ∥) → ℕ ≔ λw. unsquash (x. x) w
+   |                                                   ^
+declared notProp [+1 declaration]
+open declarations (5):
+  [notVar] ⊢ ? : ∥ℕ∥ → (Z ≡ Z ∈ ℕ)
+      at: errors.nova:3:1: def notVar
+  [notSquash] ⊢ ? : ℕ → (Z ≡ Z ∈ ℕ)
+      at: errors.nova:5:1: def notSquash
+  [inGoal] ⊢ ? : (h:∥ℕ∥) → (h ≡ h ∈ ∥ℕ∥)
+      at: errors.nova:9:1: def inGoal
+  [inHyp] ⊢ ? : (h:∥ℕ∥) → (h ≡ h ∈ ∥ℕ∥) → (Z ≡ Z ∈ ℕ)
+      at: errors.nova:10:1: def inHyp
+  [notProp] ⊢ ? : ∥ℕ∥ → ℕ
+      at: errors.nova:12:1: def notProp
+Error: 5 items failed to elaborate
+--- the body cannot name what it eliminates:
+scope.nova:3:74: error: expected an unsquash body free of 'w' — the variable this eliminates, so the body's context has no such entry (it has the witness x instead), but reached the end of the file
+3 | def gone : (w : ∥ℕ∥) → w ≡ w ∈ ∥ℕ∥ ≔ λw. unsquash (x. (⋆ : w ≡ w ∈ ∥ℕ∥)) w
+  |                                                                          ^
+  note: while parsing the construct beginning at 3:51

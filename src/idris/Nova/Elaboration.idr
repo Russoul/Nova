@@ -389,6 +389,7 @@ sInferForm e0 = case unPos e0 of
   SSigmaElim _ _ _ _ => False
   SEqElim _ _ _ => False
   SSumSplit _ _ _ _ _ => False
+  SUnsquash _ _ _ => False
   SPair _ _ => False
   SInj1 _ => False
   SInj2 _ => False
@@ -4056,6 +4057,13 @@ mutual
     let hyp = Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk)
     (b', bTy, bSk) <- inferElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
     pure (Let e' b', substTy bTy (Ext (Ext Id e') Star), Nd [] [eSk, bSk])
+  inferElemAt ctx env site (SUnsquash _ _ _) =
+    -- like the squash-elim it is built on, unsquash is CHECKING-ONLY:
+    -- el-squash-e-prf reaches only propositions, and only the expected
+    -- type says which one
+    throwAt site.srange
+      ("\{site}: unsquash infers nothing — el-squash-e-prf reaches only a"
+        ++ " proposition, and only the expected type names it")
   inferElemAt ctx env site (SSumSplit _ _ _ _ _) =
     -- like the motive-less ⊎-elim it is built on, sum-elim is
     -- CHECKING-ONLY: the two branches land at different types, and
@@ -4234,6 +4242,81 @@ mutual
   eqElimCand st j lhs rhs =
     closeCand (MkCand "eq-elim" 0 [] (engNfE st lhs) (engNfE st rhs)
                  (\wk, _ => Just (weakenElemN wk (CtxVar j), [])) [] [])
+
+  ||| e-unsquash — the ∥∥ VARIABLE elimination.
+  |||
+  ||| The body is elaborated where the variable is GONE and a witness
+  ||| of the squashee stands innermost instead. That position is
+  ||| FORCED, not chosen: el-squash-e-prf binds its witness innermost,
+  ||| so putting it earlier would mean Π-closing the entries after it
+  ||| into the goal — and a Π is never a proposition, which is the one
+  ||| thing that rule demands. Nothing is lost by it either, since no
+  ||| entry could mention a witness that did not exist.
+  |||
+  ||| So THERE IS NOTHING TO REFINE, and this is the one member of the
+  ||| family that substitutes nothing. Its whole content is that the
+  ||| variable goes: a hypothesis is traded for its witness rather than
+  ||| joined by it. A type that names the variable therefore blocks it
+  ||| — over Γ₀ there is no proof of ∥A∥ left to stand in its place —
+  ||| and the site says so.
+  elabUnsquash : Ctx -> NameEnv -> Site -> (nx : SName) -> (body : SElem) ->
+                 (scrutinee : SElem) -> (goal : Ty) -> ElabM (Elem, Skel)
+  elabUnsquash ctx env site (xn, xr) sb w goal = do
+    st <- getSt
+    case unPos w of
+      SVar wrng nm i => case (ctxSplitAt i ctx, ctxSplitAt i env) of
+        (Just (g0, wty, g1), Just (env0, _, env1)) =>
+          case exposeHead st wty of
+            Squash aTy => do
+              let g1s = toList g1
+              let n1 = length g1s
+              -- nothing may name the variable: it is about to have no
+              -- replacement at all
+              let blocked = any (\(m, c) => isNothing (strengthenElem m c))
+                                (zip (reverse (idxDesc n1 0)) g1s)
+              if blocked
+                then throwAt (wrng <|> site.srange)
+                       ("\{site}: unsquash: a hypothesis after '\{nm}' names it, and the"
+                         ++ " elimination removes it — a squash has no proof to leave"
+                         ++ " behind. Use squash-elim, which keeps it")
+                else pure ()
+              goal0 <- maybe (throwAt (wrng <|> site.srange)
+                               ("\{site}: unsquash: the goal names '\{nm}', and the"
+                                 ++ " elimination removes it — a squash has no proof to"
+                                 ++ " leave behind. Use squash-elim, which keeps it"))
+                             pure (strengthenElem i goal)
+              -- Γ₀ ▷ Γ₁ ▷ (x : A): the entries after the variable stand
+              -- as they did, one index nearer, and the witness arrives
+              -- innermost
+              g1' <- maybe (throwAt (wrng <|> site.srange)
+                             "\{site}: internal: unsquash's context does not strengthen")
+                           pure (traverse (\(m, c) => strengthenElem m c)
+                                          (zip (reverse (idxDesc n1 0)) g1s))
+              recordBinder xr ctx env xn aTy
+              let ctx' = (g0 <>< g1') :< substTy aTy (wkN n1)
+              let env' = (env0 <>< toList env1) :< xn
+              (b', bSk) <- checkElem ctx' env' site sb (substTy goal0 Wk)
+              q <- emitInlineDef site "q" ctx' (substTy goal0 Wk) (Nd [] []) b' bSk
+              -- the site is an ORDINARY squash-elim around the lifted
+              -- body, so el-squash-e-prf's own rule checks the goal is
+              -- a proposition and nothing here has to
+              let args = svarsQ env0 (2 + n1) ++ svarsQ env1 1 ++ [SVar Nothing xn 0]
+              let inner = foldl SApp (SSig Nothing q) args
+              checkElem ctx env site
+                (SSquashElim (SVar wrng nm i) (xn, xr) inner) goal
+            _ => throwShape site env "unsquash eliminates a variable of type"
+                   (substTy wty (wkN (S i))) "a ∥∥ proposition"
+        _ => throwAt (wrng <|> site.srange)
+               "\{site}: internal: unsquash's scrutinee index escapes Γ"
+      _ => throwAt (headRange w <|> site.srange)
+             ("\{site}: unsquash eliminates a VARIABLE of a ∥∥ type — this scrutinee is"
+               ++ " not one (squash-elim takes any proof)")
+   where
+    ||| A run of surface variables, outermost first.
+    svarsQ : SnocList String -> (base : Nat) -> List SElem
+    svarsQ names base =
+      let ns = toList names in
+      zipWith (\n, d => SVar Nothing n d) ns (idxDesc (length ns) base)
 
   ||| e-sumsplit — the ⊎ VARIABLE elimination.
   |||
@@ -5061,6 +5144,8 @@ mutual
                 (body', bodySk) <- checkElem (ctx :< a) (env :< fst xn) site body (substTy q Wk)
                 pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
           _ => throwShape site env "squash-elim scrutinee has type" eTy "a ∥∥ proposition"
+  checkElemAt ctx env site (SUnsquash nx b w) ty =
+    elabUnsquash ctx env site nx b w ty
   checkElemAt ctx env site (SSumSplit na l nb r w) ty =
     elabSumSplit ctx env site na l nb r w ty
   checkElemAt ctx env site (SEqElim p x w) ty = do

@@ -147,6 +147,21 @@ mutual
     ||| scrutinee (Parser.sumSplitBranch).
     SSumSplit : (na : SName) -> (left : SElem) ->
                 (nb : SName) -> (right : SElem) -> (scrutinee : SElem) -> SElem
+    ||| unsquash (x. t) w — the ∥∥ VARIABLE elimination
+    ||| (docs/NovaElaboration.txt, e-unsquash). w is a VARIABLE of a
+    ||| squash type, and t is elaborated where w is GONE and a witness
+    ||| of the squashee stands INNERMOST instead.
+    |||
+    ||| The witness cannot take w's slot, and that is forced rather
+    ||| than chosen: el-squash-e-prf binds it innermost, so putting it
+    ||| earlier would mean Π-closing the entries after it into the
+    ||| goal, and a Π is never a proposition. Nothing is lost by it —
+    ||| no entry could mention the witness, which did not exist.
+    |||
+    ||| Like the rest of the family, t's indices are counted against
+    ||| THAT context, and the parser reindexes them once it has read
+    ||| the scrutinee (Parser.unsquashBody).
+    SUnsquash : (nx : SName) -> (body : SElem) -> (scrutinee : SElem) -> SElem
     ||| ν F — the ν CODE (infers at 𝕌)
     SNuC : SPoly -> SElem
     ||| out t — the coinductive observation (infers, like the
@@ -328,6 +343,7 @@ mutual
   stripPos (SQuotElim mot a f q) =
     SQuotElim (map (\(z, m) => (z, stripPos m)) mot) a (stripPos f) (stripPos q)
   stripPos (SSigmaElim nx ny b w) = SSigmaElim nx ny (stripPos b) (stripPos w)
+  stripPos (SUnsquash nx b w) = SUnsquash nx (stripPos b) (stripPos w)
   stripPos (SSumSplit na l nb r w) =
     SSumSplit na (stripPos l) nb (stripPos r) (stripPos w)
   stripPos (SEqElim p x w) = SEqElim (stripPos p) (stripPos x) (stripPos w)
@@ -400,6 +416,18 @@ sigmaUnder f i i' k =
   if k == i then Just i'
   else if k == S i then Just (S i')
   else map (\m => if m > i' then S m else m) (f (if k < i then k else minus k 1))
+
+||| … into an ∥∥-elimination BODY. The same length as the site's too,
+||| but for a different reason: one entry goes and one arrives. The
+||| witness is bound INNERMOST, so it takes index 0 and pushes the
+||| entries that stood after the variable up by one, while those before
+||| it keep their indices.
+public export
+unsquashUnder : (Nat -> Maybe Nat) -> (i, i' : Nat) -> Nat -> Maybe Nat
+unsquashUnder f i i' k =
+  if k == 0 then Just 0
+  else if k <= i then map S (f (minus k 1))
+  else f k
 
 ||| … into a ⊎-elimination BRANCH. Same length as the site's: the
 ||| branch's own binder stands exactly where the variable stood, and
@@ -478,6 +506,11 @@ mutual
     -- not a variable: the elaborator rejects it, and the body's
     -- indices are never read
     _ => [| SSigmaElim (pure nx) (pure ny) (mapVarsE f b) (mapVarsE f w) |]
+  mapVarsE f (SUnsquash nx b w) = case unPos w of
+    SVar _ _ i => do
+      i' <- f i
+      [| SUnsquash (pure nx) (mapVarsE (unsquashUnder f i i') b) (mapVarsE f w) |]
+    _ => [| SUnsquash (pure nx) (mapVarsE f b) (mapVarsE f w) |]
   mapVarsE f (SSumSplit na l nb r w) = case unPos w of
     SVar _ _ i => do
       i' <- f i
@@ -609,6 +642,7 @@ mutual
   -- variable it eliminates is what every message here is about)
   headRange (SSigmaElim _ _ _ w) = headRange w
   headRange (SSumSplit _ _ _ _ w) = headRange w
+  headRange (SUnsquash _ _ w) = headRange w
   -- the VARIABLE being eliminated places it: every message here is
   -- about it or the equation that specialises it
   headRange (SEqElim _ x w) = headRange x <|> headRange w
@@ -897,6 +931,7 @@ mutual
     show (SQuotElim mot a f q) =
       "QuotElim \{maybe "_" (fst . fst) mot} (\{maybe "_" (show . snd) mot}) \{fst a} (\{show f}) (\{show q})"
     show (SEqElim p x w) = "EqElim (\{show p}) (\{show x}) (\{show w})"
+    show (SUnsquash nx b w) = "Unsquash \{fst nx} (\{show b}) (\{show w})"
     show (SSumSplit na l nb r w) =
       "SumSplit \{fst na} (\{show l}) \{fst nb} (\{show r}) (\{show w})"
     show (SSigmaElim nx ny b w) =
