@@ -721,7 +721,27 @@ mutual
             kw "in"; sp
             b <- parseSElem tbl (env :< fst x :< wildcard)
             pure (SLet x (maybe e (SAnn e) manno) b))
-    <|> (do kw2 "𝟘-elim" "Void-elim"; space; e <- parseSElemAtom tbl env; pure (SZeroElim e))
+        -- a KEYWORD-HEADED form (t{2½}) is a spine HEAD, so a
+        -- projection or a further argument reaches it without
+        -- parentheses: `out t .π₂` is `(out t) .π₂`. λ and let stay
+        -- above the spine — their bodies extend maximally, so a
+        -- trailing `.π₂` is read INSIDE the body, where it belongs.
+    <|> (do e <- parseSElemKeyword tbl env
+            parseSpine tbl env e)
+    <|> parseSElemApp tbl env
+
+  -- t{2½}: the keyword-headed forms — eliminators and the one-argument
+  -- introductions. Each takes its own arguments at the atom level, so
+  -- the form ends exactly where the keyword's own syntax does and the
+  -- spine continuation above may pick up from there.
+  parseSElemKeyword : FixTable -> NameEnv -> Rule SElem
+  parseSElemKeyword tbl env = do
+    (r, x) <- bounds (parseSElemKeywordRaw tbl env)
+    pure (atPos r x)
+
+  parseSElemKeywordRaw : FixTable -> NameEnv -> Rule SElem
+  parseSElemKeywordRaw tbl env =
+        (do kw2 "𝟘-elim" "Void-elim"; space; e <- parseSElemAtom tbl env; pure (SZeroElim e))
     <|> (do kw2 "ℕ-elim" "Nat-elim"; space
             -- the motive group is safely optional here: z is an ATOM,
             -- and no valid element atom has the (name. …) shape
@@ -825,7 +845,6 @@ mutual
                 pure (case w of
                         Nothing => SStar r
                         Just e  => SStarWit e))
-    <|> parseSElemApp tbl env
 
   -- t{3}: application / projection chains
   parseSElemApp : FixTable -> NameEnv -> Rule SElem
@@ -836,27 +855,32 @@ mutual
   parseSElemAppRaw : FixTable -> NameEnv -> Rule SElem
   parseSElemAppRaw tbl env = do
     e <- parseSElemAtom tbl env
-    cont e
-   where
-    cont : SElem -> Rule SElem
-    cont e =
-          (do (r, _) <- bounds (do sp; kw2 ".π₁" ".1"); cont (grew e r (SProj1 e)))
-      <|> (do (r, _) <- bounds (do sp; kw2 ".π₂" ".2"); cont (grew e r (SProj2 e)))
-      -- {t} — an implicit-position override argument — and {} — the
-      -- NO-INSERT marker, suppressing trailing-implicit insertion
-      -- (docs/NovaPerfectSurface.txt, Phases 3b/3d); NB `{-` opens a
-      -- comment at the lexer, so an override starting with an
-      -- operator needs a space: { -x } — the Haskell convention
-      <|> (do (r, mt) <- bounds (do
-                sp; kwc '{'; sp
-                (do kwc '}'; pure Nothing)
-                  <|> (do t <- parseSElem tbl env; sp; kwc '}'; pure (Just t)))
-              case mt of
-                Nothing => cont (grew e r (SNoIns e))
-                Just t => cont (grew e r (SApp e (SImpArg t))))
-      <|> (do (r, e') <- bounds (do sp; parseSElemAtom tbl env)
-              cont (grew e r (SApp e e')))
-      <|> pure e
+    parseSpine tbl env e
+
+  ||| The postfix continuation of a spine, over an already-parsed head:
+  ||| arguments, implicit overrides and projections, left-associative.
+  ||| Shared by the two kinds of head — an ATOM (t{5}, the ordinary
+  ||| case) and a KEYWORD-HEADED form (t{2½}: `out t`, `S n`, an
+  ||| eliminator), so `out t .π₂` needs no parentheses.
+  parseSpine : FixTable -> NameEnv -> SElem -> Rule SElem
+  parseSpine tbl env e =
+        (do (r, _) <- bounds (do sp; kw2 ".π₁" ".1"); parseSpine tbl env (grew e r (SProj1 e)))
+    <|> (do (r, _) <- bounds (do sp; kw2 ".π₂" ".2"); parseSpine tbl env (grew e r (SProj2 e)))
+    -- {t} — an implicit-position override argument — and {} — the
+    -- NO-INSERT marker, suppressing trailing-implicit insertion
+    -- (docs/NovaPerfectSurface.txt, Phases 3b/3d); NB `{-` opens a
+    -- comment at the lexer, so an override starting with an
+    -- operator needs a space: { -x } — the Haskell convention
+    <|> (do (r, mt) <- bounds (do
+              sp; kwc '{'; sp
+              (do kwc '}'; pure Nothing)
+                <|> (do t <- parseSElem tbl env; sp; kwc '}'; pure (Just t)))
+            case mt of
+              Nothing => parseSpine tbl env (grew e r (SNoIns e))
+              Just t => parseSpine tbl env (grew e r (SApp e (SImpArg t))))
+    <|> (do (r, e') <- bounds (do sp; parseSElemAtom tbl env)
+            parseSpine tbl env (grew e r (SApp e e')))
+    <|> pure e
 
   -- t{5}: atoms, including ascription
   parseSElemAtom : FixTable -> NameEnv -> Rule SElem

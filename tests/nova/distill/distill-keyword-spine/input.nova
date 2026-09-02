@@ -1,0 +1,13 @@
+-- distill golden: a keyword-headed form (t{2½}) heads a spine. The
+-- printer drops the parentheses under a PROJECTION — the postfix
+-- marker is unmistakable — and keeps them under an application
+-- argument, which is juxtaposed exactly as the eliminator's own
+-- arguments are (docs/NovaPerfectSurface.txt, Phase 1)
+
+def stream : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
+
+def hd : (a : 𝕌) → (stream a) → a using (stream.unfold) ≔ λa. λt. (out t) .π₁
+
+def tl : (a : 𝕌) → (stream a) → (stream a) using (stream.unfold) ≔ λa. λt. out t .π₂
+
+def plus : ℕ → ℕ → ℕ ≔ λn. λm. (ℕ-elim (k. ℕ → ℕ) (λx. x) (k ih. λx. S (ih x)) n) m

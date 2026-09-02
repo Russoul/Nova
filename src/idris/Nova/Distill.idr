@@ -145,7 +145,15 @@ data ELvl
   | LOpBin Nat EqPol -- an infix operand: child op precedence must
                      -- exceed the level, or equal it per the policy
   | LPrefix        -- t{2}: parseSElemPrefix
-  | LApp           -- t{3}: parseSElemApp (application/projection head)
+  | LProj          -- t{3}: the target of a .π₁/.π₂ — a keyword-headed
+                   --   form stands bare here (the postfix marker is
+                   --   unmistakable): out t .π₂
+  | LApp           -- t{3}: the head of an application spine. A
+                   --   keyword-headed form is a legal head here too
+                   --   (Parser.parseSpine), but prints PARENTHESIZED:
+                   --   an eliminator's own arguments are juxtaposed
+                   --   just like the spine's, so the parens are what
+                   --   shows where its syntax ends
   | LAtom          -- t{5}: parseSElemAtom
 
 ||| Element node classes, by the production that produces them.
@@ -155,7 +163,8 @@ data ECls
   | CSumC
   | CProdC
   | COp Nat Assoc
-  | CPrefix
+  | CPrefix        -- t{2}: λ and let, whose bodies extend maximally
+  | CKeyword       -- t{2½}: the keyword-headed forms
   | CApp
   | CAtom
 
@@ -174,7 +183,13 @@ fitsE (COp p a) lvl = case lvl of
   ok : EqPol -> Bool
   ok NoEq = False
   ok (EqIf a') = a == a'
-fitsE CPrefix lvl = case lvl of LApp => False; LAtom => False; _ => True
+fitsE CPrefix lvl = case lvl of
+  LProj => False; LApp => False; LAtom => False; _ => True
+-- bare under a projection (out t .π₂), parenthesized as an application
+-- head — see LProj/LApp above. NB a CODE standing as a type prints at
+-- LPrefix, and the type grammar reads no keyword-headed code, so LProj
+-- must not be reused there.
+fitsE CKeyword lvl = case lvl of LApp => False; LAtom => False; _ => True
 fitsE CApp lvl = case lvl of LAtom => False; _ => True
 fitsE CAtom _ = True
 
@@ -274,22 +289,22 @@ mutual
     SProj2 _ => CApp
     SSuc _ => case numeralView e of
       Just _ => CAtom
-      Nothing => CPrefix
-    SZeroElim _ => CPrefix
-    SNatElim _ _ _ _ _ _ => CPrefix
-    SInj1 _ => CPrefix
-    SInj2 _ => CPrefix
-    SSumElim _ _ _ _ _ _ => CPrefix
-    SClass _ => CPrefix
-    SQuotElim _ _ _ _ => CPrefix
-    SSigmaElim _ _ _ _ => CPrefix
-    SNuC _ => CPrefix
-    SOut _ => CPrefix
-    SCorec _ _ _ _ => CPrefix
-    SCoind _ _ _ _ _ _ _ _ => CPrefix
-    SSquashElim _ _ _ => CPrefix
-    SStarWit _ => CPrefix
-    SStarUsing _ _ => CPrefix
+      Nothing => CKeyword
+    SZeroElim _ => CKeyword
+    SNatElim _ _ _ _ _ _ => CKeyword
+    SInj1 _ => CKeyword
+    SInj2 _ => CKeyword
+    SSumElim _ _ _ _ _ _ => CKeyword
+    SClass _ => CKeyword
+    SQuotElim _ _ _ _ => CKeyword
+    SSigmaElim _ _ _ _ => CKeyword
+    SNuC _ => CKeyword
+    SOut _ => CKeyword
+    SCorec _ _ _ _ => CKeyword
+    SCoind _ _ _ _ _ _ _ _ => CKeyword
+    SSquashElim _ _ _ => CKeyword
+    SStarWit _ => CKeyword
+    SStarUsing _ _ => CKeyword
     SImpArg _ => CAtom
     SNoIns _ => CApp
     _ => CAtom
@@ -339,8 +354,8 @@ mutual
         let (h, args) = spineView tbl e in
         DGroup (pe tbl LApp False h <->
                 DNest 2 (concatDoc (map (\arg => DLine <-> pe tbl LAtom False arg) args)))
-    SProj1 t => pe tbl LApp False t <-> txt " .π₁"
-    SProj2 t => pe tbl LApp False t <-> txt " .π₂"
+    SProj1 t => pe tbl LProj False t <-> txt " .π₁"
+    SProj2 t => pe tbl LProj False t <-> txt " .π₂"
     SSuc t => case numeralView e of
       Just n => txt (show n)
       Nothing => txt "S " <-> pe tbl LAtom False t

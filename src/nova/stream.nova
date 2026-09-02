@@ -11,9 +11,9 @@
 
 def stream : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
 
-def hd : {a : 𝕌} → stream a → a using (stream.stream.unfold) ≔ λa. λt. (out t) .π₁
+def hd : {a : 𝕌} → stream a → a using (stream.stream.unfold) ≔ λa. λt. out t .π₁
 
-def tl : {a : 𝕌} → stream a → stream a using (stream.stream.unfold) ≔ λa. λt. (out t) .π₂
+def tl : {a : 𝕌} → stream a → stream a using (stream.stream.unfold) ≔ λa. λt. out t .π₂
 
 -- cons, by corecursion at the one-step carrier a × stream a: emit the
 -- stored head, then continue by OBSERVING the stored tail — Lambek's
@@ -69,4 +69,4 @@ def tlCons : {a : 𝕌} (x : a) (s : stream a) → tl (cons x s) ≡ s
   λa. λx. λs. coind (u v. ∥(w : stream a)
     × (u ≡ corec (p : a × stream a. p .π₁, out (p .π₂)) (out w) ∈ stream a) × (v ≡ w ∈ stream a)∥)
     (⋆ (s, ⋆, ⋆))
-    (u v h. squash-elim h (w. ⋆ (⋆, ⋆ ((out (w .π₁)) .π₂, ⋆, ⋆))))
+    (u v h. squash-elim h (w. ⋆ (⋆, ⋆ (out (w .π₁) .π₂, ⋆, ⋆))))

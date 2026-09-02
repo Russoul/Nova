@@ -303,7 +303,47 @@ T{0} ::= t{≥1¼} ≡ t{≥1¼} ∈ T{≥1}
 #      corec (x : a. f) u — the carrier code is not recoverable from
 #      the expected ν-type, so it is mandatory syntax, like a motive.
 t{5} ::= x | ?x | () | Z | ⋆ | ∥T{≥0}∥ | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : T{≥0})
-t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂                 (left-assoc)
+t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂ | t{2½}         (left-assoc)
+                                      # a KEYWORD-HEADED form (t{2½}
+                                      #   below) is a spine HEAD, so a
+                                      #   projection or a further
+                                      #   argument reaches it without
+                                      #   parentheses: out t .π₂ is
+                                      #   (out t) .π₂, and out t u is
+                                      #   (out t) u. λ and let are NOT
+                                      #   heads — their bodies extend
+                                      #   maximally, so a trailing .π₂
+                                      #   is read INSIDE the body
+t{2½} ::= 𝟘-elim t{≥4}
+        | S t{≥4}
+        | ℕ-elim (n. T{≥0}) t{≥4} (n ih. t{≥4}) t{≥4}          # motive, z, s, scrutinee
+        | inj₁ t{≥4}
+        | inj₂ t{≥4}
+        | ⊎-elim (z. T{≥0}) (a. t{≥0}) (b. t{≥0}) t{≥4}        # motive, left case,
+                                                               #   right case, scrutinee
+        | class t{≥4}
+        | quot-elim (z. T{≥0}) (a. t{≥0}) t{≥4}                # motive, case fn, scrutinee
+        | sigma-elim (x y. t{≥0}) t{≥4}                        # components, SCRUTINEE —
+                                                               #   a VARIABLE of a × type;
+                                                               #   no motive (see e-sigmaelim)
+        | ν F{≥2}                                              # the ν CODE (⇒ 𝕌)
+        | out t{≥4}
+        | corec (x : t{≥0}. t{≥0}) t{≥4}                       # carrier code + coalgebra
+                                                               #   body (one binder), seed
+        | coind (x y. t{≥0}) t{≥4} (x y h. t{≥0})              # invariant, endpoint proof,
+                                                               #   one-step closure — see
+                                                               #   e-coind
+        | squash-elim t{≥4} (x. t{≥0})               # el-squash-e-prf: eliminate a
+                                                      #   proof of a squash into a
+                                                      #   further proposition
+        | ⋆ t{≥4}                          # el-squash-i, explicit witness (any A)
+        | ⋆ uses                 # ⋆ with a SITE-LOCAL discharge scope,
+                                 #   overriding the item's: the named
+                                 #   lemmas + hypotheses (e-star-using).
+                                 #   `using` is CONTEXTUAL, recognized
+                                 #   only right after ⋆ — a witness
+                                 #   genuinely named using is written
+                                 #   parenthesized
 t{2} ::= λx. t{≥0}                    # the body extends MAXIMALLY:
                                       #   over operators, the code
                                       #   formers → × ⊎ /, ≡-elements,
@@ -318,36 +358,6 @@ t{2} ::= λx. t{≥0}                    # the body extends MAXIMALLY:
        | let x : T{≥0} ≔ t{≥0} in t{≥0}                       #   (annotated
                                                               #   definiens) —
                                                               #   see e-let
-       | 𝟘-elim t{≥4}
-       | S t{≥4}
-       | ℕ-elim (n. T{≥0}) t{≥4} (n ih. t{≥4}) t{≥4}          # motive, z, s, scrutinee
-       | inj₁ t{≥4}
-       | inj₂ t{≥4}
-       | ⊎-elim (z. T{≥0}) (a. t{≥0}) (b. t{≥0}) t{≥4}        # motive, left case,
-                                                              #   right case, scrutinee
-       | class t{≥4}
-       | quot-elim (z. T{≥0}) (a. t{≥0}) t{≥4}                # motive, case fn, scrutinee
-       | sigma-elim (x y. t{≥0}) t{≥4}                        # components, SCRUTINEE —
-                                                              #   a VARIABLE of a × type;
-                                                              #   no motive (see e-sigmaelim)
-       | ν F{≥2}                                              # the ν CODE (⇒ 𝕌)
-       | out t{≥4}
-       | corec (x : t{≥0}. t{≥0}) t{≥4}                       # carrier code + coalgebra
-                                                              #   body (one binder), seed
-       | coind (x y. t{≥0}) t{≥4} (x y h. t{≥0})              # invariant, endpoint proof,
-                                                              #   one-step closure — see
-                                                              #   e-coind
-       | squash-elim t{≥4} (x. t{≥0})               # el-squash-e-prf: eliminate a
-                                                     #   proof of a squash into a
-                                                     #   further proposition
-       | ⋆ t{≥4}                          # el-squash-i, explicit witness (any A)
-       | ⋆ uses                 # ⋆ with a SITE-LOCAL discharge scope,
-                                #   overriding the item's: the named
-                                #   lemmas + hypotheses (e-star-using).
-                                #   `using` is CONTEXTUAL, recognized
-                                #   only right after ⋆ — a witness
-                                #   genuinely named using is written
-                                #   parenthesized
 t{1} ::= ((x:t{≥0}))+ → t{≥1} | ((x:t{≥0}))+ × t{≥1}
        | t{≥1¼} → t{≥1} | t{≥1¼} / (x y. t{≥1})
                                                               # universe codes
@@ -378,7 +388,7 @@ t{1⅜} ::= t{≥1½} × t{≥1⅜}            # the NON-DEPENDENT × code, at
 # ∥T∥ (squash), ≡ (equality props) and ⋆ (the canonical proof) are
 # the Ω introductions; a squashed type is an Ω-valued element. Bare ⋆
 # (t{5}) auto-synthesizes only for evident propositions — a squashed
-# 𝟙, or an equality prop whose sides are ≐; `⋆ e` (t{2})
+# 𝟙, or an equality prop whose sides are ≐; `⋆ e` (t{2½})
 # checks e against the squashee directly, for any shape — el-squash-i
 # was always general (NovaFoundation.txt), only the auto-synthesis was
 # restricted. squash-elim is el-squash-e-prf's surface form: it has no
@@ -2378,7 +2388,7 @@ Two conditions are CHECKED, not assumed:
 //// Splicing ////
 
 The replacement is PARENTHESIZED. A hole is an atom (t{5}) and the
-eliminators are t{2}, so a bare splice would re-associate wherever the
+eliminators are t{2½}, so a bare splice would re-associate wherever the
 hole stood in an argument or a scrutinee position; parenthesized, it
 is an atom again and fits every position a hole could occupy.
 
