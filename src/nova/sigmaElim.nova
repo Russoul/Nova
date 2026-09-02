@@ -1,0 +1,39 @@
+-- sigma-elim: eliminating a Σ VARIABLE, context and all.
+--
+-- `sigma-elim (x y. t) w` takes a VARIABLE w of a × type and
+-- elaborates t where that variable is GONE: x and y stand in its slot,
+-- and every hypothesis after it — and the goal — reads at (x, y). No
+-- motive is written: abstracting w in the expected type IS
+-- substituting the pair for it, and the site's own switch closes by
+-- el-sigma-eta.
+--
+-- The contrast is letExpr.nova's idiom, `let x1 ≔ w .π₁ in …`, which
+-- NAMES the components but keeps w — and keeps every hypothesis
+-- stated at w stated there. Reach for sigma-elim when a hypothesis
+-- has to move with the variable.
+
+import nat (+)
+
+def uncurry : (f : ℕ → ℕ → ℕ) (p : ℕ × ℕ) → ℕ ≔ λf. λp. sigma-elim (a b. f a b) p
+
+-- from the outside the elimination is its own β: at a written pair
+-- the components are the two arguments, and nothing of the machinery
+-- is left to see
+def uncurryPair : (f : ℕ → ℕ → ℕ) (a b : ℕ) → uncurry f (a, b) ≡ f a b
+  using (sigmaElim.uncurry.eq) ≔
+  λf. λa. λb. ⋆
+
+def swap : (p : ℕ × ℕ) → ℕ × ℕ ≔ λp. sigma-elim (a b. b, a) p
+
+-- the GOAL mentions the eliminated variable: the motive is recovered
+-- by substituting the pair, so the body proves the statement about
+-- (a, b) and the site carries it back to p
+def swapInvolutive : (p : ℕ × ℕ) → swap (swap p) ≡ p using (sigmaElim.swap.eq) ≔
+  λp. sigma-elim (a b. ⋆) p
+
+-- what the let idiom cannot do: h stands AFTER the variable, so the
+-- elimination refines it too — inside, h is an equation between the
+-- components, and rewriting by it closes the goal
+def sumOfSecondZero : (p : ℕ × ℕ) (h : p .π₂ ≡ Z) → p .π₁ + p .π₂ ≡ p .π₁
+  using (hyp.rw, nat.plusZeroId) ≔
+  λp. λh. sigma-elim (a b. ⋆) p

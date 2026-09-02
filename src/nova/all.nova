@@ -80,6 +80,7 @@ import rationalQ
 import rationalInv
 import intNonZero
 import letExpr
+import sigmaElim
 import qiitBag
 import qiitConTy
 import qiitCross

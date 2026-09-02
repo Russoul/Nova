@@ -1623,6 +1623,16 @@ expOK st x =
     -- hide their own text behind a machine name
     || elem x st.transp
 
+||| The site's LICENSED UNFOLDINGS: what its using clause cited, plus
+||| the INLINE DEFINITIONS, which unfold everywhere and cite nothing
+||| (they stand for text the operator wrote at a site, under a machine
+||| name they cannot say). Every δ-consuming position takes this —
+||| the joins, the rewrite normalizer, the `unfolds` a certificate
+||| carries to the kernel, and the display sets of the report — so a
+||| machine name is never what a goal is stuck on, or reads as.
+unfsOf : ElabSt -> List String
+unfsOf st = st.transp ++ st.eqScope
+
 mutual
   exposeE : ElabSt -> Elem -> Elem
   exposeE st (NatElim z s t) =
@@ -1902,8 +1912,8 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
                         (the (List Nat) (if k == 0 then [] else reverse [0 .. minus k 1]))
               pure (foldl PiApp (CtxVar (i + wk)) args, the (List Sel) [])
         in if k == 0
-             then let (l1, lSteps) = rwNfElemS st.sig st.eqScope lemmaRw True (engNfE st l)
-                      (r1, rSteps) = rwNfElemS st.sig st.eqScope lemmaRw True (engNfE st r)
+             then let (l1, lSteps) = rwNfElemS st.sig (unfsOf st) lemmaRw True (engNfE st l)
+                      (r1, rSteps) = rwNfElemS st.sig (unfsOf st) lemmaRw True (engNfE st r)
                   in Just (MkCand "hypothesis" 0 [] l1 r1 mk (toPSteps lSteps) (toPSteps rSteps))
              else Just (MkCand "hypothesis" k (lastEntries k ctx')
                           (engNfE st l) (engNfE st r) mk [] [])
@@ -1916,8 +1926,8 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
   -- the shape squash-elim binds when an invariant is a conjunction.
   groundEqCand : Elem -> (Elem, Elem, Ty) -> Cand
   groundEqCand prf (l, r, t) =
-    let (l1, lSteps) = rwNfElemS st.sig st.eqScope lemmaRw True (engNfE st l)
-        (r1, rSteps) = rwNfElemS st.sig st.eqScope lemmaRw True (engNfE st r)
+    let (l1, lSteps) = rwNfElemS st.sig (unfsOf st) lemmaRw True (engNfE st l)
+        (r1, rSteps) = rwNfElemS st.sig (unfsOf st) lemmaRw True (engNfE st r)
     in MkCand "hypothesis" 0 [] l1 r1 (\wk, _ => Just (weakenElemN wk prf, [])) (toPSteps lSteps) (toPSteps rSteps)
 
   pairEqs : Nat -> (proj : Elem) -> Ty -> List (Elem, (Elem, Elem, Ty))
@@ -1998,10 +2008,10 @@ mkCandSet st ctx =
                       (lhp ++ sHopsStrict ++ (if hypLicensed then hhp else []))
 
 rwNfElem : ElabSt -> Ctx -> Elem -> Elem
-rwNfElem st ctx e = fst (rwNfElemS st.sig st.eqScope (mkCandSet st ctx).rw True e)
+rwNfElem st ctx e = fst (rwNfElemS st.sig (unfsOf st) (mkCandSet st ctx).rw True e)
 
 rwNfTy : ElabSt -> Ctx -> Ty -> Ty
-rwNfTy st ctx ty = fst (rwNfTyS st.sig st.eqScope (mkCandSet st ctx).rw True ty)
+rwNfTy st ctx ty = fst (rwNfTyS st.sig (unfsOf st) (mkCandSet st ctx).rw True ty)
 
 -- ===== Neutral type inference =====
 
@@ -2115,12 +2125,12 @@ mutual
     -- the whole replay happens at the exposed type (where positions
     -- the steps land on are structurally determined)
     let t0 = nowNs ()
-        (tyX, tySteps) = rwNfTyS st.sig st.eqScope cs.rw True ty
+        (tyX, tySteps) = rwNfTyS st.sig (unfsOf st) cs.rw True ty
         bridge = case tySteps of
                    [] => Nothing
                    _ => Just (tyX, MkECert tySteps FBeta)
-        (a', aSteps) = rwNfElemS st.sig st.eqScope cs.rw True a
-        (b', bSteps) = rwNfElemS st.sig st.eqScope cs.rw False b
+        (a', aSteps) = rwNfElemS st.sig (unfsOf st) cs.rw True a
+        (b', bSteps) = rwNfElemS st.sig (unfsOf st) cs.rw False b
         base = aSteps ++ bSteps
         tyN = exposeT st tyX
         eqFast = bump "rwnf-elem" (nowNs () - t0)
@@ -2450,8 +2460,8 @@ mutual
     -- TIER 1, as at spEqElemC
     if timed "tier1" (\_ => compTy tyA == compTy tyB) then Just (MkECert [] FBeta) else
     let t0 = nowNs ()
-        (a0, aSteps) = rwNfTyS st.sig st.eqScope cs.rw True tyA
-        (b0, bSteps) = rwNfTyS st.sig st.eqScope cs.rw False tyB
+        (a0, aSteps) = rwNfTyS st.sig (unfsOf st) cs.rw True tyA
+        (b0, bSteps) = rwNfTyS st.sig (unfsOf st) cs.rw False tyB
         -- strict: sides get HEAD exposure (logged δ at type heads);
         -- recursion through go/congFinal re-exposes per level
         a = exposeT st a0
@@ -3064,7 +3074,7 @@ assume stmt site comp = do
       if cheap
         then modifySt $ \s =>
           { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty))
-          , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing st.eqScope) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing (unfsOf st)) } s
         else if assumedMatchE st ctx a b ty
         then pure ()
         else modifySt $ \s =>
@@ -3072,12 +3082,12 @@ assume stmt site comp = do
               bK = rwNfElem st ctx b in
           { assumedE $= ((elemSize aK + elemSize bK, ctx, aK, bK, engNfT st ty) ::)
           , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty))
-          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) st.eqScope) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) (unfsOf st)) } s
     StTy ctx env x y => do
       if cheap
         then modifySt $ \s =>
           { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy))
-          , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing st.eqScope) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing (unfsOf st)) } s
         else do
        let x' = rwNfTy st ctx x
        let y' = rwNfTy st ctx y
@@ -3086,7 +3096,7 @@ assume stmt site comp = do
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
           , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy))
-          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) st.eqScope) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) (unfsOf st)) } s
  where
   hintFor : ElabSt -> Stmt -> Maybe String
   hintFor st (StElem ctx _ a b ty) = hintE st ctx a b ty
@@ -3144,7 +3154,7 @@ mutual
             let cs = bump "candN" (cast (length cs0.all)) cs0
             let tyM = bump "sz-att-in" (cast (elemSize a + elemSize b)) ty
             let tyM2 = tyM
-            let mcert = map ({ unfolds := st.eqScope }) (spEqElemC (fromMaybe spDepth st.depthOv) st cs ctx a b tyM2)
+            let mcert = map ({ unfolds := (unfsOf st) }) (spEqElemC (fromMaybe spDepth st.depthOv) st cs ctx a b tyM2)
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mcert of
               Nothing => pure (Left site)
@@ -3164,8 +3174,8 @@ mutual
                     -- by plain δβ must not be lost to an overzealous
                     -- rewrite (this rescue lived in the removed
                     -- item-end deletion pass; it belongs at the site)
-                    case kCheckEqElem st.sig ctx kernelFuel (MkECertF Nothing [] FBeta st.eqScope) a b ty of
-                      Right () => pure (Right (MkECertF Nothing [] FBeta st.eqScope))
+                    case kCheckEqElem st.sig ctx kernelFuel (MkECertF Nothing [] FBeta (unfsOf st)) a b ty of
+                      Right () => pure (Right (MkECertF Nothing [] FBeta (unfsOf st)))
                       Left _ => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
 
   attemptT : Ctx -> Site -> Ty -> Ty -> ElabM (Either Site ECert)
@@ -3186,7 +3196,7 @@ mutual
             let t0 = nowNs ()
             let cs = mkCandSet st ctx
             let t1 = bump "cands" (nowNs () - t0) (nowNs ())
-            let mcert = map ({ unfolds := st.eqScope }) (spEqTyC (fromMaybe spDepth st.depthOv) st cs ctx tyA tyB)
+            let mcert = map ({ unfolds := (unfsOf st) }) (spEqTyC (fromMaybe spDepth st.depthOv) st cs ctx tyA tyB)
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mcert of
               Nothing => pure (Left site)
@@ -3199,8 +3209,8 @@ mutual
                                    else audit "AUDIT ty | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert))
                   Left kerrMsg =>
                     -- bare-beta rescue, as at attemptE
-                    case kCheckEqTy st.sig ctx kernelFuel (MkECertF Nothing [] FBeta st.eqScope) tyA tyB of
-                      Right () => pure (Right (MkECertF Nothing [] FBeta st.eqScope))
+                    case kCheckEqTy st.sig ctx kernelFuel (MkECertF Nothing [] FBeta (unfsOf st)) tyA tyB of
+                      Right () => pure (Right (MkECertF Nothing [] FBeta (unfsOf st)))
                       Left _ => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
 
   ||| Γ ⊢ a ≐ b : A ↓ — always succeeds; assumes what it cannot discharge.
@@ -3432,7 +3442,7 @@ mintHole ctx env site hrng label ty = do
                 "\{site}: duplicate hole ?\{label} — every hole of an item needs its own name"
     Nothing => pure ()
   modifySt $ { sig $= (:< SigDecl ctx q ty)
-             , declMeta $= (:< MkDeclMeta q env "\{site}" st.modFile (hrng <|> site.srange) st.eqScope) }
+             , declMeta $= (:< MkDeclMeta q env "\{site}" st.modFile (hrng <|> site.srange) (unfsOf st)) }
   pure (SigVar q (varSpine (length ctx)))
 
 ||| The first argument of a written spine that is a HOLE, with its
@@ -3502,7 +3512,7 @@ exposeCert st ctx ty tyX =
   -- binder, say) must not poison the item.
   timed "expose" $ \_ =>
     let cs = mkCandSet st ctx in
-    do c <- map ({ unfolds := st.eqScope }) (spEqTyC spDepth st cs ctx ty tyX)
+    do c <- map ({ unfolds := (unfsOf st) }) (spEqTyC spDepth st cs ctx ty tyX)
        case kCheckEqTy st.sig ctx kernelFuel c ty tyX of
          Right () => Just (tyX, c)
          Left _ => Nothing
@@ -4499,7 +4509,7 @@ mutual
           let stitched = map (map stitchOne . flatSteps) (catMaybes adjCerts)
           case traverse id stitched of
             Just segs =>
-              let cert = MkECertF Nothing (concat segs) FBeta st.eqScope in
+              let cert = MkECertF Nothing (concat segs) FBeta (unfsOf st) in
               case kCheckEqElem st.sig ctx kernelFuel cert l r tA of
                 Right () => pure (Just cert)
                 Left kerr => audit "CHAIN-COMPOSITE-FAIL \{site}: \{kerr}" fallback
@@ -4551,7 +4561,7 @@ mutual
               Just cert => pure (Star, withExpose exp (Nd [PReflEq cert] []))
               Nothing => do
                 (w', _) <- checkElem ctx env site w pN
-                let cert = MkECertF Nothing [MkStep True [] (LProof w') [] False] FBeta st.eqScope
+                let cert = MkECertF Nothing [MkStep True [] (LProof w') [] False] FBeta (unfsOf st)
                 pure (Star, withExpose exp (Nd [PReflEq cert] []))
           _ => throwShape site env "⋆ ⟨witness⟩ checked against" ty "an evident proposition"
   checkElemAt ctx env site (SSquashElim e xn body) ty = do
@@ -4863,7 +4873,7 @@ mutual
     -- conversions still verify it. STAGE 2 (ties, or an empty
     -- filter): the obligation-free conversion probes.
     st <- getSt
-    let jn = \t => compTy (unfTy st.sig True st.eqScope t)
+    let jn = \t => compTy (unfTy st.sig True (unfsOf st) t)
     let quick = filter (quickFit st jn pres) cands
     case quick of
       [q] => run pres q
@@ -5027,7 +5037,7 @@ mutual
     -- sees through definitional scaffolding the site itself licensed;
     -- captured bindings are still α-verified downstream, so value
     -- spelling drift keeps getting rejected
-    let jn = \t => compTy (unfTy st.sig True st.eqScope t)
+    let jn = \t => compTy (unfTy st.sig True (unfsOf st) t)
     let (doms, res) = teleOf defTy
     (slots, leftover) <- assign imps 0 doms items
     let m = length slots
@@ -5067,7 +5077,7 @@ mutual
     -- heads: it fills only otherwise-unsolved holes, so the wider
     -- join cannot disturb an existing solution
     let jnX = \t => compTy (unfTy st.sig True
-                     (st.eqScope ++ mapMaybe expName st.eqScope) t)
+                     ((unfsOf st) ++ mapMaybe expName (unfsOf st)) t)
     let argsNow = reverse revArgs
     let passSrcs = (case mexp of
                       Nothing => []
@@ -5906,7 +5916,7 @@ elabItemGo irng (SDeclDef nrng x ty) = do
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] (MkSite "def \{x}" irng) ty
   modifySt $ { sig $= (:< SigDecl [<] q ty')
-             , declMeta $= (:< MkDeclMeta q [<] "def \{x}" st.modFile nrng st.eqScope) }
+             , declMeta $= (:< MkDeclMeta q [<] "def \{x}" st.modFile nrng (unfsOf st)) }
   addVis (x, q)
   -- a DECLARED equation is a lemma like any accepted one: its stuck
   -- reference is a proof element (el-sig-decl), so el-reflect makes
