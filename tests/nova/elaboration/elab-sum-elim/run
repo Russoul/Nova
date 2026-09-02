@@ -1,0 +1,6 @@
+#!/bin/sh
+"$1" elab input.nova
+echo "--- what the scrutinee must be, and the mode it needs:"
+"$1" elab errors.nova
+echo "--- a branch cannot name what it eliminates:"
+"$1" elab scope.nova

@@ -1,0 +1,38 @@
+defined P
+defined collapse
+defined onGoal
+defined onLater
+defined bothSides
+defined nested
+defined hole [+2 declarations]
+open holes (2):
+  [?gl] (a : ℕ) (h : (P (inj₁ a))) ⊢ ?gl : (P (inj₁ a))
+      at: input.nova:27:63: def hole
+  [?gr] (b : ℕ) (h : (P (inj₂ b))) ⊢ ?gr : (P (inj₂ b))
+      at: input.nova:27:72: def hole
+--- what the scrutinee must be, and the mode it needs:
+errors.nova:2:59: error: def notVar: sum-elim eliminates a VARIABLE of a ⊎ type — this scrutinee is not one (name it first: `let w ≔ …`, or use ⊎-elim, which takes any)
+2 | def notVar : (w : ℕ ⊎ ℕ) → ℕ ≔ λw. sum-elim (a. a) (b. b) (inj₁ Z)
+  |                                                           ^^^^^^^^
+declared notVar [+1 declaration]
+errors.nova:4:32: error: def notSum: sum-elim eliminates a variable of type ℕ, which is not a ⊎ type
+4 | def notSum : (n : ℕ) → ℕ ≔ λn. sum-elim (a. a) (b. b) n
+  |                                ^^^^^^^^^^^^^^^^^^^^^^^^
+declared notSum [+1 declaration]
+errors.nova:6:36: error: def infers: sum-elim infers nothing — the branches meet only at the expected type; use it in checking position, or ascribe it
+6 | def infers : (w : ℕ ⊎ ℕ) → ℕ ≔ λw. (sum-elim (a. λn. n) (b. λn. n) w) Z
+  |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+declared infers [+1 declaration]
+open declarations (3):
+  [notVar] ⊢ ? : (ℕ ⊎ ℕ) → ℕ
+      at: errors.nova:2:1: def notVar
+  [notSum] ⊢ ? : ℕ → ℕ
+      at: errors.nova:4:1: def notSum
+  [infers] ⊢ ? : (ℕ ⊎ ℕ) → ℕ
+      at: errors.nova:6:1: def infers
+Error: 3 items failed to elaborate
+--- a branch cannot name what it eliminates:
+scope.nova:3:66: error: expected a sum-elim branch free of 'w' — the variable this eliminates, so a branch's context has no such entry (it has a or b there instead), but reached the end of the file
+3 | def gone : (w : ℕ ⊎ ℕ) → ℕ ⊎ ℕ ≔ λw. sum-elim (a. inj₁ a) (b. w) w
+  |                                                                  ^
+  note: while parsing the construct beginning at 3:47

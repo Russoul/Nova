@@ -1,0 +1,6 @@
+-- the scrutinee must be a VARIABLE — ⊎-elim is the form that takes any
+def notVar : (w : ℕ ⊎ ℕ) → ℕ ≔ λw. sum-elim (a. a) (b. b) (inj₁ Z)
+-- ... of a ⊎ type
+def notSum : (n : ℕ) → ℕ ≔ λn. sum-elim (a. a) (b. b) n
+-- and it infers nothing: the branches meet only at the expected type
+def infers : (w : ℕ ⊎ ℕ) → ℕ ≔ λw. (sum-elim (a. λn. n) (b. λn. n) w) Z

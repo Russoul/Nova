@@ -1,0 +1,36 @@
+-- sum-elim: eliminating a ⊎ VARIABLE, context and all.
+--
+-- `sum-elim (a. l) (b. r) w` takes a VARIABLE w of a ⊎ type and
+-- elaborates each branch where w is GONE and that branch's own binder
+-- stands where it stood, so every hypothesis after it — and the goal —
+-- reads at that injection. No motive is written: abstracting w in the
+-- expected type IS substituting the injection for it.
+--
+-- The contrast is `⊎-elim`, which takes ANY scrutinee and refines only
+-- the goal, leaving w and every hypothesis about it exactly as they
+-- were. Reach for sum-elim when the hypotheses have to move with the
+-- variable; reach for ⊎-elim when the scrutinee is not a variable at
+-- all, which sum-elim cannot take.
+--
+-- Unlike sigmaElim.nova's rule this one has real content: × has η, so
+-- a Σ split is a change of ascription, but a ⊎ split is an honest
+-- ⊎-elim underneath — its motive Π-closes the hypotheses standing
+-- after the variable and each branch λ-abstracts them.
+
+import nat (+)
+
+def Side : ℕ ⊎ ℕ → 𝕌 ≔ λs. ℕ
+
+def swap : (w : ℕ ⊎ ℕ) → ℕ ⊎ ℕ ≔ λw. sum-elim (a. inj₂ a) (b. inj₁ b) w
+
+-- the GOAL mentions the eliminated variable, so each branch proves it
+-- at that branch's own injection
+def value : (w : ℕ ⊎ ℕ) → Side w using (Side.eq) ≔
+  λw. sum-elim (a. (a : Side (inj₁ a))) (b. (b : Side (inj₂ b))) w
+
+-- a hypothesis standing AFTER the variable is refined with it: inside
+-- each branch h is already a fact about that injection
+def onLater : (w : ℕ ⊎ ℕ) (h : Side w) → Side w ≔ λw. λh. sum-elim (a. h) (b. h) w
+
+-- with entries on both sides of the variable
+def bothSides : (n : ℕ) (w : ℕ ⊎ ℕ) (h : Side w) → Side w ≔ λn. λw. λh. sum-elim (a. h) (b. h) w

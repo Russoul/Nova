@@ -134,6 +134,19 @@ mutual
     ||| against the site's — the parser reindexes it once it has read
     ||| the scrutinee (Parser.sigmaElimBody).
     SSigmaElim : (nx, ny : SName) -> (body : SElem) -> (scrutinee : SElem) -> SElem
+    ||| sum-elim (a. l) (b. r) w — the ⊎ VARIABLE elimination
+    ||| (docs/NovaElaboration.txt, e-sumsplit). w is a VARIABLE of a ⊎
+    ||| type, and each branch is elaborated in the context that
+    ||| variable's ELIMINATION gives it: w gone, the branch's own
+    ||| binder standing where it stood, every entry after it — and the
+    ||| goal — refined at the injection.
+    |||
+    ||| Two contexts, one per branch, and neither is the site's: like
+    ||| SSigmaElim's body, each branch's indices are counted against
+    ||| ITS context, and the parser reindexes them once it has read the
+    ||| scrutinee (Parser.sumSplitBranch).
+    SSumSplit : (na : SName) -> (left : SElem) ->
+                (nb : SName) -> (right : SElem) -> (scrutinee : SElem) -> SElem
     ||| ν F — the ν CODE (infers at 𝕌)
     SNuC : SPoly -> SElem
     ||| out t — the coinductive observation (infers, like the
@@ -315,6 +328,8 @@ mutual
   stripPos (SQuotElim mot a f q) =
     SQuotElim (map (\(z, m) => (z, stripPos m)) mot) a (stripPos f) (stripPos q)
   stripPos (SSigmaElim nx ny b w) = SSigmaElim nx ny (stripPos b) (stripPos w)
+  stripPos (SSumSplit na l nb r w) =
+    SSumSplit na (stripPos l) nb (stripPos r) (stripPos w)
   stripPos (SEqElim p x w) = SEqElim (stripPos p) (stripPos x) (stripPos w)
   stripPos (SNuC f) = SNuC (stripPosPoly f)
   stripPos (SOut t) = SOut (stripPos t)
@@ -352,95 +367,163 @@ mutual
 -- declines an index (the target context has no such entry) aborts the
 -- whole rewrite rather than fabricating a reference.
 --
--- The one caller today is `sigma-elim`, whose body is parsed against
--- the site's binders plus the two components and then reindexed
--- against the ELIMINATION context, where the eliminated variable is
--- gone (docs/NovaElaboration.txt, e-sigmaelim).
+-- The callers are the VARIABLE-ELIMINATING forms — sigma-elim,
+-- ≡-elim, sum-elim — whose sub-terms are parsed against the site's
+-- binders and then reindexed against the ELIMINATION context, where
+-- the eliminated variable is gone (docs/NovaElaboration.txt).
+--
+-- THE MAP IS A FUNCTION, NOT A DEPTH, and that is load-bearing. A
+-- depth can only describe a context EXTENDED innermost; these forms
+-- REPLACE an entry in the middle of one — sigma-elim's body sits in a
+-- context one longer, sum-elim's branch in one the same length,
+-- ≡-elim's proof in one two shorter. So the traversal transports the
+-- map through each node it descends (sigmaUnder/sumUnder/eqUnder),
+-- using the index the node's own scrutinee carries. Nesting one of
+-- these inside another's branch depends on it: with a fixed depth the
+-- outer variables an inner branch names are silently mis-shifted, and
+-- the kernel accepts the result — a WRONG term, not a rejected one
+-- (tests/nova/elaboration/elab-elim-nesting pins the values).
+
+||| Lift a remap under one binder the term itself introduces.
+public export
+underM : (Nat -> Maybe Nat) -> Nat -> Maybe Nat
+underM f Z = Just Z
+underM f (S k) = map S (f k)
+
+||| The remap transported into a Σ-elimination BODY. That environment
+||| has the eliminated entry replaced by the two components, so it is
+||| one LONGER than the site's, with y at i and x at i+1 — and the
+||| target's is one longer than the target's site, split at i'.
+public export
+sigmaUnder : (Nat -> Maybe Nat) -> (i, i' : Nat) -> Nat -> Maybe Nat
+sigmaUnder f i i' k =
+  if k == i then Just i'
+  else if k == S i then Just (S i')
+  else map (\m => if m > i' then S m else m) (f (if k < i then k else minus k 1))
+
+||| … into a ⊎-elimination BRANCH. Same length as the site's: the
+||| branch's own binder stands exactly where the variable stood, and
+||| every other entry keeps its index.
+public export
+sumUnder : (Nat -> Maybe Nat) -> (i, i' : Nat) -> Nat -> Maybe Nat
+sumUnder f i i' k = if k == i then Just i' else f k
+
+||| … into an ≡-elimination PROOF. TWO entries shorter — the variable
+||| at i and the equation at j (j < i) are both gone — so an index
+||| there enumerates the survivors, and the result re-enumerates them
+||| in the target.
+public export
+eqUnder : (Nat -> Maybe Nat) -> (i, j, i', j' : Nat) -> Nat -> Maybe Nat
+eqUnder f i j i' j' k =
+  let e = if k < j then k else if S k < i then S k else S (S k) in
+  map (\m => minus m ((if m > j' then 1 else 0) + (if m > i' then 1 else 0))) (f e)
 
 mutual
-  ||| Remap the FREE variable indices of a term: `f d i` maps an
-  ||| occurrence of index i seen under d of the term's own binders
-  ||| (occurrences with i < d are bound here and never offered).
+  ||| Remap the FREE variable indices of a term: `f` maps an index of
+  ||| the term's own environment to one of the target's, and declining
+  ||| an index aborts the whole rewrite. Binders the term introduces
+  ||| lift it (`underM`); the VARIABLE-ELIMINATING forms transport it
+  ||| through their own reindexing instead — see below.
   public export
   covering
-  mapVarsE : (f : Nat -> Nat -> Maybe Nat) -> Nat -> SElem -> Maybe SElem
-  mapVarsE f d e@(SVar r n i) = if i < d then Just e else SVar r n <$> f d i
-  mapVarsE f d e@(SSig _ _) = Just e
-  mapVarsE f d SUnitI = Just SUnitI
-  mapVarsE f d SZeroN = Just SZeroN
-  mapVarsE f d (SSuc t) = SSuc <$> mapVarsE f d t
-  mapVarsE f d (SLam x b) = SLam x <$> mapVarsE f (S d) b
-  mapVarsE f d (SLet x e b) = [| SLet (pure x) (mapVarsE f d e) (mapVarsE f (S (S d)) b) |]
-  mapVarsE f d (SApp h a) = [| SApp (mapVarsE f d h) (mapVarsE f d a) |]
-  mapVarsE f d (SPair a b) = [| SPair (mapVarsE f d a) (mapVarsE f d b) |]
-  mapVarsE f d (SProj1 t) = SProj1 <$> mapVarsE f d t
-  mapVarsE f d (SProj2 t) = SProj2 <$> mapVarsE f d t
-  mapVarsE f d SZeroC = Just SZeroC
-  mapVarsE f d SOneC = Just SOneC
-  mapVarsE f d SNatC = Just SNatC
-  mapVarsE f d SUnivC = Just SUnivC
-  mapVarsE f d SPropC = Just SPropC
-  mapVarsE f d (SPiC x a b) = [| SPiC (pure x) (mapVarsE f d a) (mapVarsE f (S d) b) |]
-  mapVarsE f d (SImpPiC x a b) = [| SImpPiC (pure x) (mapVarsE f d a) (mapVarsE f (S d) b) |]
-  mapVarsE f d (SSigmaC x a b) = [| SSigmaC (pure x) (mapVarsE f d a) (mapVarsE f (S d) b) |]
-  mapVarsE f d (SSumC a b) = [| SSumC (mapVarsE f d a) (mapVarsE f d b) |]
-  mapVarsE f d (SQuotC a x y r) =
-    [| SQuotC (mapVarsE f d a) (pure x) (pure y) (mapVarsE f (S (S d)) r) |]
-  mapVarsE f d (SEqC rng l r t) =
-    [| SEqC (pure rng) (mapVarsE f d l) (mapVarsE f d r) (traverse (mapVarsE f d) t) |]
-  mapVarsE f d (SZeroElim t) = SZeroElim <$> mapVarsE f d t
-  mapVarsE f d (SNatElim mot z n2 ih s t) =
-    [| SNatElim (traverse (\(n, m) => (n,) <$> mapVarsE f (S d) m) mot) (mapVarsE f d z)
-                (pure n2) (pure ih) (mapVarsE f (S (S d)) s) (mapVarsE f d t) |]
-  mapVarsE f d (SInj1 t) = SInj1 <$> mapVarsE f d t
-  mapVarsE f d (SInj2 t) = SInj2 <$> mapVarsE f d t
-  mapVarsE f d (SSumElim mot a l b r t) =
-    [| SSumElim (traverse (\(z, m) => (z,) <$> mapVarsE f (S d) m) mot) (pure a)
-                (mapVarsE f (S d) l) (pure b) (mapVarsE f (S d) r) (mapVarsE f d t) |]
-  mapVarsE f d (SClass t) = SClass <$> mapVarsE f d t
-  mapVarsE f d (SQuotElim mot a g q) =
-    [| SQuotElim (traverse (\(z, m) => (z,) <$> mapVarsE f (S d) m) mot) (pure a)
-                 (mapVarsE f (S d) g) (mapVarsE f d q) |]
-  mapVarsE f d (SSigmaElim nx ny b w) =
-    [| SSigmaElim (pure nx) (pure ny) (mapVarsE f (S (S d)) b) (mapVarsE f d w) |]
-  -- ≡-elim binds nothing: the elimination REMOVES two entries, so
-  -- every component stands at the site's own depth
-  mapVarsE f d (SEqElim p x w) =
-    [| SEqElim (mapVarsE f d p) (mapVarsE f d x) (mapVarsE f d w) |]
-  mapVarsE f d (SNuC p) = SNuC <$> mapVarsPoly f d p
-  mapVarsE f d (SOut t) = SOut <$> mapVarsE f d t
-  mapVarsE f d (SCorec x a g u) =
-    [| SCorec (pure x) (mapVarsE f d a) (mapVarsE f (S d) g) (mapVarsE f d u) |]
-  mapVarsE f d (SCoind nx ny r pw mx my mh q) =
-    [| SCoind (pure nx) (pure ny) (mapVarsE f (S (S d)) r) (mapVarsE f d pw)
-              (pure mx) (pure my) (pure mh) (mapVarsE f (S (S (S d))) q) |]
-  mapVarsE f d (SSquash t) = SSquash <$> mapVarsE f d t
-  mapVarsE f d e@(SStar _) = Just e
-  mapVarsE f d (SStarWit e) = SStarWit <$> mapVarsE f d e
-  mapVarsE f d e@(SStarUsing _ _) = Just e
-  mapVarsE f d (SSquashElim e x b) =
-    [| SSquashElim (mapVarsE f d e) (pure x) (mapVarsE f (S d) b) |]
-  mapVarsE f d (SChain h ls) =
-    [| SChain (mapVarsE f d h)
-              (traverse (\(j, m) => [| MkPair (mapVarsE f d j) (mapVarsE f d m) |]) ls) |]
-  mapVarsE f d (SAnn t ty) = [| SAnn (mapVarsE f d t) (mapVarsE f d ty) |]
-  mapVarsE f d (SImpArg t) = SImpArg <$> mapVarsE f d t
-  mapVarsE f d (SNoIns t) = SNoIns <$> mapVarsE f d t
-  mapVarsE f d e@(SBlank _) = Just e
-  mapVarsE f d e@(SHole _ _) = Just e
-  mapVarsE f d (SPos r t) = SPos r <$> mapVarsE f d t
+  mapVarsE : (f : Nat -> Maybe Nat) -> SElem -> Maybe SElem
+  mapVarsE f (SVar r n i) = SVar r n <$> f i
+  mapVarsE f e@(SSig _ _) = Just e
+  mapVarsE f SUnitI = Just SUnitI
+  mapVarsE f SZeroN = Just SZeroN
+  mapVarsE f (SSuc t) = SSuc <$> mapVarsE f t
+  mapVarsE f (SLam x b) = SLam x <$> mapVarsE (underM f) b
+  mapVarsE f (SLet x e b) = [| SLet (pure x) (mapVarsE f e) (mapVarsE (underM (underM f)) b) |]
+  mapVarsE f (SApp h a) = [| SApp (mapVarsE f h) (mapVarsE f a) |]
+  mapVarsE f (SPair a b) = [| SPair (mapVarsE f a) (mapVarsE f b) |]
+  mapVarsE f (SProj1 t) = SProj1 <$> mapVarsE f t
+  mapVarsE f (SProj2 t) = SProj2 <$> mapVarsE f t
+  mapVarsE f SZeroC = Just SZeroC
+  mapVarsE f SOneC = Just SOneC
+  mapVarsE f SNatC = Just SNatC
+  mapVarsE f SUnivC = Just SUnivC
+  mapVarsE f SPropC = Just SPropC
+  mapVarsE f (SPiC x a b) = [| SPiC (pure x) (mapVarsE f a) (mapVarsE (underM f) b) |]
+  mapVarsE f (SImpPiC x a b) = [| SImpPiC (pure x) (mapVarsE f a) (mapVarsE (underM f) b) |]
+  mapVarsE f (SSigmaC x a b) = [| SSigmaC (pure x) (mapVarsE f a) (mapVarsE (underM f) b) |]
+  mapVarsE f (SSumC a b) = [| SSumC (mapVarsE f a) (mapVarsE f b) |]
+  mapVarsE f (SQuotC a x y r) =
+    [| SQuotC (mapVarsE f a) (pure x) (pure y) (mapVarsE (underM (underM f)) r) |]
+  mapVarsE f (SEqC rng l r t) =
+    [| SEqC (pure rng) (mapVarsE f l) (mapVarsE f r) (traverse (mapVarsE f) t) |]
+  mapVarsE f (SZeroElim t) = SZeroElim <$> mapVarsE f t
+  mapVarsE f (SNatElim mot z n2 ih s t) =
+    [| SNatElim (traverse (\(n, m) => (n,) <$> mapVarsE (underM f) m) mot) (mapVarsE f z)
+                (pure n2) (pure ih) (mapVarsE (underM (underM f)) s) (mapVarsE f t) |]
+  mapVarsE f (SInj1 t) = SInj1 <$> mapVarsE f t
+  mapVarsE f (SInj2 t) = SInj2 <$> mapVarsE f t
+  mapVarsE f (SSumElim mot a l b r t) =
+    [| SSumElim (traverse (\(z, m) => (z,) <$> mapVarsE (underM f) m) mot) (pure a)
+                (mapVarsE (underM f) l) (pure b) (mapVarsE (underM f) r) (mapVarsE f t) |]
+  mapVarsE f (SClass t) = SClass <$> mapVarsE f t
+  mapVarsE f (SQuotElim mot a g q) =
+    [| SQuotElim (traverse (\(z, m) => (z,) <$> mapVarsE (underM f) m) mot) (pure a)
+                 (mapVarsE (underM f) g) (mapVarsE f q) |]
+  -- THE VARIABLE-ELIMINATING FORMS do not extend the context, they
+  -- REPLACE an entry of it — so a sub-term's environment is not the
+  -- ambient one plus binders, and no depth describes it. Each node
+  -- knows the index it eliminates (the scrutinee carries it), so the
+  -- remap descends COMPOSED with that node's own reindexing. Without
+  -- this, nesting one of these inside another's branch silently
+  -- mis-shifts the outer variables — a wrong term, not a rejected one.
+  mapVarsE f (SSigmaElim nx ny b w) = case unPos w of
+    SVar _ _ i => do
+      i' <- f i
+      [| SSigmaElim (pure nx) (pure ny) (mapVarsE (sigmaUnder f i i') b) (mapVarsE f w) |]
+    -- not a variable: the elaborator rejects it, and the body's
+    -- indices are never read
+    _ => [| SSigmaElim (pure nx) (pure ny) (mapVarsE f b) (mapVarsE f w) |]
+  mapVarsE f (SSumSplit na l nb r w) = case unPos w of
+    SVar _ _ i => do
+      i' <- f i
+      [| SSumSplit (pure na) (mapVarsE (sumUnder f i i') l)
+                   (pure nb) (mapVarsE (sumUnder f i i') r) (mapVarsE f w) |]
+    _ => [| SSumSplit (pure na) (mapVarsE f l) (pure nb) (mapVarsE f r) (mapVarsE f w) |]
+  mapVarsE f (SEqElim p x w) = case (unPos x, unPos w) of
+    (SVar _ _ i, SVar _ _ j) => do
+      i' <- f i
+      j' <- f j
+      [| SEqElim (mapVarsE (eqUnder f i j i' j') p) (mapVarsE f x) (mapVarsE f w) |]
+    _ => [| SEqElim (mapVarsE f p) (mapVarsE f x) (mapVarsE f w) |]
+  mapVarsE f (SNuC p) = SNuC <$> mapVarsPoly f p
+  mapVarsE f (SOut t) = SOut <$> mapVarsE f t
+  mapVarsE f (SCorec x a g u) =
+    [| SCorec (pure x) (mapVarsE f a) (mapVarsE (underM f) g) (mapVarsE f u) |]
+  mapVarsE f (SCoind nx ny r pw mx my mh q) =
+    [| SCoind (pure nx) (pure ny) (mapVarsE (underM (underM f)) r) (mapVarsE f pw)
+              (pure mx) (pure my) (pure mh) (mapVarsE (underM (underM (underM f))) q) |]
+  mapVarsE f (SSquash t) = SSquash <$> mapVarsE f t
+  mapVarsE f e@(SStar _) = Just e
+  mapVarsE f (SStarWit e) = SStarWit <$> mapVarsE f e
+  mapVarsE f e@(SStarUsing _ _) = Just e
+  mapVarsE f (SSquashElim e x b) =
+    [| SSquashElim (mapVarsE f e) (pure x) (mapVarsE (underM f) b) |]
+  mapVarsE f (SChain h ls) =
+    [| SChain (mapVarsE f h)
+              (traverse (\(j, m) => [| MkPair (mapVarsE f j) (mapVarsE f m) |]) ls) |]
+  mapVarsE f (SAnn t ty) = [| SAnn (mapVarsE f t) (mapVarsE f ty) |]
+  mapVarsE f (SImpArg t) = SImpArg <$> mapVarsE f t
+  mapVarsE f (SNoIns t) = SNoIns <$> mapVarsE f t
+  mapVarsE f e@(SBlank _) = Just e
+  mapVarsE f e@(SHole _ _) = Just e
+  mapVarsE f (SPos r t) = SPos r <$> mapVarsE f t
 
   public export
   covering
-  mapVarsPoly : (f : Nat -> Nat -> Maybe Nat) -> Nat -> SPoly -> Maybe SPoly
-  mapVarsPoly f d SPHole = Just SPHole
-  mapVarsPoly f d (SPConst e) = SPConst <$> mapVarsE f d e
-  mapVarsPoly f d (SPProd p q) = [| SPProd (mapVarsPoly f d p) (mapVarsPoly f d q) |]
-  mapVarsPoly f d (SPSum p q) = [| SPSum (mapVarsPoly f d p) (mapVarsPoly f d q) |]
-  mapVarsPoly f d (SPSigma x a p) =
-    [| SPSigma (pure x) (mapVarsE f d a) (mapVarsPoly f (S d) p) |]
-  mapVarsPoly f d (SPPi x a p) =
-    [| SPPi (pure x) (mapVarsE f d a) (mapVarsPoly f (S d) p) |]
+  mapVarsPoly : (f : Nat -> Maybe Nat) -> SPoly -> Maybe SPoly
+  mapVarsPoly f SPHole = Just SPHole
+  mapVarsPoly f (SPConst e) = SPConst <$> mapVarsE f e
+  mapVarsPoly f (SPProd p q) = [| SPProd (mapVarsPoly f p) (mapVarsPoly f q) |]
+  mapVarsPoly f (SPSum p q) = [| SPSum (mapVarsPoly f p) (mapVarsPoly f q) |]
+  mapVarsPoly f (SPSigma x a p) =
+    [| SPSigma (pure x) (mapVarsE f a) (mapVarsPoly (underM f) p) |]
+  mapVarsPoly f (SPPi x a p) =
+    [| SPPi (pure x) (mapVarsE f a) (mapVarsPoly (underM f) p) |]
 
 
 --
@@ -450,7 +533,7 @@ mutual
 ||| Ty-suffixed remap is its Elem twin under another name.
 public export
 covering
-mapVarsTy : (f : Nat -> Nat -> Maybe Nat) -> Nat -> STy -> Maybe STy
+mapVarsTy : (f : Nat -> Maybe Nat) -> STy -> Maybe STy
 mapVarsTy = mapVarsE
 -- Only a handful of nodes record a range of their own: the leaves a
 -- name resolves at (SVar/SSig), the elided-sugar keys (SEqC/STyEq),
@@ -525,6 +608,7 @@ mutual
   -- sigma-elim has no motive: the scrutinee's head places it (the
   -- variable it eliminates is what every message here is about)
   headRange (SSigmaElim _ _ _ w) = headRange w
+  headRange (SSumSplit _ _ _ _ w) = headRange w
   -- the VARIABLE being eliminated places it: every message here is
   -- about it or the equation that specialises it
   headRange (SEqElim _ x w) = headRange x <|> headRange w
@@ -555,12 +639,12 @@ mutual
 public export
 covering
 shiftElem : (c : Nat) -> SElem -> SElem
-shiftElem c e = fromMaybe e (mapVarsE (\d, i => Just (if i >= c + d then S i else i)) 0 e)
+shiftElem c e = fromMaybe e (mapVarsE (\i => Just (if i >= c then S i else i)) e)
 
 public export
 covering
 shiftPoly : (c : Nat) -> SPoly -> SPoly
-shiftPoly c p = fromMaybe p (mapVarsPoly (\d, i => Just (if i >= c + d then S i else i)) 0 p)
+shiftPoly c p = fromMaybe p (mapVarsPoly (\i => Just (if i >= c then S i else i)) p)
 
 -- ===== Operators are names =====
 --
@@ -813,6 +897,8 @@ mutual
     show (SQuotElim mot a f q) =
       "QuotElim \{maybe "_" (fst . fst) mot} (\{maybe "_" (show . snd) mot}) \{fst a} (\{show f}) (\{show q})"
     show (SEqElim p x w) = "EqElim (\{show p}) (\{show x}) (\{show w})"
+    show (SSumSplit na l nb r w) =
+      "SumSplit \{fst na} (\{show l}) \{fst nb} (\{show r}) (\{show w})"
     show (SSigmaElim nx ny b w) =
       "SigmaElim \{fst nx} \{fst ny} (\{show b}) (\{show w})"
     show (SNuC f) = "NuC (\{show f})"

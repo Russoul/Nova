@@ -280,6 +280,7 @@ mutual
     SClass _ => CKeyword
     SQuotElim _ _ _ _ => CKeyword
     SSigmaElim _ _ _ _ => CKeyword
+    SSumSplit _ _ _ _ _ => CKeyword
     SEqElim _ _ _ => CKeyword
     SNuC _ => CKeyword
     SOut _ => CKeyword
@@ -366,6 +367,11 @@ mutual
       DGroup (txt "≡-elim" <->
               DNest 2 (DLine <-> pe tbl LAtom False p <->
                        DLine <-> pe tbl LAtom False x <->
+                       DLine <-> pe tbl LAtom False w))
+    SSumSplit (a, _) l (b, _) r w =>
+      DGroup (txt "sum-elim" <->
+              DNest 2 (DLine <-> txt "(\{a}. " <-> pe tbl LPair True l <-> txt ")" <->
+                       DLine <-> txt "(\{b}. " <-> pe tbl LPair True r <-> txt ")" <->
                        DLine <-> pe tbl LAtom False w))
     SSigmaElim (x, _) (y, _) b w =>
       DGroup (txt "sigma-elim" <->
@@ -835,6 +841,7 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
       SClass t => SClass (esE t)
       SQuotElim mot a f q => SQuotElim (esMot mot) a (esE f) (esE q)
       SSigmaElim nx ny b w => SSigmaElim nx ny (esE b) (esE w)
+      SSumSplit na l nb r w => SSumSplit na (esE l) nb (esE r) (esE w)
       SEqElim p x w => SEqElim (esE p) (esE x) (esE w)
       SNuC f => SNuC (esP f)
       SOut t => SOut (esE t)

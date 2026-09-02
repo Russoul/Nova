@@ -1,0 +1,27 @@
+-- sum-elim: the ⊎ VARIABLE elimination (docs/NovaElaboration.txt,
+-- e-sumsplit). Each branch is elaborated where the variable is GONE
+-- and that branch's own binder stands where it stood; every entry
+-- after it — and the goal — reads at the injection.
+def P : ℕ ⊎ ℕ → 𝕌 ≔ λs. ℕ
+
+-- no dependency on the eliminated variable anywhere
+def collapse : (w : ℕ ⊎ ℕ) → ℕ ≔ λw. sum-elim (a. a) (b. b) w
+
+-- the GOAL mentions it: each branch proves it at its own injection
+def onGoal : (w : ℕ ⊎ ℕ) → P w using (P.eq) ≔
+  λw. sum-elim (a. (Z : P (inj₁ a))) (b. (Z : P (inj₂ b))) w
+
+-- a hypothesis AFTER the variable, refined with it
+def onLater : (w : ℕ ⊎ ℕ) (h : P w) → P w ≔ λw. λh. sum-elim (a. h) (b. h) w
+
+-- entries on both sides of the variable
+def bothSides : (n : ℕ) (w : ℕ ⊎ ℕ) (h : P w) → P w
+  ≔ λn. λw. λh. sum-elim (a. h) (b. h) w
+
+-- nested: the inner branch reaches the outer one's binder (see
+-- elab-elim-nesting, which runs the values)
+def nested : (v : ℕ ⊎ ℕ) (w : ℕ ⊎ ℕ) → ℕ
+  ≔ λv. λw. sum-elim (a. sum-elim (c. a) (d. d) w) (b. b) v
+
+-- HOLES: each branch's goal is stated in that branch's own context
+def hole : (w : ℕ ⊎ ℕ) (h : P w) → P w ≔ λw. λh. sum-elim (a. ?gl) (b. ?gr) w

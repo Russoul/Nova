@@ -314,18 +314,17 @@ foldGroups f ((x, t) :: rest) b = f x t (foldGroups f rest b)
 ||| is the only environment available at the time; this remap is what
 ||| pays for the surface order (docs/NovaElaboration.txt, e-sigmaelim).
 sigmaElimBody : (i : Nat) -> SElem -> Maybe SElem
-sigmaElimBody i b = mapVarsE remap 0 b
+sigmaElimBody i b = mapVarsE remap b
  where
-  remap : Nat -> Nat -> Maybe Nat
-  remap d k = case minus k d of
-    -- the two pushed slots: y innermost, then x — they land where w
-    -- stood, y at w's own index and x one further out
-    Z         => Just (i + d)
-    (S Z)     => Just (S i + d)
-    (S (S m)) =>
-      if m < i then Just (m + d)               -- inside Γ₁: unchanged
-      else if m == i then Nothing              -- w itself: eliminated
-      else Just (S m + d)                      -- inside Γ₀: one further out
+  remap : Nat -> Maybe Nat
+  -- the two pushed slots: y innermost, then x — they land where w
+  -- stood, y at w's own index and x one further out
+  remap Z         = Just i
+  remap (S Z)     = Just (S i)
+  remap (S (S m)) =
+    if m < i then Just m                       -- inside Γ₁: unchanged
+    else if m == i then Nothing                -- w itself: eliminated
+    else Just (S m)                            -- inside Γ₀: one further out
 ||| foldGroups over groups carrying an IMPLICIT flag; the former is
 ||| chosen per group (Π implicit or explicit, × always explicit).
 foldGroupsC : (Bool -> String -> a -> b -> b) -> List (Bool, String, a) -> b -> b
@@ -344,15 +343,32 @@ foldGroupsC f ((imp, x, t) :: rest) b = f imp x t (foldGroupsC f rest b)
 ||| parsed against the environment available at the time and shifted
 ||| once the two variables are known.
 eqElimProof : (i, j : Nat) -> SElem -> Maybe SElem
-eqElimProof i j b = mapVarsE remap 0 b
+eqElimProof i j b = mapVarsE remap b
  where
-  remap : Nat -> Nat -> Maybe Nat
-  remap d k =
-    let m = minus k d in
+  remap : Nat -> Maybe Nat
+  remap m =
     if m == j || m == i then Nothing                 -- w, x: eliminated
-    else if m < j then Just (m + d)                  -- inside w: unchanged
-    else if m < i then Just (minus m 1 + d)          -- between them: w gone
-    else Just (minus m 2 + d)                        -- outside x: both gone
+    else if m < j then Just m                        -- inside w: unchanged
+    else if m < i then Just (minus m 1)              -- between them: w gone
+    else Just (minus m 2)                            -- outside x: both gone
+
+||| One branch of `sum-elim (a. l) (b. r) w`, reindexed from the
+||| context it was PARSED against — the site's binders with the
+||| branch's own name pushed innermost — to the context that branch is
+||| ELABORATED in, where w (index i at the site) is gone and the
+||| branch's binder stands exactly where it stood.
+|||
+||| The two contexts have the SAME LENGTH, so every other variable
+||| keeps its index; only the pushed binder moves, from 0 to i.
+||| Nothing when the branch mentions w — that context has no such
+||| entry, and its components are what the branch was given instead.
+sumSplitBranch : (i : Nat) -> SElem -> Maybe SElem
+sumSplitBranch i b = mapVarsE remap b
+ where
+  remap : Nat -> Maybe Nat
+  remap Z     = Just i                           -- the binder, into w's slot
+  remap (S m) = if m == i then Nothing           -- w itself: eliminated
+                else Just m                      -- everything else stands
 
 -- ===== Types and elements (mutually recursive) =====
 
@@ -742,6 +758,27 @@ mutual
               -- own spans. The proof keeps its parse indices; nothing
               -- ever reads them
               _ => pure (SEqElim p x w))
+        -- sum-elim (a. l) (b. r) w — the ⊎ VARIABLE elimination.
+        -- Methods first, scrutinee last, as everywhere in the family;
+        -- each branch is reindexed against ITS OWN elimination
+        -- context once w is read (docs/NovaElaboration.txt, e-sumsplit)
+    <|> (do kw "sum-elim"; space; commit
+            kwc '('; sp; a <- parseNameR; sp; kwc '.'; sp
+            l <- parseSElem tbl (env :< fst a); sp; kwc ')'; sp
+            kwc '('; sp; b <- parseNameR; sp; kwc '.'; sp
+            r <- parseSElem tbl (env :< fst b); sp; kwc ')'; sp
+            w <- parseSElemAtom tbl env
+            case unPos w of
+              SVar wrng nm i =>
+                case (sumSplitBranch i l, sumSplitBranch i r) of
+                  (Just l', Just r') => pure (SSumSplit a l' b r' w)
+                  _ =>
+                    let msg = "a sum-elim branch free of '\{nm}' — the variable this eliminates, so a branch's context has no such entry (it has \{fst a} or \{fst b} there instead)" in
+                    maybe (fail msg) (\rr => failLoc rr msg) (posOf w <|> wrng)
+              -- not a variable: the elaborator says so, at its own
+              -- span. The branches keep their parse indices; nothing
+              -- ever reads them
+              _ => pure (SSumSplit a l b r w))
         -- sigma-elim (x y. t) w — the Σ VARIABLE elimination. The
         -- body is parsed against the site's binders with x and y
         -- pushed innermost (the scrutinee is only read after it), and

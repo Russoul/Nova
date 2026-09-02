@@ -388,6 +388,7 @@ sInferForm e0 = case unPos e0 of
   -- infers when the body does, and REFINES THE GOAL when there is one
   SSigmaElim _ _ _ _ => False
   SEqElim _ _ _ => False
+  SSumSplit _ _ _ _ _ => False
   SPair _ _ => False
   SInj1 _ => False
   SInj2 _ => False
@@ -4017,6 +4018,13 @@ mutual
     let hyp = Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk)
     (b', bTy, bSk) <- inferElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
     pure (Let e' b', substTy bTy (Ext (Ext Id e') Star), Nd [] [eSk, bSk])
+  inferElemAt ctx env site (SSumSplit _ _ _ _ _) =
+    -- like the motive-less ⊎-elim it is built on, sum-elim is
+    -- CHECKING-ONLY: the two branches land at different types, and
+    -- only the expected type says which motive relates them
+    throwAt site.srange
+      ("\{site}: sum-elim infers nothing — the branches meet only at the expected"
+        ++ " type; use it in checking position, or ascribe it")
   inferElemAt ctx env site (SEqElim p x w) = do
     -- e-eqelim-infer: the proof's own type, read back at the site
     -- through the spine of the variables that survived
@@ -4188,6 +4196,113 @@ mutual
   eqElimCand st j lhs rhs =
     closeCand (MkCand "eq-elim" 0 [] (engNfE st lhs) (engNfE st rhs)
                  (\wk, _ => Just (weakenElemN wk (CtxVar j), [])) [] [])
+
+  ||| e-sumsplit — the ⊎ VARIABLE elimination.
+  |||
+  ||| Each branch is elaborated in the context that variable's
+  ||| elimination gives IT: w gone, the branch's binder standing where
+  ||| it stood, every entry after it — and the goal — refined at the
+  ||| injection. Two contexts, one per branch, and neither is the
+  ||| site's.
+  |||
+  ||| WHERE THIS DIFFERS FROM e-sigmaelim. A × has η, so the Σ site was
+  ||| the body re-applied to projections and no eliminator was needed.
+  ||| A ⊎ has none: the core term MUST be ⊎-elim, whose branches bind
+  ||| INNERMOST, while these bind where w stood with Γ₁ after them.
+  ||| Reconciling those is the positive tier's move
+  ||| (docs/NovaElaboration.txt, In-place elimination): the motive
+  ||| Π-CLOSES the entries after the variable, each branch λ-abstracts
+  ||| them, and the result is re-applied.
+  |||
+  ||| So the site lifts THREE definitions: one per branch, over its own
+  ||| context, and one for the eliminator itself over Γ₀, at the
+  ||| Π-closed type. The last one's body is written as SURFACE and
+  ||| checked — a motive-less ⊎-elim, whose motive the ordinary rule
+  ||| recovers by abstracting the scrutinee in that Π-closed type — so
+  ||| the motive, the branch payloads and every certificate come from
+  ||| the ordinary rules rather than being built by hand.
+  |||
+  ||| The site is then an ordinary application spine, and it owes NO
+  ||| conversion at all: the eliminator's type instantiated at w and
+  ||| the surviving variables IS the goal, on the nose, because the
+  ||| motive binder stands exactly where w stood.
+  elabSumSplit : Ctx -> NameEnv -> Site -> (na : SName) -> (left : SElem) ->
+                 (nb : SName) -> (right : SElem) -> (scrutinee : SElem) ->
+                 (goal : Ty) -> ElabM (Elem, Skel)
+  elabSumSplit ctx env site (an, ar) sl (bn, br) sr w goal = do
+    st <- getSt
+    case unPos w of
+      SVar wrng nm i => case (ctxSplitAt i ctx, ctxSplitAt i env) of
+        (Just (g0, wty, g1), Just (env0, _, env1)) =>
+          case preferSum st g0 wty of
+            Nothing =>
+              throwShape site env "sum-elim eliminates a variable of type"
+                (substTy wty (wkN (S i))) "a ⊎ type"
+            Just (aTy, bTy, _) => do
+              let n0 = length g0
+              let n1 = length g1
+              let g1s = toList g1
+              recordBinder ar g0 env0 an aTy
+              recordBinder br g0 env0 bn bTy
+              -- the two elimination contexts and goals, one per
+              -- injection. β-CONTRACTED, for e-sigmaelim's reason: the
+              -- injection lands where the variable stood
+              let subL = Ext Wk (Inj1 (CtxVar 0))
+              let subR = Ext Wk (Inj2 (CtxVar 0))
+              let ctxL = refineInj subL (g0 :< aTy) 0 g1s
+              let ctxR = refineInj subR (g0 :< bTy) 0 g1s
+              let envB = \nm' => (env0 :< nm') <>< toList env1
+              let goalL = compTy (substTy goal (underN n1 subL))
+              let goalR = compTy (substTy goal (underN n1 subR))
+              (l', lSk) <- checkElem ctxL (envB an) site sl goalL
+              (r', rSk) <- checkElem ctxR (envB bn) site sr goalR
+              ql <- emitInlineDef site "l" ctxL goalL (Nd [] []) l' lSk
+              qr <- emitInlineDef site "r" ctxR goalR (Nd [] []) r' rSk
+              -- the eliminator, at the Π-closed type. Its motive
+              -- binder stands where w stood, so the closure is the
+              -- entries and the goal VERBATIM — no substitution
+              let elimTy = Elem.PiTy wty (piClose g1 goal)
+              let body = SLam (nm, Nothing)
+                           (SSumElim Nothing (an, Nothing) (branch env0 env1 ql an)
+                                             (bn, Nothing) (branch env0 env1 qr bn)
+                                             (SVar Nothing nm 0))
+              (e', eSk) <- checkElem g0 env0 site body elimTy
+              qe <- emitInlineDef site "u" g0 elimTy (Nd [] []) e' eSk
+              -- the site: the eliminator at w and the survivors
+              let args = svarsS env0 (S i) ++ [SVar wrng nm i] ++ svarsS env1 0
+              let spine = foldl SApp (SSig Nothing qe) args
+              checkElem ctx env site spine goal
+        _ => throwAt (wrng <|> site.srange)
+               "\{site}: internal: sum-elim's scrutinee index escapes Γ"
+      _ => throwAt (headRange w <|> site.srange)
+             ("\{site}: sum-elim eliminates a VARIABLE of a ⊎ type — this scrutinee is"
+               ++ " not one (name it first: `let w ≔ …`, or use ⊎-elim, which takes any)")
+   where
+    ||| The entries standing after the variable, refined at one
+    ||| injection — a lift per entry crossed, then β-contracted.
+    refineInj : (s : Sub) -> Ctx -> Nat -> List Ty -> Ctx
+    refineInj s acc m [] = acc
+    refineInj s acc m (c :: cs) =
+      refineInj s (acc :< compTy (substTy c (underN m s))) (S m) cs
+
+    ||| A run of surface variables, outermost first.
+    svarsS : SnocList String -> (base : Nat) -> List SElem
+    svarsS names base =
+      let ns = toList names in
+      zipWith (\n, d => SVar Nothing n d) ns (idxDesc (length ns) base)
+
+    ||| A branch of the lifted eliminator: λ over the entries the
+    ||| motive Π-closed, then the branch's own definition at the whole
+    ||| spine — Γ₀'s variables, the injection's binder, those λs.
+    ||| Written as SURFACE, so the ordinary rules certify it.
+    branch : (env0, env1 : SnocList String) -> String -> String -> SElem
+    branch env0 env1 q bnd =
+      let n1 = length env1
+          vs = toList env1
+          -- inside λz. ⊎-elim (bnd. λ v₁ … vₙ. …), counting outwards:
+          -- the λs, then bnd, then z, then Γ₀
+          args = svarsS env0 (2 + n1) ++ [SVar Nothing bnd n1] ++ svarsS env1 0
+      in foldr (\v, acc => SLam (v, Nothing) acc) (foldl SApp (SSig Nothing q) args) vs
 
   ||| e-eqelim — the EQUALITY variable elimination, in both modes.
   |||
@@ -4855,6 +4970,8 @@ mutual
                 (body', bodySk) <- checkElem (ctx :< a) (env :< fst xn) site body (substTy q Wk)
                 pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
           _ => throwShape site env "squash-elim scrutinee has type" eTy "a ∥∥ proposition"
+  checkElemAt ctx env site (SSumSplit na l nb r w) ty =
+    elabSumSplit ctx env site na l nb r w ty
   checkElemAt ctx env site (SEqElim p x w) ty = do
     -- CHECKING: the motive is RECOVERED — specialising the eliminated
     -- variable in the expected type is exactly substituting the

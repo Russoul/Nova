@@ -359,6 +359,10 @@ t{2½} ::= 𝟘-elim t{≥4}
         | sigma-elim (x y. t{≥0}) t{≥4}                        # components, SCRUTINEE —
                                                                #   a VARIABLE of a × type;
                                                                #   no motive (see e-sigmaelim)
+        | sum-elim (a. t{≥0}) (b. t{≥0}) t{≥4}                 # left case, right case,
+                                                               #   SCRUTINEE — a VARIABLE
+                                                               #   of a ⊎ type; no motive
+                                                               #   (see e-sumsplit)
         | ≡-elim t{≥4} t{≥4} t{≥4}                             # proof, VARIABLE, EQUATION —
                                                                #   the last two are variables;
                                                                #   no motive (see e-eqelim)
@@ -895,6 +899,60 @@ componentwise at F × G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 # p̂[υ] is the RULE, and as at e-sigmaelim the elaborator does not
 # perform that substitution: p is installed as an INLINE DEFINITION
 # over Γ′ and the site is that definition applied to υ's spine.
+
+Γ = Γ₀ ▷ w:(A ⊎ B) ▷ Γ₁                   # the scrutinee is the VARIABLE ☐ᵢ, i = |Γ₁|
+Γ₀ ▷ a:A ▷ Γ₁[inj₁ ☐₀/w] ⊢ l ⇐ C[inj₁ ☐₀/w] ⇝ l̂
+Γ₀ ▷ b:B ▷ Γ₁[inj₂ ☐₀/w] ⊢ r ⇐ C[inj₂ ☐₀/w] ⇝ r̂
+------------------------------------------------------------------ (e-sumsplit)
+Γ ⊢ sum-elim (a. l) (b. r) w ⇐ C ⇝ (⊎-elim l̂′ r̂′ ☐ᵢ) ☐ᵢ₋₁ … ☐₀
+
+# CHECKING-ONLY, like the motive-less ⊎-elim it is built on: the two
+# branches land at different types and only the expected type says
+# which motive relates them.
+#
+# The variable is GONE in each branch's context — naming it there is a
+# resolution error — and the branch's own binder stands where it stood,
+# so every entry AFTER it is refined at that injection, exactly as the
+# goal is. There is no motive and none is needed: abstracting the
+# variable in the expected type IS substituting the injection for it.
+#
+# WHERE THIS DIFFERS FROM e-sigmaelim, and it is the whole of the
+# difference: × has η, so the Σ site was the body re-applied to
+# projections and no eliminator was needed at all. ⊎ has none. The core
+# term MUST be ⊎-elim, whose branches bind INNERMOST, while these bind
+# where w stood with Γ₁ after them. Reconciling those is the positive
+# tier's move (In-place elimination, below): THE MOTIVE Π-CLOSES Γ₁,
+# each branch λ-abstracts it, and the result is re-applied — which is
+# the ē of the conclusion.
+#
+# So the site lifts THREE inline definitions: one per branch, over its
+# own context, and one for the eliminator over Γ₀ at
+#
+#     (z : A ⊎ B) → Π Γ₁. C          # z stands where w stood, so the
+#                                    #   closure is Γ₁ and C VERBATIM
+#
+# whose body is written as SURFACE — λz. ⊎-elim (a. λ…. l) (b. λ…. r) z
+# — and CHECKED. The motive is then recovered by the ordinary
+# motive-less rule, abstracting the scrutinee in that Π-closed type, so
+# the motive, the branch payloads and every certificate come from rules
+# that already exist rather than being assembled by hand.
+#
+# The site is an ordinary application spine and owes NO CONVERSION at
+# all — the eliminator's type instantiated at w and the surviving
+# variables IS the goal, on the nose, because the motive binder stands
+# exactly where the variable stood. e-sigmaelim pays el-sigma-eta and
+# e-eqelim pays el-reflect; this pays nothing, which is what having a
+# real eliminator buys.
+#
+# The refined entries and goals are β-CONTRACTED, for e-sigmaelim's
+# reason: the injection lands where the variable stood.
+#
+# INHERITED RESTRICTION: the recovered motive ships with an empty
+# skeleton, so a goal containing a stuck eliminator is refused by the
+# motive-less rule's own check (SKELETON-FREEDOM,
+# docs/NovaPerfectSurface.txt) — and here the written-motive remedy it
+# names is not available, since the motive is Π-closed over entries the
+# operator never spelled.
 
 # Universe codes infer at 𝕌, mirroring their formation rules:
 Γ ⊢ 𝟘 ⇒ 𝕌 ⇝ 𝟘      (likewise 𝟙, ℕ)                            # (𝟘 : 𝕌) etc.

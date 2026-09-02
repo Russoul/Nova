@@ -1,0 +1,3 @@
+-- the eliminated variable is in neither branch's context: naming it is
+-- a resolution error, reported where it is eliminated
+def gone : (w : ℕ ⊎ ℕ) → ℕ ⊎ ℕ ≔ λw. sum-elim (a. inj₁ a) (b. w) w

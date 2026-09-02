@@ -152,6 +152,12 @@ after them — the goal included — reads at t. Reflection already makes
 it changes is the CONTEXT, which is what makes a `?hole` under it
 readable. Naming x or w inside p is an error; a goal that mentions the
 PROOF w is fine — the site mints reflexivity to stand in its place);
+`sum-elim (a. l) (b. r) w` (the ⊎ VARIABLE elimination: w must be a
+VARIABLE of a ⊎ type, and each branch is written where w is GONE and
+its own binder stands there instead, so every later hypothesis — and
+the goal — reads at that injection. CHECKING-ONLY. Unlike `⊎-elim`,
+which takes any scrutinee and refines only the goal, this refines the
+CONTEXT; naming w inside a branch is an error);
 `sigma-elim (x y. t) w` (the Σ VARIABLE elimination: `w` must be a
 VARIABLE of a × type, and `t` is written where `w` is GONE — `x` and
 `y` stand in its slot and every later hypothesis, plus the goal, reads
