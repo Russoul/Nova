@@ -47,9 +47,33 @@ isNameTail : Char -> Bool
 isNameTail ch = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
                 (ch >= '0' && ch <= '9') || ch == '_' || ch == '\''
 
+||| Match a keyword's spelling, reporting THE KEYWORD at every
+||| character rather than the next character it wanted. A keyword that
+||| half-matches is otherwise the loudest thing in the report: `S ` in
+||| term position half-matches `Set` (the ASCII fallback for 𝕌) and
+||| used to answer "expected 'e'", a letter the reader never typed and
+||| cannot place. Naming the keyword says what was being attempted, so
+||| the sibling expectation — an identifier, and why `S` is not one —
+||| reads as the answer it is.
+kwStr : String -> Rule ()
+kwStr s = go (unpack s)
+ where
+  -- built once per keyword match, not once per character: this is the
+  -- hot path (every atom tries several keywords before it settles)
+  msg : String
+  msg = "'\{s}'"
+
+  go : List Char -> Rule ()
+  go [] = pure ()
+  go (c :: cs) = do
+    _ <- terminal msg (\tok => case tok of
+           Symbol ch => if ch == c then Just () else Nothing
+           _ => Nothing)
+    go cs
+
 kw : String -> Rule ()
 kw s = do
-  (r, ()) <- bounds (str_ s)
+  (r, ()) <- bounds (kwStr s)
   case last' (unpack s) of
     Just c => when (isNameTail c) $ do
       next <- optional (nextIs "next" (\tok => case tok of
