@@ -347,55 +347,74 @@ mapPoly (PSigma a f) g x =
 mapPoly (PPi a f)    g x =
   PiIntro (mapPoly f (substElem g Wk) (PiApp (substElem x Wk) (CtxVar 0)))
 
-||| hᵉˡ ≜ λ (corec 𝔽 a f[↑] ☐₀) — the corecursor as a function term
-||| (el-nu-beta's re-wrapper).
+||| [𝕚𝕕 ‖ hᵉˡ] ≜ λ (⊎-elim ☐₀ (corec 𝔽 a f[↑ ∘ ↑] ☐₀) ☐₀) — the
+||| STOP-OR-CONTINUE copair, el-nu-beta's mediator: a function term
+||| El (ν 𝔽 ⊎ a) → ν 𝔽 that releases a stopped element (inj₁) bare
+||| and re-wraps a continued seed (inj₂) in the corecursor
+||| (Foundation, el-nu-beta — primitive corecursion).
 export covering
-corecFun : Poly -> (a : Elem) -> (f : Elem) -> Elem
-corecFun p a f =
-  PiIntro (Corec (substPoly p Wk) (substElem a Wk) (substElem f (under Wk)) (CtxVar 0))
+corecCopair : Poly -> (a : Elem) -> (f : Elem) -> Elem
+corecCopair p a f =
+  PiIntro (SumElim (CtxVar 0)
+                   (Corec (substPoly (substPoly p Wk) Wk)
+                          (substElem (substElem a Wk) Wk)
+                          (substElem (substElem f (under Wk)) (under Wk))
+                          (CtxVar 0))
+                   (CtxVar 0))
 
 ||| lift_𝔽(R) u v — the RELATOR: the relation lifting of a polynomial
 ||| (Foundation, el-nu-coind). R is an Ω-valued OPEN term with two
 ||| bound variables (Γ ▷ ν𝔽 ▷ (ν𝔽)[↑], ☐₁ the left side, ☐₀ the
-||| right); u and v are elements of El ⌊𝔽⌋(c)'s decoding in the
+||| right); nu is the AMBIENT ν-type (the relata's type at the hole);
+||| u and v are elements of El ⌊𝔽⌋(c)'s decoding in the
 ||| ambient context; the result is an Ω-element there. One clause per
-||| former: the hole instantiates R, constants compare by ≡, products
+||| former: the hole is UP TO EQUALITY — ∥R ⊎ (u ≡ v ∈ ν 𝔽)∥, so a
+||| stopped position (el-nu-i's inj₁) closes by reflexivity in the
+||| equality leg — constants compare by ≡, products
 ||| are Ω-conjunctions (squashed Σ of props — a prop is a type,
 ||| prop-lift), sums match tags by a
 ||| dependent ⊎-elim at motive Ω (⊥ off the diagonal, definitional
 ||| collapse on it), the dependent pair binds the first-component
 ||| equation so the instances are ≐ by reflection (no transport), and
-||| exponents lift pointwise. R's BASE weakens under every binder the
-||| clauses cross (its own two binders lift over it).
+||| exponents lift pointwise. R's BASE — and nu with it — weakens
+||| under every binder the clauses cross (R's own two binders lift
+||| over it; nu, a closed-over-the-base term, weakens by plain ↑).
 export covering
-liftPoly : Poly -> (r : Elem) -> (u : Elem) -> (v : Elem) -> Elem
-liftPoly PHole        r u v = substElem r (Ext (Ext Id u) v)
-liftPoly (PConst a)   r u v = Elem.EqTy u v a
-liftPoly (PProd f g)  r u v =
-  Squash (SigmaTy (liftPoly f r (SigmaElim1 u) (SigmaElim1 v))
-                     (substTy (liftPoly g r (SigmaElim2 u) (SigmaElim2 v)) Wk))
-liftPoly (PSum f g)   r u v =
+liftPoly : Poly -> (nu : Elem) -> (r : Elem) -> (u : Elem) -> (v : Elem) -> Elem
+liftPoly PHole        nu r u v =
+  Squash (SumTy (substElem r (Ext (Ext Id u) v)) (Elem.EqTy u v nu))
+liftPoly (PConst a)   nu r u v = Elem.EqTy u v a
+liftPoly (PProd f g)  nu r u v =
+  Squash (SigmaTy (liftPoly f nu r (SigmaElim1 u) (SigmaElim1 v))
+                     (substTy (liftPoly g nu r (SigmaElim2 u) (SigmaElim2 v)) Wk))
+liftPoly (PSum f g)   nu r u v =
   SumElim
-    (SumElim (liftPoly f (wk2base r) (CtxVar 1) (CtxVar 0))
+    (SumElim (liftPoly (wk2poly f) (wk2elem nu) (wk2base r) (CtxVar 1) (CtxVar 0))
              (Squash ZeroTy)
              (substElem v Wk))
     (SumElim (Squash ZeroTy)
-             (liftPoly g (wk2base r) (CtxVar 1) (CtxVar 0))
+             (liftPoly (wk2poly g) (wk2elem nu) (wk2base r) (CtxVar 1) (CtxVar 0))
              (substElem v Wk))
     u
  where
   wk2base : Elem -> Elem
   wk2base e = substElem (substElem e (under (under Wk))) (under (under Wk))
-liftPoly (PSigma a f) r u v =
+  wk2elem : Elem -> Elem
+  wk2elem e = substElem (substElem e Wk) Wk
+  wk2poly : Poly -> Poly
+  wk2poly q = substPoly (substPoly q Wk) Wk
+liftPoly (PSigma a f) nu r u v =
   Squash (SigmaTy
     (Elem.EqTy (SigmaElim1 u) (SigmaElim1 v) a)
     (liftPoly (substPoly (substPoly f (Ext Id (SigmaElim1 u))) Wk)
+              (substElem nu Wk)
               (substElem r (under (under Wk)))
               (substElem (SigmaElim2 u) Wk)
               (substElem (SigmaElim2 v) Wk)))
-liftPoly (PPi a f)    r u v =
+liftPoly (PPi a f)    nu r u v =
   Squash (PiTy a
     (liftPoly f
+              (substElem nu Wk)
               (substElem r (under (under Wk)))
               (PiApp (substElem u Wk) (CtxVar 0))
               (PiApp (substElem v Wk) (CtxVar 0))))

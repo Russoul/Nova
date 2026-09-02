@@ -1,0 +1,1 @@
+def repeat : ImpPi a (𝕌) (Pi _ (El (a@0)) (El (App (costream@sig) (a@1)))) using (costream.unfold) [repUnique] | out (repeat {a} x) := Pair (x@0) (App (repeat@sig) (x@0)) [outRep]

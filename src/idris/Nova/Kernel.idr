@@ -407,9 +407,9 @@ mutual
     t' <- kElem sig t
     case t' of
       -- el-nu-beta: run the coalgebra one step, re-wrap the recursive
-      -- positions (map_𝔽 hᵉˡ f[id, x])
+      -- positions (map_𝔽 [𝕚𝕕 ‖ hᵉˡ] f[id, x]; a stop releases its element bare)
       Corec p a f x => do burn
-                          kElem sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+                          kElem sig (mapPoly p (corecCopair p a f) (substElem f (Ext Id x)))
       _ => pure (Out t')
   kElem sig (Corec p a f x) =
     [| Corec (kPoly sig p) (kElem sig a) (kElem sig f) (kElem sig x) |]
@@ -520,7 +520,7 @@ mutual
   kWhnfE sig (Out t) = do
     t' <- kWhnfE sig t
     case t' of
-      Corec p a f x => do burn; kWhnfE sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      Corec p a f x => do burn; kWhnfE sig (mapPoly p (corecCopair p a f) (substElem f (Ext Id x)))
       _ => pure (Out t')
   kWhnfE sig e = pure e
 
@@ -652,7 +652,7 @@ mutual
   kJoinElem u sig (Out t) = do
     t' <- kJoinElem u sig t
     case t' of
-      Corec p a f x => do burn; kJoinElem u sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      Corec p a f x => do burn; kJoinElem u sig (mapPoly p (corecCopair p a f) (substElem f (Ext Id x)))
       _ => pure (Out t')
   kJoinElem u sig (Corec p a f x) =
     [| Corec (kJoinPoly u sig p) (kJoinElem u sig a) (kJoinElem u sig f) (kJoinElem u sig x) |]
@@ -1052,7 +1052,7 @@ mutual
         pT' <- kPoly sig pT
         if p' == pT' then pure () else kerr "kernel: corec proof carries a different polynomial than its ν-type"
         checkP sig ctx a UniverseTy
-        checkP sig (ctx :< a) f (substTy (reflectPoly p a) Wk)
+        checkP sig (ctx :< a) f (substTy (reflectPoly p (Elem.SumTy (Elem.NuTy p) a)) Wk)
         checkP sig ctx x a
       _ => kerr "kernel: corec proof at non-ν type"
   -- el-qiit-intro as a proof argument (spec §3): the saturated
@@ -2090,7 +2090,7 @@ mutual
                           let f3 = substPoly f wk3
                           let r3 = substElem r (under (under wk3))
                           kCheckE sig ctx3 qw
-                            (liftPoly f3 r3 (Out (CtxVar 2)) (Out (CtxVar 1))) skq
+                            (liftPoly f3 (Elem.NuTy f3) r3 (Out (CtxVar 2)) (Out (CtxVar 1))) skq
                         _ => kerr "kernel: coinduction payload at an equation over a non-ν type"
                     _ => kerr "kernel: coinduction payload at a non-equality prop"
                 Nothing =>
@@ -2149,7 +2149,7 @@ mutual
                 if p' == pT' then pure ()
                   else kerr "kernel: corec carries a different polynomial than its ν-type"
                 kCheckE sig ctx aC UniverseTy (skelChild 0 sk)
-                kCheckE sig (ctx :< aC) f (substTy (reflectPoly p aC) Wk) (skelChild 1 sk)
+                kCheckE sig (ctx :< aC) f (substTy (reflectPoly p (Elem.SumTy (Elem.NuTy p) aC)) Wk) (skelChild 1 sk)
                 kCheckE sig ctx x aC (skelChild 2 sk)
               _ => kerr "kernel: corec checked at a non-ν type"
           ZeroElim t => kCheckE sig ctx t ZeroTy (skelChild 0 sk)

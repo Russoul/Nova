@@ -187,9 +187,12 @@ parameters (rm : RenameMap, resolve : String -> String)
   rnItem ownQ (STypeDef x ty) = STypeDef (defName ownQ x) (rnT ty)
   rnItem ownQ (SData params ds) =
     SData (map (\(x, t) => (x, rnT t)) params) (map rnQDecl ds)
-  rnItem ownQ (SClausalDef r x ty eta wit cls) =
-    SClausalDef r (defName ownQ x) (rnT ty) eta (map rnE wit)
+  rnItem ownQ (SClausalDef r x ty mu eta wit cls) =
+    SClausalDef r (defName ownQ x) (rnT ty) (map (map citeName) mu) eta (map rnE wit)
       (map ({ crhs $= rnE }) cls)
+  rnItem ownQ (SCopatternDef r x ty mu eta wit cvars rhs cn) =
+    SCopatternDef r (defName ownQ x) (rnT ty) (map (map citeName) mu) eta
+      (map rnE wit) cvars (rnE rhs) cn
 
 
 rnImport : RenameMap -> SImport -> SImport

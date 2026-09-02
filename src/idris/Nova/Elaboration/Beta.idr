@@ -163,7 +163,7 @@ mutual
   compElem (Elem.NuTy f)      = Elem.NuTy (compPoly f)
   compElem (Out t) =
     case compElem t of
-      Corec p a f x => compElem (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      Corec p a f x => compElem (mapPoly p (corecCopair p a f) (substElem f (Ext Id x)))
       t'            => Out t'
   compElem (Corec p a f x) =
     Corec (compPoly p) (compElem a) (compElem f) (compElem x)

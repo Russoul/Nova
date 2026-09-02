@@ -2,32 +2,39 @@
 -- polynomial (NovaFoundation.txt, "Coinductive types"); the
 -- conaturals, its sum sibling, live in conat.nova.
 -- Stream a ≔ ν (K a × 𝕏): one observation, out, splitting into head
--- and tail; corec builds a stream from any coalgebra. Every lemma
--- below closes by COMPUTATION (el-nu-beta plus projections/⊎-elim):
--- the uniqueness law el-nu-eta is judgemental in the theory but has
--- no kernel certificate (NovaKernel.txt, A5 — same status as
--- el-qiit-eta), so bisimulation-shaped equations are out of scope
--- here; see the deliberate obligation in the test suite.
+-- and tail. cons, iterate and map are COPATTERN items
+-- (NovaElaboration.txt, "Defining observations"): each states its
+-- one observation — implicit columns elided, per the term syntax —
+-- and the macro synthesizes the primitive corecursor (cons STOPS at
+-- the stored tail, iterate and map CONTINUE at their seeds), the
+-- β-shaped observation lemma (consOut, iterateOut, mapOut) and the
+-- uniqueness lemma (consEta, iterateEta, mapEta) — coinduction at
+-- the graph invariant. The observation lemmas below then close by
+-- pure computation.
 
 def stream : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
 
-def hd : {a : 𝕌} → stream a → a using (stream.stream.unfold) ≔ λa. λt. (out t) .π₁
+def hd : {a : 𝕌} → stream a → a using (stream.stream.unfold)
+  | hd t ≔ (out t) .π₁
 
-def tl : {a : 𝕌} → stream a → stream a using (stream.stream.unfold) ≔ λa. λt. (out t) .π₂
+def tl : {a : 𝕌} → stream a → stream a using (stream.stream.unfold)
+  | tl t ≔ (out t) .π₂
 
--- cons, by corecursion at the one-step carrier a × stream a: emit the
--- stored head, then continue by OBSERVING the stored tail — Lambek's
--- in, specialized
-def cons : {a : 𝕌} → a → stream a → stream a using (stream.stream.unfold) ≔
-  λa. λx. λs. corec (p : a × stream a. p .π₁, out (p .π₂)) (x, s)
+def cons : {a : 𝕌} → a → stream a → stream a using (stream.stream.unfold)
+  | out (cons x s) ≔ x, s
 
--- iterate f x: the stream x, f x, f (f x), …
-def iterate : {a : 𝕌} → (a → a) → a → stream a using (stream.stream.unfold) ≔
-  λa. λf. λx. corec (s : a. s, f s) x
+def iterate : {a : 𝕌} → (a → a) → a → stream a using (stream.stream.unfold)
+  | out (iterate f x) ≔ x, iterate f (f x)
 
 -- β-lemmas: one el-nu-beta step each (plus pairing/projections)
 def hdCons : {a : 𝕌} (x : a) (s : stream a) → hd (cons x s) ≡ x
   using (cons.eq, hd.eq, hyp.rw, stream.eq, stream.stream.unfold) ≔
+  λa. λx. λs. ⋆
+
+-- the tail of a cons is the consed stream — the stop released bare
+-- by el-nu-beta (primitive corecursion)
+def tlCons : {a : 𝕌} (x : a) (s : stream a) → tl (cons x s) ≡ s
+  using (cons.eq, hyp.rw, stream.eq, stream.stream.unfold, tl.eq) ≔
   λa. λx. λs. ⋆
 
 def hdIterate : {a : 𝕌} (f : a → a) (x : a) → hd (iterate f x) ≡ x
@@ -45,13 +52,10 @@ def hdTlCons : {a : 𝕌} (x : a) (s : stream a) → hd (tl (cons x s)) ≡ hd s
   using (cons.eq, hd.eq, stream.stream.unfold, tl.eq) ≔
   λa. λx. λs. ⋆
 
--- map over streams: relabel every element, by corecursion on the
--- source stream itself
-def map : {a b : 𝕌} → (a → b) → stream a → stream b using (stream.stream.unfold) ≔
-  λa. λb. λf. λt. corec (s : stream a. f (hd s), tl s) t
+def map : {a b : 𝕌} → (a → b) → stream a → stream b using (stream.stream.unfold)
+  | out (map f t) ≔ f (hd t), map f (tl t)
 
--- map commutes with the observations — the finite-depth shadow of
--- the (η-needing) map-fusion laws, closed by pure computation
+-- map commutes with the observations, closed by pure computation
 def hdMap : {a b : 𝕌} (f : a → b) (t : stream a) → hd (map f t) ≡ f (hd t)
   using (hd.eq, hyp.rw, map.eq, stream.eq, stream.stream.unfold) ≔
   λa. λb. λf. λt. ⋆
@@ -59,14 +63,3 @@ def hdMap : {a b : 𝕌} (f : a → b) (t : stream a) → hd (map f t) ≡ f (hd
 def hdTlMap : {a b : 𝕌} (f : a → b) (t : stream a) → hd (tl (map f t)) ≡ f (hd (tl t))
   using (hd.eq, hyp.rw, map.eq, stream.eq, stream.stream.unfold, tl.eq) ≔
   λa. λb. λf. λt. ⋆
-
--- With coinduction dischargeable (el-nu-coind; `coind`), the
--- η-needing laws close. tlCons: the tail of a cons is the consed
--- stream — by coinduction with a GRAPH invariant: u is v's image
--- under the one-step machine, for SOME v.
-def tlCons : {a : 𝕌} (x : a) (s : stream a) → tl (cons x s) ≡ s
-  using (cons.eq, hyp.rw, stream.eq, stream.stream.unfold, tl.eq) ≔
-  λa. λx. λs. coind (u v. ∥(w : stream a)
-    × (u ≡ corec (p : a × stream a. p .π₁, out (p .π₂)) (out w) ∈ stream a) × (v ≡ w ∈ stream a)∥)
-    (⋆ (s, ⋆, ⋆))
-    (u v h. squash-elim h (w. ⋆ (⋆, ⋆ ((out (w .π₁)) .π₂, ⋆, ⋆))))

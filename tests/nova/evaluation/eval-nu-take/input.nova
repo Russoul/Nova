@@ -3,11 +3,11 @@
 -- ⊎-elim on the colist's step), the result a nested pair at an
 -- ℕ-elim-defined vector code
 def clist : 𝕌 ≔ ν (K 𝟙 ⊎ (K ℕ × 𝕏))
-def step : 𝕌 ≔ 𝟙 ⊎ (ℕ × clist)
 def cnil : clist using (clist.unfold) ≔ corec (s : 𝟙. inj₁ s) ()
-def ccons : ℕ → clist → clist using (clist.unfold, step.unfold) ≔
-  λx. λt. corec (p : step. ⊎-elim (w. (𝟙 ⊎ (ℕ × step))) (u. inj₁ u) (q. inj₂ ((q .π₁) , out (q .π₂))) p)
-            (inj₂ (x , t))
+-- ccons as a ONE-STOP machine: emit the stored head, stop at the
+-- stored tail (primitive corecursion releases it bare)
+def ccons : ℕ → clist → clist using (clist.unfold) ≔
+  λx. λt. corec (u : 𝟙. inj₂ (x , inj₁ t)) ()
 def vecc : ℕ → 𝕌 ≔ λn. ℕ-elim (m. 𝕌) 𝟙 (m ih. ℕ × ih) n
 def take : (n : ℕ) → clist → (vecc n) using (clist.unfold, vecc.unfold, vecc.eq) ≔
   λn. ℕ-elim (m. clist → (vecc m)) (λt. ())

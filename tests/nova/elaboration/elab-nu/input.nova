@@ -2,7 +2,7 @@
 -- close by computation (el-nu-beta)
 def stream : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
 def iterate : (a : 𝕌) → (a → a) → a → (stream a) using (stream.unfold) ≔
-  λa. λf. λx. corec (s : a. (s , f s)) x
+  λa. λf. λx. corec (s : a. (s , inj₂ (f s))) x
 def hd : (a : 𝕌) → (stream a) → a using (stream.unfold) ≔ λa. λt. (out t) .π₁
 def tl : (a : 𝕌) → (stream a) → (stream a) using (stream.unfold) ≔ λa. λt. (out t) .π₂
 def hdIter : (a : 𝕌) (f : a → a) (x : a) → hd a (iterate a f x) ≡ x ∈ a using (hd.eq, iterate.eq) ≔

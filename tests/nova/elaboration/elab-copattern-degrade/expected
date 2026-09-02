@@ -1,0 +1,10 @@
+defined conat
+defined czero by copattern via witness (czero, czeroOut, czeroEta)
+declared bad and its observation (bad, badOut, badEta) — outside the corecursive fragment: the body at a sum position must be a literal injection [+3 declarations]
+open declarations (3):
+  [bad] ⊢ ? : conat → conat
+      at: input.nova:8:5: def bad
+  [badOut] ⊢ ? : (v:conat) → (out (bad v) ≡ out (bad v) ∈ 𝟙 ⊎ ν (K 𝟙 ⊎ 𝕏))
+      at: def badOut
+  [badEta] ⊢ ? : (x:conat → conat) → ((v:conat) → (out (x v) ≡ out (x v) ∈ 𝟙 ⊎ ν (K 𝟙 ⊎ 𝕏))) → (v:conat) → (x v ≡ bad v ∈ conat)
+      at: def badEta

@@ -1,0 +1,9 @@
+-- copattern tiers: a user witness keeps the observation lemma a ⋆
+-- (discharged by the witness's own computation here); an unguarded
+-- body degrades the batch to DECLARATIONS — reported open, never a
+-- wall
+def conat : 𝕌 ≔ ν (K 𝟙 ⊎ 𝕏)
+def czero : conat using (conat.unfold) ≔ corec (s : 𝟙. inj₁ s) ()
+  | out (czero) ≔ inj₁ ()
+def bad : conat → conat using (conat.unfold)
+  | out (bad n) ≔ out (bad n)

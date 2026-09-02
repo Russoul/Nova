@@ -1,0 +1,19 @@
+-- copatterns over IMPLICIT columns: LHS and calls follow the term
+-- syntax (implicits elided or {…}-spelled); the macro resolves the
+-- placement from the item's own type and verifies elided call
+-- arguments against the insertion-resolved body
+def stream : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
+def hd : {a : 𝕌} → stream a → a using (stream.unfold) ≔ λa. λt. (out t) .π₁
+def tl : {a : 𝕌} → stream a → stream a using (stream.unfold) ≔ λa. λt. (out t) .π₂
+def cons : {a : 𝕌} → a → stream a → stream a using (stream.unfold)
+  | out (cons x s) ≔ x, s
+def iterate : {a : 𝕌} → (a → a) → a → stream a using (stream.unfold)
+  | out (iterate f x) ≔ x, iterate f (f x)
+-- the {a}-spelled forms, LHS and call
+def repeat : {a : 𝕌} → a → stream a using (stream.unfold)
+  | out (repeat {a} x) ≔ x, repeat {a} x
+def map : {a b : 𝕌} → (a → b) → stream a → stream b using (stream.unfold)
+  | out (map f t) ≔ f (hd t), map f (tl t)
+def tlCons : {a : 𝕌} (x : a) (s : stream a) → tl (cons x s) ≡ s
+  using (consOut.rw, hyp.rw, stream.unfold, tl.eq) ≔
+  λa. λx. λs. ⋆

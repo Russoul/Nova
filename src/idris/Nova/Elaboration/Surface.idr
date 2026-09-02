@@ -631,6 +631,10 @@ record SQDecl where
 public export
 data SPat : Type where
   SPVar : SName -> SPat
+  ||| {x} — a variable at an IMPLICIT column, per the term syntax's
+  ||| conventions (an elided implicit column is simply not spelled;
+  ||| constructor patterns never sit at implicit columns)
+  SPImpVar : SName -> SPat
   SPZero : SPat
   SPSuc : SPat -> SPat
   SPInj1 : SPat -> SPat
@@ -675,15 +679,39 @@ data SItem : Type where
   ||| Π-abstracted over the parameters (docs/NovaElaboration.txt,
   ||| QIIT section)
   SData : List (String, STy) -> List SQDecl -> SItem
-  ||| def x : T [eta]? (≔ t)? clause+ — a def with DEFINING EQUATIONS
-  ||| (docs/NovaElaboration.txt, "Defining equations"): an ITEM MACRO
-  ||| expanding into the definition proper (a synthesized eliminator
-  ||| body, the user's witness t, or a declaration), one Π-closed
-  ||| equation lemma per clause, and the pointwise uniqueness lemma
-  ||| (named by the [eta] override)
+  ||| def x : T (using (…))? [eta]? (≔ t)? clause+ — a def with
+  ||| DEFINING EQUATIONS (docs/NovaElaboration.txt, "Defining
+  ||| equations"): an ITEM MACRO expanding into the definition proper
+  ||| (a synthesized eliminator body, the user's witness t, or a
+  ||| declaration), one Π-closed equation lemma per clause, and the
+  ||| pointwise uniqueness lemma (named by the [eta] override).
+  ||| Implicit columns follow the term syntax's conventions in the
+  ||| clause LHSs — {x}-spelled or elided; the item-level using-clause
+  ||| scopes the generated items' discharges
   SClausalDef : (nrng : Maybe Range) -> String -> STy ->
+                (muses : Maybe (List String)) ->
                 (etaName : Maybe String) -> (witness : Maybe SElem) ->
                 List SClause -> SItem
+  ||| def x : T (using (…))? [eta]? (≔ t)? | out (x ȳ) ≔ t [n]? — a
+  ||| def with a DEFINING OBSERVATION (the COPATTERN item, the clausal
+  ||| def's dual — docs/NovaElaboration.txt, "Defining observations"):
+  ||| an ITEM MACRO expanding into the definition proper (a
+  ||| synthesized primitive corecursor, the user's witness t, or a
+  ||| declaration), the Π-closed observation lemma (named by the
+  ||| clause's [n] override), and the pointwise uniqueness lemma
+  ||| (named by the [eta] override). The LHS follows ordinary term
+  ||| syntax: an entry is a plain variable at an explicit column or a
+  ||| {x}-spelled one (the Bool) at an implicit column — elided
+  ||| implicit columns are absent, their binders named by the item's
+  ||| type. The RHS is parsed in the SPELLED variables' environment;
+  ||| the item-level using-clause both scopes the generated items'
+  ||| discharges and licenses the macro's own exposure of the head
+  ||| type to its ν 𝔽
+  SCopatternDef : (nrng : Maybe Range) -> String -> STy ->
+                  (muses : Maybe (List String)) ->
+                  (etaName : Maybe String) -> (witness : Maybe SElem) ->
+                  (cargs : List (SName, Bool)) -> (crhs : SElem) ->
+                  (cname : Maybe String) -> SItem
 
 ||| One fixity declaration as written: (operator, associativity, level).
 public export
@@ -717,9 +745,11 @@ stripPosItem (SData ps ds) =
   stripQDecl : SQDecl -> SQDecl
   stripQDecl d =
     { dqbinders := map (\(x, b) => (x, mapFst stripPosTy b)) d.dqbinders } d
-stripPosItem (SClausalDef r n ty eta wit cls) =
-  SClausalDef r n (stripPosTy ty) eta (map stripPos wit)
+stripPosItem (SClausalDef r n ty mu eta wit cls) =
+  SClausalDef r n (stripPosTy ty) mu eta (map stripPos wit)
               (map (\c => { crhs := stripPos c.crhs } c) cls)
+stripPosItem (SCopatternDef r n ty mu eta wit cargs rhs cn) =
+  SCopatternDef r n (stripPosTy ty) mu eta (map stripPos wit) cargs (stripPos rhs) cn
 
 export
 itemName : SItem -> String
@@ -729,7 +759,8 @@ itemName (STypeDef n _) = n
 itemName (SData _ ds) = case ds of
   (d :: _) => d.dqname
   [] => "data"
-itemName (SClausalDef _ n _ _ _ _) = n
+itemName (SClausalDef _ n _ _ _ _ _) = n
+itemName (SCopatternDef _ n _ _ _ _ _ _ _) = n
 
 -- ===== Show instances (parser golden tests) =====
 
@@ -823,6 +854,7 @@ Show SImport where
 export covering
 Show SPat where
   show (SPVar x) = fst x
+  show (SPImpVar x) = "{\{fst x}}"
   show SPZero = "Z"
   show (SPSuc p) = "S (\{show p})"
   show (SPInj1 p) = "Inj1 (\{show p})"
@@ -868,8 +900,26 @@ Show SItem where
   show (SData ps ds) =
     "data " ++ concatMap (\p => case p of (x, t) => "[\{x} : \{show t}] ") ps
       ++ "(" ++ joinBy " ; " (map show ds) ++ ")"
-  show (SClausalDef _ x ty eta w cls) =
+  show (SClausalDef _ x ty mu eta w cls) =
     "def \{x} : \{show ty}"
+      ++ (case mu of
+            Nothing => ""
+            Just ns => " using (\{joinBy ", " ns})")
       ++ maybe "" (\n => " [\{n}]") eta
       ++ maybe "" (\t => " := \{show t}") w
       ++ concatMap (\c => " \{show c}") cls
+  show (SCopatternDef _ x ty mu eta w args rhs cn) =
+    "def \{x} : \{show ty}"
+      ++ (case mu of
+            Nothing => ""
+            Just ns => " using (\{joinBy ", " ns})")
+      ++ maybe "" (\n => " [\{n}]") eta
+      ++ maybe "" (\t => " := \{show t}") w
+      ++ (case args of
+            [] => " | out \{x} := \{show rhs}"
+            _ => " | out (" ++ joinBy " " (x :: map showArg args) ++ ") := \{show rhs}")
+      ++ maybe "" (\n => " [\{n}]") cn
+   where
+    showArg : (SName, Bool) -> String
+    showArg (n, True) = "{\{fst n}}"
+    showArg (n, False) = fst n

@@ -611,7 +611,35 @@ classifier change, which the full corpus regression covers.
   `sz-att-in`/`sz-att-nf` (top-level goal sizes, written vs
   normalized).
 * `orderedParts`: clause-shaped growing candidates admitted as rewrite
-  rules (§12), marked with an EXPERIMENT comment.
+  rules (§12), marked with an EXPERIMENT comment. Extended to
+  OBSERVATION-SHAPED candidates — `out` at a definition- or
+  fixed-variable-headed spine: each firing consumes the observation
+  former, one el-nu-beta ι-step stated in the abstraction's own
+  vocabulary (the observation lemma of a copattern def, and the
+  g-clause hypothesis of its uniqueness proof, are exactly this; a
+  parameter-headed scrutinee would match any observation and is
+  excluded).
+* `matchElemP` covers the coinductive formers (out/corec/ν, the
+  carried polynomial matched through its embedded pieces like a
+  carried signature) — without them an out-headed candidate could
+  never fire.
+* `rewriteElemS` (the certificate-bearing rewriter behind
+  `rwNfElem`/`rwNfTy`, hence `exposeProp`'s relator collapse) does
+  not descend into children whose positional type the kernel's typed
+  descent cannot determine while crossing binders (an eliminator's
+  cases, a λ's body, a corecursor's coalgebra): a step there is
+  rejected at replay. Scrutinees rewrite FIRST, so an eliminator's
+  collapse surfaces its branch at depth 0 and the same subterm is
+  reached after computation — the relator's ⊎-elim at rewritten
+  observations is the motivating case.
+* The Σ-entry name index (`sigEntryIx`, Nova/Elaboration/Beta.idr)
+  caches POSITIVELY on first lookup, sound because a name's entry is
+  stable — Σ only extends within a run. Any PROBE that temporarily
+  declares an entry it later rolls back (the copattern macro's
+  implicit-resolution probe) must therefore declare under a MACHINE
+  name and alias the real one to it: a probe declaration cached
+  under the real name would shadow the definition the run later
+  stores, silently disabling its unfolds.
 * The propositionalization A/B (`transNat.nova` / `absNat.nova`:
   identical 25-item body over transparent defs vs declarations +
   declared computation rules) lives in session scratch; it is
