@@ -1,0 +1,36 @@
+-- ≡-elim: the EQUALITY variable elimination (docs/NovaElaboration.txt,
+-- e-eqelim). The proof is elaborated where the variable x and the
+-- hypothesis w pinning it are BOTH gone, and everything between and
+-- after them — the goal included — is specialised at the equation's
+-- other side.
+def P : ℕ → 𝕌 ≔ λn. ℕ
+
+-- both orientations, read off w's type
+def pin : (x : ℕ) (w : x ≡ Z) → P x using (P.eq) ≔ λx. λw. ≡-elim (Z : P Z) x w
+def pinFlipped : (x : ℕ) (w : Z ≡ x) → P x using (P.eq) ≔ λx. λw. ≡-elim (Z : P Z) x w
+
+-- a hypothesis BETWEEN the two, and one AFTER them, both specialised
+def between : (x : ℕ) (h : P x) (w : x ≡ Z) → P x ≔ λx. λh. λw. ≡-elim h x w
+def after : (x : ℕ) (w : x ≡ Z) (h : P x) → P x ≔ λx. λw. λh. ≡-elim h x w
+
+-- t is any term standing outside x's own entry
+def atTerm : (n : ℕ) (x : ℕ) (h : P x) (w : x ≡ S n) → P x
+  ≔ λn. λx. λh. λw. ≡-elim h x w
+
+-- inference position
+def infer : (x : ℕ) (h : ℕ) (w : x ≡ Z) → ℕ ≔ λx. λh. λw. S (≡-elim h x w)
+
+-- a HOLE: its goal is stated in the elimination context — x and w are
+-- gone, and h reads at Z
+def hole : (x : ℕ) (h : P x) (w : x ≡ Z) → P x ≔ λx. λh. λw. ≡-elim ?g x w
+
+-- the eliminated variable's type need not be 𝕌-SMALL: the reflexivity
+-- proof is minted at the site, at whatever type the variable had, so
+-- an `x : 𝕌` eliminates like any other
+def large : (x : 𝕌) (h : x) (w : x ≡ ℕ) → ℕ ≔ λx. λh. λw. ≡-elim h x w
+
+-- the goal, and a hypothesis after w, may name the eliminated PROOF:
+-- [refl/w] puts the minted reference where w stood, and the site
+-- converts back through the irrelevance equation
+def proofInGoal : (x : ℕ) (w : x ≡ Z) → w ≡ w ∈ (x ≡ Z) ≔ λx. λw. ≡-elim ⋆ x w
+def proofInHyp : (x : ℕ) (w : x ≡ Z) (h : w ≡ w ∈ (x ≡ Z)) → ℕ ≔ λx. λw. λh. ≡-elim Z x w

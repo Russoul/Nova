@@ -280,6 +280,7 @@ mutual
     SClass _ => CKeyword
     SQuotElim _ _ _ _ => CKeyword
     SSigmaElim _ _ _ _ => CKeyword
+    SEqElim _ _ _ => CKeyword
     SNuC _ => CKeyword
     SOut _ => CKeyword
     SCorec _ _ _ _ => CKeyword
@@ -361,6 +362,11 @@ mutual
       DGroup (txt "quot-elim" <-> motDoc tbl mot <->
               DNest 2 (DLine <-> txt "(\{a}. " <-> pe tbl LPair True f <-> txt ")" <->
                        DLine <-> pe tbl LAtom False q))
+    SEqElim p x w =>
+      DGroup (txt "≡-elim" <->
+              DNest 2 (DLine <-> pe tbl LAtom False p <->
+                       DLine <-> pe tbl LAtom False x <->
+                       DLine <-> pe tbl LAtom False w))
     SSigmaElim (x, _) (y, _) b w =>
       DGroup (txt "sigma-elim" <->
               DNest 2 (DLine <-> txt "(\{x} \{y}. " <-> pe tbl LPair True b <-> txt ")" <->
@@ -829,6 +835,7 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
       SClass t => SClass (esE t)
       SQuotElim mot a f q => SQuotElim (esMot mot) a (esE f) (esE q)
       SSigmaElim nx ny b w => SSigmaElim nx ny (esE b) (esE w)
+      SEqElim p x w => SEqElim (esE p) (esE x) (esE w)
       SNuC f => SNuC (esP f)
       SOut t => SOut (esE t)
       SCorec x a f u => SCorec x (esE a) (esE f) (esE u)

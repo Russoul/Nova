@@ -144,6 +144,14 @@ the ∈-slot takes a TYPE, so write `∈ El a` for a code `a`);
 `⊎-elim (w. T) (a. l) (b. r) t` (motive, left case, right case,
 scrutinee — β on both injections);
 `class t` (quotient intro); `quot-elim (x. T) (a. f) q`;
+`≡-elim p x w` (the EQUALITY variable elimination: x a variable, w a
+hypothesis proving `x ≡ t` or `t ≡ x` for a t standing OUTSIDE x's own
+entry. p is written where both are gone and everything between and
+after them — the goal included — reads at t. Reflection already makes
+`x ≐ t` available wherever w is in scope, so this adds no power; what
+it changes is the CONTEXT, which is what makes a `?hole` under it
+readable. Naming x or w inside p is an error; a goal that mentions the
+PROOF w is fine — the site mints reflexivity to stand in its place);
 `sigma-elim (x y. t) w` (the Σ VARIABLE elimination: `w` must be a
 VARIABLE of a × type, and `t` is written where `w` is GONE — `x` and
 `y` stand in its slot and every later hypothesis, plus the goal, reads

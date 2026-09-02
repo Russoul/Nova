@@ -387,6 +387,7 @@ sInferForm e0 = case unPos e0 of
   -- sigma-elim propagates the ambient mode to its body, like let: it
   -- infers when the body does, and REFINES THE GOAL when there is one
   SSigmaElim _ _ _ _ => False
+  SEqElim _ _ _ => False
   SPair _ _ => False
   SInj1 _ => False
   SInj2 _ => False
@@ -3635,6 +3636,14 @@ nestSkel (S n) sk = Nd [] [nestSkel n sk]
 inlineName : (item : String) -> (role : String) -> Nat -> SigIdentifier
 inlineName item role n = "\{item}#\{role}\{show n}"
 
+||| A type skeleton under n Π-CLOSURE binders: the closure adds one
+||| PiTy per entry, whose domain (child 0) is a context entry — already
+||| checked where the context was built — and whose codomain (child 1)
+||| carries on inwards.
+nestPiSkelN : Nat -> Skel -> Skel
+nestPiSkelN Z sk = sk
+nestPiSkelN (S n) sk = Nd [] [Nd [] [], nestPiSkelN n sk]
+
 ||| Π-closure of a type over a context, innermost binder first.
 piClose : Ctx -> Ty -> Ty
 piClose [<] t = t
@@ -3657,8 +3666,14 @@ freeName sig item role (S f) n =
 ||| kernel-checked as an ordinary item — and return the Σ NAME it took.
 ||| The caller references it by an ordinary application spine, which is
 ||| what keeps the site's own certificate ordinary.
-emitInlineDef : Site -> (role : String) -> Ctx -> Ty -> Elem -> Skel -> ElabM String
-emitInlineDef site role ctx ty body bodySk = do
+|||
+||| `tySk` is the TYPE's skeleton. Empty is right for a type built from
+||| the site's own material, which was checkable where it stood; a type
+||| the rule SYNTHESISED may need payloads of its own, and then the
+||| caller — which knows what it put there — supplies them. e-eqelim's
+||| irrelevance lemma is the one caller that does.
+emitInlineDef : Site -> (role : String) -> Ctx -> Ty -> Skel -> Elem -> Skel -> ElabM String
+emitInlineDef site role ctx ty tySk body bodySk = do
   st <- getSt
   let item = if st.modPrefix == "" then st.curItem else "\{st.modPrefix}.\{st.curItem}"
   let pfx = "\{item}#\{role}"
@@ -3669,7 +3684,8 @@ emitInlineDef site role ctx ty body bodySk = do
   let cbody = wrapLams k body
   after <- oblCount
   kernelAccept "\{site} \{q}"
-    (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] cty (Nd [] []) cbody (nestSkel k bodySk)))
+    (\ksig => kCheckDefItem ksig kernelFuel
+                (MkKDefArt q [] cty (nestPiSkelN k tySk) cbody (nestSkel k bodySk)))
     (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q cbody cty), transp $= (q ::) }
   pure q
@@ -4001,6 +4017,10 @@ mutual
     let hyp = Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk)
     (b', bTy, bSk) <- inferElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
     pure (Let e' b', substTy bTy (Ext (Ext Id e') Star), Nd [] [eSk, bSk])
+  inferElemAt ctx env site (SEqElim p x w) = do
+    -- e-eqelim-infer: the proof's own type, read back at the site
+    -- through the spine of the variables that survived
+    elabEqElim ctx env site p x w Nothing
   inferElemAt ctx env site (SSigmaElim nx ny body w) = do
     -- e-sigmaelim-infer: the body's own type, read back at the site
     -- through the split spine. No motive is written and none is
@@ -4154,6 +4174,244 @@ mutual
   inferElemAt ctx env site (SZeroElim _) =
     throwAt site.srange "\{site}: cannot infer the type of 𝟘-elim\{structuralHint ()}"
 
+  ||| The rule the ≡-elim site spends: the equation the eliminated
+  ||| HYPOTHESIS is, reflected into a ground rewrite rule at the site's
+  ||| own context, oriented so that the two sides of every conversion
+  ||| the site owes meet.
+  |||
+  ||| Nothing is minted here, and that is the difference from
+  ||| sigma-elim's η: Σ-η is a RULE, with no term to license a step
+  ||| with, so the site had to turn it into one. This equation is
+  ||| already a term — the variable w — and el-reflect takes any term
+  ||| at an equality prop.
+  eqElimCand : ElabSt -> (j : Nat) -> (lhs, rhs : Elem) -> List Cand
+  eqElimCand st j lhs rhs =
+    closeCand (MkCand "eq-elim" 0 [] (engNfE st lhs) (engNfE st rhs)
+                 (\wk, _ => Just (weakenElemN wk (CtxVar j), [])) [] [])
+
+  ||| e-eqelim — the EQUALITY variable elimination, in both modes.
+  |||
+  ||| The proof is elaborated in the ELIMINATION context: the variable
+  ||| x gone, the equation variable w gone with it, every entry between
+  ||| and after them refined at t (and at ⋆ for w), as is the goal in
+  ||| checking mode. No motive: substituting t for x IS the motive, and
+  ||| t is read off the equation rather than written.
+  |||
+  ||| The result travels back the way sigma-elim's does — an INLINE
+  ||| DEFINITION over the elimination context, applied to the spine of
+  ||| the variables that survived — and what that spine owes is the
+  ||| equation itself, which the site brings as a rewrite rule.
+  elabEqElim : Ctx -> NameEnv -> Site -> (prf : SElem) ->
+               (evar : SElem) -> (eqvar : SElem) -> Maybe Ty ->
+               ElabM (Elem, Ty, Skel)
+  elabEqElim ctx env site sp sx sw mty = do
+    st <- getSt
+    case (unPos sx, unPos sw) of
+      (SVar xr xn i, SVar wr wn j) =>
+        if j >= i
+          then throwAt (wr <|> site.srange)
+                 ("\{site}: ≡-elim: '\{wn}' must stand INSIDE '\{xn}' — its type names"
+                   ++ " that variable, so it cannot be bound before it")
+          else case (ctxSplitAt i ctx, ctxSplitAt i env) of
+            (Just (g0, aTy, restC), Just (env0, _, restE)) =>
+              case (ctxSplitAt j restC, ctxSplitAt j restE) of
+                (Just (g1, _, g2), Just (env1, _, env2)) => do
+                  -- the equation w proves, read at the SITE's context
+                  wTy <- maybe (throwAt (wr <|> site.srange)
+                                 "\{site}: internal: ≡-elim's equation index escapes Γ")
+                               pure (ctxLookup ctx j)
+                  case exposeCode st wTy of
+                    Elem.EqTy l r aEq => do
+                      -- which side is the eliminated variable, and so
+                      -- what t is — both orientations, one rule
+                      (t, cl, cr) <- the (ElabM (Elem, Elem, Elem)) $
+                        if l == CtxVar i then pure (r, CtxVar i, r)
+                        else if r == CtxVar i then pure (l, l, CtxVar i)
+                        else throwShape site env
+                               "≡-elim: the equation proved by '\{wn}' is" wTy
+                               "one with '\{xn}' on a side"
+                      -- t must live OUTSIDE x's own entry: the entries
+                      -- between are refined AT it, so a t naming one
+                      -- of them (or x, or w) has nowhere to stand
+                      t0 <- maybe (throwAt (xr <|> site.srange)
+                                    ("\{site}: ≡-elim: the other side of '\{wn}' mentions"
+                                      ++ " '\{xn}' or a hypothesis after it, so it does not"
+                                      ++ " stand where the elimination needs it"))
+                                  pure (strengthenElemN (S i) t)
+                      -- the equation's OWN type, read over Γ₀: the
+                      -- reflexivity proof is stated at the spelling its
+                      -- occurrences are checked against, falling back to
+                      -- the variable's declared type where that spelling
+                      -- does not itself stand outside x
+                      let aEq0 = fromMaybe aTy (strengthenElemN (S i) aEq)
+                      -- [⋆/w] puts a ⋆ into a TYPE wherever the eliminated
+                      -- PROOF stood, and a ⋆ in a type needs an annotation
+                      -- the inline definition's type carries nowhere. Say so
+                      -- here, rather than let the kernel reject a term the
+                      -- operator never wrote
+                      -- WHAT STANDS WHERE THE ELIMINATED PROOF STOOD.
+                      -- ⋆ cannot, wherever w is named from a TYPE: it is
+                      -- an INTRODUCTION, so the kernel wants its el-eq-i
+                      -- payload, and a lifted definition's type is checked
+                      -- with an empty skeleton (ty-pi descends into a
+                      -- domain with that child's, no more). A REFERENCE
+                      -- infers, and a term whose inferred type already IS
+                      -- the expected one needs no payload at all — so the
+                      -- site mints the proof and substitutes that.
+                      --
+                      -- The proof to mint is fixed by the order of the two
+                      -- substitutions: [t/x] lands first, so the equation
+                      -- w proved reads t ≡ t by the time w's slot is
+                      -- filled. REFLEXIVITY, at the site's own t.
+                      let g2s = toList g2
+                      let wOccurs = any (\(m, c) => occursAt m c)
+                                        (zip (reverse (idxDesc (length g2s) 0)) g2s)
+                                      || maybe False (occursAt j) mty
+                      let n0 = length g0
+                      (wRepl, prfCands) <- the (ElabM (Elem, List Cand)) $
+                        if not wOccurs
+                          -- w is named from no type, so nothing is
+                          -- substituted for it and nothing need be minted
+                          then pure (Star, [])
+                          else do
+                            r <- attemptM (mintRefl g0 env0 aEq0 t0 n0 i j wTy)
+                            case r of
+                              Just x => pure x
+                              Nothing => throwAt (wr <|> site.srange)
+                                ("\{site}: ≡-elim: the goal or a hypothesis after '\{wn}' names"
+                                  ++ " the PROOF '\{wn}', and the reflexivity proof that would"
+                                  ++ " stand in its place did not discharge. Generalise that"
+                                  ++ " occurrence first")
+                      let subX = Ext Id t0
+                      let subW = Ext Id wRepl
+                      let nG1 = length g1
+                      let ctx' = refineAfter subX subW
+                                             (refineBetween subX g0 0 (toList g1))
+                                             nG1 0 (toList g2)
+                      let env' = (env0 <>< toList env1) <>< toList env2
+                      (prf', prfTy, prfSk) <- the (ElabM (Elem, Ty, Skel)) $ case mty of
+                        Just ty => do
+                          let ty' = compTy (substTy (substTy ty (underN j subW))
+                                                    (underN (minus i 1) subX))
+                          (e, sk) <- checkElem ctx' env' site sp ty'
+                          pure (e, ty', sk)
+                        Nothing => inferElem ctx' env' site sp
+                      q <- emitInlineDef site "j" ctx' prfTy (Nd [] []) prf' prfSk
+                      let args = svarsE env0 (S i) ++ svarsE env1 (S j) ++ svarsE env2 0
+                      let spine = foldl SApp (SSig Nothing q) args
+                      withLocalCands (eqElimCand st j cl cr ++ prfCands) $
+                        withEqScope ("rw:eq-elim" :: "rw:eq-elim-prf" :: st.eqScope) $
+                          the (ElabM (Elem, Ty, Skel)) $ case mty of
+                            Just ty => do
+                              (e, sk) <- checkElem ctx env site spine ty
+                              pure (e, ty, sk)
+                            Nothing => inferElem ctx env site spine
+                    _ => throwShape site env "≡-elim: '\{wn}' has type" wTy
+                           "an equality proposition"
+                _ => throwAt (wr <|> site.srange)
+                       "\{site}: internal: ≡-elim's equation index escapes Γ"
+            _ => throwAt (xr <|> site.srange)
+                   "\{site}: internal: ≡-elim's variable index escapes Γ"
+      (SVar _ _ _, _) =>
+        throwAt (headRange sw <|> site.srange)
+          ("\{site}: ≡-elim eliminates a HYPOTHESIS — this equation is not one"
+            ++ " (name it first: `let w ≔ …`)")
+      _ => throwAt (headRange sx <|> site.srange)
+             ("\{site}: ≡-elim eliminates a VARIABLE — this scrutinee is not one")
+   where
+    ||| The entries BETWEEN x and w, each specialised at t — one lift
+    ||| of the substitution per entry crossed, then β-contracted (the
+    ||| reason is sigma-elim's: t lands where x stood, so `x u` becomes
+    ||| `t u`, and a λ left in head position is a redex nothing can
+    ||| infer).
+    refineBetween : (sx : Sub) -> Ctx -> Nat -> List Ty -> Ctx
+    refineBetween sx acc m [] = acc
+    refineBetween sx acc m (c :: cs) =
+      refineBetween sx (acc :< compTy (substTy c (underN m sx))) (S m) cs
+
+    ||| The entries AFTER w: w goes first, then x (to t) — the second
+    ||| substitution counts the entries already standing between them.
+    ||| Both substitutions are the caller's, so an entry that NAMES the
+    ||| eliminated proof gets the same reference the goal does.
+    refineAfter : (sx, sw : Sub) -> Ctx -> (nG1 : Nat) -> Nat -> List Ty -> Ctx
+    refineAfter sx sw acc nG1 m [] = acc
+    refineAfter sx sw acc nG1 m (c :: cs) =
+      let c' = substTy (substTy c (underN m sw)) (underN (nG1 + m) sx)
+      in refineAfter sx sw (acc :< compTy c') nG1 (S m) cs
+
+    ||| The proof that stands where an eliminated equation variable
+    ||| stood, and the rule that converts back to it: reflexivity at the
+    ||| site's own t, minted as an inline definition, plus the
+    ||| irrelevance equation licensing `w ⇝ refl` beneath whatever head
+    ||| the goal has.
+    |||
+    ||| MINTED, not cited. An existing `refl` would bind the corpus to
+    ||| the elaborator, break in a module that does not import it, and —
+    ||| the decisive one — be too SMALL: `refl : {A : 𝕌} (a : A) → a ≡ a`
+    ||| quantifies over CODES, while the eliminated variable's type need
+    ||| not be one (eliminating an `x : 𝕌` against `x ≡ ℕ` is an ordinary
+    ||| use). Stated at the site, the equation is at whatever type the
+    ||| variable actually had.
+    |||
+    ||| Returns the reference AS THE SUBSTITUTION TAKES IT — over
+    ||| Γ₀ ▷ x ▷ Γ₁, where the [t/x] pass has not run yet, so Γ₀ begins
+    ||| at i - j.
+    mintRefl : Ctx -> NameEnv -> (aEq0, t0 : Elem) -> (n0, i, j : Nat) ->
+               (wTy : Ty) -> ElabM (Elem, List Cand)
+    mintRefl g0 env0 aEq0 t0 n0 i j wTy = do
+      let reflTy = Elem.EqTy t0 t0 aEq0
+      (rp, rsk) <- withScope (Just []) (checkElem g0 env0 (sub site "\{site}: ≡-elim, reflexivity")
+                                          (SStar Nothing) reflTy)
+      qr <- emitInlineDef site "r" g0 reflTy (Nd [] []) rp rsk
+      let inst = \base => foldl PiApp (SigVar qr [<]) (map CtxVar (idxDesc n0 base))
+      -- the irrelevance equation lives at the SITE, where w still
+      -- stands; both sides inhabit a proposition, so its ⋆ closes on
+      -- the spot (el-prf-prop) — which is exactly what a congruence
+      -- descent could not do for it
+      let atSite = inst (S i)
+      -- stated at the type the SITE's conversion will have reached,
+      -- not at w's own. The eliminating rule rewrites x ⇝ t
+      -- everywhere, the ∈-annotation included, so a license stated at
+      -- `x ≡ t` would no longer match the position by the time the
+      -- sides are rewritten — the kernel replays positionally, and
+      -- the annotation moves first
+      let instTy = substTy (Elem.EqTy t0 t0 aEq0) (wkN (S i))
+      let irrTy = Elem.EqTy (CtxVar j) atSite instTy
+      (pp, psk) <- withScope (Just []) (checkElem ctx env (sub site "\{site}: ≡-elim, irrelevance")
+                                          (SStar Nothing) irrTy)
+      -- the irrelevance lemma's TYPE is the one thing here the site
+      -- SYNTHESISED: it puts the reference where w stood, and the
+      -- reference infers `t ≡ t` where the equation asks for w's own
+      -- type. Bridging those is the elimination's own conversion —
+      -- x ≐ t by reflecting w — and code-eq's second child is where
+      -- its certificate belongs
+      mc <- convTy ctx env (sub site "\{site}: ≡-elim, the proof's own type")
+                   Nothing wTy instTy
+      cert <- maybe (throw ("\{site}: ≡-elim: the reflexivity proof does not stand at"
+                             ++ " the eliminated equation's type")) pure mc
+      -- code-eq's children: the two sides, then the ∈-type. w is the
+      -- side that needs bridging now; the reference infers this type
+      -- on the nose
+      let irrSk = Nd [] [Nd [PSwitch cert] [], Nd [] [], Nd [] []]
+      qp <- emitInlineDef site "p" ctx irrTy irrSk pp psk
+      st' <- getSt
+      let pref = foldl PiApp (SigVar qp [<]) (toList (varSpine (length ctx)))
+      pure (inst (minus i j),
+            closeCand (MkCand "eq-elim-prf" 0 [] (engNfE st' (CtxVar j)) (engNfE st' atSite)
+                         (\wk, _ => Just (weakenElemN wk pref, [])) [] []))
+
+    ||| Does the variable at `d` occur free? `strengthenElem` declines
+    ||| exactly then — the scope check, read as an occurs check.
+    occursAt : Nat -> Elem -> Bool
+    occursAt d e = isNothing (strengthenElem d e)
+
+    ||| A run of surface variables, outermost first — the spine for a
+    ||| stretch of the context the elimination left where it was.
+    svarsE : SnocList String -> (base : Nat) -> List SElem
+    svarsE names base =
+      let ns = toList names in
+      zipWith (\n, d => SVar Nothing n d) ns (idxDesc (length ns) base)
+
   ||| The η-equation the elimination site spends: an inline lemma
   ||| `(☐ᵢ .π₁, ☐ᵢ .π₂) ≡ ☐ᵢ`, Π-closed over the site's own context,
   ||| REFLECTED into a ground rewrite rule at that context.
@@ -4193,7 +4451,7 @@ mutual
       -- so the site pays a fixed cost whatever the module holds
       (prf, prfSk) <- withScope (Just []) (withEqScope ["sigma.eta"]
                         (checkElem ctx env site (SStar Nothing) etaTy))
-      q <- emitInlineDef site "η" ctx etaTy prf prfSk
+      q <- emitInlineDef site "η" ctx etaTy (Nd [] []) prf prfSk
       n1 <- oblCount
       if n1 /= n0
         then do modifySt (const before); pure []
@@ -4247,7 +4505,7 @@ mutual
                   (t, sk) <- checkElem ctx' env' site body (compTy (substTy ty pair))
                   pure (t, compTy (substTy ty pair), sk)
                 Nothing => inferElem ctx' env' site body
-              q <- emitInlineDef site "σ" ctx' bodyTy body' bodySk
+              q <- emitInlineDef site "σ" ctx' bodyTy (Nd [] []) body' bodySk
               -- the site: the definition at the SPLIT spine
               let wv = SVar wrng nm i
               let args = svars env0 (S i) ++ [SProj1 wv, SProj2 wv] ++ svars env1 0
@@ -4597,6 +4855,12 @@ mutual
                 (body', bodySk) <- checkElem (ctx :< a) (env :< fst xn) site body (substTy q Wk)
                 pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
           _ => throwShape site env "squash-elim scrutinee has type" eTy "a ∥∥ proposition"
+  checkElemAt ctx env site (SEqElim p x w) ty = do
+    -- CHECKING: the motive is RECOVERED — specialising the eliminated
+    -- variable in the expected type is exactly substituting the
+    -- equation's other side for it
+    (t, _, sk) <- elabEqElim ctx env site p x w (Just ty)
+    pure (t, sk)
   checkElemAt ctx env site (SSigmaElim nx ny body w) ty = do
     -- CHECKING: the motive is RECOVERED — abstracting the eliminated
     -- variable in the expected type is exactly substituting the pair

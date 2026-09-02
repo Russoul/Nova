@@ -211,7 +211,7 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 #   𝕏  \X       ≡⟨ \<       ⟩  \>       .π₁ .1      .π₂ .2
 #   𝕌  Set       Ω  Prop      ℕ  Nat       𝟘  Void     𝟙  Unit
 #   inj₁ inj1    inj₂ inj2    ℕ-elim Nat-elim   𝟘-elim Void-elim
-#   ⊎-elim \/-elim
+#   ⊎-elim \/-elim    ≡-elim eq-elim
 #
 # NO FALLBACK IS A DEFINABLE OPERATOR NAME. An operator name is a
 # maximal run of the operator alphabet, so every fallback carrying a
@@ -359,6 +359,9 @@ t{2½} ::= 𝟘-elim t{≥4}
         | sigma-elim (x y. t{≥0}) t{≥4}                        # components, SCRUTINEE —
                                                                #   a VARIABLE of a × type;
                                                                #   no motive (see e-sigmaelim)
+        | ≡-elim t{≥4} t{≥4} t{≥4}                             # proof, VARIABLE, EQUATION —
+                                                               #   the last two are variables;
+                                                               #   no motive (see e-eqelim)
         | ν F{≥2}                                              # the ν CODE (⇒ 𝕌)
         | out t{≥4}
         | corec (x : t{≥0}. t{≥0}) t{≥4}                       # carrier code + coalgebra
@@ -810,6 +813,88 @@ componentwise at F × G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 # The scrutinee must be a VARIABLE: nothing else has a context entry to
 # eliminate. `sigma-elim (x y. t) (u, v)` is a structural error naming
 # the remedy (name the scrutinee, or project it).
+
+Γ = Γ₀ ▷ x:A ▷ Γ₁ ▷ w:(x ≡ t ∈ A) ▷ Γ₂    # x and w are VARIABLES, and Γ₀ ⊢ t : A
+Γ′ ⊢ p ⇐ B[ρ] ⇝ p̂
+------------------------------------------------------------------ (e-eqelim)
+Γ ⊢ ≡-elim p x w ⇐ B ⇝ p̂[υ]
+
+Γ = Γ₀ ▷ x:A ▷ Γ₁ ▷ w:(x ≡ t ∈ A) ▷ Γ₂
+Γ′ ⊢ p ⇒ B′ ⇝ p̂
+------------------------------------------------------------ (e-eqelim-infer)
+Γ ⊢ ≡-elim p x w ⇒ B′[υ] ⇝ p̂[υ]
+
+# — and the SAME pair with w : (t ≡ x ∈ A). Which side of the equation
+# the eliminated variable stands on is read off w's type, so there is
+# one surface form and one implementation for the two orientations; x
+# is named explicitly, so a w between two variables is unambiguous.
+#
+# with the ELIMINATION CONTEXT and the two substitutions between it and
+# Γ, all three fixed by where the two variables stand:
+#
+#     Γ′  ≜  Γ₀ ▷ Γ₁[t/x] ▷ Γ₂[t/x, refl/w]
+#     ρ   ≜  the SPECIALISING substitution Γ′ ⇒ Γ: t at x's slot,
+#            REFL at w's, and every surviving variable at its own
+#     υ   ≜  the INJECTION Γ ⇒ Γ′: those same survivors, in place
+#
+# Both variables are GONE in Γ′ — naming either in p is a resolution
+# error — and everything they stood before is specialised: the entries
+# between them, the entries after them, and the goal. There is no
+# motive and none is needed: t is READ OFF w's type, and substituting
+# it for x is what a motive would have abstracted.
+#
+# t MUST STAND IN Γ₀, outside x's own entry. Otherwise Γ₁[t/x] is not
+# even a context — an entry would name a later one — so a t mentioning
+# x, a hypothesis between, or w itself is a structural error naming
+# what it mentioned.
+#
+# ρ ∘ υ is the identity by EL-REFLECT and EL-PRF-PROP: w is in scope in
+# Γ, so x ≐ t there, and w ≐ ⋆ since both inhabit a proposition. That is
+# the rule's whole content and the one conversion the site owes:
+# B[ρ][υ] ≐ B. Unlike e-sigmaelim's η, NOTHING IS MINTED for it — Σ-η
+# is a rule, with no term to license a step with, but this equation is
+# already a term, the variable w, and el-reflect takes any term at an
+# equality prop. The site reflects it into a ground rewrite rule and
+# spends it wherever x stands.
+#
+# The refined entries and goal are β-CONTRACTED, for e-sigmaelim's
+# reason: t lands where x stood, so `x u` becomes `t u`, and a λ left
+# in head position is a redex nothing can infer.
+#
+# [refl/w], NOT [⋆/w], and the difference is what a type can hold. A
+# goal — or a hypothesis after w — may NAME the eliminated proof, and
+# then something must stand in its place inside a TYPE. ⋆ cannot: it is
+# an INTRODUCTION, so the kernel wants the el-eq-i payload certifying
+# its equation, and a lifted definition's type is checked with an empty
+# skeleton (ty-pi descends into a domain with that child's, no more). A
+# REFERENCE can: a term whose inferred type already IS the expected one
+# needs no payload at all (the kernel's no-switch path).
+#
+# So the site MINTS the proof rather than citing one. [t/x] lands
+# first, so by the time w's slot is filled the equation w proved reads
+# t ≡ t — REFLEXIVITY, at the site's own t — and the lemma is stated at
+# whatever type the eliminated variable actually had. An existing
+# `refl : {A : 𝕌} (a : A) → a ≡ a` could not serve: it would bind the
+# elaborator to the corpus, break in a module that does not import it,
+# and quantify over CODES, while the variable's type need not be one
+# (eliminating an `x : 𝕌` against `x ≡ ℕ` is an ordinary use).
+#
+# The site then owes refl ≐ w as well as t ≐ x, again beneath whatever
+# head the goal has, so a second lemma — the IRRELEVANCE equation
+# w ≡ refl, one ⋆ by el-prf-prop — licenses that rewrite. It is stated
+# at t ≡ t rather than at w's own type, because the eliminating rule
+# rewrites the ∈-annotation too and the kernel replays POSITIONALLY: a
+# license stated at x ≡ t no longer matches the position once the
+# annotation has moved. Its own type is the one thing here the rule
+# synthesises, so it is the one inline definition that carries a type
+# skeleton — a switch certificate at code-eq's first child.
+#
+# Both lemmas are minted ONLY where w is named from a type; the common
+# case pays nothing.
+#
+# p̂[υ] is the RULE, and as at e-sigmaelim the elaborator does not
+# perform that substitution: p is installed as an INLINE DEFINITION
+# over Γ′ and the site is that definition applied to υ's spine.
 
 # Universe codes infer at 𝕌, mirroring their formation rules:
 Γ ⊢ 𝟘 ⇒ 𝕌 ⇝ 𝟘      (likewise 𝟙, ℕ)                            # (𝟘 : 𝕌) etc.

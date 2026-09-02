@@ -332,6 +332,28 @@ foldGroupsC : (Bool -> String -> a -> b -> b) -> List (Bool, String, a) -> b -> 
 foldGroupsC f [] b = b
 foldGroupsC f ((imp, x, t) :: rest) b = f imp x t (foldGroupsC f rest b)
 
+||| The proof of `≡-elim p x w`, reindexed from the site's own binders
+||| to the ELIMINATION context, where the variable x (index i) and the
+||| equation variable w (index j, standing INSIDE it, so j < i) are
+||| both gone: the entries between them come one nearer, those outside
+||| x two. Nothing when the proof mentions either — that context has no
+||| such entry, and the operator wrote a name the elimination removed.
+|||
+||| The twin of sigmaElimBody, and it exists for the same reason: the
+||| grammar reads the methods before the scrutinees, so the proof is
+||| parsed against the environment available at the time and shifted
+||| once the two variables are known.
+eqElimProof : (i, j : Nat) -> SElem -> Maybe SElem
+eqElimProof i j b = mapVarsE remap 0 b
+ where
+  remap : Nat -> Nat -> Maybe Nat
+  remap d k =
+    let m = minus k d in
+    if m == j || m == i then Nothing                 -- w, x: eliminated
+    else if m < j then Just (m + d)                  -- inside w: unchanged
+    else if m < i then Just (minus m 1 + d)          -- between them: w gone
+    else Just (minus m 2 + d)                        -- outside x: both gone
+
 -- ===== Types and elements (mutually recursive) =====
 
 mutual
@@ -696,6 +718,30 @@ mutual
             f <- parseSElem tbl (env :< fst a); sp; kwc ')'; sp
             q <- parseSElemAtom tbl env
             pure (SQuotElim Nothing a f q))
+        -- ≡-elim p x w — the EQUALITY variable elimination. Methods
+        -- first, scrutinees last, as everywhere in the family; the
+        -- proof sits at atom level, like ℕ-elim's binder-less z. The
+        -- reindexing is sigma-elim's, doubled
+        -- (docs/NovaElaboration.txt, e-eqelim)
+    <|> (do kw2 "≡-elim" "eq-elim"; space; commit
+            p <- parseSElemAtom tbl env; sp
+            x <- parseSElemAtom tbl env; sp
+            w <- parseSElemAtom tbl env
+            case (unPos x, unPos w) of
+              (SVar _ xn i, SVar wr wn j) =>
+                -- j >= i is the elaborator's error to report (at the
+                -- equation's own span), and the remap would be
+                -- meaningless: leave the proof as parsed
+                if j >= i then pure (SEqElim p x w)
+                else case eqElimProof i j p of
+                  Just p' => pure (SEqElim p' x w)
+                  Nothing =>
+                    let msg = "a ≡-elim proof free of '\{xn}' and '\{wn}' — the variables this eliminates, so the proof's context has no such entry" in
+                    maybe (fail msg) (\r => failLoc r msg) (posOf x <|> posOf w <|> wr)
+              -- not both variables: the elaborator says so, at their
+              -- own spans. The proof keeps its parse indices; nothing
+              -- ever reads them
+              _ => pure (SEqElim p x w))
         -- sigma-elim (x y. t) w — the Σ VARIABLE elimination. The
         -- body is parsed against the site's binders with x and y
         -- pushed innermost (the scrutinee is only read after it), and

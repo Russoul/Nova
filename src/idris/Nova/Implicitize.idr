@@ -223,6 +223,7 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
       SClass t => SClass (xfE t)
       SQuotElim mot a f qq => SQuotElim (map (\(z, m) => (z, xfT m)) mot) a (xfE f) (xfE qq)
       SSigmaElim nx ny b w => SSigmaElim nx ny (xfE b) (xfE w)
+      SEqElim p x w => SEqElim (xfE p) (xfE x) (xfE w)
       SNuC f => SNuC (xfP f)
       SOut t => SOut (xfE t)
       SCorec x a f u => SCorec x (xfE a) (xfE f) (xfE u)
@@ -526,6 +527,7 @@ sitesOfUnit resolve q u = concatMap (\(_, it) => goItem it) u.mitems
       SClass t => goE t
       SQuotElim mot _ f qq => concatMap (goT . snd) (toList mot) ++ goE f ++ goE qq
       SSigmaElim _ _ b w => goE b ++ goE w
+      SEqElim p x w => goE p ++ goE x ++ goE w
       SNuC f => goP f
       SOut t => goE t
       SCorec _ a f uu => goE a ++ goE f ++ goE uu
