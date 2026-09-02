@@ -127,12 +127,25 @@ parseName = do
     -- with the elided ≡ (docs/NovaPerfectSurface.txt, Phase 4): an
     -- ∈-less equality's right side is an application chain, which
     -- would otherwise swallow a following using-clause
+    -- `out` is S/class's case exactly — it consumes a following atom —
+    -- with a second, quieter failure of its own: `out` is a plain
+    -- identifier in TYPE position too (the type grammar reads no
+    -- keyword-headed code), so an unreserved `out t` there read as an
+    -- APPLICATION of a signature name and asked after an `out` nobody
+    -- declared. The other keyword-headed forms need no entry: 𝟘-elim,
+    -- ⊎-elim, quot-elim and squash-elim carry a `-`, and ν, ⋆, inj₁
+    -- and inj₂ are not identifiers at all. corec and coind ARE
+    -- identifiers and are deliberately left free: each is followed by
+    -- a parenthesized binder group, so a shadowing binder misparses
+    -- only where the text after it happens to look like the keyword's
+    -- own syntax — and neither is a reference form a hand-written
+    -- proof reaches for as a variable name
     guard "an identifier ('\{name}' is a reserved keyword)"
                              (name /= "def" && name /= "type" && name /= "El" &&
                               name /= "import" && name /= "infixl" && name /= "infixr" &&
                               name /= "S" && name /= "Z" && name /= "class" &&
                               name /= "data" && name /= "let" && name /= "in" &&
-                              name /= "using" &&
+                              name /= "using" && name /= "out" &&
     -- the ASCII spellings of 𝕌 Ω ℕ 𝟘 𝟙 and of the injections: valid
     -- identifiers, so they need the same reservation S/Z/class do, or a
     -- binder of that name would shadow the constructor or constant at
@@ -289,6 +302,24 @@ sigmaElimBody i b = mapVarsE remap 0 b
       if m < i then Just (m + d)               -- inside Γ₁: unchanged
       else if m == i then Nothing              -- w itself: eliminated
       else Just (S m + d)                      -- inside Γ₀: one further out
+||| One step of a CODE SPINE standing in TYPE position (T{2}): an
+||| argument, or a projection. A code is an element, and the element it
+||| is may be reached by projecting — `P .π₁` is a perfectly good 𝕌
+||| when P : 𝕌 × 𝕌 — so the type grammar reads the projection steps
+||| too, not applications alone. Nothing else of the element grammar is
+||| readable here: an operator application, a keyword-headed form or an
+||| implicit override stands in type position PARENTHESIZED, which
+||| re-enters the element grammar whole.
+data CodeStep = CArg SElem | CProj1 | CProj2
+
+applyStep : SElem -> CodeStep -> SElem
+applyStep h (CArg a) = SApp h a
+applyStep h CProj1 = SProj1 h
+applyStep h CProj2 = SProj2 h
+
+isProj : CodeStep -> Bool
+isProj (CArg _) = False
+isProj _ = True
 
 -- ===== Types and elements (mutually recursive) =====
 
@@ -424,9 +455,9 @@ mutual
             pure (x, y, r))
     <|> (do r <- parseSElemPrefix tbl (env :< wildcard :< wildcard); pure ((wildcard, Nothing), (wildcard, Nothing), r))
 
-  -- T{2}: ν / atoms and CODE APPLICATION SPINES (El is retired:
-  -- a code in type position is spelled directly — `Vect n`, a bound
-  -- 𝕌-variable, a computed code in parens)
+  -- T{2}: ν / atoms and CODE SPINES — arguments AND projections (El is
+  -- retired: a code in type position is spelled directly — `Vect n`, a
+  -- bound 𝕌-variable, `P .π₁`, a computed code in parens)
   parseSTyEl : FixTable -> NameEnv -> Rule STy
   parseSTyEl tbl env = do
     (r, x) <- bounds (parseSTyElRaw tbl env)
@@ -439,16 +470,23 @@ mutual
         (do kw2 "∥" "||"; sp; t <- parseSTy tbl env; sp; kw2 "∥" "||"; pure (STyEl (SSquash t)))
     <|> (do kw2 "ν" "\\nu"; space; f <- parseSPolyAtom tbl env; pure (STyNu f))
     <|> (do t <- parseSTyAtom tbl env
-            args <- many (do space; parseSElemAtom tbl env)
-            case args of
+            steps <- many (   (do sp; kw2 ".π₁" ".1"; pure CProj1)
+                          <|> (do sp; kw2 ".π₂" ".2"; pure CProj2)
+                          <|> (do space; CArg <$> parseSElemAtom tbl env))
+            case steps of
               [] => pure t
               _ => case tyHeadElem t of
-                     Just h => pure (STyEl (foldl SApp h args))
+                     Just h => pure (STyEl (foldl applyStep h steps))
                      -- FATAL: `parseSTy` already tried the equality
                      -- production, and nothing above reads an applied
                      -- type former either, so this verdict must not be
-                     -- outrun by a sibling's expectation
-                     Nothing => fatal "!this type former takes no arguments")
+                     -- outrun by a sibling's expectation. Nothing reads
+                     -- a `.` after a TYPE either, so the projection
+                     -- verdict is as final as the argument one
+                     Nothing =>
+                       fatal (if any isProj steps
+                                then "!this type former cannot be projected"
+                                else "!this type former takes no arguments"))
    where
     tyHeadElem : STy -> Maybe SElem
     tyHeadElem ty = case unPosTy ty of

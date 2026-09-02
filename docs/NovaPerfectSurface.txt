@@ -231,6 +231,17 @@ exactly as the eliminator's OWN arguments are, and the parens are
 then the only thing showing where its syntax ends. Both spellings
 re-parse identically; the choice is readability, not correctness.
 
+A CODE STANDING AS A TYPE is bracketed by the TYPE grammar, not by the
+element ladder. T{2} reads a code spine as an ATOM head with argument
+and projection steps — `Vect n`, `P .π₁`, `f x .π₁` — so those print
+bare, and everything else parenthesizes: an implicit override
+(`(Vect {ℕ} n)`, since `{` opens an implicit binder group at that
+position), an infix application (`(a ≤ b)`), a keyword-headed code, a
+λ. The printer's predicate is the mirror of the parser's production
+and is meant to be read beside it (Distill.readsAsType against
+Parser.parseSTyElRaw); the element ladder cannot decide this position,
+because the two grammars admit different things there.
+
 ////////// Status //////////
 
 Phase 1: implemented — Nova.Distill (the renderer and the module

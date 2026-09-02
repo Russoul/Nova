@@ -214,12 +214,26 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # `->` and `==` are rejected as operator names. Seven fallbacks are
 # valid IDENTIFIERS — the constants Set Prop Nat Void Unit and the
 # injections inj1 inj2 — so they join the reserved-word list beside
-# S/Z/class/let/in/using; an identifier merely BEGINNING with one
+# S/Z/class/let/in/using/out; an identifier merely BEGINNING with one
 # (NatAlg, Setoid, inj1of2) is unaffected, since a keyword must end at
 # a name boundary. The UNICODE spellings need no reservation and could
 # take none: ₁ ₂ 𝟘 ℕ and the rest are not identifier characters, so
 # inj₁ and the constants are unshadowable already — the asymmetry is
 # the fallbacks' only real cost.
+#
+# `out` is reserved for the ordinary reason: it is a valid identifier
+# that CONSUMES A FOLLOWING ATOM, so a binder named `out` parsed fine
+# and misbehaved at every later reference. It has a second, quieter
+# failure the others do not — `out` is a plain identifier in TYPE
+# position too (the type grammar reads no keyword-headed code), so an
+# unreserved `out t` there read as an APPLICATION OF A SIGNATURE NAME
+# and asked after an `out` nobody declared. The remaining
+# keyword-headed forms need no entry: 𝟘-elim, ⊎-elim, quot-elim and
+# squash-elim carry a `-`, and ν, ⋆, inj₁, inj₂ are not identifiers at
+# all. corec and coind ARE identifiers and stay free deliberately:
+# each is followed by a parenthesized binder group, so a shadowing
+# binder misparses only where the text after it happens to look like
+# the keyword's own syntax.
 #
 # The `\`-prefixed forms and λ coexist by ORDER: λ is tried first and
 # demands its binder and `.`, so `\x. e` is the lambda binding x while
@@ -229,16 +243,24 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # Types. Elaboration needs no rule keywords and no context prefixes —
 # the context is always implicit in where a subterm sits.
 T{4} ::= 𝟘 | 𝟙 | ℕ | 𝕌 | Ω | x | (T{≥0})
-T{2} ::= ν F{≥2} | ∥T{≥0}∥ | T{≥4} t{≥4}* | t-atom
+T{2} ::= ν F{≥2} | ∥T{≥0}∥ | T{≥4} (t{≥4} | .π₁ | .π₂)* | t-atom
 # El and Prf are retired (Foundation, CUMULATIVITY and
 # PROP-CUMULATIVITY): a CODE or a PROP in type position IS the type —
 # a name atom resolving to a binder or a 𝕌-/Ω-classified item, an
-# application spine (Vect n, R x y), a squash, an operator-shaped
+# application spine (Vect n, R x y), a PROJECTION of one (P .π₁: a
+# code is an element, and the element may be reached by projecting,
+# so the spine reads those steps too), a squash, an operator-shaped
 # name (⊥), or a parenthesized element ((a ≤ b)). The classifier is
 # read off a discarded inference probe: Ω-valued spellings elaborate
 # at Ω, everything else at 𝕌. There is NO legacy `Prf` spelling —
 # the keyword is gone from the grammar and `Prf` is an ordinary
 # identifier.
+# THE SPINE'S STEPS ARE ARGUMENTS AND PROJECTIONS, and no more. An
+# implicit override — `Vect {ℕ} n` — stays parenthesized here, because
+# `{` opens an implicit BINDER GROUP at exactly this position, and one
+# spelling cannot be both. Parentheses re-enter the element grammar
+# whole, so every other element form reaches type position that way:
+# a keyword-headed code, an operator application, an override.
 T{1} ::= ((x:T{≥0}))+ → T{≥0} | ((x:T{≥0}))+ × T{≥0}
        | T{≥1½} → T{≥0} | T{≥1½} / (x y. t{≥1})
 T{1½} ::= T{≥1¾} ⊎ T{≥1½}
