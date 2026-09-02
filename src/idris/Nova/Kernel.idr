@@ -1402,24 +1402,24 @@ mutual
   ||| expected type. Nothing = undetermined there — harmless for path
   ||| positions being passed THROUGH (congruence needs no type at
   ||| intermediate hops), fatal only at the rewrite point itself.
-  childTyE : Sig -> Ctx -> Maybe Ty -> Elem -> Nat -> KM (Maybe Ty)
+  childTyE : Sig -> Ctx -> (crossed : Nat) -> Maybe Ty -> Elem -> Nat -> KM (Maybe Ty)
   -- SINGLE-COLUMN matching, deliberately: one clause per former, the
   -- child index (a Nat — nested S-patterns!) and the expected-type
   -- Maybe dispatched in the BODY. The former × index × Maybe product
   -- pattern this replaces made the compile-time case tree and its
   -- coverage check the single most expensive item in the file
   -- (~23s / most of the peak RSS).
-  childTyE sig ctx pexp (ZeroElim _) i =
+  childTyE sig ctx b pexp (ZeroElim _) i =
     pure (if i == 0 then Just ZeroTy else Nothing)
-  childTyE sig ctx pexp (NatIntro1 _) i =
+  childTyE sig ctx b pexp (NatIntro1 _) i =
     pure (if i == 0 then Just NatTy else Nothing)
-  childTyE sig ctx pexp (NatElim _ _ _) i =
+  childTyE sig ctx b pexp (NatElim _ _ _) i =
     case i of
       0 => pure pexp                    -- constant-motive reading
       1 => pure (map (weakenTyN 2) pexp)
       2 => pure (Just NatTy)
       _ => pure Nothing
-  childTyE sig ctx pexp (PiIntro _) i =
+  childTyE sig ctx b pexp (PiIntro _) i =
     case (pexp, i) of
       (Just pe, 0) => do
         t <- kWhnfT sig pe
@@ -1427,10 +1427,10 @@ mutual
           PiTy _ b => pure (Just b)
           _ => pure Nothing
       _ => pure Nothing
-  childTyE sig ctx pexp (PiApp f _) i =
+  childTyE sig ctx b pexp (PiApp f _) i =
     case i of
       1 => do
-        mf <- inferNeK sig ctx f
+        mf <- inferNeAt sig ctx b f
         case mf of
           Just fTy => do
             t <- kWhnfT sig fTy
@@ -1439,7 +1439,7 @@ mutual
               _ => pure Nothing
           Nothing => pure Nothing
       _ => pure Nothing
-  childTyE sig ctx pexp (SigmaIntro u _) i =
+  childTyE sig ctx b pexp (SigmaIntro u _) i =
     case (pexp, i) of
       (Just pe, 0) => do
         t <- kWhnfT sig pe
@@ -1452,11 +1452,11 @@ mutual
           SigmaTy _ b => pure (Just (substTy b (Ext Id u)))
           _ => pure Nothing
       _ => pure Nothing
-  childTyE sig ctx pexp (SigmaElim1 u) i =
-    if i == 0 then inferNeK sig ctx u else pure Nothing
-  childTyE sig ctx pexp (SigmaElim2 u) i =
-    if i == 0 then inferNeK sig ctx u else pure Nothing
-  childTyE sig ctx pexp (Inj1 _) i =
+  childTyE sig ctx b pexp (SigmaElim1 u) i =
+    if i == 0 then inferNeAt sig ctx b u else pure Nothing
+  childTyE sig ctx b pexp (SigmaElim2 u) i =
+    if i == 0 then inferNeAt sig ctx b u else pure Nothing
+  childTyE sig ctx b pexp (Inj1 _) i =
     case (pexp, i) of
       (Just pe, 0) => do
         t <- kWhnfT sig pe
@@ -1464,7 +1464,7 @@ mutual
           SumTy a _ => pure (Just a)
           _ => pure Nothing
       _ => pure Nothing
-  childTyE sig ctx pexp (Inj2 _) i =
+  childTyE sig ctx b pexp (Inj2 _) i =
     case (pexp, i) of
       (Just pe, 0) => do
         t <- kWhnfT sig pe
@@ -1474,33 +1474,33 @@ mutual
       _ => pure Nothing
   -- ⊎-elim: the case positions are motive-dependent (undetermined);
   -- the scrutinee's type is neutrally inferable
-  childTyE sig ctx pexp (SumElim _ _ t) i =
-    if i == 2 then inferNeK sig ctx t else pure Nothing
+  childTyE sig ctx b pexp (SumElim _ _ t) i =
+    if i == 2 then inferNeAt sig ctx b t else pure Nothing
   -- SHARED formers are typed at both 𝕌 (codes) and 𝕍 (types): the
   -- parent's expected type decides where the components sit. Default
   -- 𝕌 — an element position met only codes before the merge.
-  childTyE sig ctx pexp (Elem.SumTy _ _) i =
+  childTyE sig ctx b pexp (Elem.SumTy _ _) i =
     if i == 0 || i == 1 then Just <$> compClassifier sig pexp else pure Nothing
-  childTyE sig ctx pexp (Elem.PiTy _ _) i =
+  childTyE sig ctx b pexp (Elem.PiTy _ _) i =
     if i == 0 || i == 1 then Just <$> compClassifier sig pexp else pure Nothing
-  childTyE sig ctx pexp (Elem.SigmaTy _ _) i =
+  childTyE sig ctx b pexp (Elem.SigmaTy _ _) i =
     if i == 0 || i == 1 then Just <$> compClassifier sig pexp else pure Nothing
   -- child 2 of ≡ is its ∈-type — a term at 𝕍 (or 𝕍 itself, which has
   -- no children); children 0/1 sit at it
-  childTyE sig ctx pexp (Elem.EqTy _ _ t) i =
+  childTyE sig ctx b pexp (Elem.EqTy _ _ t) i =
     case i of
       0 => pure (Just t)
       1 => pure (Just t)
       2 => pure (Just TopTy)
       _ => pure Nothing
-  childTyE sig ctx pexp (QuotTy _ _) i =
+  childTyE sig ctx b pexp (QuotTy _ _) i =
     case i of
       0 => Just <$> compClassifier sig pexp
       1 => pure (Just PropTy)
       _ => pure Nothing
-  childTyE sig ctx pexp (Squash _) i =
+  childTyE sig ctx b pexp (Squash _) i =
     pure (if i == 0 then Just TopTy else Nothing)
-  childTyE sig ctx pexp (SigVar x es) i =
+  childTyE sig ctx b pexp (SigVar x es) i =
     kSigLookup sig x >>= \entryX => case entryX of
       Just (SigDef delta _ _ _) =>
         case getAt i (toList delta) of
@@ -1513,7 +1513,7 @@ mutual
             pure (Just (substTy entryTy (embed (cast (take i (toList es))))))
           Nothing => pure Nothing
       _ => pure Nothing
-  childTyE sig ctx pexp (Class _) i =
+  childTyE sig ctx b pexp (Class _) i =
     case (pexp, i) of
       (Just pe, 0) => do
         t <- kWhnfT sig pe
@@ -1521,27 +1521,27 @@ mutual
           QuotTy dom _ => pure (Just dom)
           _ => pure Nothing
       _ => pure Nothing
-  childTyE sig ctx pexp (QuotElim _ q) i =
-    if i == 1 then inferNeK sig ctx q else pure Nothing
+  childTyE sig ctx b pexp (QuotElim _ q) i =
+    if i == 1 then inferNeAt sig ctx b q else pure Nothing
   -- ν formers: out's scrutinee is neutrally inferable; corec's carrier
   -- is a code, its seed at the carrier's decoding (the body, child 1,
   -- is carrier-dependent — undetermined, like ⊎-elim's cases)
-  childTyE sig ctx pexp (Out t) i =
-    if i == 0 then inferNeK sig ctx t else pure Nothing
-  childTyE sig ctx pexp (Corec _ a _ _) i =
+  childTyE sig ctx b pexp (Out t) i =
+    if i == 0 then inferNeAt sig ctx b t else pure Nothing
+  childTyE sig ctx b pexp (Corec _ a _ _) i =
     case i of
       0 => pure (Just UniverseTy)
       2 => pure (Just a)
       _ => pure Nothing
   -- QIIT formers: spine child i's type is the reflected telescope's
   -- entry i, instantiated by the earlier children — always determined
-  childTyE sig ctx pexp (QSort sg k es) i = qSpineChildTy sg k es i
-  childTyE sig ctx pexp (QCtor sg k es) i = qSpineChildTy sg k es i
-  childTyE sig ctx pexp (QElim sg k _ _ es w) i =
+  childTyE sig ctx b pexp (QSort sg k es) i = qSpineChildTy sg k es i
+  childTyE sig ctx b pexp (QCtor sg k es) i = qSpineChildTy sg k es i
+  childTyE sig ctx b pexp (QElim sg k _ _ es w) i =
     if i == length (toList es)
       then pure (Just (QSort sg k es))
       else qSpineChildTy sg k es i
-  childTyE sig ctx pexp _ _ = pure Nothing
+  childTyE sig ctx b pexp _ _ = pure Nothing
 
   ||| The classifier a shared former's components sit at: 𝕍 when the
   ||| parent is expected at 𝕍 (a type), 𝕌 otherwise (a code).
@@ -1563,6 +1563,29 @@ mutual
         case reflTel sg (qwAt k) entry of
           Left _ => pure Nothing
           Right (tel, _, _) => pure (telInst tel i (toList es))
+
+  ||| Neutral inference at a position standing under `crossed` binders
+  ||| the walk entered on its way down. Those binders are NOT in ctx —
+  ||| goE carries their COUNT and never their types — so a spine's
+  ||| indices there are shifted relative to ctx, and inferring against
+  ||| ctx as if they were not would resolve a DIFFERENT entry and type
+  ||| the position by it. Strengthening first is exactly the test: a
+  ||| spine that never names a crossed binder is the same spine at the
+  ||| site, inferable there, and its type weakens back; one that does
+  ||| name it is not inferable here at all, which is what Nothing says
+  ||| (the caller then reports a type-undetermined position rather
+  ||| than a mismatch against a type that was never the position's).
+  inferNeAt : Sig -> Ctx -> (crossed : Nat) -> Elem -> KM (Maybe Ty)
+  inferNeAt sig ctx Z e = inferNeK sig ctx e
+  inferNeAt sig ctx b e = case strengthenN b e of
+    Nothing => pure Nothing
+    Just e' => map (map (weakenTyN b)) (inferNeK sig ctx e')
+
+  ||| Undo `n` weakening steps at the innermost end; Nothing when the
+  ||| term mentions one of the entries being removed.
+  strengthenN : Nat -> Elem -> Maybe Elem
+  strengthenN Z e = Just e
+  strengthenN (S n) e = strengthenElem 0 e >>= strengthenN n
 
   ||| Neutral inference inside the kernel (spines only).
   inferNeK : Sig -> Ctx -> Elem -> KM (Maybe Ty)
@@ -1664,7 +1687,7 @@ goE pol sig ctx lic@(le, re, ltyN) [] b mexp u = do
           then pure (weakenN b re)
           else kerr "kernel: step does not match the subterm"
 goE pol sig ctx lic (i :: p) b mexp u = do
-  childTy <- childTyE sig ctx mexp u i
+  childTy <- childTyE sig ctx b mexp u i
   let goQSpine : SubNorm -> (SubNorm -> Elem) -> KM Elem
       goQSpine es re =
         case subNormAt i es of
