@@ -1,0 +1,7 @@
+-- El marks the literal's INDUCTIVE domains and nothing else. The
+-- Nova-level El is retired, so an external domain is spelled as the
+-- code it is — the diagnosis names that, at the El itself, because a
+-- branch rejection here is outrun by whichever sibling reads furthest
+data ( B : U
+     ; nil : El B
+     ; ins : (x : El ℕ) (m : El B) → El B )

@@ -156,9 +156,13 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # `El q` whose head resolves to a sort of the SAME literal (or an ≡
 # between such elements) is an INDUCTIVE domain; any other surface
 # type is EXTERNAL, elaborated as an ordinary type over the external
-# binders in scope (a legacy `El c` spelling of an external code c is
-# still parsed inside data literals, but the canonical form is bare —
-# El exists only in the ToS). No new expression syntax exists outside the
+# binders in scope, and SPELLED BARE — El exists only in the ToS, and
+# an `El c` at an external code is REJECTED with a diagnosis naming
+# the bare spelling. (It used to be parsed, as the retired Nova-level
+# El's last spelling. It could not survive its own round trip: the
+# printer spells an external domain as the code it is, so `El ℕ` came
+# back as the bare type it printed as, and the distiller refused the
+# item it had just written.) No new expression syntax exists outside the
 # literal: everything a data item provides reaches the file as
 # ordinary defs (see the QIIT section).
 
