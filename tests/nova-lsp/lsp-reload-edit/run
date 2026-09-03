@@ -1,0 +1,12 @@
+#!/bin/sh
+# A SERVER IS MANY RUNS. `f` is edited between the two loads, and the
+# second program is a DIFFERENT one over the same names: `g` states
+# f ≡ Z, true of the first `f` and false of the second. A per-run
+# cache that outlives its run reports the old answer for the new file
+# — the editor then disagrees with the compiler, in whichever
+# direction the edit went.
+DIR="$(cd "$(dirname "$0")" && pwd)"
+tmp="$(mktemp -d)"
+cp "$DIR/before.nova" "$tmp/fixture.nova"
+"$1" lsp "$NOVA_LSP_BIN" "$tmp/fixture.nova" f "$DIR/after.nova"
+rm -rf "$tmp"

@@ -98,7 +98,9 @@ main = do
           case result of
             Left err  => putStrLn err
             Right out => putStr out
-    (_ :: "lsp" :: lspBin :: fixture :: word :: []) => runLspTest lspBin fixture word
+    (_ :: "lsp" :: lspBin :: fixture :: word :: []) => runLspTest lspBin fixture word Nothing
+    (_ :: "lsp" :: lspBin :: fixture :: word :: editTo :: []) =>
+      runLspTest lspBin fixture word (Just editTo)
     _ => do
       ps <- pools
       runner ps
