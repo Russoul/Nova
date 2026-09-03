@@ -1,0 +1,10 @@
+defined stuck [+1 declaration]
+defined conat
+defined cinf
+defined csucc
+defined outInf
+defined outSuccInf
+defined infSucc
+open holes (1):
+  [?h] ⊢ ?h : ℕ
+      at: input.nova:13:17: def stuck

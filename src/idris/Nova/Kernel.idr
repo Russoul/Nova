@@ -2814,6 +2814,26 @@ kCheckDefItem sig fuel art =
     kCheckE sig ctx art.body art.dty art.bodySkel
     pure (SigDef ctx art.dname art.body art.dty)) fuel
 
+||| Admit an item by its TYPE ALONE — the entry a POISONED item leaves
+||| behind. The type is kernel-checked; the body is not looked at,
+||| because there is no kernel-verified body to look at.
+|||
+||| The result is a SigDecl, which is an AXIOM, so this is only ever
+||| reached in a run whose signature is ALREADY non-definitional, and
+||| the acceptance gate — final Σ definitional, every item admitted —
+||| refuses such a run either way. What it buys is that the items
+||| AFTER this one still see a resolvable, correctly-typed reference
+||| to the name, and so can be admitted on their own merits instead of
+||| being skipped for a fault that is not theirs.
+export
+kCheckDeclItem : Sig -> Nat -> (name : String) -> (tele : List (Ty, Skel)) ->
+                 (ty : Ty) -> (tySkel : Skel) -> Either KErr SigEntry
+kCheckDeclItem sig fuel name tele ty tySkel =
+  map fst $ runKM (do
+    ctx <- kTele sig [<] tele
+    kCheckTyK sig ctx ty tySkel
+    pure (SigDecl ctx name ty)) fuel
+
 export
 kCheckTyDefItem : Sig -> Nat -> KTyDefArt -> Either KErr SigEntry
 kCheckTyDefItem sig fuel art =
