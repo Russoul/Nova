@@ -274,10 +274,22 @@ load-bearing:
     discharged, but no composite certificate expressible) is assumed,
     not silently accepted — the composite surfaces as an ordinary
     obligation and the remedy is the usual one, a lemma that makes it
-    directly matchable. Likewise "clean" is a property of the RUN,
-    not the item: an assumption anywhere poisons every later item's
-    kernel acceptance (the kernel Σ cannot contain the earlier item,
-    so references to it are unresolvable anyway).
+    directly matchable. ADMISSION, by contrast, is asked of every
+    item on its own: the criterion above — the item re-checks from
+    kernel Σ alone — is put to each one, and an item that answers it
+    is admitted however the items before it fared. An item that does
+    not has its TYPE admitted instead, as a DECLARATION, which is
+    the entry the earlier reading said could not exist ("the kernel
+    Σ cannot contain the earlier item, so references to it are
+    unresolvable anyway") — with it they resolve, at the right type,
+    and the items after are admitted or refused on their own merits
+    rather than skipped for a fault that is not theirs. A run may
+    therefore carry axioms in the kernel Σ, and this costs the
+    guarantee nothing: a declaration is a non-definitional entry, so
+    such a run fails the acceptance test above exactly as it did
+    before, and what an ACCEPTED file rests on is unchanged — zero
+    non-definitional entries, hence no axioms, every item admitted as
+    a definition.
 
 Acknowledged approximations, now confined to EQUATION REPLAY (the
 item level carries real motives): ℕ-elim z/s rewrite positions and

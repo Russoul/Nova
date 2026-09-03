@@ -3593,17 +3593,51 @@ preferPrf st ctx ty = if kIsPropB st.kernelSig kernelFuel ctx ty
                 _ => Nothing
 
 ||| they cannot be accepted anyway.
-kernelAccept : String -> (Sig -> Either KErr SigEntry) -> Bool -> ElabM ()
-kernelAccept name check clean = do
+||| CLEAN IS THIS ITEM'S PROPERTY, NOT THE RUN'S. An item that left
+||| nothing open is admitted as a DEFINITION, whatever earlier items
+||| did; one that left an obligation or a hole has no verified body to
+||| admit, and is admitted by its TYPE as a declaration instead.
+|||
+||| The old rule made "clean" a property of the RUN, on the grounds
+||| that the kernel Σ could not contain the poisoned item so
+||| references to it were unresolvable anyway. The declaration is
+||| exactly that missing entry: with it, a later item's references
+||| resolve at the right type, and the later item is admitted or
+||| refused on its own merits. Nothing about ACCEPTANCE moves — a
+||| declaration is a non-definitional entry, and a file is accepted
+||| exactly when the final Σ is definitional and every item was
+||| admitted, so a run carrying one of these is refused as before.
+||| What changes is that everything after the first open item is
+||| kernel-checked at all, instead of being silently skipped.
+kernelAccept : String -> (Sig -> Either KErr SigEntry) ->
+               (Sig -> Either KErr SigEntry) -> Bool -> ElabM ()
+kernelAccept name checkDef checkDecl runClean = do
   st <- getSt
-  if not clean
-    then pure ()
-    else
-      let t0 = nowNs () in
-      let res = check st.kernelSig in
-      case bump "kitem" (nowNs () - t0) res of
-        Right entry => modifySt $ { kernelSig $= (:< entry) }
-        Left err => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
+  let t0 = nowNs ()
+  let res = checkDef st.kernelSig
+  case bump "kitem" (nowNs () - t0) res of
+    Right entry => modifySt $ { kernelSig $= (:< entry) }
+    Left err =>
+      -- ADMISSION IS THE ITEM'S OWN QUESTION. The criterion is the
+      -- one the pipeline states — the item re-checks from kernel Σ
+      -- alone — so it is ASKED of every item, and an item that
+      -- answers it is admitted whatever earlier items did.
+      --
+      -- An item that does not gets its TYPE admitted instead, as a
+      -- declaration, so the items after it still resolve the name at
+      -- the right type rather than being skipped for a fault that is
+      -- not theirs. A declaration is a non-definitional entry, and a
+      -- file is accepted exactly when the final Σ is definitional and
+      -- every item was admitted, so acceptance does not move: a run
+      -- carrying one of these is refused exactly as before.
+      --
+      -- In a CLEAN run there is nothing to be poisoned by, so a
+      -- rejection there is an elaborator bug and still shouts.
+      if runClean
+        then throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
+        else case checkDecl st.kernelSig of
+               Right entry => modifySt $ { kernelSig $= (:< entry) }
+               Left _ => pure ()
 
 wrapLams : Nat -> Elem -> Elem
 wrapLams Z e = e
@@ -3688,6 +3722,7 @@ emitInlineDef site role ctx ty tySk body bodySk = do
   kernelAccept "\{site} \{q}"
     (\ksig => kCheckDefItem ksig kernelFuel
                 (MkKDefArt q [] cty (nestPiSkelN k tySk) cbody (nestSkel k bodySk)))
+    (\ksig => kCheckDeclItem ksig kernelFuel q [] cty (nestPiSkelN k tySk))
     (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q cbody cty), transp $= (q ::) }
   pure q
@@ -6345,6 +6380,7 @@ emitCoreDef site x ty tySk body bodySk = do
   after <- oblCount
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty tySk body bodySk))
+    (\ksig => kCheckDeclItem ksig kernelFuel q [] ty tySk)
     (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q body ty) }
   addVis (x, q)
@@ -6360,6 +6396,7 @@ emitCoreTyDef site x ty tySk = do
   after <- oblCount
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty tySk))
+    (\ksig => kCheckDeclItem ksig kernelFuel q [] ty tySk)
     (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q ty TopTy) }
   addVis (x, q)
@@ -6468,6 +6505,7 @@ elabItemGo irng (SDef x ty body muses) = do
   after <- oblCount
   kernelAccept "def \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty' tySk body' bodySk))
+    (\ksig => kCheckDeclItem ksig kernelFuel q [] ty' tySk)
     (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q body' ty') }
   addVis (x, q)
@@ -6509,6 +6547,7 @@ elabItemGo irng (STypeDef x ty) = do
   after <- oblCount
   kernelAccept "type \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty' tySk))
+    (\ksig => kCheckDeclItem ksig kernelFuel q [] ty' tySk)
     (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q ty' TopTy) }
   addVis (x, q)
