@@ -18,6 +18,7 @@ import System.File
 import Nova.Kernel.Parser
 import Nova.Elaboration
 import Nova.Elaboration.Surface
+import Nova.Elaboration.Beta
 import Nova.Elaboration.Loader
 import Nova.Eliminate
 
@@ -72,6 +73,18 @@ loadURI uri version = do
   t0 <- clockTime Monotonic
   let fpath = uri.path
   clearCrossDiags uri
+  -- THE Σ-ENTRY INDEX IS PER RUN, AND A SERVER IS MANY RUNS. The
+  -- name→entry cache is positive-only and assumes a name's entry is
+  -- stable, which holds WITHIN one run (Σ only extends) and not
+  -- across runs over different programs — and every reload here is a
+  -- new program over the same names. Left uncleared, an edited
+  -- definition keeps the entry its previous spelling minted, and the
+  -- conversions of this run read the OLD body: the editor then
+  -- disagrees with the compiler on the same file, in both directions
+  -- (a true equation refused, a false one accepted). Every other
+  -- multi-run consumer clears it — Distill, Implicitize, Rename — and
+  -- this is the one that runs a program per keystroke-save.
+  clearSigEntryIx
   Right units <- loadProgram fpath
     | Left err => do
         logE Server "Failed to load \{show uri}: \{err.lmsg}"

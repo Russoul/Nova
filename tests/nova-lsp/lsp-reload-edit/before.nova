@@ -1,0 +1,2 @@
+def f : ℕ ≔ Z
+def g : f ≡ Z ∈ ℕ using (f.eq) ≔ ⋆

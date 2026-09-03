@@ -361,8 +361,16 @@ replaceAll needle repl hay = pack (go (unpack hay))
 ||| picks a word whose resolution (or deliberate non-resolution, e.g.
 ||| an unbound name) is worth pinning down in a golden test.
 export
-runLspTest : (lspBinPath : String) -> (fixtureAbsPath : String) -> (word : String) -> IO ()
-runLspTest lspBinPath fixtureAbsPath word = do
+||| `editTo`, when given, is a file whose content REPLACES the
+||| fixture's just before the didSave step — the one thing a
+||| single-fixture script cannot express, and the only way to exercise
+||| what a server actually does: run a program, then run a DIFFERENT
+||| program over the same names in the same process. Keep the two
+||| contents the same line count; ranges are rendered against the
+||| lines read at didOpen.
+runLspTest : (lspBinPath : String) -> (fixtureAbsPath : String) -> (word : String) ->
+             (editTo : Maybe String) -> IO ()
+runLspTest lspBinPath fixtureAbsPath word editTo = do
   Right content <- readFile fixtureAbsPath
     | Left err => dieMsg "cannot read fixture \{fixtureAbsPath}: \{show err}"
   let lns = lines content
@@ -492,6 +500,14 @@ runLspTest lspBinPath fixtureAbsPath word = do
   -- content. The sentinel request bounds the wait either way — the
   -- server answers strictly in order, so whatever the didSave
   -- produced arrives before the sentinel's response.
+  case editTo of
+    Nothing => pure ()
+    Just src => do
+      Right newContent <- readFile src
+        | Left err => dieMsg "cannot read edit source \{src}: \{show err}"
+      Right () <- writeFile fixtureAbsPath newContent
+        | Left err => dieMsg "cannot write fixture \{fixtureAbsPath}: \{show err}"
+      putStrLn "EDITED THE FILE ON DISK, THEN SAVED"
   writeMessage proc.input (notif "textDocument/didSave" (JObject
     [ ("textDocument", JObject [("uri", JString uri)]) ]))
   writeMessage proc.input (req 7 "textDocument/documentSymbol" (JObject [("textDocument", JObject [("uri", JString uri)])]))

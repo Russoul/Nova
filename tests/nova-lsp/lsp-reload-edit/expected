@@ -1,0 +1,40 @@
+LEGEND: ["keyword", "variable", "operator", "number", "comment"]
+CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
+DIAGNOSTICS (0):
+ELABTIME: reported
+TOKENS (22):
+  L1:1+3 keyword
+  L1:5+1 variable
+  L1:7+1 keyword
+  L1:9+1 keyword
+  L1:11+1 keyword
+  L1:13+1 keyword
+  L2:1+3 keyword
+  L2:5+1 variable
+  L2:7+1 keyword
+  L2:9+1 variable
+  L2:11+1 keyword
+  L2:13+1 keyword
+  L2:15+1 keyword
+  L2:17+1 keyword
+  L2:19+5 keyword
+  L2:25+1 keyword
+  L2:26+1 variable
+  L2:27+1 keyword
+  L2:28+2 variable
+  L2:30+1 keyword
+  L2:32+1 keyword
+  L2:34+1 keyword
+SYMBOLS (2):
+  f (kind 12) [L1:1-L1:14]
+  g (kind 12) [L2:1-L2:35]
+DEFINITION(f): null
+HOVER(f): null
+CODE ACTIONS(f) (0):
+EDITED THE FILE ON DISK, THEN SAVED
+DIAGNOSTICS FOR FIXTURE (1):
+  [L2:34-L2:35] (error)   [1] ⊢ S Z ≐ Z : ℕ
+      at: DIR/fixture.nova:2:34: def g: checking ⋆
+ELABTIME: reported
+SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
+SERVER EXIT CODE: 0
