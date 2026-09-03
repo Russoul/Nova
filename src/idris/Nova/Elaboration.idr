@@ -3807,6 +3807,17 @@ withExpose : Maybe (Ty, ECert) -> Skel -> Skel
 withExpose Nothing sk = sk
 withExpose (Just (tyX, c)) sk = addPayload (PExpose tyX c) sk
 
+||| The head of a spine routed through the spine elaborator
+||| (`impSpineOf`): a Σ name — telescope from its declared type,
+||| implicit positions from the surface `impls` table, the sugar
+||| trials — or a LOCAL VARIABLE, whose telescope sits in Γ: no
+||| implicit positions (implicitness is surface-only, keyed by Σ
+||| name) and no emission trial (Σ-keyed, per definition and binder
+||| position), but a written blank enters the same joint solve
+||| (docs/NovaPerfectSurface.txt, the blank tier)
+public export
+data SpineHead = SigHead String | VarHead Nat
+
 mutual
   export
   ||| Γ ⊢ F ⇝ 𝔽 poly (e-poly-*): each embedded piece a code at 𝕌, the
@@ -4044,8 +4055,8 @@ mutual
     case overloadOf st sapp of
       Just (x0, mrng, items, cands) =>
         resolveOverload ctx env site Nothing x0 mrng items cands
-      Nothing => case impSpineOf st sapp of
-        Just (noIns, q, x0, mrng, items) => elabImpSpine ctx env site Nothing False noIns q x0 mrng items
+      Nothing => case impSpineOf st ctx sapp of
+        Just (noIns, hd, x0, mrng, items) => elabImpSpine ctx env site Nothing False noIns hd x0 mrng items
         Nothing => do
           (f', fTy, fSk) <- inferShaped ctx env site f (piShape ctx env site (headRange f))
           st <- getSt
@@ -4057,7 +4068,7 @@ mutual
   inferElemAt ctx env site (SImpArg _) =
     throwAt site.srange "\{site}: a {…} override is only legal at an implicit binder position of an applied definition"
   inferElemAt ctx env site (SBlank mrng) =
-    throwAt site.srange "\{site}: a blank (_) is only legal at an explicit binder position of an applied definition — spell the term"
+    throwAt site.srange "\{site}: a blank (_) is only legal at an explicit binder position of an applied definition or variable — spell the term"
   inferElemAt ctx env site (SHole mrng x) =
     -- e-hole is CHECKING-ONLY: a hole is minted at the expected type,
     -- and an inference position supplies none. Nothing is guessed —
@@ -5222,9 +5233,9 @@ mutual
         (t', inferred, tSk) <- resolveOverload ctx env site (Just ty) x0 mrng items cands
         c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
-      Nothing => case impSpineOf st sapp of
-        Just (noIns, q, x0, mrng, items) => do
-          (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) (not noIns) noIns q x0 mrng items
+      Nothing => case impSpineOf st ctx sapp of
+        Just (noIns, hd, x0, mrng, items) => do
+          (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) (not noIns) noIns hd x0 mrng items
           c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
           pure (t', addPayload (PSwitch (certOr c)) tSk)
         Nothing => do
@@ -5241,18 +5252,18 @@ mutual
         (t', inferred, tSk) <- resolveOverload ctx env site (Just ty) x0 mrng [] (resolveSigAll st x0)
         c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
-      else case impSpineOf st (SApp sref SUnitI) of   -- reuse the head test
-      Just (_, q, _, _, _) =>
+      else case impSpineOf st ctx (SApp sref SUnitI) of   -- reuse the head test
+      Just (_, SigHead q, _, _, _) =>
         if maybe False (\ps => 0 `elem` ps) (lookup q st.impls)
           then do
-            (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) True False q x0 mrng []
+            (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) True False (SigHead q) x0 mrng []
             c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
             pure (t', addPayload (PSwitch (certOr c)) tSk)
           else do
             (t', inferred, tSk) <- inferElemAt ctx env site sref
             c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
             pure (t', addPayload (PSwitch (certOr c)) tSk)
-      Nothing => do
+      _ => do
         (t', inferred, tSk) <- inferElemAt ctx env site sref
         c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
@@ -5261,9 +5272,9 @@ mutual
   -- arguments still recover as usual)
   checkElemAt ctx env site (SNoIns e) ty = do
     st <- getSt
-    case impSpineOf st e of
-      Just (_, q, x0, mrng, items) => do
-        (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) False False q x0 mrng items
+    case impSpineOf st ctx e of
+      Just (_, hd, x0, mrng, items) => do
+        (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) False False hd x0 mrng items
         c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
         pure (t', addPayload (PSwitch (certOr c)) tSk)
       Nothing => do
@@ -5525,7 +5536,7 @@ mutual
 
 
     run : List (Maybe (Elem, Ty, Skel)) -> String -> ElabM (Elem, Ty, Skel)
-    run pres q = elabImpSpineP pres ctx env site mexp (isJust mexp) False q x0 mrng items
+    run pres q = elabImpSpineP pres ctx env site mexp (isJust mexp) False (SigHead q) x0 mrng items
 
     probeFit : List (Maybe (Elem, Ty, Skel)) -> String -> ElabM (Maybe Nat)
     probeFit pres q = probeM $ do
@@ -5544,16 +5555,18 @@ mutual
 
   ||| The implicit-spine view: the whole application chain, when its
   ||| head is a signature reference whose def carries implicit binder
-  ||| positions. Guarded by `null st.impls` first, so an implicit-free
-  ||| run pays one boolean per application node.
-  impSpineOf : ElabSt -> SElem -> Maybe (Bool, String, String, Maybe Range, List SElem)
-  impSpineOf st e =
+  ||| positions — or any ordinary head, Σ name or local variable, with
+  ||| a written blank among the arguments. Guarded by `null st.impls`
+  ||| first, so an implicit-free run pays one boolean per application
+  ||| node.
+  impSpineOf : ElabSt -> Ctx -> SElem -> Maybe (Bool, SpineHead, String, Maybe Range, List SElem)
+  impSpineOf st ctx e =
     let (h, items) = surfSpine e [] in
     case h of
       SSig mrng x0 =>
         let q = resolveSigName st x0 in
         case lookup q st.impls of
-          Just (_ :: _) => Just (False, q, x0, mrng, items)
+          Just (_ :: _) => Just (False, SigHead q, x0, mrng, items)
           -- a BLANK routes the spine here even without implicit
           -- binders — `_` is solved by the same oracle, from the
           -- same telescope. So does EVERY Σ-headed spine during the
@@ -5566,7 +5579,7 @@ mutual
           -- to the surface-level PiApp form is conversion, not α) —
           -- those spines stay on the generic rule, blankless
           _ => if (any isBlankArg items || st.svSugarOn) && ordinaryHead st q
-                 then Just (False, q, x0, mrng, items)
+                 then Just (False, SigHead q, x0, mrng, items)
                  else Nothing
       -- an APPLIED no-insert head — `f {} a b …` — is POSITIONAL
       -- application over the FULL telescope: insertion is off, every
@@ -5577,9 +5590,20 @@ mutual
         SSig mrng x0 =>
           let q = resolveSigName st x0 in
           if (any isBlankArg items || st.svSugarOn) && ordinaryHead st q
-            then Just (True, q, x0, mrng, items)
+            then Just (True, SigHead q, x0, mrng, items)
             else Nothing
         _ => Nothing
+      -- a LOCAL VARIABLE head with a written blank: the telescope is
+      -- the variable's type in Γ, ordinary by the same test. A blank
+      -- is the ONLY thing that routes a variable-headed spine here —
+      -- the sugar pass does not (emission is Σ-keyed: the blank
+      -- trial is per definition and binder position, and a variable
+      -- has no such table), so a blankless variable spine stays on
+      -- the generic rule in every mode
+      SVar mrng x i =>
+        if any isBlankArg items && maybe False ordinaryTele (ctxLookup ctx i)
+          then Just (False, VarHead i, x, mrng, items)
+          else Nothing
       _ => Nothing
    where
     isBlankArg : SElem -> Bool
@@ -5591,12 +5615,14 @@ mutual
     isQSort (QSort _ _ _) = True
     isQSort _ = False
 
+    ordinaryTele : Ty -> Bool
+    ordinaryTele ty = let (doms, res) = teleOf ty in
+                      not (any isQSort (res :: doms))
+
     ordinaryHead : ElabSt -> String -> Bool
     ordinaryHead st q = case cachedSigLookup st.sig q of
-      Just (SigDef [<] _ _ ty) => let (doms, res) = teleOf ty in
-                                  not (any isQSort (res :: doms))
-      Just (SigDecl [<] _ ty) => let (doms, res) = teleOf ty in
-                                 not (any isQSort (res :: doms))
+      Just (SigDef [<] _ _ ty) => ordinaryTele ty
+      Just (SigDecl [<] _ ty) => ordinaryTele ty
       _ => False
 
     -- bare nodes out, as in `overloadOf` above
@@ -5617,7 +5643,7 @@ mutual
   ||| under the δ-free computational normalizer — never the store.
   elabImpSpine : Ctx -> NameEnv -> Site -> Maybe Ty -> (insertTrailing : Bool) ->
                  (noIns : Bool) ->
-                 (q : String) -> (x0 : String) -> Maybe Range -> List SElem ->
+                 (hd : SpineHead) -> (x0 : String) -> Maybe Range -> List SElem ->
                  ElabM (Elem, Ty, Skel)
   elabImpSpine = elabImpSpineP []
 
@@ -5628,17 +5654,28 @@ mutual
   elabImpSpineP : List (Maybe (Elem, Ty, Skel)) ->
                  Ctx -> NameEnv -> Site -> Maybe Ty -> (insertTrailing : Bool) ->
                  (noIns : Bool) ->
-                 (q : String) -> (x0 : String) -> Maybe Range -> List SElem ->
+                 (hd : SpineHead) -> (x0 : String) -> Maybe Range -> List SElem ->
                  ElabM (Elem, Ty, Skel)
-  elabImpSpineP presIn ctx env site mexp insertTrailing noIns q x0 mrng items = do
+  elabImpSpineP presIn ctx env site mexp insertTrailing noIns hd x0 mrng items = do
     st <- getSt
-    defTy <- case cachedSigLookup st.sig q of
-      Just (SigDef [<] _ _ ty) => pure ty
-      Just (SigDecl [<] _ ty) => pure ty
-      Just _ => throwAt site.srange "\{site}: '\{q}' is not usable as a term here"
-      Nothing => throwAt site.srange "\{site}: unknown name '\{q}'"
-    let imps = if noIns then [] else fromMaybe [] (lookup q st.impls)
-    recordBinderImps mrng ctx env x0 defTy imps
+    (defTy, hdCore, imps) <- the (ElabM (Ty, Elem, List Nat)) $ case hd of
+      SigHead q => do
+        defTy <- case cachedSigLookup st.sig q of
+          Just (SigDef [<] _ _ ty) => pure ty
+          Just (SigDecl [<] _ ty) => pure ty
+          Just _ => throwAt site.srange "\{site}: '\{qName}' is not usable as a term here"
+          Nothing => throwAt site.srange "\{site}: unknown name '\{qName}'"
+        let imps = if noIns then [] else fromMaybe [] (lookup q st.impls)
+        recordBinderImps mrng ctx env x0 defTy imps
+        pure (defTy, SigVar q [<], imps)
+      -- a variable head: its telescope is its type in Γ (weakened to
+      -- the site, as the generic rule reads it); no implicit
+      -- positions, so nothing is ever inserted
+      VarHead i => case ctxLookup ctx i of
+        Just ty => do
+          recordBinder mrng ctx env x0 ty
+          pure (ty, CtxVar i, [])
+        Nothing => throwAt site.srange "\{site}: variable index out of bounds"
     -- the site's LICENSED JOIN (comp ∘ unfold[cited]) — recovery's
     -- third matching tier (docs/NovaPerfectSurface.txt, Phase 3d):
     -- sees through definitional scaffolding the site itself licensed;
@@ -5665,7 +5702,7 @@ mutual
                        _ => Nothing) slots
     let (sols0, jnSup) = the (Sols, Sols) $ case mexp of
                   Nothing => ([], [])
-                  Just c => matchTySplit jn blankPoss (substTy tailTy (prefixSub patArgs)) c
+                  Just c => matchTySplit jn blankPoss (substTy tailTy (preSub patArgs)) c
     -- phase 1: walk the written spine left to right, solving from
     -- inference-form arguments as they elaborate
     (sols, revArgs, revSks, pending, srcs, attrs, defers) <- walk presIn jn ((st.impTrialOn || st.svSugarOn) && not st.probing) doms slots sols0 [] [] [] [] [] []
@@ -5706,8 +5743,9 @@ mutual
     (finalArgs, dPatches) <- resolveArgs sols defers doms (zip slots (reverse revArgs)) [] []
     -- a blank whose SUPPRESSED join binding α-differs from its
     -- final solution would solve differently as an implicit — the
-    -- migration's per-site blocker signal
-    when (st.svSugarOn && not st.probing) $ case mrng of
+    -- migration's per-site blocker signal (a Σ-keyed signal, like the
+    -- trials below: a variable head records none)
+    when (sigHeaded && st.svSugarOn && not st.probing) $ case mrng of
       Nothing => pure ()
       Just rng =>
         traverse_ (\(pos, mt) => case mt of
@@ -5729,7 +5767,7 @@ mutual
             (Just v, Just d) =>
               let msrc = the (Maybe Elem) (lookup pos attrs >>= \apos => getAt apos finalArgs) in
               modifySt $ { blankVals $= (:< (st.modPrefix, brng, env, v,
-                             substTy d (prefixSub (take pos finalArgs)), msrc)) }
+                             substTy d (preSub (take pos finalArgs)), msrc)) }
             _ => pure ()
         _ => pure ()) slots
     -- pending switch conversions, at the FINAL instantiations
@@ -5772,7 +5810,7 @@ mutual
                                                         else holeE (throwaway + i)) slots
           let hyp0 = case mexp of
                        Nothing => []
-                       Just c => matchTy jn (substTy tailTy (prefixSub hypPat)) c
+                       Just c => matchTy jn (substTy tailTy (preSub hypPat)) c
           let srcsX = filter (\(p, _) => not (p `elem` imps)) (pending ++ srcs)
           let (hypSols, hypDefs, eagerStuck) = trialSolve jn doms imps (deferPossOf st slots) srcsX finalArgs 0 m hyp0 [] []
           let stuck = eagerStuck || trialStuck doms slots imps hypSols finalArgs hypDefs
@@ -5782,7 +5820,7 @@ mutual
                             else case (lookup pos hypSols, getAt pos finalArgs) of
                               (Just v, Just w) => if show v == show w then 0 else 4
                               _ => 3
-              in modifySt $ { impTrial $= (:< (q, pos, verdict,
+              in modifySt $ { impTrial $= (:< (qName, pos, verdict,
                                                  map (\r => (st.modPrefix, r)) mrng)) })
             impOvers
     -- the BLANK-EMISSION trial (docs/NovaPerfectSurface.txt): which
@@ -5797,16 +5835,39 @@ mutual
     -- exactly when it fails against the FINAL set — the same test a
     -- re-distill of the emitted file runs, so the canonical form is
     -- byte-idempotent.
-    when (st.svSugarOn && not st.probing) $ case mrng of
+    when (sigHeaded && st.svSugarOn && not st.probing) $ case mrng of
       Just rng => blankTrial jn rng imps doms tailTy m slots sks finalArgs (pending ++ srcs)
       Nothing => pure ()
-    let core = foldl PiApp (SigVar q [<]) finalArgs
-    let coreTy = substTy tailTy (prefixSub finalArgs)
+    let core = foldl PiApp hdCore finalArgs
+    let coreTy = substTy tailTy (preSub finalArgs)
     let sk = foldl (\acc, s => Nd [] [acc, s]) (Nd [] []) sks
     continueApp (core, coreTy, sk) leftover
    where
     throwaway : Nat
     throwaway = 1000000
+
+    ||| the head's name, for the site's messages
+    qName : String
+    qName = case hd of
+      SigHead q => q
+      VarHead _ => x0
+
+    ||| the sugar pass's trials and signals are per Σ NAME and binder
+    ||| position — a variable head has no entry to record against
+    sigHeaded : Bool
+    sigHeaded = case hd of
+      SigHead _ => True
+      VarHead _ => False
+
+    ||| the prefix substitution instantiating a telescope domain with
+    ||| the arguments before it: a Σ def's telescope is CLOSED (the
+    ||| base is the terminal substitution, as `prefixSub`), a
+    ||| variable's lives in Γ (the base is the identity, so Γ's own
+    ||| variables stay in place under the instantiation)
+    preSub : List Elem -> Sub
+    preSub = foldl Ext (case hd of
+                          SigHead _ => Terminal
+                          VarHead _ => Id)
 
     matchTy : (jn : Ty -> Ty) -> Ty -> Ty -> Sols
     matchTy jn pat g = case mTy 0 pat g [] of
@@ -5893,7 +5954,7 @@ mutual
             (more, left) <- assign imps (S pos) ds (it :: rest)
             pure ((pos, Nothing) :: more, left)
         else case it of
-          SImpArg _ => throwAt site.srange "\{site}: {…} override at an explicit binder position of '\{q}'"
+          SImpArg _ => throwAt site.srange "\{site}: {…} override at an explicit binder position of '\{qName}'"
           _ => do
             (more, left) <- assign imps (S pos) ds rest
             pure ((pos, Just it) :: more, left)
@@ -5927,7 +5988,7 @@ mutual
                                (p :: ps) => (p, ps)
                                [] => (Nothing, [])
         dInst <- case getAt pos doms of
-                   Just d => pure (substTy d (prefixSub (reverse revArgs)))
+                   Just d => pure (substTy d (preSub (reverse revArgs)))
                    Nothing => throwAt site.srange "\{site}: internal — slot beyond the telescope"
         case pre of
           -- a PRE-ELABORATED argument (overload resolution): use its
@@ -6027,8 +6088,8 @@ mutual
     patternPass jn doms tailT argsNow ks [] sols = sols
     patternPass jn doms tailT argsNow ks ((msp, eTy) :: more) sols =
       let mpat = the (Maybe Ty) $ case msp of
-                   Nothing => Just (substTy tailT (prefixSub (map (refreshHole sols) argsNow)))
-                   Just sp => map (\d => substTy d (prefixSub (map (refreshHole sols) (take sp argsNow))))
+                   Nothing => Just (substTy tailT (preSub (map (refreshHole sols) argsNow)))
+                   Just sp => map (\d => substTy d (preSub (map (refreshHole sols) (take sp argsNow))))
                                   (getAt sp doms)
       in case mpat of
            Nothing => patternPass jn doms tailT argsNow ks more sols
@@ -6082,9 +6143,9 @@ mutual
           d <- case getAt pos doms of
                  Just d => pure d
                  Nothing => throwAt site.srange "\{site}: internal — deferred slot beyond the telescope"
-          let dFinal = substTy d (prefixSub (reverse acc))
+          let dFinal = substTy d (preSub (reverse acc))
           when (hasHolesT dFinal) $
-            throwAt site.srange "\{site}: argument #\{show pos} of '\{q}' has an undetermined domain — a blank it depends on found no source; spell the blank"
+            throwAt site.srange "\{site}: argument #\{show pos} of '\{qName}' has an undetermined domain — a blank it depends on found no source; spell the blank"
           (e', eSk) <- asArg (checkElem ctx env site surfE dFinal)
           resolveArgs sols defers doms rest (e' :: acc) ((pos, eSk) :: patches)
         Nothing =>
@@ -6093,7 +6154,7 @@ mutual
               Just v => resolveArgs sols defers doms rest (v :: acc) patches
               Nothing => case mt of
                 -- at the blank ITSELF, when it was written with one
-                Just (SBlank brng) => throwAt (brng <|> site.srange) "\{site}: cannot infer the blank at argument #\{show pos} of '\{q}' — spell the argument"
+                Just (SBlank brng) => throwAt (brng <|> site.srange) "\{site}: cannot infer the blank at argument #\{show pos} of '\{qName}' — spell the argument"
                 _ => case holeArg items of
                   -- An implicit that NO SOURCE determined, in a spine
                   -- one of whose arguments is a HOLE. The hole infers
@@ -6111,16 +6172,16 @@ mutual
                     case getAt pos doms of
                       Nothing => throwAt site.srange "\{site}: internal — implicit slot beyond the telescope"
                       Just d =>
-                        let dFinal = substTy d (prefixSub (reverse acc)) in
+                        let dFinal = substTy d (preSub (reverse acc)) in
                         -- a domain still carrying the oracle's own
                         -- placeholders is not a type to declare
                         -- anything at; that is the honest error
                         if hasHolesT dFinal
-                          then throwAt site.srange "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}, or pass the bare function with \{q} {}"
+                          then throwAt site.srange "\{site}: cannot infer implicit argument #\{show pos} of '\{qName}' — supply it with {…}, or pass the bare function with \{qName} {}"
                           else do
                             v <- mintHole ctx env site hrng "\{label}/imp\{show pos}" dFinal
                             resolveArgs sols defers doms rest (v :: acc) patches
-                  Nothing => throwAt site.srange "\{site}: cannot infer implicit argument #\{show pos} of '\{q}' — supply it with {…}, or pass the bare function with \{q} {}"
+                  Nothing => throwAt site.srange "\{site}: cannot infer implicit argument #\{show pos} of '\{qName}' — supply it with {…}, or pass the bare function with \{qName} {}"
             else resolveArgs sols defers doms rest (arg :: acc) patches
 
     ||| The hypothetical elided solve, replaying `walk`'s discipline
@@ -6142,7 +6203,7 @@ mutual
              then trialSolve jn doms imps introPoss srcsX finalArgs (S pos) m sols (entry :: hypRev) defs
              else
                let dHyp = case getAt pos doms of
-                            Just d => substTy d (prefixSub (reverse hypRev))
+                            Just d => substTy d (preSub (reverse hypRev))
                             Nothing => NatTy
                in if hasHolesT dHyp
                     then case lookup pos srcsX of
@@ -6185,7 +6246,7 @@ mutual
                                      then fromMaybe (holeE i) (lookup i solsF)
                                      else fromMaybe (holeE i) (getAt i finalArgs)) slots
           in any (\dp => case getAt dp doms of
-                           Just d => hasHolesT (substTy d (prefixSub (take dp es)))
+                           Just d => hasHolesT (substTy d (preSub (take dp es)))
                            Nothing => True) defs
 
     blankTrial : (Ty -> Ty) -> Range -> List Nat -> List Ty -> Ty -> Nat ->
@@ -6243,7 +6304,7 @@ mutual
             hyp0 = the Sols $ case mc of
                      Nothing => []
                      Just c => fst (matchTySplit jn (filter (\hp => not (hp `elem` imps)) hs)
-                                      (substTy tailTy (prefixSub hypPat)) c)
+                                      (substTy tailTy (preSub hypPat)) c)
             srcsX = filter (\(sp, _) => not (sp `elem` hs)) sources
             (solsF, defs, eagerStuck) = trialSolve jn doms hs dps srcsX finalArgs 0 m hyp0 [] []
         in (solsF, eagerStuck || trialStuck doms slots hs solsF finalArgs defs)
@@ -6288,10 +6349,10 @@ mutual
     patchPending doms finalArgs sks [] = pure sks
     patchPending doms finalArgs sks ((pos, eTy) :: more) = do
       dFinal <- case getAt pos doms of
-                  Just d => pure (substTy d (prefixSub (take pos finalArgs)))
+                  Just d => pure (substTy d (preSub (take pos finalArgs)))
                   Nothing => throwAt site.srange "\{site}: internal — pending position out of range"
-      when (hasHolesT dFinal) $ throwAt site.srange "\{site}: INTERNAL imp-leak dFinal pos=\{show pos} q=\{q}"
-      when (hasHolesT eTy) $ throwAt site.srange "\{site}: INTERNAL imp-leak eTy pos=\{show pos} q=\{q}"
+      when (hasHolesT dFinal) $ throwAt site.srange "\{site}: INTERNAL imp-leak dFinal pos=\{show pos} q=\{qName}"
+      when (hasHolesT eTy) $ throwAt site.srange "\{site}: INTERNAL imp-leak eTy pos=\{show pos} q=\{qName}"
       -- INFERRED ≐ EXPECTED, the e-switch orientation: the kernel
       -- replays the switch certificate in that direction, and a
       -- licensed (step-carrying) certificate is direction-sensitive
@@ -6307,7 +6368,7 @@ mutual
     continueApp : (Elem, Ty, Skel) -> List SElem -> ElabM (Elem, Ty, Skel)
     continueApp acc [] = pure acc
     continueApp (f', fTy, fSk) (it :: rest) = case it of
-      SImpArg _ => throwAt site.srange "\{site}: {…} override beyond the Π-telescope of '\{q}'"
+      SImpArg _ => throwAt site.srange "\{site}: {…} override beyond the Π-telescope of '\{qName}'"
       _ => do
         st <- getSt
         case preferPi st ctx fTy of

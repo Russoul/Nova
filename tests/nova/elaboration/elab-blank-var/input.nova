@@ -1,0 +1,35 @@
+-- blanks at explicit Π positions of VARIABLE-headed spines: the
+-- telescope is the variable's type in Γ, and the blank enters the same
+-- joint spine solve a definition-headed spine runs (the expected type
+-- first, then the inferred types of written inference-form arguments)
+
+def idAt : (a : 𝕌) → a → a ≔ λa. λx. x
+
+-- the definition-headed control
+def okDef : ℕ ≔ idAt _ Z
+
+-- the same blank, the same source (the expected type), a variable head
+def okVar : ((a : 𝕌) → a → a) → ℕ ≔ λf. f _ Z
+
+-- an inference position (a projection scrutinee has no expected type):
+-- the blank solves from the written argument's inferred type
+def okProj : ((a : 𝕌) → a → a × ℕ) → ℕ → ℕ ≔ λg. λn. g _ n .π₂
+
+-- a variable bound by an eliminator, not a λ
+def okElim : ((a : 𝕌) → a → a) × 𝟙 → ℕ ≔ λp. sigma-elim (f u. f _ Z) p
+
+def cst : (A B : 𝕌) → A → B → A ≔ λA. λB. λa. λb. a
+
+-- NESTED: a variable-headed blank as an argument of a definition-headed
+-- spine. The enclosing spine's expected type solves its own position
+-- first, so the nested spine checks at a hole-free domain either way —
+-- with an inference-form argument and with an intro-form one
+def nest1 : ((a : 𝕌) → a → a) → ℕ ≔ λf. idAt ℕ (f _ Z)
+
+def nest2 : ((a : 𝕌) → a → a) → ℕ ≔ λf. idAt ℕ (f _ (S Z))
+
+def nest3 : ((a : 𝕌) → a → a) → ℕ ≔ λf. cst ℕ ℕ (f _ Z) Z
+
+-- the other way round: the variable-headed blank's only source is a
+-- definition-headed spine, itself carrying blanks
+def nest4 : ((a : 𝕌) → a → a) → ℕ → ℕ ≔ λf. λn. f _ (cst _ _ n Z)

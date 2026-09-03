@@ -1,0 +1,9 @@
+def cst : (A B : 𝕌) → A → B → A ≔ λA. λB. λa. λb. a
+
+-- the definition-headed control: the second blank has no source (B
+-- occurs only at the b position, and b itself is the blank)
+def badDef : ℕ → ℕ ≔ λn. cst _ _ n
+
+-- the same shape at a variable head is the same structural error — an
+-- undetermined blank never becomes a hole, whatever the head
+def badVar : ((A B : 𝕌) → A → B → A) → ℕ → ℕ ≔ λf. λn. f _ _ n
