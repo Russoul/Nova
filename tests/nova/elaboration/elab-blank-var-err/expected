@@ -1,0 +1,15 @@
+defined cst
+input.nova:5:32: error: def badDef: cannot infer the blank at argument #1 of 'cst' — spell the argument
+5 | def badDef : ℕ → ℕ ≔ λn. cst _ _ n
+  |                                ^
+declared badDef [+1 declaration]
+input.nova:9:60: error: def badVar: cannot infer the blank at argument #1 of 'f' — spell the argument
+9 | def badVar : ((A B : 𝕌) → A → B → A) → ℕ → ℕ ≔ λf. λn. f _ _ n
+  |                                                            ^
+declared badVar [+1 declaration]
+open declarations (2):
+  [badDef] ⊢ ? : ℕ → ℕ
+      at: input.nova:5:1: def badDef
+  [badVar] ⊢ ? : ((A:𝕌) → (B:𝕌) → A → B → A) → ℕ → ℕ
+      at: input.nova:9:1: def badVar
+Error: 2 items failed to elaborate

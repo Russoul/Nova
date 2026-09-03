@@ -62,9 +62,11 @@ letter or `_`, then letters/digits/`_`/`'`), but a LEADING `_` is
 RESERVED — rejected in term and type positions (historically hole
 syntax; see HOLES ARE REMOVED under Conversion and discharge), with
 ONE exception: a bare `_` in an argument position of an applied
-ordinary definition is a BLANK — a per-site elided explicit
-argument, solved by the implicit-spine oracle exactly as an
-inserted implicit is (docs/NovaPerfectSurface.txt, the blank tier).
+ordinary definition, or of an applied variable, is a BLANK — a
+per-site elided explicit argument, solved by the implicit-spine
+oracle exactly as an inserted implicit is, over the definition's
+declared telescope or the variable's type in Γ
+(docs/NovaPerfectSurface.txt, the blank tier).
 A blank never binds to an implicit position (it defers past
 inserted holes to the next explicit position), never appears in
 constructor/eliminator spines (QSort-internal telescopes), and an

@@ -535,14 +535,17 @@ proofs `ℕ-elim ⋆ (k ih. ⋆) n` — verified by the Σ-α-gate,
 byte-idempotent, canonical form re-established and enforced.
 
 THE BLANK TIER (2026-08-20): a bare `_` at an explicit Π position
-of an applied ordinary definition is a per-site elided argument —
-in elaboration it IS a hole at its position, entering the same
-joint spine solve as the inserted implicits (same placeholder, same
-sources, same resolution; unsolved is a structural error). A blank
-defers past implicit positions (those are elided by default — {t}
-overrides them) and is refused in constructor/eliminator spines,
-whose QSort-internal telescopes the matcher cannot see through.
-Emission: the sugar pass routes every Σ-headed ordinary spine
+of an applied ordinary HEAD — a definition, or (since 2026-09-03,
+BLANKS AT VARIABLE HEADS below) a local variable — is a per-site
+elided argument: in elaboration it IS a hole at its position,
+entering the same joint spine solve as the inserted implicits
+(same placeholder, same sources, same resolution; unsolved is a
+structural error). A blank defers past implicit positions (those
+are elided by default — {t} overrides them) and is refused in
+constructor/eliminator spines, whose QSort-internal telescopes the
+matcher cannot see through. Emission is Σ-HEADED ONLY (the trial
+is per definition and binder position; a variable head is never
+blanked by the distiller): the sugar pass routes every Σ-headed ordinary spine
 through the spine elaborator and runs the BLANK TRIAL per site —
 the candidate set grows greedily left to right, each addition
 verified as ONE JOINT hypothetical solve that must reproduce every
@@ -818,6 +821,34 @@ user would have written). Strictly additive: round 0 is the prior
 engine verbatim; derived rounds only fill holes it left unsolved.
 The kernel Σ used for inference may lag obligation-bearing items —
 absence just skips the source. ~10.2s plain elaboration, unchanged.
+
+BLANKS AT VARIABLE HEADS (2026-09-03): the tier's licence was
+written Σ-headed because its TRIAL is — per named definition and
+explicit binder position (the census's table), which a variable
+has none of. Acceptance never needed that table: a blank is a hole
+at its position, and a variable's telescope sits in Γ. So
+`λf. f _ Z` at `((a : 𝕌) → a → a) → ℕ` now solves its blank from
+the expected type exactly as `idAt _ Z` does, and `prop _ _ proof
+.π₂` under a sigma-elim solves both from the proof's inferred type
+(the tutorial site that prompted it). The spine elaborator takes a
+HEAD (SpineHead): a Σ name, or a local variable whose type in Γ —
+weakened to the site, as the generic rule reads it — is the
+telescope, ordinary by the same QSort-free test, its domains
+instantiated over the IDENTITY base rather than the terminal one
+(the telescope is open: Γ's own variables stay in place). What
+routes a variable-headed spine there is a WRITTEN blank and
+nothing else: there are no implicit positions (implicitness is
+surface-only, keyed by Σ name — nothing is ever inserted), and the
+sugar pass leaves blankless variable spines on the generic rule.
+EMISSION IS UNCHANGED: the blank trial, the blank-risk signal and
+the implicitize census are Σ-keyed and a variable head records
+none, so the distiller never blanks a variable-headed argument —
+it keeps a written one as written, at either head, as the in-place
+rewrite always has. Unsolved stays the same structural error
+naming the blank (`f _ _ n` with nothing to determine the second);
+constructor/eliminator spines stay refused; the blank hover names
+the solved value at a variable head too. Corpus untouched,
+canonical form unchanged, every existing golden byte-identical.
 
 THE IN-PLACE REWRITE (2026-08-20): src/nova is now the implicitized,
 CANONICAL-DISTILL-FORM corpus — 414 defs with {}-binders, 2,826
