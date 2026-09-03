@@ -386,9 +386,22 @@ record ElabSt where
   ||| def handler before its body is checked, and reset with
   ||| `curItem`.
   curImps : List Nat
+  ||| non-definitional Σ entries at the CURRENT item's start. An item
+  ||| is CLEAN when it added none of its own — which is the question
+  ||| kernel admission asks, and it is the item's question, not the
+  ||| run's (docs/NovaPipeline.txt). Set where `curItem` is; a run
+  ||| between items reads whatever the last item left, and nothing
+  ||| consults it there.
+  itemOblBase : Nat
+  ||| did the CURRENT item lean on an equation some earlier item had
+  ||| already assumed? The obligation is deduplicated — no new entry
+  ||| is minted — so the count above cannot see it, and an item that
+  ||| adds nothing while resting on an earlier assumption is NOT
+  ||| clean: its certificate cites what the kernel Σ does not hold.
+  itemAssumed : Bool
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<] []
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<] [] 0 False
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -2625,6 +2638,18 @@ oblCount = do
   st <- getSt
   pure (length (filter (not . sigEntryIsDef) (toList st.sig)))
 
+||| Did THIS item leave anything open? Kernel admission asks the
+||| item's own question, not the run's: an item that added no
+||| non-definitional entry of its own is checked and admitted whatever
+||| earlier items did, and one that added some has a certificate
+||| naming entries the kernel does not have, so it is not admitted at
+||| all (docs/NovaPipeline.txt).
+itemClean : ElabM Bool
+itemClean = do
+  st <- getSt
+  n <- oblCount
+  pure (n == st.itemOblBase && not st.itemAssumed)
+
 ||| DISPLAY resugaring: a QIIT sort (or constructor) printed through
 ||| the Σ entry that NAMES it. The data macro emits, per sort and
 ||| constructor, a def whose body is the saturated former under the
@@ -3101,7 +3126,7 @@ assume stmt site comp = do
           { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty))
           , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing (unfsOf st) st.curImps) } s
         else if assumedMatchE st ctx a b ty
-        then pure ()
+        then modifySt { itemAssumed := True }
         else modifySt $ \s =>
           let aK = rwNfElem st ctx a
               bK = rwNfElem st ctx b in
@@ -3117,7 +3142,7 @@ assume stmt site comp = do
        let x' = rwNfTy st ctx x
        let y' = rwNfTy st ctx y
        if any (\(c, u, v) => c == ctx && ((u == x' && v == y') || (u == y' && v == x'))) st.assumedT
-        then pure ()
+        then modifySt { itemAssumed := True }
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
           , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy))
@@ -3631,35 +3656,55 @@ preferPrf st ctx ty = if kIsPropB st.kernelSig kernelFuel ctx ty
 ||| admitted, so a run carrying one of these is refused as before.
 ||| What changes is that everything after the first open item is
 ||| kernel-checked at all, instead of being silently skipped.
-kernelAccept : String -> (Sig -> Either KErr SigEntry) ->
-               (Sig -> Either KErr SigEntry) -> Bool -> ElabM ()
-kernelAccept name checkDef checkDecl runClean = do
-  st <- getSt
-  let t0 = nowNs ()
-  let res = checkDef st.kernelSig
-  case bump "kitem" (nowNs () - t0) res of
-    Right entry => modifySt $ { kernelSig $= (:< entry) }
-    Left err =>
-      -- ADMISSION IS THE ITEM'S OWN QUESTION. The criterion is the
-      -- one the pipeline states — the item re-checks from kernel Σ
-      -- alone — so it is ASKED of every item, and an item that
-      -- answers it is admitted whatever earlier items did.
-      --
-      -- An item that does not gets its TYPE admitted instead, as a
-      -- declaration, so the items after it still resolve the name at
-      -- the right type rather than being skipped for a fault that is
-      -- not theirs. A declaration is a non-definitional entry, and a
-      -- file is accepted exactly when the final Σ is definitional and
-      -- every item was admitted, so acceptance does not move: a run
-      -- carrying one of these is refused exactly as before.
-      --
-      -- In a CLEAN run there is nothing to be poisoned by, so a
-      -- rejection there is an elaborator bug and still shouts.
-      if runClean
-        then throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
-        else case checkDecl st.kernelSig of
-               Right entry => modifySt $ { kernelSig $= (:< entry) }
-               Left _ => pure ()
+||| ADMISSION IS THE ITEM'S OWN QUESTION, and it has exactly two
+||| answers. An item that left nothing open is CHECKED — the pipeline's
+||| criterion, that it re-checks from kernel Σ alone — and admitted as
+||| a DEFINITION whatever earlier items did. An item that left an
+||| obligation or a hole is not admitted at all: its certificate names
+||| entries the kernel does not have, so there is no verified body to
+||| admit and nothing honest to put in its place.
+|||
+||| NOT A DECLARATION IN ITS PLACE. A declaration in the kernel Σ is an
+||| AXIOM, and minting one out of an item that just failed to verify
+||| would have later items check against an assumption nothing
+||| justifies — while buying almost nothing, since the entry is opaque
+||| and any dependent that needs the body fails regardless. Leaving it
+||| out says what is true: nothing was verified about this item, and
+||| what depends on it is not admitted either.
+|||
+||| SO A REJECTION HERE IS ALWAYS A DEFECT, and always throws. With the
+||| item's own openness handled above, no legitimate cause of failure
+||| is left: a `Left` means the elaborator emitted something the kernel
+||| refuses, which is a bug in the elaborator and not a property of the
+||| file. Demoting it quietly is how such a bug hides behind an
+||| unrelated hole somewhere else in the run.
+kernelAccept : String -> (Sig -> Either KErr SigEntry) -> ElabM ()
+kernelAccept name checkDef = do
+  clean <- itemClean
+  if not clean
+    then pure ()
+    else do
+      st <- getSt
+      let t0 = nowNs ()
+      let res = checkDef st.kernelSig
+      case bump "kitem" (nowNs () - t0) res of
+        Right entry => modifySt $ { kernelSig $= (:< entry) }
+        Left err =>
+          -- A MISSING NAME IS NOT A DEFECT. It is the expected
+          -- consequence of a dependency that was not admitted — an
+          -- open item above, or a written declaration, whose absence
+          -- from the kernel Σ is exactly the record we intend. The
+          -- item is simply not admitted either, and the file is
+          -- refused for the entry that caused it.
+          --
+          -- ANY OTHER REJECTION IS a defect: the elaborator emitted
+          -- something the kernel refuses, which is a bug in the
+          -- elaborator and not a property of the file, and demoting
+          -- it quietly is how such a bug hides behind an unrelated
+          -- hole elsewhere in the run.
+          if isInfixOf "unknown signature name" err
+            then pure ()
+            else throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
 
 wrapLams : Nat -> Elem -> Elem
 wrapLams Z e = e
@@ -3740,12 +3785,9 @@ emitInlineDef site role ctx ty tySk body bodySk = do
   let k = length ctx
   let cty = piClose ctx ty
   let cbody = wrapLams k body
-  after <- oblCount
   kernelAccept "\{site} \{q}"
     (\ksig => kCheckDefItem ksig kernelFuel
                 (MkKDefArt q [] cty (nestPiSkelN k tySk) cbody (nestSkel k bodySk)))
-    (\ksig => kCheckDeclItem ksig kernelFuel q [] cty (nestPiSkelN k tySk))
-    (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q cbody cty), transp $= (q ::) }
   pure q
 
@@ -6460,11 +6502,8 @@ emitCoreDef site x ty tySk body bodySk = do
   case sigLookup q st.sig of
     Just _ => throwAt site.srange "\{site}: duplicate signature name '\{x}'"
     Nothing => pure ()
-  after <- oblCount
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty tySk body bodySk))
-    (\ksig => kCheckDeclItem ksig kernelFuel q [] ty tySk)
-    (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q body ty) }
   addVis (x, q)
   addLemma q [<] ty
@@ -6476,11 +6515,8 @@ emitCoreTyDef site x ty tySk = do
   case sigLookup q st.sig of
     Just _ => throwAt site.srange "\{site}: duplicate signature name '\{x}'"
     Nothing => pure ()
-  after <- oblCount
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty tySk))
-    (\ksig => kCheckDeclItem ksig kernelFuel q [] ty tySk)
-    (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q ty TopTy) }
   addVis (x, q)
 
@@ -6573,7 +6609,9 @@ elabItemGo : (irng : Maybe Range) -> SItem -> ElabM String
 export
 elabItem : (irng : Maybe Range) -> SItem -> ElabM String
 elabItem irng item = withScope (if scopedMode then Just [] else Nothing) $ do
-  modifySt { curItem := clearBlocked (itemName item), curImps := [] }
+  base <- oblCount
+  modifySt { curItem := clearBlocked (itemName item), curImps := []
+           , itemOblBase := base, itemAssumed := False }
   pre <- getSt
   timedM "item \{pre.modPrefix}.\{itemName item}" (elabItemGo irng item)
 
@@ -6604,14 +6642,8 @@ elabItemGo irng (SDef x ty body muses) = do
   -- here and stay for everything the body mints
   modifySt { curImps := impDepths ty body }
   (body', bodySk) <- withScope sc (withEqScope eqs (checkElem [<] [<] (MkSite "def \{x}" irng) body ty'))
-  -- clean means the RUN is clean: an earlier item's assumption poisons
-  -- everything after it (the kernel Σ cannot contain the earlier item,
-  -- so references to it are unresolvable anyway)
-  after <- oblCount
   kernelAccept "def \{x}"
     (\ksig => kCheckDefItem ksig kernelFuel (MkKDefArt q [] ty' tySk body' bodySk))
-    (\ksig => kCheckDeclItem ksig kernelFuel q [] ty' tySk)
-    (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q body' ty') }
   addVis (x, q)
   addLemma q [<] ty'
@@ -6649,11 +6681,8 @@ elabItemGo irng (STypeDef x ty) = do
     Just _ => throwAt irng "type \{x}: duplicate signature name"
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] (MkSite "type \{x}" irng) ty
-  after <- oblCount
   kernelAccept "type \{x}"
     (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty' tySk))
-    (\ksig => kCheckDeclItem ksig kernelFuel q [] ty' tySk)
-    (after == 0)
   modifySt $ { sig $= (:< SigDef [<] q ty' TopTy) }
   addVis (x, q)
   suffix <- opensSuffix census
@@ -6981,7 +7010,9 @@ elabItemGo irng (SClausalDef nrng x ty etaName witness clauses) = do
       -- equation lemma — two goals, so two entries, not a name
       -- collision). `elabItem` re-sets this at the next real item.
       ignore $ traverse (\(r, it) => do
-        modifySt { curItem := clearBlocked (itemName it), curImps := [] }
+        base <- oblCount
+        modifySt { curItem := clearBlocked (itemName it), curImps := []
+                 , itemOblBase := base, itemAssumed := False }
         elabItemGo (r <|> irng) it) items
       suffix <- opensSuffix census
       pure (echo ++ suffix)
