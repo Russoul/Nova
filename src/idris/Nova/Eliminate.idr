@@ -195,11 +195,11 @@ former _                  = Nothing
 ||| replacement need not be a NAME, so it is spliced into the printing
 ||| environment at p — sound because every slot this module fills is a
 ||| delimited group or an atom (docs/NovaElaboration.txt, Splicing).
-restate : FixTable -> (nms : List String) -> (n, p : Nat)
+restate : ImpTable -> FixTable -> (nms : List String) -> (n, p : Nat)
        -> (txt : String) -> Ty -> String
-restate tbl nms n p txt goal =
+restate imps tbl nms n p txt goal =
   let env = toSnoc (map (\q => if q == p then txt else nameOr nms q) [0 .. minus n 1])
-  in prettyTyN tbl env goal
+  in prettyTyN imps tbl env goal
 
 -- ===== the Σ split =====
 
@@ -267,15 +267,15 @@ tupleFrom comps parent fallback =
 ||| primitive), and any occurrence of the variable ITSELF becomes the
 ||| tuple. Without the abstraction step the goal would read
 ||| `P ((x1, x2) .π₁)` where the operator wants `P x1`.
-restateSplit : FixTable -> (nms : List String) -> (n, px, k : Nat)
+restateSplit : ImpTable -> FixTable -> (nms : List String) -> (n, px, k : Nat)
             -> List Comp -> (tup : String) -> Ty -> String
-restateSplit tbl nms n px k comps tup goal =
+restateSplit imps tbl nms n px k comps tup goal =
   let abstracted : Ty
       abstracted = snd (foldl step (0, goal) comps)
       env : NameEnv
       env = toSnoc (map (\q => if q == px then tup else nameOr nms q) [0 .. minus n 1]
                       ++ map cName comps)
-  in prettyTyN tbl env abstracted
+  in prettyTyN imps tbl env abstracted
  where
   ||| The parent, as a term of the context i abstractions have already
   ||| extended: the eliminated variable has shifted by i, and the j-th
@@ -445,10 +445,10 @@ eliminate opts taken qiits v var =
                               [0 .. minus n 1]
                 pfx     = \p => toSnoc (take p renamed)
                 tele    = concat (map (\p => case at p tys of
-                                               Just t  => "(\{nameOr renamed p} : \{prettyTyN tbl (pfx p) t}) → "
+                                               Just t  => "(\{nameOr renamed p} : \{prettyTyN imps tbl (pfx p) t}) → "
                                                Nothing => "")
                                       gen)
-                motive  = "\{var}. " ++ tele ++ prettyTyN tbl (pfx n) goal
+                motive  = "\{var}. " ++ tele ++ prettyTyN imps tbl (pfx n) goal
                 lams    = concat (map (\p => "λ\{nameOr renamed p}. ") gen)
                 -- an anonymous entry is re-applied as ⋆: it is a
                 -- proposition (anonCheck), so proof irrelevance makes
@@ -475,7 +475,7 @@ eliminate opts taken qiits v var =
                    -- generated (docs/NovaElaboration.txt)
                    Just (info, args) =>
                      qiitElim info args rng goal nms n px col var motive lams apps own label
-                   Nothing => byEquation tbl opts taken h var rng goal tys nms n px own
+                   Nothing => byEquation imps tbl opts taken h var rng goal tys nms n px own
                  (Just FZero, _) => Right [(rng, "(𝟘-elim \{var})")]
                  (Just FSquash, _) =>
                    Right [(rng, "(squash-elim \{var} (\{pick opts.optNames 0 var}. ?\{lbl 0 "Sq"}))")]
@@ -519,14 +519,14 @@ eliminate opts taken qiits v var =
                  (Just FUnit, _) =>
                    if not (usesIndexTy k goal)
                      then Left "the goal does not mention \{var}, so eliminating it refines nothing"
-                     else Right [(rng, "(?\{own} : \{restate tbl nms n px "()" goal})")]
+                     else Right [(rng, "(?\{own} : \{restate imps tbl nms n px "()" goal})")]
                  (Just FSigma, _) =>
                    let comps = splitComps opts.optNames opts.optDeep (CtxVar k) var Nothing vty 0 0
                        tup   = tupleFrom comps Nothing var
                        bound = map cName (filter cBind comps)
                        seen  = map (nameOr nms) (filter (/= px) (mentionedBy goal n))
                        body  = if usesIndexTy k goal
-                                 then "(?\{own} : \{restateSplit tbl nms n px k comps tup goal})"
+                                 then "(?\{own} : \{restateSplit imps tbl nms n px k comps tup goal})"
                                  else "?\{own}"
                        txt   = concat (map (\c => "let \{c.cName} ≔ \{c.cBase} \{if c.cFirst then ".π₁" else ".π₂"} in\n" ++ indentAt col 1)
                                            (filter cBind comps))
@@ -541,14 +541,17 @@ eliminate opts taken qiits v var =
                    let scope : NameEnv
                        scope = toSnoc (take px (map (nameOr nms) [0 .. minus n 1])) in
                    case (l, r) of
-                     (CtxVar i, _) => retype tbl nms n (idxOfPos px i) goal own
-                                        (prettyElemN tbl scope r)
-                     (_, CtxVar i) => retype tbl nms n (idxOfPos px i) goal own
-                                        (prettyElemN tbl scope l)
+                     (CtxVar i, _) => retype imps tbl nms n (idxOfPos px i) goal own
+                                        (prettyElemN imps tbl scope r)
+                     (_, CtxVar i) => retype imps tbl nms n (idxOfPos px i) goal own
+                                        (prettyElemN imps tbl scope l)
                      _ => Left "\{var} : neither side of this equation is a variable"
  where
   tbl : FixTable
   tbl = v.hvFix
+
+  imps : ImpTable
+  imps = v.hvImps
 
   h : DeclView
   h = v.hvDecl
@@ -592,7 +595,7 @@ eliminate opts taken qiits v var =
           env : NameEnv
           env = toSnoc (take px (map (nameOr nms) [0 .. minus n 1]))
           ps : List String
-          ps = map (atomize . prettyElemN tbl env) args
+          ps = map (atomize . prettyElemN imps tbl env) args
           -- the eliminated sort's motive is the goal, abstracted by
           -- the SHADOWING the variable's own name already does; every
           -- other sort's is a hole at its own declared domain
@@ -647,15 +650,15 @@ eliminate opts taken qiits v var =
   ||| The rewrite itself: the hole, re-minted at the goal the equation
   ||| states it also is. The switch closes by reflecting the equation
   ||| (el-reflect), which is why no eliminator is emitted.
-  retype : FixTable -> (nms : List String) -> (n, p : Nat) -> Ty
+  retype : ImpTable -> FixTable -> (nms : List String) -> (n, p : Nat) -> Ty
         -> (label, txt : String) -> Either String (List (Range, String))
-  retype tbl nms n p goal label txt =
+  retype imps tbl nms n p goal label txt =
     case h.dvrange of
       Nothing => Left "the hole has no source span to replace"
       Just rng =>
         if not (usesIndexTy (posOfIndex n p) goal)
           then Left "the goal does not mention \{nameOr nms p}, so rewriting it refines nothing"
-          else Right [(rng, "(?\{label} : \{restate tbl nms n p (atomize txt) goal})")]
+          else Right [(rng, "(?\{label} : \{restate imps tbl nms n p (atomize txt) goal})")]
 
   ||| Why a type offers nothing of its own. A ν HAS an eliminator —
   ||| `out` — and saying it does not would be false: what it does not
@@ -671,10 +674,10 @@ eliminate opts taken qiits v var =
   ||| No former of its own: the variable may still be eliminable by an
   ||| EQUATION of the context that has it as a side — reflection makes
   ||| that a change of ascription, with no eliminator at all.
-  byEquation : FixTable -> Options -> List String -> DeclView -> String
+  byEquation : ImpTable -> FixTable -> Options -> List String -> DeclView -> String
             -> Range -> Ty -> List Ty -> List String -> (n, px : Nat) -> String
             -> Either String (List (Range, String))
-  byEquation tbl opts taken h var rng goal tys nms n px label =
+  byEquation imps tbl opts taken h var rng goal tys nms n px label =
     let k = posOfIndex n px
         hyps = mapMaybe (\q => case at q tys of
                                  Just (Elem.EqTy l r _) =>
@@ -688,8 +691,8 @@ eliminate opts taken qiits v var =
     in case reverse hyps of
          [] => Left "\{var} : \{noEliminator px}, and no equation of the context has it as a side"
          ((q, other) :: _) =>
-           retype tbl nms n px goal label
-             (prettyElemN tbl (toSnoc (take q (map (nameOr nms) [0 .. minus n 1]))) other)
+           retype imps tbl nms n px goal label
+             (prettyElemN imps tbl (toSnoc (take q (map (nameOr nms) [0 .. minus n 1]))) other)
 
 -- ===== splicing =====
 
@@ -773,7 +776,7 @@ offers taken qiits v =
                      Right ((_, t) :: _) => t /= shallow
                      _ => False
         in Just ( var
-                , prettyTyN v.hvFix (toSnoc (take p nms)) (fromMaybe TopTy (at p tys))
+                , prettyTyN v.hvImps v.hvFix (toSnoc (take p nms)) (fromMaybe TopTy (at p tys))
                 , deep )
 
 ||| Does this hole's own span cover the given (0-based) position?

@@ -1,0 +1,27 @@
+-- The report PRESERVES the surface's implicitness, which the core does
+-- not carry. An argument the elaborator INSERTED prints back as the
+-- `{t}` override the surface would have to spell, and a hypothesis the
+-- item wrote as `{x : A}` prints braced too — eliding either hides the
+-- very instantiation a goal is read to understand.
+
+def id : {A : 𝕌} (x : A) → A ≔ λA. λx. x
+
+-- the item's own `{A : 𝕌}` binder in the telescope, and `id`'s
+-- inserted universe at the application site
+def idGoal : {A : 𝕌} (x : A) → id x ≡ x ∈ A ≔ λA. λx. ?g
+
+-- only the binders the BODY abstracted take the item type's
+-- implicitness: the eliminator's own binders, deeper in, are explicit
+def deep : {A : 𝕌} (n : ℕ) → ℕ ≔ λA. λn. ℕ-elim Z (m ih. ?h) n
+
+-- a DECLARATION states its own type, braces and all
+def stub : {A : 𝕌} (x : A) → A
+
+-- an INFIX operator with an implicit position has no infix spelling
+-- that shows it, so the goal lays it out as the prefix application the
+-- surface would have to write
+infixl 6 ⊕
+
+def ⊕ : {A : 𝕌} (m : A) (n : A) → A ≔ λA. λm. λn. m
+
+def opGoal : (m : ℕ) → m ⊕ m ≡ m ⊕ m ∈ ℕ ≔ λm. ?o

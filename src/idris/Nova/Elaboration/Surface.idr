@@ -703,6 +703,17 @@ public export
 FixTable : Type
 FixTable = List (String, Assoc, Nat)
 
+||| Σ-name ↦ the IMPLICIT positions of its leading Π-telescope (the
+||| `{x : A}` binders of the def's surface type — docs/
+||| NovaPerfectSurface.txt, Phase 3). The core is bare, so this is the
+||| only record of implicitness there is: the elaborator keeps it
+||| (`ElabSt.impls`) to insert arguments, and the report printer reads
+||| it back to BRACE them again, so a goal shows the spine the way it
+||| was written.
+public export
+ImpTable : Type
+ImpTable = List (String, List Nat)
+
 ||| The operator alphabet. Excludes the reserved theory tokens
 ||| (→ × ≡ ∈ ≔ / . , : parens) — and `|`, the clause marker of the
 ||| clausal def item — and comment dashes are eaten by the lexer, so

@@ -20,7 +20,7 @@ open holes (8):
       at: input.nova:26:52: def undetermined
   [?f/cod] (_ : ℕ) ⊢ ?f/cod type
       at: input.nova:28:24: def instanceOnly
-  [?f] ⊢ ?f : (n:ℕ) → ?f/cod
+  [?f] ⊢ ?f : (n : ℕ) → ?f/cod
       at: input.nova:28:24: def instanceOnly
 open obligations (2):
   [1] (n : ℕ) ⊢ Z ≐ ?mid : ℕ

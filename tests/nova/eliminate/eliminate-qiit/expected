@@ -8,11 +8,11 @@ def sz : (a : 𝕌) → Bag a → ℕ ≔ λa. λm. (BagElim a
 defined data (Bag, nil, ins, swp)
 defined sz [+2 obligations, +2 declarations]
 open holes (2):
-  [?goalNil] (a : 𝕌) (m : (Bag a)) ⊢ ?goalNil : ℕ
+  [?goalNil] (a : 𝕌) (m : Bag a) ⊢ ?goalNil : ℕ
       at: out/input.nova:16:41: def sz
-  [?goalIns] (a : 𝕌) (m : (Bag a)) (a1 : a) (a2 : (Bag a)) (ih : ℕ) ⊢ ?goalIns : ℕ
+  [?goalIns] (a : 𝕌) (m : Bag a) (a1 : a) (a2 : Bag a) (ih : ℕ) ⊢ ?goalIns : ℕ
       at: out/input.nova:17:57: def sz
 open obligations (1):
-  [1] (a : 𝕌) (m : (Bag a)) (x : a) (y : a) (m : (Bag a)) (ih : ℕ) ⊢ ?goalIns[a, m, x, ins a y m, ?goalIns[a, m, y, m, ih]] ≐ ?goalIns[a, m, y, ins a x m, ?goalIns[a, m, x, m, ih]] : ℕ
+  [1] (a : 𝕌) (m : Bag a) (x : a) (y : a) (m : Bag a) (ih : ℕ) ⊢ ?goalIns[a, m, x, ins a y m, ?goalIns[a, m, y, m, ih]] ≐ ?goalIns[a, m, y, ins a x m, ?goalIns[a, m, x, m, ih]] : ℕ
       at: out/input.nova:18:59: def sz: checking ⋆
       hint: head exposure blocked for Bag — cite Bag.unfold

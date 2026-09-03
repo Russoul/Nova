@@ -15,7 +15,7 @@ defined slidFar
 defined slidFarPins
 defined slidGoal
 open holes (1):
-  [?g] (h : (P Z)) ⊢ ?g : (P Z)
+  [?g] (h : P Z) ⊢ ?g : P Z
       at: input.nova:25:69: def hole
 --- the shapes the two scrutinees must have:
 errors.nova:2:57: error: def notVar: ≡-elim eliminates a VARIABLE — this scrutinee is not one
@@ -50,19 +50,19 @@ open obligations (1):
   [1] (u : ℕ) ⊢ ℕ ≐ 𝕌 type
       at: errors.nova:16:32: def blocked: inferred vs expected type
 open declarations (7):
-  [notVar] ⊢ ? : (n:ℕ) → (n ≡ Z ∈ ℕ) → ℕ
+  [notVar] ⊢ ? : (n : ℕ) → (n ≡ Z ∈ ℕ) → ℕ
       at: errors.nova:2:1: def notVar
-  [notHyp] ⊢ ? : (n:ℕ) → (n ≡ Z ∈ ℕ) → ℕ
+  [notHyp] ⊢ ? : (n : ℕ) → (n ≡ Z ∈ ℕ) → ℕ
       at: errors.nova:4:1: def notHyp
   [outside] ⊢ ? : (Z ≡ Z ∈ ℕ) → ℕ → ℕ
       at: errors.nova:6:1: def outside
-  [offSide] ⊢ ? : ℕ → (n:ℕ) → (n ≡ Z ∈ ℕ) → ℕ
+  [offSide] ⊢ ? : ℕ → (n : ℕ) → (n ≡ Z ∈ ℕ) → ℕ
       at: errors.nova:8:1: def offSide
   [notEq] ⊢ ? : ℕ → ℕ → ℕ
       at: errors.nova:10:1: def notEq
-  [notOutside] ⊢ ? : (n:ℕ) → (n ≡ S n ∈ ℕ) → ℕ
+  [notOutside] ⊢ ? : (n : ℕ) → (n ≡ S n ∈ ℕ) → ℕ
       at: errors.nova:12:1: def notOutside
-  [blocked] ⊢ ? : (n:ℕ) → (ℕ ≡ n ∈ 𝕌) → (m:ℕ) → (n ≡ S m ∈ ℕ) → ℕ
+  [blocked] ⊢ ? : (n : ℕ) → (ℕ ≡ n ∈ 𝕌) → (m : ℕ) → (n ≡ S m ∈ ℕ) → ℕ
       at: errors.nova:16:1: def blocked
 Error: 7 items failed to elaborate
 --- the proof cannot name what it eliminates:

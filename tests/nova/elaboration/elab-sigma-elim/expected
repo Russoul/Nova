@@ -8,7 +8,7 @@ defined fst3
 defined useInf
 defined hole [+1 declaration]
 open holes (1):
-  [?g] (a : ℕ) (b : ℕ) (q : (P (a, b))) ⊢ ?g : (P (a, b))
+  [?g] (a : ℕ) (b : ℕ) (q : P (a, b)) ⊢ ?g : P (a, b)
       at: input.nova:31:67: def hole
 --- the scrutinee's two structural errors:
 errors.nova:2:56: error: def notVar: sigma-elim eliminates a VARIABLE of a × type — this scrutinee is not one (name it first: `let w ≔ …` , or project with .π₁ / .π₂)

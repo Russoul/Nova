@@ -7,13 +7,13 @@ defined squashE [+3 declarations]
 open holes (16):
   [?p/snd] (_ : ℕ) ⊢ ?p/snd type
       at: input.nova:7:17: def proj
-  [?p] ⊢ ?p : (n:ℕ) × ?p/snd
+  [?p] ⊢ ?p : (n : ℕ) × ?p/snd
       at: input.nova:7:17: def proj
   [?q/fst] ⊢ ?q/fst type
       at: input.nova:8:17: def proj2
   [?q/snd] (_ : ?q/fst) ⊢ ?q/snd type
       at: input.nova:8:17: def proj2
-  [?q] ⊢ ?q : (v:?q/fst) × ?q/snd
+  [?q] ⊢ ?q : (v : ?q/fst) × ?q/snd
       at: input.nova:8:17: def proj2
   [?s/left] ⊢ ?s/left type
       at: input.nova:9:45: def sums
@@ -23,7 +23,7 @@ open holes (16):
       at: input.nova:9:45: def sums
   [?f/cod] (_ : ℕ) ⊢ ?f/cod type
       at: input.nova:10:17: def app
-  [?f] ⊢ ?f : (n:ℕ) → ?f/cod
+  [?f] ⊢ ?f : (n : ℕ) → ?f/cod
       at: input.nova:10:17: def app
   [?c/carrier] ⊢ ?c/carrier type
       at: input.nova:11:41: def quotE

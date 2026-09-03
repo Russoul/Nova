@@ -273,7 +273,7 @@ handleRequest TextDocumentHover params = whenActiveRequest $ \_ => do
   -- reading them is fine, it is rewriting that needs a single answer
   case holesAt doc.report pos.line pos.column of
     (v :: rest) => do
-      let txts = map (\w => prettyGoal w.hvFix w.hvDecl) (v :: rest)
+      let txts = map (\w => prettyGoal w.hvImps w.hvFix w.hvDecl) (v :: rest)
       let content = MkMarkupContent Markdown ("```nova\n" ++ joinBy "\n" txts ++ "\n```")
       let rng = maybe (toLspRange lns (MkRange pos pos)) (toLspRange lns) v.hvDecl.dvrange
       pure (pure (make (MkHover (make content) (Just rng))))
