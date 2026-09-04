@@ -1,0 +1,29 @@
+-- A LIFTED DEFINITION'S TYPE NEEDS ITS OWN PAYLOADS. The variable
+-- eliminations lift their body into an inline definition, whose TYPE
+-- the kernel checks like any other; a type carrying an eliminator
+-- needs that eliminator's motive, and a trivial skeleton has none.
+--
+-- The sum clause of lift_𝔽 is where such a type comes from: conat's
+-- relator is a ⊎-elim at motive Ω (Kernel.Subst.liftPoly), so an
+-- ≡-elim inside a coind closure over a SUM polynomial lifts a
+-- definition whose type is one. Streams never show it — their
+-- relator is a squash, which needs no payload.
+def conat : 𝕌 ≔ ν (K 𝟙 ⊎ 𝕏)
+
+def cinf : conat using (conat.unfold) ≔ corec (s : 𝟙. inj₂ s) ()
+
+def csucc : conat → conat using (conat.unfold) ≔
+  λn. corec (p : 𝟙 ⊎ conat. inj₂ (⊎-elim (u. inj₁ u) (m. out m) p)) (out n)
+
+def outInf : out cinf ≡ inj₂ cinf ∈ 𝟙 ⊎ conat
+  using (cinf.eq, conat.eq, hyp.rw, conat.unfold) ≔ ⋆
+
+def outSuccInf : out (csucc cinf) ≡ inj₂ (csucc cinf) ∈ 𝟙 ⊎ conat
+  using (cinf.eq, conat.eq, csucc.eq, hyp.rw, conat.unfold) ≔ ⋆
+
+-- the closure eliminates the invariant's two equations, so the ≡-elim
+-- lifts a definition whose type is the relator itself
+def infSucc : cinf ≡ csucc cinf using (cinf.eq, csucc.eq, hyp.rw, conat.unfold) ≔
+  coind (u v. ∥(u ≡ cinf ∈ conat) × (v ≡ csucc cinf ∈ conat)∥)
+        (⋆ (⋆, ⋆))
+        (u v h. unsquash (h. sigma-elim (p q. ≡-elim (≡-elim (⋆ (⋆, ⋆)) v q) u p) h) h)
