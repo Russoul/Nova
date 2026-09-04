@@ -275,21 +275,57 @@ load-bearing:
     not silently accepted — the composite surfaces as an ordinary
     obligation and the remedy is the usual one, a lemma that makes it
     directly matchable. ADMISSION, by contrast, is asked of every
-    item on its own: the criterion above — the item re-checks from
-    kernel Σ alone — is put to each one, and an item that answers it
-    is admitted however the items before it fared. An item that does
-    not has its TYPE admitted instead, as a DECLARATION, which is
-    the entry the earlier reading said could not exist ("the kernel
-    Σ cannot contain the earlier item, so references to it are
-    unresolvable anyway") — with it they resolve, at the right type,
-    and the items after are admitted or refused on their own merits
-    rather than skipped for a fault that is not theirs. A run may
-    therefore carry axioms in the kernel Σ, and this costs the
-    guarantee nothing: a declaration is a non-definitional entry, so
-    such a run fails the acceptance test above exactly as it did
-    before, and what an ACCEPTED file rests on is unchanged — zero
-    non-definitional entries, hence no axioms, every item admitted as
-    a definition.
+    item on its own, and CLEAN is the ITEM's property, not the run's:
+    an item that left no non-definitional entry of its own is put the
+    criterion above — does it re-check from kernel Σ alone — and
+    admitted as a DEFINITION if it answers, however the items before
+    it fared. The earlier reading refused this on the grounds that
+    the kernel Σ could not contain a poisoned item, "so references to
+    it are unresolvable anyway"; that is a fact about the poisoned
+    item, and it was being charged to every item after it.
+
+    AN OPEN ITEM IS ADMITTED AS NOTHING. Its certificate names
+    entries the kernel does not have, so there is no verified body,
+    and a DECLARATION in its place would be worse than the gap: a
+    declaration in the kernel Σ is an AXIOM, so minting one out of an
+    item that just failed to verify would have the items after it
+    check against an assumption nothing justifies — and buy little,
+    the entry being opaque, so a dependent that needs the body fails
+    regardless. Leaving it out records what is true: nothing was
+    verified about this item, and what depends on it is not admitted
+    either. The kernel Σ therefore holds definitions and nothing
+    else, and acceptance is unmoved — a run with an open item still
+    carries its non-definitional entry in Σ and still fails the test
+    above.
+
+    CLEAN MEANS ADDED NOTHING AND LEANED ON NOTHING. Obligations are
+    DEDUPLICATED, so an item whose conversion repeats an equation an
+    earlier item already assumed mints no entry of its own — and is
+    not clean, because its certificate still cites what the kernel Σ
+    does not hold. Counting entries alone would call it clean and
+    demand a check it cannot pass.
+
+    A REJECTION AT ADMISSION IS THEN A DEFECT, and throws — with one
+    carve-out that is not one. A rejection for a MISSING DEPENDENCY
+    is the expected consequence of something above not being
+    admitted: an open item, or a written declaration, whose absence
+    from the kernel Σ is precisely the record intended. The dependent
+    is not admitted either, and its own echo SAYS SO and names what
+    blocked it — an item that elaborated without being admitted is
+    reported as such, since a bare receipt for one reads like
+    verification that did not happen.
+
+    That carve-out is VERIFIED, not read off the message. The kernel
+    NAMES the entry it could not find, and the caller counts the
+    rejection as a missing dependency only when that entry really is
+    absent from the Σ it handed over. A message naming an entry that
+    is present, or naming none, is not a missing dependency and falls
+    through to the defect case — the safe direction.
+    Every OTHER rejection means the elaborator emitted something the
+    kernel refuses, which is a bug in the elaborator and not a
+    property of the file, and it must not be demoted quietly — a
+    demotion is exactly how such a bug hides behind an unrelated hole
+    elsewhere in the run.
 
 Acknowledged approximations, now confined to EQUATION REPLAY (the
 item level carries real motives): ℕ-elim z/s rewrite positions and

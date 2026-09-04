@@ -3,7 +3,7 @@ input.nova:5:18: error: def broken: unknown name 'noSuchName'
   |                  ^^^^^^^^^^
 declared broken [+1 declaration]
 defined later [+1 declaration]
-defined uses
+defined uses [not admitted: needs broken]
 open holes (1):
   [?goal] (n : ℕ) ⊢ ?goal : ℕ
       at: input.nova:7:25: def later

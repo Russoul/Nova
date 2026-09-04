@@ -1,7 +1,7 @@
 declared vect [+1 declaration]
 declared vectS [+1 declaration]
-defined two
-defined twoIsPair
+defined two [not admitted: needs vect]
+defined twoIsPair [not admitted: needs two]
 open declarations (2):
   [vect] ⊢ ? : ℕ → 𝕌 → 𝕌
       at: input.nova:5:5: def vect
