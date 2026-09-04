@@ -1,7 +1,7 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (1):
-  [L10:19-L10:24] (warning)   [?goal] (n : ℕ) (h : (P n)) (x : (ℕ × ℕ) × ℕ) (s : ℕ ⊎ ℕ) ⊢ ?goal : (P n)
+  [L10:19-L10:24] (warning)   [?goal] (n : ℕ) (h : P n) (x : (ℕ × ℕ) × ℕ) (s : ℕ ⊎ ℕ) ⊢ ?goal : P n
       at: DIR/fixture.nova:10:19: def m
 ELABTIME: reported
 TOKENS (70):
@@ -79,21 +79,21 @@ SYMBOLS (2):
   P (kind 12) [L7:1-L7:22]
   m (kind 12) [L9:1-L10:24]
 DEFINITION(?goal): null
-HOVER(?goal): [L10:19-L10:24] ```nova ⏎ (n : ℕ) (h : (P n)) (x : (ℕ × ℕ) × ℕ) (s : ℕ ⊎ ℕ) ⊢ ?goal : (P n) ⏎ ```
+HOVER(?goal): [L10:19-L10:24] ```nova ⏎ (n : ℕ) (h : P n) (x : (ℕ × ℕ) × ℕ) (s : ℕ ⊎ ℕ) ⊢ ?goal : P n ⏎ ```
 CODE ACTIONS(?goal) (5):
   eliminate n : ℕ
-  eliminate h : (P n)
+  eliminate h : P n
   eliminate x : (ℕ × ℕ) × ℕ
   eliminate x : (ℕ × ℕ) × ℕ (fully)
   eliminate s : ℕ ⊎ ℕ
 RESOLVED (the first):
   at L10:19-L10:24, version 1
-  | ((ℕ-elim (n. (h : (P n)) → (P n))
+  | ((ℕ-elim (n. (h : P n) → P n)
   |                    (λh. ?goalZ)
   |                    (n ih. λh. ?goalS)
   |                    n) h)
 DIAGNOSTICS FOR FIXTURE (1):
-  [L10:19-L10:24] (warning)   [?goal] (n : ℕ) (h : (P n)) (x : (ℕ × ℕ) × ℕ) (s : ℕ ⊎ ℕ) ⊢ ?goal : (P n)
+  [L10:19-L10:24] (warning)   [?goal] (n : ℕ) (h : P n) (x : (ℕ × ℕ) × ℕ) (s : ℕ ⊎ ℕ) ⊢ ?goal : P n
       at: DIR/fixture.nova:10:19: def m
 ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh

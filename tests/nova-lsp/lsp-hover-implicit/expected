@@ -64,7 +64,7 @@ SYMBOLS (2):
   cst (kind 12) [L1:1-L1:66]
   use (kind 12) [L3:1-L3:38]
 DEFINITION(cst n): SAME FILE [L1:1-L1:66]
-HOVER(cst n): [L3:31-L3:34] ```nova ⏎ cst : {A:𝕌} → (v:A) → {B:𝕌} → B → A ⏎ ```
+HOVER(cst n): [L3:31-L3:34] ```nova ⏎ cst : {A : 𝕌} → (v : A) → {B : 𝕌} → B → A ⏎ ```
 CODE ACTIONS(cst n) (0):
 DIAGNOSTICS FOR FIXTURE (0):
 ELABTIME: reported

@@ -1,17 +1,17 @@
 def p : (x : ℕ × ℕ) → P (x .π₁) ≔ λx. (let x1 ≔ x .π₁ in
                                        let x2 ≔ x .π₂ in
-                                       (?g1 : (P x1)))
+                                       (?g1 : P x1))
 
 def d : (x : (ℕ × ℕ) × ℕ) → P (x .π₂) ≔ λx. (let x1 ≔ x .π₁ in
                                              let x11 ≔ x1 .π₁ in
                                              let x12 ≔ x1 .π₂ in
                                              let x2 ≔ x .π₂ in
-                                             (?g2 : (P x2)))
+                                             (?g2 : P x2))
 
 def u : (x : ℕ × 𝟙) → P (x .π₁) ≔ λx. (let x1 ≔ x .π₁ in
-                                       (?g3 : (P x1)))
+                                       (?g3 : P x1))
 
-def r : (a : ℕ) → (b : ℕ) → (h : a ≡ b ∈ ℕ) → P a ≔ λa. λb. λh. (?g4 : (P b))
+def r : (a : ℕ) → (b : ℕ) → (h : a ≡ b ∈ ℕ) → P a ≔ λa. λb. λh. (?g4 : P b)
 --- re-elaborated (the switch closes by reflection, no obligation):
 defined P
 defined p [+1 declaration]
@@ -19,11 +19,11 @@ defined d [+1 declaration]
 defined u [+1 declaration]
 defined r [+1 declaration]
 open holes (4):
-  [?g1] (x : ℕ × ℕ) ⊢ ?g1 : (P (x .π₁))
+  [?g1] (x : ℕ × ℕ) ⊢ ?g1 : P (x .π₁)
       at: out/input.nova:9:39: def p
-  [?g2] (x : (ℕ × ℕ) × ℕ) ⊢ ?g2 : (P (x .π₂))
+  [?g2] (x : (ℕ × ℕ) × ℕ) ⊢ ?g2 : P (x .π₂)
       at: out/input.nova:13:45: def d
-  [?g3] (x : ℕ × 𝟙) ⊢ ?g3 : (P (x .π₁))
+  [?g3] (x : ℕ × 𝟙) ⊢ ?g3 : P (x .π₁)
       at: out/input.nova:16:39: def u
-  [?g4] (a : ℕ) (b : ℕ) (h : a ≡ b ∈ ℕ) ⊢ ?g4 : (P b)
+  [?g4] (a : ℕ) (b : ℕ) (h : a ≡ b ∈ ℕ) ⊢ ?g4 : P b
       at: out/input.nova:20:66: def r

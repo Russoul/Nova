@@ -1,0 +1,16 @@
+defined id
+defined idGoal [+1 declaration]
+defined deep [+1 declaration]
+declared stub [+1 declaration]
+defined ⊕
+defined opGoal [+1 declaration]
+open holes (3):
+  [?g] {A : 𝕌} (x : A) ⊢ ?g : id {A} x ≡ x ∈ A
+      at: input.nova:11:55: def idGoal
+  [?h] {A : 𝕌} (n : ℕ) (m : ℕ) (ih : ℕ) ⊢ ?h : ℕ
+      at: input.nova:15:58: def deep
+  [?o] (m : ℕ) ⊢ ?o : (⊕) {ℕ} m m ≡ (⊕) {ℕ} m m ∈ ℕ
+      at: input.nova:27:48: def opGoal
+open declarations (1):
+  [stub] ⊢ ? : {A : 𝕌} → A → A
+      at: input.nova:18:5: def stub

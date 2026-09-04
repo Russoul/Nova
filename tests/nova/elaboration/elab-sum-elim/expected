@@ -6,9 +6,9 @@ defined bothSides
 defined nested
 defined hole [+2 declarations]
 open holes (2):
-  [?gl] (a : ℕ) (h : (P (inj₁ a))) ⊢ ?gl : (P (inj₁ a))
+  [?gl] (a : ℕ) (h : P (inj₁ a)) ⊢ ?gl : P (inj₁ a)
       at: input.nova:27:63: def hole
-  [?gr] (b : ℕ) (h : (P (inj₂ b))) ⊢ ?gr : (P (inj₂ b))
+  [?gr] (b : ℕ) (h : P (inj₂ b)) ⊢ ?gr : P (inj₂ b)
       at: input.nova:27:72: def hole
 --- what the scrutinee must be, and the mode it needs:
 errors.nova:2:59: error: def notVar: sum-elim eliminates a VARIABLE of a ⊎ type — this scrutinee is not one (name it first: `let w ≔ …`, or use ⊎-elim, which takes any)

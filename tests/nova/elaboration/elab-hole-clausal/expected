@@ -9,5 +9,5 @@ open holes (3):
 open obligations (2):
   [1] (n : ℕ) ⊢ dbl (S n) ≐ ?step : ℕ
       at: input.nova:10:3: def dblS: checking ⋆
-  [2] (g : ℕ → ℕ) (dblZ : g Z ≡ Z ∈ ℕ) (dblS : (n:ℕ) → (g (S n) ≡ ?step ∈ ℕ)) (_ : ℕ) (n : ℕ) (ih : g n ≡ dbl n ∈ ℕ) ⊢ g (S n) ≐ dbl (S n) : ℕ
+  [2] (g : ℕ → ℕ) (dblZ : g Z ≡ Z ∈ ℕ) (dblS : (n : ℕ) → (g (S n) ≡ ?step ∈ ℕ)) (_ : ℕ) (n : ℕ) (ih : g n ≡ dbl n ∈ ℕ) ⊢ g (S n) ≐ dbl (S n) : ℕ
       at: input.nova:8:5: def dblEta: checking ⋆

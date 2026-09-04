@@ -145,6 +145,9 @@ record Obligation where
   ||| GLOBAL-store probe found when this SCOPED site failed — search
   ||| as feedback, never as acceptance
   hint : Maybe String
+  ||| the context depths the surfacing item wrote as `{x : A}` —
+  ||| printed braced in the statement's telescope (`ElabSt.curImps`)
+  oimps : List Nat
 
 ||| Display metadata of one assumed constraint — outside the theory,
 ||| consumed only by the report printer. The statement itself lives in
@@ -166,6 +169,8 @@ record OblMeta where
   ||| the time the report is rendered (docs/NovaElaboration.txt, what
   ||| a report prints)
   ounfs : List String
+  ||| the surfacing item's implicit context depths (`ElabSt.curImps`)
+  oimps : List Nat
 
 ||| Display metadata of one declaration — same discipline as OblMeta:
 ||| the declaration itself is a sig-decl entry of Σ; this record is
@@ -183,6 +188,8 @@ record DeclMeta where
   ||| the declaring item's eq-scope, captured for the same reason
   ||| `OblMeta.ounfs` is
   dunfs : List String
+  ||| the declaring item's implicit context depths (`ElabSt.curImps`)
+  dimps : List Nat
 
 ||| One argument of a QIIT constructor: the name the `data` item wrote
 ||| for it, and whether it is INDUCTIVE — an inductive argument is
@@ -370,9 +377,18 @@ record ElabSt where
   ||| order. What in-place elimination reads to apply a generated
   ||| eliminator: the signature says the shapes, this says the names.
   qiits : SnocList QIITInfo
+  ||| the CONTEXT DEPTHS of the item currently elaborating that its
+  ||| surface type wrote as `{x : A}` binders. The core context is a
+  ||| bare snoc-list of types, so this is the only record there is of
+  ||| which hypotheses an operator never wrote: a hole or obligation
+  ||| minted under them carries it into the report, where the
+  ||| telescope prints those entries braced. Item-local — set by the
+  ||| def handler before its body is checked, and reset with
+  ||| `curItem`.
+  curImps : List Nat
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<]
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<] []
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -2885,11 +2901,11 @@ oblView st = go (toList st.sig) (toList st.oblMeta)
   go : List SigEntry -> List OblMeta -> List Obligation
   go (SigDecl ctx n (Elem.EqTy a b TopTy) :: rest) (m :: ms) =
     if isOblName n
-      then MkObl (displayStmtIn st m.ounfs (StTy ctx m.oenv a b)) m.osite m.ofile (map (displayStmtIn st m.ounfs) m.ocomposite) m.ohint :: go rest ms
+      then MkObl (displayStmtIn st m.ounfs (StTy ctx m.oenv a b)) m.osite m.ofile (map (displayStmtIn st m.ounfs) m.ocomposite) m.ohint m.oimps :: go rest ms
       else go rest (m :: ms)
   go (SigDecl ctx n (Elem.EqTy a b ty) :: rest) (m :: ms) =
     if isOblName n
-      then MkObl (displayStmtIn st m.ounfs (StElem ctx m.oenv a b ty)) m.osite m.ofile (map (displayStmtIn st m.ounfs) m.ocomposite) m.ohint :: go rest ms
+      then MkObl (displayStmtIn st m.ounfs (StElem ctx m.oenv a b ty)) m.osite m.ofile (map (displayStmtIn st m.ounfs) m.ocomposite) m.ohint m.oimps :: go rest ms
       else go rest (m :: ms)
   go (_ :: rest) ms = go rest ms
   go [] _ = []
@@ -2909,6 +2925,9 @@ record DeclView where
   dvsite : String
   dvfile : String
   dvrange : Maybe Range
+  ||| the context depths the declaring item wrote as `{x : A}` — the
+  ||| entries the telescope prints braced
+  dvimps : List Nat
 
 ||| One hole, as a type-directed transformation needs it: its module,
 ||| that module's fixity table (the printer's), the view the report
@@ -2926,6 +2945,9 @@ record HoleView where
   constructor MkHoleView
   hvModule : String
   hvFix    : FixTable
+  ||| the run's implicit positions per Σ-name — the printer's, so a
+  ||| hovered goal braces an inserted argument the way the report does
+  hvImps   : ImpTable
   hvDecl   : DeclView
   hvCtxX   : Ctx
 
@@ -2937,8 +2959,8 @@ declView st = mapMaybe view (toList st.sig)
   metaFor : String -> Maybe DeclMeta
   metaFor x = find (\m => m.dname == x) (toList st.declMeta)
   view : SigEntry -> Maybe DeclView
-  view (SigDecl ctx x TopTy) = map (\m => MkDeclView x (displayCtx st ctx) m.denv Nothing m.dsite m.dfile m.drange) (metaFor x)
-  view (SigDecl ctx x ty) = map (\m => MkDeclView x (displayCtxIn st m.dunfs ctx) m.denv (Just (displayTyIn st m.dunfs ty)) m.dsite m.dfile m.drange) (metaFor x)
+  view (SigDecl ctx x TopTy) = map (\m => MkDeclView x (displayCtx st ctx) m.denv Nothing m.dsite m.dfile m.drange m.dimps) (metaFor x)
+  view (SigDecl ctx x ty) = map (\m => MkDeclView x (displayCtxIn st m.dunfs ctx) m.denv (Just (displayTyIn st m.dunfs ty)) m.dsite m.dfile m.drange m.dimps) (metaFor x)
   view _ = Nothing
 
 ||| Σ-lemma names a certificate's steps rely on: heads of LProof
@@ -3077,7 +3099,7 @@ assume stmt site comp = do
       if cheap
         then modifySt $ \s =>
           { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty))
-          , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing (unfsOf st)) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing (unfsOf st) st.curImps) } s
         else if assumedMatchE st ctx a b ty
         then pure ()
         else modifySt $ \s =>
@@ -3085,12 +3107,12 @@ assume stmt site comp = do
               bK = rwNfElem st ctx b in
           { assumedE $= ((elemSize aK + elemSize bK, ctx, aK, bK, engNfT st ty) ::)
           , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty))
-          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) (unfsOf st)) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) (unfsOf st) st.curImps) } s
     StTy ctx env x y => do
       if cheap
         then modifySt $ \s =>
           { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy))
-          , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing (unfsOf st)) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing (unfsOf st) st.curImps) } s
         else do
        let x' = rwNfTy st ctx x
        let y' = rwNfTy st ctx y
@@ -3099,7 +3121,7 @@ assume stmt site comp = do
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
           , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy))
-          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) (unfsOf st)) } s
+          , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) (unfsOf st) st.curImps) } s
  where
   hintFor : ElabSt -> Stmt -> Maybe String
   hintFor st (StElem ctx _ a b ty) = hintE st ctx a b ty
@@ -3445,7 +3467,7 @@ mintHole ctx env site hrng label ty = do
                 "\{site}: duplicate hole ?\{label} — every hole of an item needs its own name"
     Nothing => pure ()
   modifySt $ { sig $= (:< SigDecl ctx q ty)
-             , declMeta $= (:< MkDeclMeta q env "\{site}" st.modFile (hrng <|> site.srange) (unfsOf st)) }
+             , declMeta $= (:< MkDeclMeta q env "\{site}" st.modFile (hrng <|> site.srange) (unfsOf st) st.curImps) }
   pure (SigVar q (varSpine (length ctx)))
 
 ||| The first argument of a written spine that is a HOLE, with its
@@ -3466,7 +3488,7 @@ holeArg (e :: rest) = case unPos e of
 throwShape : Site -> NameEnv -> (lead : String) -> Ty -> (wanted : String) -> ElabM a
 throwShape site env lead ty wanted = do
   st <- getSt
-  let shown = prettyTyN st.modFix env (displayTy st ty)
+  let shown = prettyTyN st.impls st.modFix env (displayTy st ty)
   -- A type that IS an undetermined part of a hole needs saying so.
   -- `?f (λx. …)`: the λ has no type of its own and `?f`'s domain has
   -- no source, so neither side can start — and "which is not a Π
@@ -6517,6 +6539,24 @@ impPositions = go 0
     SImpPiC _ _ b => i :: go (S i) b
     _ => []
 
+||| How many binders the body ABSTRACTS at its head: `λa. λs. e` is
+||| two. Those λs consume the item type's leading Π-telescope
+||| left-to-right, so they — and nothing else — are the context entries
+||| whose implicitness the item's surface type decides. Anything deeper
+||| (an eliminator's binder, a nested λ) is explicit by construction,
+||| and a body that abstracts nothing pins no entry at all.
+leadingLams : SElem -> Nat
+leadingLams e = case unPos e of
+  SLam _ b => S (leadingLams b)
+  _ => Z
+
+||| The item's implicit CONTEXT DEPTHS: the implicit telescope
+||| positions its body actually abstracted. Depth i of every context
+||| inside the body is the i-th such λ, so the two line up exactly as
+||| far as the abstraction goes.
+impDepths : STy -> SElem -> List Nat
+impDepths ty body = filter (< leadingLams body) (impPositions ty)
+
 ||| Register an accepted item's implicit positions, if any.
 registerImps : String -> STy -> ElabM ()
 registerImps q ty = case impPositions ty of
@@ -6533,7 +6573,7 @@ elabItemGo : (irng : Maybe Range) -> SItem -> ElabM String
 export
 elabItem : (irng : Maybe Range) -> SItem -> ElabM String
 elabItem irng item = withScope (if scopedMode then Just [] else Nothing) $ do
-  modifySt { curItem := clearBlocked (itemName item) }
+  modifySt { curItem := clearBlocked (itemName item), curImps := [] }
   pre <- getSt
   timedM "item \{pre.modPrefix}.\{itemName item}" (elabItemGo irng item)
 
@@ -6559,6 +6599,10 @@ elabItemGo irng (SDef x ty body muses) = do
   -- items live in the EMPTY context: parameters are Π-binders in the
   -- item's type, references are bare names
   (ty', tySk) <- withScope sc (withEqScope eqs (elabTy [<] [<] (MkSite "def \{x}" irng) ty))
+  -- the type is elaborated at the EMPTY context, so only the body runs
+  -- under the item's own binders: the implicit depths are installed
+  -- here and stay for everything the body mints
+  modifySt { curImps := impDepths ty body }
   (body', bodySk) <- withScope sc (withEqScope eqs (checkElem [<] [<] (MkSite "def \{x}" irng) body ty'))
   -- clean means the RUN is clean: an earlier item's assumption poisons
   -- everything after it (the kernel Σ cannot contain the earlier item,
@@ -6587,7 +6631,7 @@ elabItemGo irng (SDeclDef nrng x ty) = do
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] (MkSite "def \{x}" irng) ty
   modifySt $ { sig $= (:< SigDecl [<] q ty')
-             , declMeta $= (:< MkDeclMeta q [<] "def \{x}" st.modFile nrng (unfsOf st)) }
+             , declMeta $= (:< MkDeclMeta q [<] "def \{x}" st.modFile nrng (unfsOf st) st.curImps) }
   addVis (x, q)
   -- a DECLARED equation is a lemma like any accepted one: its stuck
   -- reference is a proof element (el-sig-decl), so el-reflect makes
@@ -6937,16 +6981,44 @@ elabItemGo irng (SClausalDef nrng x ty etaName witness clauses) = do
       -- equation lemma — two goals, so two entries, not a name
       -- collision). `elabItem` re-sets this at the next real item.
       ignore $ traverse (\(r, it) => do
-        modifySt { curItem := clearBlocked (itemName it) }
+        modifySt { curItem := clearBlocked (itemName it), curImps := [] }
         elabItemGo (r <|> irng) it) items
       suffix <- opensSuffix census
       pure (echo ++ suffix)
 
 -- ===== Report =====
 
-prettyTelescope : FixTable -> Ctx -> NameEnv -> String
-prettyTelescope tbl ctx env = go (toList ctx) (toList env)
+||| The leading Π prefix with the referent's implicit positions
+||| BRACED — the core type has no implicitness, so the printer
+||| reintroduces the surface's, binder by binder up to the last
+||| implicit, then hands the tail to the ordinary printer.
+prettyTyImpsN : ImpTable -> FixTable -> NameEnv -> List Nat -> Ty -> String
+prettyTyImpsN imps tbl env poss ty = go 0 env ty
  where
+  lastImp : Nat
+  lastImp = foldl max 0 poss
+
+  go : Nat -> NameEnv -> Ty -> String
+  go i env t = case t of
+    PiTy a b =>
+      if i > lastImp then prettyTyN imps tbl env t
+      else let x = freshForTy a env
+               brL = the String (if i `elem` poss then "{" else "(")
+               brR = the String (if i `elem` poss then "}" else ")")
+           in brL ++ x ++ " : " ++ prettyTyN imps tbl env a ++ brR ++ " → " ++ go (S i) (env :< x) b
+    _ => prettyTyN imps tbl env t
+
+||| The hypotheses of a goal, in scope order. `impDs` names the depths
+||| the declaring item wrote as `{x : A}`: implicitness is not in the
+||| core context, and a reader who cannot see it cannot tell an
+||| argument they must supply from one the elaborator will.
+prettyTelescope : ImpTable -> FixTable -> (impDs : List Nat) -> Ctx -> NameEnv -> String
+prettyTelescope imps tbl impDs ctx env = go 0 (toList ctx) (toList env)
+ where
+  -- the entry at depth d, bracketed as its binder was written
+  entry : Nat -> String -> String
+  entry d body = if d `elem` impDs then "{" ++ body ++ "}" else "(" ++ body ++ ")"
+
   -- A LET leaves TWO entries behind (el-let: the value, then its
   -- unfolding equation ☐₀ ≡ e[↑] ∈ A[↑], minted anonymous by
   -- e-let). The source wrote ONE binding, so the report prints one:
@@ -6961,47 +7033,47 @@ prettyTelescope tbl ctx env = go (toList ctx) (toList env)
   letFold _ _ _ = Nothing
 
   -- print left-to-right; each entry's type prints under the env prefix
-  go' : SnocList String -> List Ty -> List String -> List String
-  go' pfx [] _ = []
-  go' pfx (ty :: hyp :: tys) (n :: h :: ns) =
+  go' : Nat -> SnocList String -> List Ty -> List String -> List String
+  go' d pfx [] _ = []
+  go' d pfx (ty :: hyp :: tys) (n :: h :: ns) =
     case letFold ty hyp h of
       -- the definiens lives one binder in (e[↑]), so it prints under
       -- the prefix the BOUND name extends — the same env the
       -- equation entry itself would have printed under
       Just rhs =>
-        "(\{n} : \{prettyTyN tbl pfx ty} ≔ \{prettyElemN tbl (pfx :< n) rhs})"
-          :: go' (pfx :< n :< h) tys ns
+        entry d "\{n} : \{prettyTyN imps tbl pfx ty} ≔ \{prettyElemN imps tbl (pfx :< n) rhs}"
+          :: go' (S (S d)) (pfx :< n :< h) tys ns
       Nothing =>
-        "(\{n} : \{prettyTyN tbl pfx ty})" :: go' (pfx :< n) (hyp :: tys) (h :: ns)
-  go' pfx (ty :: tys) (n :: ns) =
-    "(\{n} : \{prettyTyN tbl pfx ty})" :: go' (pfx :< n) tys ns
-  go' pfx (ty :: tys) [] =
-    "(_ : \{prettyTyN tbl pfx ty})" :: go' (pfx :< "_") tys []
+        entry d "\{n} : \{prettyTyN imps tbl pfx ty}" :: go' (S d) (pfx :< n) (hyp :: tys) (h :: ns)
+  go' d pfx (ty :: tys) (n :: ns) =
+    entry d "\{n} : \{prettyTyN imps tbl pfx ty}" :: go' (S d) (pfx :< n) tys ns
+  go' d pfx (ty :: tys) [] =
+    entry d "_ : \{prettyTyN imps tbl pfx ty}" :: go' (S d) (pfx :< "_") tys []
 
-  go : List Ty -> List String -> String
-  go tys ns = joinBy " " (go' [<] tys ns)
+  go : Nat -> List Ty -> List String -> String
+  go d tys ns = joinBy " " (go' d [<] tys ns)
 
-prettyStmt : FixTable -> Stmt -> String
-prettyStmt tbl (StElem ctx env a b ty) =
-  let tele = prettyTelescope tbl ctx env in
+prettyStmt : ImpTable -> FixTable -> (impDs : List Nat) -> Stmt -> String
+prettyStmt imps tbl impDs (StElem ctx env a b ty) =
+  let tele = prettyTelescope imps tbl impDs ctx env in
   (if tele == "" then "" else tele ++ " ") ++
-  "⊢ \{prettyElemN tbl env a} ≐ \{prettyElemN tbl env b} : \{prettyTyN tbl env ty}"
-prettyStmt tbl (StTy ctx env a b) =
-  let tele = prettyTelescope tbl ctx env in
+  "⊢ \{prettyElemN imps tbl env a} ≐ \{prettyElemN imps tbl env b} : \{prettyTyN imps tbl env ty}"
+prettyStmt imps tbl impDs (StTy ctx env a b) =
+  let tele = prettyTelescope imps tbl impDs ctx env in
   (if tele == "" then "" else tele ++ " ") ++
-  "⊢ \{prettyTyN tbl env a} ≐ \{prettyTyN tbl env b} type"
+  "⊢ \{prettyTyN imps tbl env a} ≐ \{prettyTyN imps tbl env b} type"
 
 ||| Exported (unlike the rest of this obligation-printing family) so
 ||| an LSP consumer can render one `Obligation` from `ElabReport`
 ||| without needing `Obligation`/`Stmt` themselves to be public.
 export
-prettyObligation : FixTable -> Nat -> Obligation -> String
-prettyObligation tbl i obl =
-  "  [\{show (S i)}] \{prettyStmt tbl obl.stmt}\n" ++
+prettyObligation : ImpTable -> FixTable -> Nat -> Obligation -> String
+prettyObligation imps tbl i obl =
+  "  [\{show (S i)}] \{prettyStmt imps tbl obl.oimps obl.stmt}\n" ++
   "      at: \{oblLoc}\{obl.site}" ++
   (case obl.composite of
      Nothing => ""
-     Just c => "\n      from composite: \{prettyStmt tbl c}") ++
+     Just c => "\n      from composite: \{prettyStmt imps tbl obl.oimps c}") ++
   (case obl.hint of
      Nothing => ""
      Just h => "\n      hint: \{h}")
@@ -7041,24 +7113,31 @@ record ModUnit where
   ||| the ranges mtokens records; elaboration never reads it
   msrc : String
 
-oblReport : FixTable -> List Obligation -> String
-oblReport tbl os =
+oblReport : ImpTable -> FixTable -> List Obligation -> String
+oblReport imps tbl os =
   "open obligations (\{show (length os)}):\n" ++
-  joinBy "\n" (zipWith (prettyObligation tbl) [0 .. minus (length os) 1] os)
+  joinBy "\n" (zipWith (prettyObligation imps tbl) [0 .. minus (length os) 1] os)
 
 ||| The JUDGEMENT alone — context, turnstile, goal — with no label
 ||| bracket and no location. What a HOVER shows, since the operator is
 ||| already standing at the thing and the label is the token under the
 ||| cursor. `prettyDecl` is this plus the report's framing.
 export
-prettyGoal : FixTable -> DeclView -> String
-prettyGoal tbl h =
-  let tele = prettyTelescope tbl h.dvctx h.dvenv in
+prettyGoal : ImpTable -> FixTable -> DeclView -> String
+prettyGoal imps tbl h =
+  let tele = prettyTelescope imps tbl h.dvimps h.dvctx h.dvenv in
   (if tele == "" then "" else tele ++ " ") ++
   (case h.dvty of
-     Just ty => "⊢ \{goalName h} : \{prettyTyN tbl h.dvenv ty}"
+     Just ty => "⊢ \{goalName h} : \{goalTy ty}"
      Nothing => "⊢ \{goalName h} type")
  where
+  -- a DECLARED item states its own type, so its `{x : A}` binders are
+  -- part of what it says — a hole's goal type has none of its own
+  goalTy : Ty -> String
+  goalTy ty = case lookup h.dvname imps of
+    Just poss@(_ :: _) => prettyTyImpsN imps tbl h.dvenv poss ty
+    _ => prettyTyN imps tbl h.dvenv ty
+
   -- a HOLE shows the label the operator wrote (`?a`), not the
   -- run-unique Σ name it was minted under (`?mod.item.a`); a
   -- declaration shows an anonymous `?` goal
@@ -7068,9 +7147,9 @@ prettyGoal tbl h =
 ||| Render one declaration for the report (exported for LSP consumers,
 ||| like prettyObligation).
 export
-prettyDecl : FixTable -> DeclView -> String
-prettyDecl tbl h =
-  "  [\{label}] " ++ prettyGoal tbl h ++ "\n      at: \{declLoc}\{h.dvsite}"
+prettyDecl : ImpTable -> FixTable -> DeclView -> String
+prettyDecl imps tbl h =
+  "  [\{label}] " ++ prettyGoal imps tbl h ++ "\n      at: \{declLoc}\{h.dvsite}"
  where
   label : String
   label = if isHoleName h.dvname then holeLabel h.dvname else h.dvname
@@ -7080,19 +7159,19 @@ prettyDecl tbl h =
     Just r => "\{showLoc h.dvfile r}: "
     Nothing => ""
 
-declReport : FixTable -> List DeclView -> String
-declReport tbl hs =
+declReport : ImpTable -> FixTable -> List DeclView -> String
+declReport imps tbl hs =
   "open declarations (\{show (length hs)}):\n" ++
-  joinBy "\n" (map (prettyDecl tbl) hs)
+  joinBy "\n" (map (prettyDecl imps tbl) hs)
 
 ||| Holes are declarations too (same Σ entry kind), but they are the
 ||| operator's OWN markers rather than an abstract interface's — they
 ||| get their own block so a hole-driven session reads its goals
 ||| without the axioms in the way.
-holeReport : FixTable -> List DeclView -> String
-holeReport tbl hs =
+holeReport : ImpTable -> FixTable -> List DeclView -> String
+holeReport imps tbl hs =
   "open holes (\{show (length hs)}):\n" ++
-  joinBy "\n" (map (prettyDecl tbl) hs)
+  joinBy "\n" (map (prettyDecl imps tbl) hs)
 
 ||| An obligation the refinement DISCHARGED: filling in the synthetic
 ||| holes the run's own constraints determine made both sides the same
@@ -7112,15 +7191,16 @@ declSolved st h = isSyntheticHole h.dvname && isJust (lookup h.dvname st.holeSol
 ||| non-definitional; empty exactly when the run is accepted.
 openReport : FixTable -> ElabSt -> Maybe String
 openReport tbl st0 =
-  let st = refineHoles st0 in
+  let st = refineHoles st0
+      imps = st0.impls in
   case ( filter (not . oblDischarged) (oblView st)
        , partition (isHoleName . dvname)
            (filter (not . declSolved st) (declView st))) of
     ([], ([], [])) => Nothing
     (os, (holes, ds)) => Just $ joinBy "\n"
-      ((case holes of [] => []; _ => [holeReport tbl holes]) ++
-       (case os of [] => []; _ => [oblReport tbl os]) ++
-       (case ds of [] => []; _ => [declReport tbl ds]))
+      ((case holes of [] => []; _ => [holeReport imps tbl holes]) ++
+       (case os of [] => []; _ => [oblReport imps tbl os]) ++
+       (case ds of [] => []; _ => [declReport imps tbl ds]))
 
 ||| Install a module's import aliases: each opened name must exist in
 ||| the imported module's Σ segment.
@@ -7243,7 +7323,7 @@ elabProgram units = go initSt units [] Z
             salv = case salvagedHoles st stFail of
                      [] => []
                      hs => ["holes reached before the failure (\{show (length hs)}):\n" ++
-                            joinBy "\n" (map (prettyDecl tbl) hs)]
+                            joinBy "\n" (map (prettyDecl stFail.impls tbl) hs)]
             -- the fallback runs from the PRE-item state: nothing the
             -- broken item built is kept
             (stNext, declEcho) =
@@ -7407,40 +7487,20 @@ elabFile content =
 ||| imported file, don't paint this range in MY document".
 ||| The LSP binder table: the ROOT module's binder occurrences,
 ||| rendered display-normalized.
-||| the leading Π prefix with the referent's implicit positions
-||| BRACED — the kernel type has no implicitness, so the hover
-||| reintroduces the surface's, binder by binder up to the last
-||| implicit, then hands the tail to the ordinary printer
-prettyTyImpsN : FixTable -> NameEnv -> List Nat -> Ty -> String
-prettyTyImpsN tbl env imps ty = go 0 env ty
- where
-  lastImp : Nat
-  lastImp = foldl max 0 imps
-
-  go : Nat -> NameEnv -> Ty -> String
-  go i env t = case t of
-    PiTy a b =>
-      if i > lastImp then prettyTyN tbl env t
-      else let x = freshForTy a env
-               brL = the String (if i `elem` imps then "{" else "(")
-               brR = the String (if i `elem` imps then "}" else ")")
-           in brL ++ x ++ ":" ++ prettyTyN tbl env a ++ brR ++ " → " ++ go (S i) (env :< x) b
-    _ => prettyTyN tbl env t
-
 binderInfos : FixTable -> ElabSt -> List (Range, String)
 binderInfos tbl st =
-  [ (r, "\{x} : " ++ (case imps of
-                        [] => prettyTyN tbl env (displayTy st ty)
-                        _ => prettyTyImpsN tbl env imps (displayTy st ty)))
-  | (m, r, ctx, env, x, ty, imps) <- toList st.binderTypes, m == "" ]
+  [ (r, "\{x} : " ++ (case poss of
+                        [] => prettyTyN st.impls tbl env (displayTy st ty)
+                        _ => prettyTyImpsN st.impls tbl env poss (displayTy st ty)))
+  | (m, r, ctx, env, x, ty, poss) <- toList st.binderTypes, m == "" ]
   ++
   -- blanks ascribe in the language's own def shape — domain, then
   -- the value the oracle recovered — with the binding source as a
   -- comment line
-  [ (r, "_ : \{prettyTyN tbl env (displayTy st ty)} ≔ \{prettyElemN tbl env (displayElem st v)}"
+  [ (r, "_ : \{prettyTyN st.impls tbl env (displayTy st ty)} ≔ \{prettyElemN st.impls tbl env (displayElem st v)}"
         ++ "\n-- " ++ (case msrc of
               Nothing => "solved from the expected type"
-              Just sv => "solved from the type of \{prettyElemN tbl env (displayElem st sv)}"))
+              Just sv => "solved from the type of \{prettyElemN st.impls tbl env (displayElem st sv)}"))
   | (m, r, env, v, ty, msrc) <- toList st.blankVals, m == "" ]
 
 public export
@@ -7467,6 +7527,9 @@ record ElabReport where
   ||| on), plus at most one module-level failure — an unresolvable
   ||| import or a module that cannot be imported open
   errors : List (String, Maybe Range, String)
+  ||| the run's implicit positions per Σ-name — what `obligations`
+  ||| must be rendered with to read like the report's own
+  implicits : ImpTable
 
 export
 elabProgramReport : List ModUnit -> ElabReport
@@ -7503,7 +7566,7 @@ elabProgramReport units = go initSt units [] [] [] []
     -- is the item's own `using` clause. Opening it here also keeps
     -- report-time classification out of the blocked-exposure log.
     let stX = { eqScope $= ("exp:*" ::) } st in
-    [ MkHoleView mname tbl h (map (exposeHead stX) h.dvctx)
+    [ MkHoleView mname tbl st.impls h (map (exposeHead stX) h.dvctx)
     | h <- hs, isHoleName h.dvname ]
 
   -- an obligation or declaration the elaborator localized reports at
@@ -7571,14 +7634,14 @@ elabProgramReport units = go initSt units [] [] [] []
                              , let o' = { stmt := displayStmt st o.stmt
                                         , composite $= map (displayStmt st) } o
                              , not (oblDischarged o') ]
-        hs' = [ (m, r, prettyDecl tbl (refineDecl st d))
+        hs' = [ (m, r, prettyDecl st.impls tbl (refineDecl st d))
               | (m, r, tbl, d) <- hs, not (declSolved st d) ]
         -- the EXPOSED context is refined alongside the display one:
         -- an entry that mentions a synthetic hole must say the same
         -- thing in both, or classification and printing disagree
         sts' = [ { hvDecl $= refineDecl st, hvCtxX $= map (displayTy st) } v
                | v <- sts, not (declSolved st v.hvDecl) ]
-    in MkElabReport obls' hs' sts' (toList st.qiits) binders errs
+    in MkElabReport obls' hs' sts' (toList st.qiits) binders errs st.impls
 
   go : ElabSt -> List ModUnit -> List (String, Maybe Range, Obligation) -> List (String, Maybe Range, FixTable, DeclView) -> List HoleView -> List (String, Maybe Range, String) -> ElabReport
   go st [] obls hs sts errs = finish st obls hs sts [] errs

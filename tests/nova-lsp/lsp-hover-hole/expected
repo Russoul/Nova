@@ -3,7 +3,7 @@ CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKind
 DIAGNOSTICS (5):
   [L11:3-L11:20] (error)   [1] (n : ℕ) ⊢ dbl (S n) ≐ ?st : ℕ
       at: DIR/fixture.nova:11:3: def dblS: checking ⋆
-  [L9:5-L9:8] (error)   [1] (g : ℕ → ℕ) (dblZ : g Z ≡ Z ∈ ℕ) (dblS : (n:ℕ) → (g (S n) ≡ ?st ∈ ℕ)) (_ : ℕ) (n : ℕ) (ih : g n ≡ dbl n ∈ ℕ) ⊢ g (S n) ≐ dbl (S n) : ℕ
+  [L9:5-L9:8] (error)   [1] (g : ℕ → ℕ) (dblZ : g Z ≡ Z ∈ ℕ) (dblS : (n : ℕ) → (g (S n) ≡ ?st ∈ ℕ)) (_ : ℕ) (n : ℕ) (ih : g n ≡ dbl n ∈ ℕ) ⊢ g (S n) ≐ dbl (S n) : ℕ
       at: DIR/fixture.nova:9:5: def dblEta: checking ⋆
   [L11:17-L11:20] (warning)   [?st] (_ : ℕ) (n : ℕ) (ih : ℕ) ⊢ ?st : ℕ
       at: DIR/fixture.nova:11:17: def dbl
@@ -53,7 +53,7 @@ CODE ACTIONS(?st) (1):
 DIAGNOSTICS FOR FIXTURE (5):
   [L11:3-L11:20] (error)   [1] (n : ℕ) ⊢ dbl (S n) ≐ ?st : ℕ
       at: DIR/fixture.nova:11:3: def dblS: checking ⋆
-  [L9:5-L9:8] (error)   [1] (g : ℕ → ℕ) (dblZ : g Z ≡ Z ∈ ℕ) (dblS : (n:ℕ) → (g (S n) ≡ ?st ∈ ℕ)) (_ : ℕ) (n : ℕ) (ih : g n ≡ dbl n ∈ ℕ) ⊢ g (S n) ≐ dbl (S n) : ℕ
+  [L9:5-L9:8] (error)   [1] (g : ℕ → ℕ) (dblZ : g Z ≡ Z ∈ ℕ) (dblS : (n : ℕ) → (g (S n) ≡ ?st ∈ ℕ)) (_ : ℕ) (n : ℕ) (ih : g n ≡ dbl n ∈ ℕ) ⊢ g (S n) ≐ dbl (S n) : ℕ
       at: DIR/fixture.nova:9:5: def dblEta: checking ⋆
   [L11:17-L11:20] (warning)   [?st] (_ : ℕ) (n : ℕ) (ih : ℕ) ⊢ ?st : ℕ
       at: DIR/fixture.nova:11:17: def dbl

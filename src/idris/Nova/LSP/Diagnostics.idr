@@ -82,7 +82,7 @@ export
 toDiagnostics : (source : String) -> FixTable -> ElabReport -> List Diagnostic
 toDiagnostics source tbl report =
   let lns = lines source in
-  map (\(mname, rng, o) => mkDiagnostic (rangeFor lns mname rng) (annotate mname (prettyObligation tbl 0 o)))
+  map (\(mname, rng, o) => mkDiagnostic (rangeFor lns mname rng) (annotate mname (prettyObligation report.implicits tbl 0 o)))
       report.obligations
   ++
   -- open declarations are the WORKING state of a development, not a

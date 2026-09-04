@@ -2,9 +2,9 @@ def f : (n : ℕ) → ℕ ≔ λn. (ℕ-elim ?goalZ (k rec. ?goalS) n)
 def f : (n : ℕ) → ℕ ≔ λn. (ℕ-elim ?base (n ih. ?step) n)
 def p : (x : ℕ × ℕ) → P (x .π₁) ≔ λx. (let fst ≔ x .π₁ in
                                        let snd ≔ x .π₂ in
-                                       (?g1 : (P fst)))
+                                       (?g1 : P fst))
 --- a safe rename of the closed hypothesis:
-def c : (m : ℕ) → (n : ℕ) → (h : P n → P m) → ℕ ≔ λm. λn. λh. ((ℕ-elim (n. (hyp : (P n) → (P m)) → ℕ)
+def c : (m : ℕ) → (n : ℕ) → (h : P n → P m) → ℕ ≔ λm. λn. λh. ((ℕ-elim (n. (hyp : P n → P m) → ℕ)
                                                                (λhyp. ?g2Z)
                                                                (n ih. λhyp. ?g2S)
                                                                n) h)

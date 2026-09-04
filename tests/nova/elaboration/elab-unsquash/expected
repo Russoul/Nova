@@ -6,7 +6,7 @@ defined nested
 defined nestedTwice
 defined hole [+1 declaration]
 open holes (1):
-  [?g] (n : ℕ) (h : (P n)) (x : ℕ) ⊢ ?g : (P n)
+  [?g] (n : ℕ) (h : P n) (x : ℕ) ⊢ ?g : P n
       at: input.nova:26:73: def hole
 --- what the scrutinee must be, and what may not name it:
 errors.nova:3:58: error: def notVar: unsquash eliminates a VARIABLE of a ∥∥ type — this scrutinee is not one (squash-elim takes any proof)
@@ -34,9 +34,9 @@ open declarations (5):
       at: errors.nova:3:1: def notVar
   [notSquash] ⊢ ? : ℕ → (Z ≡ Z ∈ ℕ)
       at: errors.nova:5:1: def notSquash
-  [inGoal] ⊢ ? : (h:∥ℕ∥) → (h ≡ h ∈ ∥ℕ∥)
+  [inGoal] ⊢ ? : (h : ∥ℕ∥) → (h ≡ h ∈ ∥ℕ∥)
       at: errors.nova:9:1: def inGoal
-  [inHyp] ⊢ ? : (h:∥ℕ∥) → (h ≡ h ∈ ∥ℕ∥) → (Z ≡ Z ∈ ℕ)
+  [inHyp] ⊢ ? : (h : ∥ℕ∥) → (h ≡ h ∈ ∥ℕ∥) → (Z ≡ Z ∈ ℕ)
       at: errors.nova:10:1: def inHyp
   [notProp] ⊢ ? : ∥ℕ∥ → ℕ
       at: errors.nova:12:1: def notProp
