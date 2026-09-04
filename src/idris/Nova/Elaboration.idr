@@ -399,9 +399,15 @@ record ElabSt where
   ||| adds nothing while resting on an earlier assumption is NOT
   ||| clean: its certificate cites what the kernel Σ does not hold.
   itemAssumed : Bool
+  ||| the dependency that kept the CURRENT item out of the kernel Σ,
+  ||| if one did: an item may elaborate and still not be admitted,
+  ||| and a bare "defined x" is a misleading receipt for that. Named
+  ||| so the operator can see WHICH unfilled thing is blocking
+  ||| verification rather than discovering it by inference.
+  itemBlocked : Maybe String
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<] [] 0 False
+initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<] [] 0 False Nothing
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -3656,6 +3662,37 @@ preferPrf st ctx ty = if kIsPropB st.kernelSig kernelFuel ctx ty
 ||| admitted, so a run carrying one of these is refused as before.
 ||| What changes is that everything after the first open item is
 ||| kernel-checked at all, instead of being silently skipped.
+||| The dependency a kernel rejection names, when the rejection IS a
+||| missing dependency: the kernel reports the entry it could not
+||| find, and this confirms it against the Σ that was handed over.
+||| Nothing when the message names no entry, or names one that is
+||| present — neither is a missing dependency, and both are then
+||| treated as the defect they are.
+missingDep : Sig -> KErr -> Maybe String
+missingDep ksig err = do
+  rest <- afterMark "unknown signature name '" err
+  dep <- upToQuote rest
+  case sigLookup dep ksig of
+    Nothing => Just dep
+    Just _ => Nothing
+ where
+  afterMark : String -> String -> Maybe String
+  afterMark mark hay =
+    let ms = unpack mark in
+    go (unpack hay)
+   where
+    go : List Char -> Maybe String
+    go [] = Nothing
+    go cs@(_ :: rest) =
+      if isPrefixOf (unpack mark) cs
+        then Just (pack (drop (length (unpack mark)) cs))
+        else go rest
+
+  upToQuote : String -> Maybe String
+  upToQuote s = case span (/= '\'') (unpack s) of
+    (nm, '\'' :: _) => Just (pack nm)
+    _ => Nothing
+
 ||| ADMISSION IS THE ITEM'S OWN QUESTION, and it has exactly two
 ||| answers. An item that left nothing open is CHECKED — the pipeline's
 ||| criterion, that it re-checks from kernel Σ alone — and admitted as
@@ -3690,21 +3727,29 @@ kernelAccept name checkDef = do
       case bump "kitem" (nowNs () - t0) res of
         Right entry => modifySt $ { kernelSig $= (:< entry) }
         Left err =>
-          -- A MISSING NAME IS NOT A DEFECT. It is the expected
-          -- consequence of a dependency that was not admitted — an
-          -- open item above, or a written declaration, whose absence
-          -- from the kernel Σ is exactly the record we intend. The
-          -- item is simply not admitted either, and the file is
-          -- refused for the entry that caused it.
+          -- A MISSING DEPENDENCY IS NOT A DEFECT. It is the expected
+          -- consequence of something above not being admitted — an
+          -- open item, or a written declaration — whose absence from
+          -- the kernel Σ is exactly the record intended. The item is
+          -- not admitted either, and the name that blocked it is
+          -- recorded so the item's own echo can say so.
+          --
+          -- The claim is VERIFIED, not read: the kernel names the
+          -- entry it could not find, and it counts as missing only
+          -- when it really is absent from the Σ we handed it. A
+          -- message naming something present is not a missing
+          -- dependency, and a message naming nothing is not one
+          -- either — both fall through to the defect case, which is
+          -- the safe direction.
           --
           -- ANY OTHER REJECTION IS a defect: the elaborator emitted
           -- something the kernel refuses, which is a bug in the
-          -- elaborator and not a property of the file, and demoting
-          -- it quietly is how such a bug hides behind an unrelated
-          -- hole elsewhere in the run.
-          if isInfixOf "unknown signature name" err
-            then pure ()
-            else throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
+          -- elaborator and not a property of the file. Demoting one
+          -- quietly is how such a bug hides behind an unrelated hole
+          -- elsewhere in the run.
+          case missingDep st.kernelSig err of
+            Just dep => modifySt { itemBlocked := Just dep }
+            Nothing => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
 
 wrapLams : Nat -> Elem -> Elem
 wrapLams Z e = e
@@ -6549,11 +6594,22 @@ openCensus = do
 opensSuffix : (before : (Nat, Nat)) -> ElabM String
 opensSuffix (ob, hb) = do
   (o', h') <- openCensus
+  st <- getSt
   let o = minus o' ob
   let h = minus h' hb
+  -- AN ITEM MAY ELABORATE AND NOT BE ADMITTED. It says so here: a
+  -- bare "defined x" for an item the kernel never saw reads like
+  -- verification that did not happen, and the operator would
+  -- otherwise learn it by inference or not at all. The dependency is
+  -- NAMED, because the useful question is which unfilled thing to
+  -- fill next.
+  let blocked = the (List String) (case st.itemBlocked of
+                  Nothing => []
+                  Just dep => ["not admitted: needs \{dep}"])
   let parts = the (List String)
                 ((if o == 0 then [] else ["+\{show o} obligation\{plural o}"]) ++
-                 (if h == 0 then [] else ["+\{show h} declaration\{plural h}"]))
+                 (if h == 0 then [] else ["+\{show h} declaration\{plural h}"]) ++
+                 blocked)
   pure (case parts of
           [] => ""
           _ => " [" ++ joinBy ", " parts ++ "]")
@@ -6611,7 +6667,7 @@ elabItem : (irng : Maybe Range) -> SItem -> ElabM String
 elabItem irng item = withScope (if scopedMode then Just [] else Nothing) $ do
   base <- oblCount
   modifySt { curItem := clearBlocked (itemName item), curImps := []
-           , itemOblBase := base, itemAssumed := False }
+           , itemOblBase := base, itemAssumed := False, itemBlocked := Nothing }
   pre <- getSt
   timedM "item \{pre.modPrefix}.\{itemName item}" (elabItemGo irng item)
 
@@ -7012,7 +7068,7 @@ elabItemGo irng (SClausalDef nrng x ty etaName witness clauses) = do
       ignore $ traverse (\(r, it) => do
         base <- oblCount
         modifySt { curItem := clearBlocked (itemName it), curImps := []
-                 , itemOblBase := base, itemAssumed := False }
+                 , itemOblBase := base, itemAssumed := False, itemBlocked := Nothing }
         elabItemGo (r <|> irng) it) items
       suffix <- opensSuffix census
       pure (echo ++ suffix)

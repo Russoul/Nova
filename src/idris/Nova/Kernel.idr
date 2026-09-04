@@ -2259,7 +2259,11 @@ mutual
                 kCheckSubstK sig ctx (toList es) (toList delta) (childSkels sk)
                 pure (substTy ty (embed es))
               Just _ => kerr "kernel: signature name is not a term entry"
-              Nothing => kerr "kernel: unknown signature name"
+              -- the NAME is part of the message on purpose: a caller
+              -- deciding whether this rejection is a missing
+              -- dependency or a defect must be able to check the
+              -- claim against its own Σ rather than trust the prose
+              Nothing => kerr "kernel: unknown signature name '\{x}'"
           OneIntro => pure OneTy
           NatIntro0 => pure NatTy
           NatIntro1 t => do kCheckE sig ctx t NatTy (skelChild 0 sk); pure NatTy

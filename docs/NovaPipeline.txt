@@ -306,11 +306,21 @@ load-bearing:
     demand a check it cannot pass.
 
     A REJECTION AT ADMISSION IS THEN A DEFECT, and throws — with one
-    carve-out that is not one. A rejection for an UNKNOWN SIGNATURE
-    NAME is the expected consequence of a dependency that was not
-    admitted: an open item above, or a written declaration, whose
-    absence from the kernel Σ is precisely the record intended. The
-    dependent is not admitted either and nothing is said about it.
+    carve-out that is not one. A rejection for a MISSING DEPENDENCY
+    is the expected consequence of something above not being
+    admitted: an open item, or a written declaration, whose absence
+    from the kernel Σ is precisely the record intended. The dependent
+    is not admitted either, and its own echo SAYS SO and names what
+    blocked it — an item that elaborated without being admitted is
+    reported as such, since a bare receipt for one reads like
+    verification that did not happen.
+
+    That carve-out is VERIFIED, not read off the message. The kernel
+    NAMES the entry it could not find, and the caller counts the
+    rejection as a missing dependency only when that entry really is
+    absent from the Σ it handed over. A message naming an entry that
+    is present, or naming none, is not a missing dependency and falls
+    through to the defect case — the safe direction.
     Every OTHER rejection means the elaborator emitted something the
     kernel refuses, which is a bug in the elaborator and not a
     property of the file, and it must not be demoted quietly — a
