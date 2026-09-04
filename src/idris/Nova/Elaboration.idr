@@ -3820,6 +3820,30 @@ freeName sig item role (S f) n =
 ||| the rule SYNTHESISED may need payloads of its own, and then the
 ||| caller — which knows what it put there — supplies them. e-eqelim's
 ||| irrelevance lemma is the one caller that does.
+||| The skeleton a TYPE needs to be kernel-checked: the payload of
+||| every eliminator standing in type position, and nothing else.
+|||
+||| A ⊎-elim that IS a type is Ω-valued — prop-lift is the only way it
+||| can be one, and the relator's SUM clause is where they come from
+||| (Kernel.Subst.liftPoly) — so its motive is the CONSTANT PropTy.
+||| That is a CLAIM, not an assumption: the kernel checks the motive,
+||| then checks each branch at it, so a wrong one is refused rather
+||| than believed, and this can only ever turn a rejection into an
+||| acceptance the kernel itself agreed to.
+|||
+||| Positions with nothing to say are left empty, which `skelChild`
+||| reads as the empty skeleton — so this stays the size of the
+||| eliminators it found, not of the type.
+tySkelK : Ty -> Skel
+tySkelK (SumElim l r _) =
+  Nd [PMotive PropTy (Nd [] [])] [tySkelK l, tySkelK r, Nd [] []]
+tySkelK (Squash a) = Nd [] [tySkelK a]
+tySkelK (Elem.SigmaTy a b) = Nd [] [tySkelK a, tySkelK b]
+tySkelK (Elem.PiTy a b) = Nd [] [tySkelK a, tySkelK b]
+tySkelK (Elem.SumTy a b) = Nd [] [tySkelK a, tySkelK b]
+tySkelK (Elem.EqTy a b t) = Nd [] [tySkelK a, tySkelK b, tySkelK t]
+tySkelK _ = Nd [] []
+
 emitInlineDef : Site -> (role : String) -> Ctx -> Ty -> Skel -> Elem -> Skel -> ElabM String
 emitInlineDef site role ctx ty tySk body bodySk = do
   st <- getSt
@@ -4451,7 +4475,7 @@ mutual
               let ctx' = (g0 <>< g1') :< substTy aTy (wkN n1)
               let env' = (env0 <>< toList env1) :< xn
               (b', bSk) <- checkElem ctx' env' site sb (substTy goal0 Wk)
-              q <- emitInlineDef site "q" ctx' (substTy goal0 Wk) (Nd [] []) b' bSk
+              q <- emitInlineDef site "q" ctx' (substTy goal0 Wk) (tySkelK (substTy goal0 Wk)) b' bSk
               -- the site is an ORDINARY squash-elim around the lifted
               -- body, so el-squash-e-prf's own rule checks the goal is
               -- a proposition and nothing here has to
@@ -4532,8 +4556,8 @@ mutual
               let goalR = compTy (substTy goal (underN n1 subR))
               (l', lSk) <- checkElem ctxL (envB an) site sl goalL
               (r', rSk) <- checkElem ctxR (envB bn) site sr goalR
-              ql <- emitInlineDef site "l" ctxL goalL (Nd [] []) l' lSk
-              qr <- emitInlineDef site "r" ctxR goalR (Nd [] []) r' rSk
+              ql <- emitInlineDef site "l" ctxL goalL (tySkelK goalL) l' lSk
+              qr <- emitInlineDef site "r" ctxR goalR (tySkelK goalR) r' rSk
               -- the eliminator, at the Π-closed type. Its motive
               -- binder stands where w stood, so the closure is the
               -- entries and the goal VERBATIM — no substitution
@@ -4543,7 +4567,7 @@ mutual
                                              (bn, Nothing) (branch env0 env1 qr bn)
                                              (SVar Nothing nm 0))
               (e', eSk) <- checkElem g0 env0 site body elimTy
-              qe <- emitInlineDef site "u" g0 elimTy (Nd [] []) e' eSk
+              qe <- emitInlineDef site "u" g0 elimTy (tySkelK elimTy) e' eSk
               -- the site: the eliminator at w and the survivors
               let args = svarsS env0 (S i) ++ [SVar wrng nm i] ++ svarsS env1 0
               let spine = foldl SApp (SSig Nothing qe) args
@@ -4681,7 +4705,7 @@ mutual
                             (e, sk) <- checkElem ctx' env' site sp ty'
                             pure (e, ty', sk)
                           Nothing => inferElem ctx' env' site sp
-                        q <- emitInlineDef site "j" ctx' prfTy (Nd [] []) prf' prfSk
+                        q <- emitInlineDef site "j" ctx' prfTy (tySkelK prfTy) prf' prfSk
                         -- the spine is the PERMUTED order at the SITE's
                         -- own indices: the reordering is the lifted
                         -- definition's business and reaches no further
@@ -4803,7 +4827,7 @@ mutual
       let reflTy = Elem.EqTy t0 t0 aEq0
       (rp, rsk) <- withScope (Just []) (checkElem g0 env0 (sub site "\{site}: ≡-elim, reflexivity")
                                           (SStar Nothing) reflTy)
-      qr <- emitInlineDef site "r" g0 reflTy (Nd [] []) rp rsk
+      qr <- emitInlineDef site "r" g0 reflTy (tySkelK reflTy) rp rsk
       let inst = \base => foldl PiApp (SigVar qr [<]) (map CtxVar (idxDesc n0 base))
       -- the irrelevance equation lives at the SITE, where w still
       -- stands; both sides inhabit a proposition, so its ⋆ closes on
@@ -4895,7 +4919,7 @@ mutual
       -- so the site pays a fixed cost whatever the module holds
       (prf, prfSk) <- withScope (Just []) (withEqScope ["sigma.eta"]
                         (checkElem ctx env site (SStar Nothing) etaTy))
-      q <- emitInlineDef site "η" ctx etaTy (Nd [] []) prf prfSk
+      q <- emitInlineDef site "η" ctx etaTy (tySkelK etaTy) prf prfSk
       n1 <- oblCount
       if n1 /= n0
         then do modifySt (const before); pure []
@@ -4949,7 +4973,7 @@ mutual
                   (t, sk) <- checkElem ctx' env' site body (compTy (substTy ty pair))
                   pure (t, compTy (substTy ty pair), sk)
                 Nothing => inferElem ctx' env' site body
-              q <- emitInlineDef site "σ" ctx' bodyTy (Nd [] []) body' bodySk
+              q <- emitInlineDef site "σ" ctx' bodyTy (tySkelK bodyTy) body' bodySk
               -- the site: the definition at the SPLIT spine
               let wv = SVar wrng nm i
               let args = svars env0 (S i) ++ [SProj1 wv, SProj2 wv] ++ svars env1 0
