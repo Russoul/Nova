@@ -1,0 +1,214 @@
+-- Ω, the universe of mere propositions (docs/NovaFoundation.txt).
+--
+-- Propositions are Ω-valued and stand as their own (realizer-irrelevant)
+-- type; ∥T∥ squashes an arbitrary type into a proposition; ⋆ is the
+-- canonical proof.
+-- el-squash-i: ⋆ inhabits the squash of any inhabited type.
+
+import Core.equality (transport)
+
+def truth : ∥𝟙∥ ≔ ⋆
+
+def eqSquash : (a : ℕ) → a ≡ a ≔ λa. ⋆
+
+-- el-prf-prop: proof irrelevance — any two proofs of a proposition are
+-- judgementally equal.
+def irrel : (p : Ω) (x y : p) → x ≡ y ≔ λp. λx. λy. ⋆
+
+-- code-prop-eq (propositional extensionality): mutually implied
+-- propositions are equal codes at Ω. Both squashees are inhabited, so
+-- the two proposition codes are equal.
+def propext : ∥𝟙∥ ≡ (Z ≡ Z) ≔ ⋆
+
+-- the same rule at ARBITRARY propositions, where nothing is evident:
+-- the two implications are supplied, as `⋆ ⟨f , g⟩` (e-star-propext).
+-- Automatic discharge reaches only the 𝟙-/≡-shaped cases above, and
+-- no search can replace this one — the implications carry content.
+def propExt : {p q : Ω} → (p → q) → (q → p) → p ≡ q ≔ λp. λq. λf. λg. ⋆ (f, g)
+
+-- squashed reflection: a squashed equality reflects into a judgemental
+-- equality (el-squash-e-eq + el-reflect).
+def reflectSquash : {A : 𝕌} {a b : A} (h : a ≡ b) → a ≡ b ≔ λA. λa. λb. λh. ⋆
+
+-- ty-quot-cong: quotients by iff-equal Ω relations are the SAME type,
+-- so a variable of one moves to the other with no coercion.
+def quotIff : (A : 𝕌) (v : A / (n m. ∥𝟙∥)) → A / (n m. Z ≡ Z) using (propext) ≔ λA. λv. v
+
+-- Impredicative connectives (Ω section, docs/NovaFoundation.txt): ⊤, ⊥,
+-- ∧, ⊃ are the squashed types the theory itself names in its notes.
+-- Nova has no primitive sum type, so even ∨ is impredicative — it
+-- quantifies over ALL of Ω to pick out the least prop implied by both
+-- disjuncts (the standard System F / CoC "encode through the
+-- impredicative universe itself" trick). Introducing/eliminating these
+-- needs `⋆ ⟨witness⟩` (el-squash-i, general form) and `squash-elim`
+-- (el-squash-e-prf) — the squashees here are Π/Σ-shaped, not the
+-- evident 𝟙-/≡-shapes bare ⋆ handles.
+def ⊥ : Ω ≔ ∥𝟘∥
+
+def ⊤ : Ω ≔ ∥𝟙∥
+
+infixr 5 ∧
+def ∧ : Ω → Ω → Ω ≔ λp. λq. ∥p × q∥
+
+infixr 3 ⊃
+def ⊃ : Ω → Ω → Ω ≔ λp. λq. ∥p → q∥
+
+def ¬ : Ω → Ω ≔ λp. p ⊃ ⊥
+
+infixr 4 ∨
+def ∨ : Ω → Ω → Ω ≔ λp. λq. ∥(r : Ω) → (p → r) → (q → r) → r∥
+
+def andIntro : {p q : Ω} → p → q → p ∧ q using (Core.prop.∧.unfold) ≔ λp. λq. λx. λy. ⋆ (x, y)
+
+def andFst : {p q : Ω} → p ∧ q → p using (Core.prop.∧.unfold) ≔ λp. λq. λh. squash-elim h (u. u .π₁)
+
+def andSnd : {p q : Ω} → p ∧ q → q using (Core.prop.∧.unfold) ≔ λp. λq. λh. squash-elim h (u. u .π₂)
+
+def andElim : {p q x : Ω} → p ∧ q → (p → q → x) → x using (Core.prop.∧.unfold) ≔
+  λp. λq. λx. λi. λf. squash-elim i (u. f (u .π₁) (u .π₂))
+
+def impIntro : {p q : Ω} → (p → q) → p ⊃ q using (Core.prop.⊃.unfold) ≔ λp. λq. λf. ⋆ f
+
+def impApply : {p q : Ω} → p ⊃ q → p → q using (Core.prop.⊃.unfold) ≔
+  λp. λq. λh. λx. squash-elim h (f. f x)
+
+-- ⊥ ≜ ∥𝟘∥, so 𝟘-elim cannot consume a proof of ⊥ directly: a refutation
+-- has to unsquash first. absurdP names that step, and it is as far as
+-- ELIMINATING the proof goes — el-squash-e-prf reaches only further
+-- PROPOSITIONS, so there is no A-valued counterpart of this shape.
+def absurdP : (p : Ω) → ⊥ → p using (Core.prop.⊥.unfold) ≔ λp. λh. squash-elim h (x. 𝟘-elim x)
+
+-- That limit is a limit on the ELIMINATOR, not on ⊥: a proof of ⊥ does
+-- yield data — by going around it. ⊥ proves every proposition and
+-- equations ARE propositions (≡ is Ω-valued), so it proves the false
+-- Z ≡ S Z ∈ ℕ; el-reflect makes that equation JUDGEMENTAL, hence
+-- isZeroCode Z ≐ isZeroCode (S Z), i.e. 𝟙 ≐ 𝟘, and () crosses.
+--
+-- This is not proof relevance sneaking back in: nothing inspects h's
+-- realizer. What leaves Ω is the mere EXISTENCE of a proof, which
+-- el-reflect turns into a judgemental equation, and judgemental
+-- equations act on types. Consistency is untouched — ⊥ is empty,
+-- so absurd is never applied.
+def isZeroCode : ℕ → 𝕌 ≔ λn. ℕ-elim 𝟙 (n ih. 𝟘) n
+
+def absurd : ⊥ → 𝟘 using (Core.prop.isZeroCode.eq) ≔
+  λh. transport isZeroCode (absurdP (Z ≡ S Z) h) ()
+
+-- …and hence the A-valued eliminator the paragraph above says no
+-- ELIMINATION of a ⊥-proof can give: 𝟘-elim consumes the escaped 𝟘.
+def absurdD : (A : 𝕌) → ⊥ → A ≔ λA. λh. 𝟘-elim (absurd h)
+
+def orInl : {p q : Ω} → p → p ∨ q using (Core.prop.∨.unfold) ≔ λp. λq. λx. ⋆ (λr. λf. λg. f x)
+
+def orInr : {p q : Ω} → q → p ∨ q using (Core.prop.∨.unfold) ≔ λp. λq. λy. ⋆ (λr. λf. λg. g y)
+
+def orElim : (p q c : Ω) → p ∨ q → (p → c) → (q → c) → c using (Core.prop.∨.unfold) ≔
+  λp. λq. λc. λh. λf. λg. squash-elim h (u. u c f g)
+
+-- Logical equivalence, as a pair of implications (∧ + ⊃ already
+-- give this for free — ↔ names it so callers stop re-deriving it)
+infixr 2 ↔
+def ↔ : Ω → Ω → Ω ≔ λp. λq. (p ⊃ q) ∧ (q ⊃ p)
+
+def iffIntro : {p q : Ω} → (p → q) → (q → p) → p ↔ q using (Core.prop.↔.eq) ≔
+  λp. λq. λf. λg. andIntro (impIntro f) (impIntro g)
+
+def iffLeft : {p q : Ω} → p ↔ q → p → q using (Core.prop.↔.eq) ≔ λp. λq. λh. impApply (andFst h)
+
+def iffRight : {p q : Ω} → p ↔ q → q → p using (Core.prop.↔.eq) ≔ λp. λq. λh. impApply (andSnd h)
+
+-- code-prop-eq against ↔: iff-equal propositions are EQUAL codes, so
+-- one can be rewritten to the other anywhere a prop is expected
+def propExtOfIff : {p q : Ω} → p ↔ q → p ≡ q ≔ λp. λq. λh. propExt (iffLeft h) (iffRight h)
+
+-- Curry/uncurry as a logical equivalence (each direction its own
+-- lemma, rather than a literal code-prop-eq equality — code-prop-eq's
+-- automatic search is still 𝟙-/≡-shaped only; only el-squash-i/
+-- el-squash-e-prf were generalized).
+def curry : {p q c : Ω} → p ∧ q ⊃ c → p ⊃ q ⊃ c using (Core.prop.⊃.eq, Core.prop.⊃.unfold) ≔
+  λp. λq. λc. λh. impIntro (λx. impIntro (λy. impApply h (andIntro x y)))
+
+def uncurry : {p q c : Ω} → p ⊃ q ⊃ c → p ∧ q ⊃ c using (Core.prop.⊃.unfold) ≔
+  λp. λq. λc. λh. impIntro (λpq. impApply (impApply h (andFst pq)) (andSnd pq))
+
+-- Weak/intuitionistic excluded middle: ¬¬(p ∨ ¬p) holds constructively
+-- for every proposition, no case split needed — a genuine stress test
+-- of the restricted eliminators (elimination reaches only equations
+-- and further props, never arbitrary types, yet this chains three
+-- levels of squash-elim/⋆ and still lands exactly on ⊥).
+def notNotLem : (p : Ω) → ¬ (¬ (p ∨ ¬ p)) using (Core.prop.¬.eq) ≔
+  λp. impIntro (λk. impApply k (orInr (impIntro (λhp. impApply k (orInl hp)))))
+
+-- Impredicative equivalence closure (the Ω section's flagship payoff
+-- note: "least relations by intersection — e.g. an equivalence closure
+-- r⁺ of an arbitrary relation r, defined by quantifying over all
+-- Ω-valued relations containing r — with no inductive machinery").
+-- rClosure r is the intersection of every equivalence relation
+-- containing r, picked out by a single impredicative Π over Ω itself.
+def rClosure : {A : 𝕌} → (A → A → Ω) → A → A → Ω ≔
+  λA. λr. λa. λb. ∥(R : A → A → Ω)
+    → ((x y : A)
+      → r
+        x
+        y
+        → R
+          x
+          y)
+      → ((x : A)
+        → R x x) → ((x y z : A) → R x y → R y z → R x z) → ((x y : A) → R x y → R y x) → R a b∥
+
+-- containment: instantiate the universal at the caller's own R
+def rClosureContains : {A : 𝕌} (r : A → A → Ω) (a b : A) → r a b → rClosure r a b
+  using (Core.prop.rClosure.unfold) ≔
+  λA. λr. λa. λb. λh. ⋆ (λR. λcont. λrefl. λtrans. λsymm. cont a b h)
+
+-- reflexivity, symmetry, transitivity: rClosure r is itself an
+-- equivalence relation, again by instantiating the universal
+def rClosureRefl : {A : 𝕌} (r : A → A → Ω) (a : A) → rClosure r a a
+  using (Core.prop.rClosure.unfold) ≔
+  λA. λr. λa. ⋆ (λR. λcont. λrefl. λtrans. λsymm. refl a)
+
+def rClosureSymm : {A : 𝕌} {r : A → A → Ω} {a b : A} → rClosure r a b → rClosure r b a
+  using (Core.prop.rClosure.unfold) ≔
+  λA. λr. λa. λb. λh. squash-elim h (u. ⋆ (λR. λcont. λrefl. λtrans. λsymm. symm
+    a
+    b
+    (u (λx. λy. R x y) cont refl trans symm)))
+
+def rClosureTrans : {A : 𝕌}
+  {r : A → A → Ω}
+  {a b c : A}
+  → rClosure r a b → rClosure r b c → rClosure r a c
+  using (Core.prop.rClosure.unfold) ≔
+  λA. λr. λa. λb. λc. λhab. λhbc. squash-elim hab (uab. squash-elim hbc (ubc. ⋆ (λR. λcont. λrefl. λtrans. λsymm. trans
+    a
+    b
+    c
+    (uab R cont refl trans symm)
+    (ubc R cont refl trans symm))))
+
+-- least-ness: rClosure r implies membership in ANY equivalence
+-- relation containing r — unsquash the hypothesis and apply its
+-- universal directly at the caller's Q, no induction, no recursion
+def rClosureLeast : {A : 𝕌}
+  (r Q : A → A → Ω)
+  → ((x y : A)
+    → r
+      x
+      y
+      → Q
+        x
+        y)
+    → ((x : A)
+      → Q
+        x
+        x)
+      → ((x y z : A)
+        → Q x y → Q y z → Q x z) → ((x y : A) → Q x y → Q y x) → (a b : A) → rClosure r a b → Q a b
+  using (Core.prop.rClosure.unfold) ≔
+  λA. λr. λQ. λcontQ. λreflQ. λtransQ. λsymmQ. λa. λb. λh. squash-elim h (u. u
+    (λx. λy. Q x y)
+    contQ
+    reflQ
+    transQ
+    symmQ)

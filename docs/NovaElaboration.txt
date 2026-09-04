@@ -170,7 +170,7 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # literal: everything a data item provides reaches the file as
 # ordinary defs (see the QIIT section).
 
-# M is a dotted module name (Data.Nat); see Modules below.
+# M is a dotted module name (Data.Natural); see Modules below.
 # n is an identifier x or an operator token op — OPERATORS ARE NAMES:
 # `def + : ℕ → ℕ → ℕ ≔ plus` defines the Σ-name "+", a fixity line
 # gives it precedence/associativity for infix use, and `a + b` is
@@ -187,7 +187,7 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # reference, usable anywhere an atom is; local binders are never
 # operator-shaped. A FIXITY-FREE operator token is itself an ordinary
 # name atom — that is how nullary and prefix operator names work
-# (⊥, ⊤, ¬ p in prop.nova); an operator WITH a fixity in scope is
+# (⊥, ⊤, ¬ p in Core/prop.nova); an operator WITH a fixity in scope is
 # infix-only outside the mention form, so application juxtaposition
 # never captures it. A fixity declaration takes effect for the rest
 # of the file and is exported with the name: opening an operator
@@ -1760,7 +1760,7 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
     FProp finals. This is the induction principle for PROPOSITIONS —
     in particular for equality props, which is how open equational
     facts about a QIIT are proven now that equality has no 𝕌-code
-    (e.g. plusQzr in qiitNat.nova: NElimP at the motive
+    (e.g. plusQzr in Qiit/nat.nova: NElimP at the motive
     (λn. (plusQ n z ≡ n ∈ N))):
         def nElimP :
              (C₁ : Π(⌊𝔎₁⌋ᵗ). 𝒮.𝕤₁ δ → Ω) → …               # motives
@@ -2027,11 +2027,18 @@ pointwise, exhibit that g satisfies the clauses.
 
 //////////// Modules /////////////
 
-A MODULE is a file; a dotted module name resolves against the root
-file's directory (import Data.Nat ⇝ <rootDir>/Data/Nat.nova). Import
-lines precede items. The import graph must be a DAG — cycles are
-reported by name — and diamonds are deduplicated by module name, so a
-shared dependency elaborates once per run.
+A MODULE is a file; a dotted module name resolves against the PROJECT
+ROOT (import Data.Natural ⇝ <rootDir>/Data/Natural.nova). The project
+root is the nearest ancestor directory of the entry file holding a
+`nova.root` marker; absent a marker, the entry file's own directory is
+the root, which is the convention a standalone file wants. Resolving
+against a marked root rather than against the entry makes a module's
+name its PATH FROM THAT ROOT — the same name whichever file the run
+entered through, so a nested module elaborates standalone (and under
+the LSP) exactly as it does inside an aggregate root that imports it.
+Import lines precede items. The import graph must be a DAG — cycles
+are reported by name — and diamonds are deduplicated by module name,
+so a shared dependency elaborates once per run.
 
 Execution model: TRANSITIVE RE-ELABORATION. A run loads the graph,
 orders it dependency-first, and elaborates every module through the
@@ -2516,7 +2523,7 @@ nothing is refined. With it the hole is minted at the written type
 (e-ann), and the switch conversion A[(x1,x2)/x] ≐ A[x] closes on the
 spot: a let is always a redex (el-let-beta), so x1 and x2 reduce to
 their projections and the leaf (x .π₁, x .π₂) ≐ x is el-sigma-eta.
-The corpus writes this by hand already — letExpr.nova's letShared
+The corpus writes this by hand already — Lang/letExpr.nova's letShared
 restates a goal at an abbreviation the same way.
 
 FULLY ITERATED is the same emission run depth-first, keeping the

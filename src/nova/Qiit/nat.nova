@@ -1,0 +1,34 @@
+-- ℕ as a QIIT (docs/NovaFoundation.txt, SUBSUMPTION): a one-line
+-- signature, with the derived eliminator computing by el-qiit-beta.
+
+data ( N : U
+     ; z : El N
+     ; s : El N → El N )
+
+def plusQ : N → N → N using (Qiit.nat.N.unfold) ≔ λa. λb. NElim (λn. N) b (λn. λih. s ih) a
+
+def plusQzl : (b : N) → plusQ z b ≡ b
+  using (Qiit.nat.N.eq,
+    Qiit.nat.N.unfold,
+    Qiit.nat.NElim.eq,
+    Qiit.nat.plusQ.eq,
+    Qiit.nat.s.eq,
+    Qiit.nat.z.eq) ≔
+  λb. ⋆
+
+def plusQsl : (a b : N) → plusQ (s a) b ≡ s (plusQ a b)
+  using (Qiit.nat.N.eq, Qiit.nat.N.unfold, Qiit.nat.NElim.eq, Qiit.nat.plusQ.eq, Qiit.nat.s.eq) ≔
+  λa. λb. ⋆
+
+-- induction: plusQ a z ≡ a, by NElimP at the equality PROP motive
+-- (equality is Ω-valued: the prop-flavored eliminator carries Ω-valued
+-- motives and, by proof irrelevance, needs no coherence arguments)
+def plusQzr : (a : N) → plusQ a z ≡ a
+  using (hyp.rw,
+    Qiit.nat.N.eq,
+    Qiit.nat.N.unfold,
+    Qiit.nat.NElim.eq,
+    Qiit.nat.plusQ.eq,
+    Qiit.nat.s.eq,
+    Qiit.nat.z.eq) ≔
+  λa. NElimP (λn. plusQ n z ≡ n) ⋆ (λn. λih. ⋆) a

@@ -113,7 +113,7 @@ in
       script = ''
         export HOME=$TMPDIR
         export NOVA_NVIM_PLUGIN=${nvim.plugin}
-        nvim --headless -u editors/nvim/test/attach.lua src/nova/nat.nova
+        nvim --headless -u editors/nvim/test/attach.lua src/nova/Natural.nova
       '';
     };
 

@@ -1,0 +1,66 @@
+-- Defining equations (docs/NovaElaboration.txt, "Defining equations"):
+-- a def with clauses is an ITEM MACRO expanding into the definition
+-- proper, one Π-closed equation lemma per clause, and the pointwise
+-- uniqueness lemma — the three pieces of the contractibility
+-- contract. Everything in this file is accepted with zero
+-- obligations.
+-- ℕ split with structural recursion: the witness is a synthesized
+-- ℕ-elim, the clause lemmas (plusZ, plusS) hold by computation, and
+-- plusEta is the A5-route uniqueness proof — an ordinary eliminator
+-- lemma at an equality motive, no η rule involved.
+
+def plus : ℕ → ℕ → ℕ
+  | plus Z n ≔ n
+  | plus (S m) n ≔ S (plus m n)
+
+-- the generated clause lemmas are ordinary accepted lemmas: an
+-- induction cites plusZ/plusS silently, through E's lemma source
+def plusZr : (n : ℕ) → plus n Z ≡ n using (Lang.definingEq.plusZ, plus.eq) ≔
+  λn. ℕ-elim ⋆ (k ih. ⋆) n
+
+-- the uniqueness lemma is the recursor's universal property: any
+-- candidate satisfying the clauses IS plus — here a hand-written
+-- eliminator, its clause hypotheses paid by computation
+def plusByHand : ℕ → ℕ → ℕ ≔ λm. λn. ℕ-elim n (k ih. S ih) m
+
+def byHandIsPlus : (m n : ℕ) → plusByHand m n ≡ plus m n using (Lang.definingEq.plusByHand.eq) ≔
+  λm. λn. plusEta plusByHand (λx. ⋆) (λk. λx. ⋆) m n
+
+-- recursion at a CHANGED trailing argument is in the fragment: the
+-- Π-motive over the trailing columns makes the induction hypothesis
+-- a function
+def addAcc : ℕ → ℕ → ℕ
+  | addAcc Z n ≔ n
+  | addAcc (S m) n ≔ addAcc m (S n)
+
+-- ⊎ split (no recursion — ⊎-elim has no induction hypothesis)
+def swap : ℕ ⊎ 𝟙 → 𝟙 ⊎ ℕ
+  | swap (inj₁ n) ≔ inj₂ n
+  | swap (inj₂ u) ≔ inj₁ u
+
+-- the no-split form: a single all-variable clause
+def double : ℕ → ℕ
+  | double n ≔ plus n n
+
+-- an operator-named item has no identifier to prefix: every
+-- generated name is overridden
+infixl 6 ⊞
+def ⊞ : ℕ → ℕ → ℕ [oplusEta]
+  | Z ⊞ n ≔ n [oplusZ]
+  | S m ⊞ n ≔ S (m ⊞ n) [oplusS]
+
+-- the WITNESS form: existence supplied by hand, the clause lemmas
+-- paid with ⋆ (here by computation), uniqueness still synthesized —
+-- the eta proof rewrites by the clause lemmas, never by unfolding
+-- the witness
+def pred : ℕ → ℕ ≔ λn. ℕ-elim Z (k ih. k) n
+  | pred Z ≔ Z
+  | pred (S m) ≔ m
+
+-- a recursive call NESTED under another application: mulEta's
+-- ih-rewrite lands inside an argument of a stuck eliminator spine —
+-- discharged through the kernel's NEUTRAL-SUBTERM rule
+-- (docs/NovaKernel.txt §6) and the unknown-type congruence descent
+def mul : ℕ → ℕ → ℕ
+  | mul Z n ≔ Z
+  | mul (S m) n ≔ plus n (mul m n)

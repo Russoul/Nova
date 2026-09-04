@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Checks that every src/nova/*.nova module elaborates with zero
-# obligations.
+# Checks that every module under src/nova/ elaborates with zero
+# obligations. The corpus is a TREE: a module's name is its path from
+# src/nova with '/' turned into '.' (src/nova/Real/mul.nova is the
+# module Real.mul), which is exactly how the loader resolves it against
+# the nova.root marker.
 #
 # By default this is ONE run over src/nova/all.nova, which imports every
 # module: the loader deduplicates by module name, so a shared dependency
@@ -26,17 +29,23 @@ fi
 
 ALL="src/nova/all.nova"
 
+# every corpus module, as a dotted module name (src/nova/Real/mul.nova
+# ⇝ Real.mul), all.nova itself excluded
+modules() {
+  find src/nova -name '*.nova' ! -name all.nova \
+    | sed -e 's|^src/nova/||' -e 's|\.nova$||' -e 's|/|.|g' \
+    | LC_ALL=C sort
+}
+
 # all.nova must list every module, or the fast path would silently skip
 # one
 missing=0
-for file in src/nova/*.nova; do
-  name="$(basename "$file" .nova)"
-  [ "$name" = "all" ] && continue
+while IFS= read -r name; do
   if ! grep -q "^import ${name}\$" "$ALL"; then
     echo "FAIL: $name is not imported by $ALL"
     missing=$((missing + 1))
   fi
-done
+done < <(modules)
 if [ "$missing" -gt 0 ]; then
   echo "$ALL is out of date — add the missing imports"
   exit 1
@@ -45,9 +54,8 @@ fi
 if [ "${1:-}" = "--per-file" ]; then
   pass=0
   fail=0
-  for file in src/nova/*.nova; do
-    name="$(basename "$file" .nova)"
-    [ "$name" = "all" ] && continue
+  while IFS= read -r name; do
+    file="src/nova/$(echo "$name" | tr '.' '/').nova"
     if output="$("$APP" elab "$file" 2>&1)"; then
       pass=$((pass + 1))
     else
@@ -55,7 +63,7 @@ if [ "${1:-}" = "--per-file" ]; then
       echo "FAIL: $name"
       echo "$output" | sed 's/^/  /'
     fi
-  done
+  done < <(modules)
   total=$((pass + fail))
   echo "$pass/$total elaborations passed (per-file)"
   [ "$fail" -eq 0 ] || exit 1

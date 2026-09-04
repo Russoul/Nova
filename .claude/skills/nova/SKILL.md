@@ -183,8 +183,8 @@ comes from the expected ν-type; β: `out (corec …)` runs one step);
 Idioms: conjunction/existential invariants are squashed Σs —
 `squash-elim h (w. ⋆ (…))` unpacks them, and the engine harvests
 `w`'s projected equations automatically; `u ≡ ⟨machine⟩`-shaped
-components act as unfold-once rewrite rules. See stream.nova's
-tlCons and streamBisim.nova's bisimReflect);
+components act as unfold-once rewrite rules. See Codata/stream.nova's
+tlCons and Codata/streamBisim.nova's bisimReflect);
 `⋆` (canonical proof; `⋆ e` with explicit witness);
 `squash-elim e (x. body)`. Universe codes are written like their types
 (`𝟘 𝟙 ℕ`, `(x : t) → u`, `l ≡ r ∈ t`).
@@ -311,41 +311,57 @@ data [a : 𝕌] [r : El a → El a → Ω]
 - `docs/NovaElaboration.txt` — surface syntax and the discharge engine.
 - `docs/NovaKernel.txt` — certificates and approximations (A1–A6).
 - `docs/NovaPipeline.txt` — the trust architecture.
-- `src/nova/` — the corpus, one topic per file: `nat` (arithmetic),
-  `sum` (the disjoint union ⊎: inj₁/inj₂, ⊎-elim, β/η, derived
-  injectivity and disjointness),
-  `stream` (coinductive streams and conaturals: ν, out, corec,
-  β-driven observation lemmas, tlCons by graph-invariant coind),
-  `streamEq`/`streamBisim` (observational equality in Ω, bisimilarity
-  as the impredicative gfp, bisimReflect — bisimilarity implies
-  equality — and the map-id/map-fusion equalities),
-  `equality`/`prop` (≡ and Ω), `quotient`/`quottyuniv` (quotients),
-  `vect`/`vectAppend` (𝕌-indexed families), `qiitNat`/`qiitBag`/
-  `qiitQuot`/`qiitVec` (QIIT basics), `id` (the identity family —
-  structural equality as a small QIIT, with ≡-bridges), `qiitInt`
-  (recursive equations),
-  `qiitConTy` (induction-induction), `qiitCross` (definitions built on
-  earlier QIITs), `integer*` (a worked development).
-- The ℕ → ℤ → ℚ → ℝ tower, in dependency order: `nat`/`natMore`/
-  `natOrder` (arithmetic, monus/max/exp, ≤), `integer*`/`intOrder`/
-  `intAbs` (ℤ and its magnitude), `rational`/`rationalQ`/`rationalOrder`
-  (ℚ and its sign-based ≤), then `ratBound` (two-sided bounds `Bnd b u`
-  — the absolute-value-free primitive everything else is stated in),
-  `ratAbs`/`ratMax` (|·|, max, min, each characterised by a
-  least/greatest property), `ratLt` (strict <), `ratHalf` (the halving
-  law 1/(2n+2)+1/(2n+2) = 1/(n+1)) and `ratArch` (the Archimedean
+- `src/nova/` — the corpus, a TREE whose directories ARE namespace
+  segments: a module's dotted name is its path from `src/nova`
+  (`src/nova/Real/mul.nova` is the module `Real.mul`, and its entries
+  are `Real.mul.x`). `src/nova/nova.root` marks the root imports
+  resolve against, so every module elaborates standalone exactly as it
+  does inside `all.nova`. The groups:
+  - `Core/` — `equality`/`prop` (≡ and Ω), `id` (the identity family —
+    structural equality as a small QIIT, with ≡-bridges), `uip`,
+    `bracket`, `propCode`, `sum` (the disjoint union ⊎: inj₁/inj₂,
+    ⊎-elim, β/η, derived injectivity and disjointness), `prelude`,
+    `quotEffective`.
+  - `Lang/` — one language feature per file: `definingEq`, `letExpr`,
+    `eqElim`/`sigmaElim`/`sumElim`/`unsquash` (variable elimination),
+    `quotient`/`quotTyUniv` (quotients), `vectByInd`/`vectByIndAppend`
+    (𝕌-indexed families).
+  - `Qiit/` — `nat`/`bag`/`quot`/`vec` (QIIT basics), `int` (recursive
+    equations), `conTy` (induction-induction), `cross` (definitions
+    built on earlier QIITs).
+  - `Codata/` — `stream` (coinductive streams: ν, out, corec, β-driven
+    observation lemmas, tlCons by graph-invariant coind), `conat`,
+    `streamEq`/`streamBisim` (observational equality in Ω, bisimilarity
+    as the impredicative gfp, bisimReflect — bisimilarity implies
+    equality — and the map-id/map-fusion equalities).
+  - `Algebra/` — `monoid`, `group`, `groupTheory`, `subgroup`,
+    `quotGroup`, `groupHom`, `groupIso`, `ring`, `ringTheory`, `ideal`,
+    `quotRing`, `field`.
+- The ℕ → ℤ → ℚ → ℝ tower, in dependency order. Each level is a base
+  module beside a directory of its own: `Natural.nova` + `Natural/`,
+  and likewise `Int`, `Rat`, `Real`.
+  `Natural`/`Natural.more`/`Natural.order` (arithmetic, monus/max/exp,
+  ≤), `Int`/`Int.add`/`Int.mul`/`Int.order`/`Int.abs` (ℤ and its
+  magnitude; `Int` itself is a worked development),
+  `Rat.frac`/`Rat`/`Rat.order` (the structurally-non-zero-denominator
+  fractions, ℚ as their quotient, and ℚ's sign-based ≤), then
+  `Rat.bound` (two-sided bounds `Bnd b u` — the absolute-value-free
+  primitive everything else is stated in), `Rat.abs`/`Rat.max` (|·|,
+  max, min, each characterised by a least/greatest property),
+  `Rat.lt` (strict <), `Rat.half` (the halving law
+  1/(2n+2)+1/(2n+2) = 1/(n+1)) and `Rat.arch` (the Archimedean
   property, and `leQOfArch`: "≤ b + 1/(k+1) for every k" collapses to
   "≤ b").
-  ℝ is Bishop's regular sequences: `real` (the carrier), `realNeg`,
-  `realAdd` (doubled sampling), `realEq` (REq is an equivalence),
-  `realOrder` (≤, Ω-valued so it descends by propext), `realAbs`,
-  `realLattice`, `realLt`, `realGroup`, `realMetric`. Rule of thumb
+  ℝ is Bishop's regular sequences: `Real` (the carrier), `Real.neg`,
+  `Real.add` (doubled sampling), `Real.eq` (REq is an equivalence),
+  `Real.order` (≤, Ω-valued so it descends by propext), `Real.abs`,
+  `Real.lattice`, `Real.lt`, `Real.group`, `Real.metric`. Rule of thumb
   learned there: an operation that is 1-Lipschitz on ℚ lifts
   POINTWISE; one that is not (+) must sample at doubled indices, and
   any relation that is not must be repaired by `leQOfArch`.
-  `realSeq` is the bridge `uip.nova` opened: order verdicts are unique
-  (`ratBound.leQIsProp`), hence so are regularity witnesses, hence
-  `RSeq` is a SET whose equality is equality of the sequence
+  `Real.seq` is the bridge `Core/uip.nova` opened: order verdicts are
+  unique (`Rat.bound.leQIsProp`), hence so are regularity witnesses,
+  hence `RSeq` is a SET whose equality is equality of the sequence
   (`rseqEq`). Use it when you need to reason about representatives —
   notably `wdOuterOfComm`, which gets a binary operation's outer
   well-definedness free from its inner one plus commutativity.

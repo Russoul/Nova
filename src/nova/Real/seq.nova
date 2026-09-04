@@ -1,0 +1,101 @@
+-- RSeq IS A SET, and its equality is equality of the underlying
+-- sequence. This is what `uip` bought: a regularity witness is data
+-- (a Σ-code cannot carry a prop), but it is data with exactly one
+-- inhabitant per f — `bndIsProp` at every index pair, then dependent
+-- funext twice.
+--
+-- Without this the only route from "the sequences agree" to "the reals
+-- agree" was through the quotient relation REq. That route still
+-- exists and is still the cheaper one for most laws; what this module
+-- adds is the ability to reason about the REPRESENTATIVES, which is
+-- what makes an operation's outer well-definedness derivable from its
+-- inner one by commutativity — the `Rat.qAddWDOuterCls` idiom,
+-- previously unavailable one level up (see Real/add.nova).
+
+import Rat (Q, +, qNeg)
+import Rat.order (≤)
+import Rat.bound (Bnd, bndIsProp)
+import Real (rBound, Regular, RSeq, REq, Real)
+import Real.neg (seqOf, regOf)
+import Core.prelude (funext)
+import Core.equality (trans, sym, cong, transport, pairext)
+
+def regularIsProp : (f : ℕ → Q) (p q : Regular f) → p ≡ q
+  using (Rat.Q.unfold, Real.Regular.unfold) ≔
+  λf. λp. λq. funext (λm. funext (λn. bndIsProp _ _ (p m n) (q m n)))
+
+-- The witness of y has to be READ at Regular (seqOf x), and the
+-- conversion Regular (seqOf y) ≐ Regular (seqOf x) is not one the
+-- kernel will replay: rewriting the sequence lands inside qAdd, i.e.
+-- inside a quot-elim scrutinee (B-1). `transport` moves it instead —
+-- it is the identity function, so nothing is inserted, but its
+-- SIGNATURE does the retyping and the conversion is never demanded
+-- here (D-3: it was discharged once, at an abstract motive).
+def rseqEqAt : {x y : RSeq} → (seqOf x ≡ seqOf y) → x ≡ y
+  using (Core.equality.sym.eq,
+    Core.equality.transport.eq,
+    Core.id.Id.eq,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.Q.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.Regular.eq,
+    Real.Regular.unfold,
+    Real.rBound.eq,
+    Real.neg.regOf.eq,
+    Real.neg.seqOf.eq) ≔
+  λx. λy. λh. pairext {}
+    _
+    Regular
+    _
+    _
+    h
+    (regularIsProp _ (regOf x) (transport (λf. Regular f) (sym _ _ h) (regOf y)))
+
+def rseqEq : {x y : RSeq} → ((n : ℕ) → seqOf x n ≡ seqOf y n) → x ≡ y ≔
+  λx. λy. λe. rseqEqAt (funext e)
+
+-- ...and hence equal reals, without going through REq at all
+def realEqOfSeqEq : (x y : RSeq) → ((n : ℕ) → seqOf x n ≡ seqOf y n) → class x ≡ class y ∈ Real
+  using (Real.Real.unfold) ≔
+  λx. λy. λe. cong (λw. Real) (λw. class w) (rseqEq e)
+
+-- ===== outer well-definedness, for free, from commutativity =====
+--
+-- A binary operation on ℝ descends by a NESTED quot-elim and so owes
+-- two well-definedness proofs. Rat.nova gets the outer one free
+-- for `qAdd`, by commuting: `ratAddComm` is an equation in `Rat`, and
+-- Rat is a plain Σ-code. One level up the same move needs `rseqEq`,
+-- because commutativity of an operation on RSeq is an equation whose
+-- two sides carry different regularity witnesses.
+--
+-- Stated once, generically in the operation: realAdd, realMax and
+-- realMin each spend it in one line, in place of a transcription of
+-- their inner proof with the arguments swapped.
+def wdOuterOfComm : (op : RSeq → RSeq → RSeq)
+  → ((a b : RSeq)
+    → op
+      a
+      b ≡ op
+      b
+      a)
+    → ((a b b' : RSeq)
+      → REq
+        b
+        b'
+        → class (op
+          a
+          b) ≡ class (op
+          a
+          b') ∈ Real) → (x x' c : RSeq) → REq x x' → class (op x c) ≡ class (op x' c) ∈ Real
+  using (Real.Real.unfold) ≔
+  λop. λcomm. λinner. λx. λx'. λc. λh. trans
+    _
+    _
+    _
+    (cong (λw. Real) (λw. class w) (comm x c))
+    (trans _ _ _ (inner c x x' h) (cong (λw. Real) (λw. class w) (sym _ _ (comm x' c))))

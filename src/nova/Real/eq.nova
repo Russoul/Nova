@@ -1,0 +1,127 @@
+-- REq is an EQUIVALENCE. Reflexivity and symmetry were free
+-- (Real/neg.nova); transitivity is not, and it is the first fact in
+-- this development that needs Rat/arch.nova's closeness principle:
+-- chaining two 2/(n+1) bounds naively gives 4/(n+1), which is too
+-- weak, so the chain is run at a DEEPER index m and the slack is
+-- driven below every 1/(k+1).
+--
+-- The four legs are
+--   x_n − x_m , x_m − y_m , y_m − z_m , z_m − z_n
+-- whose bounds sum to 2/(n+1) + 6/(m+1). Sampling at m = 8(k+1) − 1
+-- turns the second summand into 3/(4k+4), which sits under 1/(k+1) —
+-- leQTripleInv — and bndOfArch then removes the slack entirely.
+-- the quarter index: 1/(qtr k + 1) is 1/(4k+4)
+
+import Rat (Q, +, qNeg, qAddComm)
+import Rat.order (≤, leQPlusMonoL)
+import Rat.bound (Bnd, bndVia, bndEq, bndEqB, bndWeaken)
+import Rat.half (dbl, qInvHalf)
+import Rat.arch (bndOfArch, qFourSum, leQTripleInv)
+import Real (qInvNat, rBound, RSeq, REq, Real)
+import Real.neg (seqOf, regOf, regBnd, reqOf, reqRefl, reqSym, realEqOfREq)
+import Real.add (rBoundHalf)
+import Core.equality (trans, sym, cong, transport)
+
+def qtr : ℕ → ℕ ≔ λk. dbl (dbl k)
+
+-- one slack-carrying bound on the two-step difference
+def reqStep : (x y z : RSeq)
+  → ((j : ℕ)
+    → Bnd
+      (rBound j j)
+      (seqOf
+        x
+        j
+        + qNeg
+          (seqOf
+            y
+            j)))
+    → ((j : ℕ)
+      → Bnd
+        (rBound j j)
+        (seqOf
+          y
+          j
+          + qNeg
+            (seqOf z j))) → (n k : ℕ) → Bnd (rBound n n + qInvNat k) (seqOf x n + qNeg (seqOf z n))
+  using (Core.id.Id.eq,
+    Rat.bound.Bnd.unfold,
+    Rat.half.dbl.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.qInvNat.eq,
+    Real.rBound.eq,
+    Real.eq.qtr.eq) ≔
+  λx. λy. λz. λu. λv. λn. λk. bndWeaken
+    _
+    _
+    _
+    (leQPlusMonoL
+      (qInvNat (qtr k) + (qInvNat (qtr k) + qInvNat (qtr k)))
+      (qInvNat k)
+      (rBound n n)
+      (leQTripleInv k))
+    (bndEqB
+      _
+      (rBound n n + (qInvNat (qtr k) + (qInvNat (qtr k) + qInvNat (qtr k))))
+      _
+      (cong (λw. Q) (λw. rBound n n + (w + rBound (qtr k) (qtr k))) (qInvHalf (qtr k)))
+      (bndEqB
+        (rBound n (dbl (qtr k)) + rBound (qtr k) (qtr k) + rBound (dbl (qtr k)) n)
+        (qInvNat
+          n + qInvNat n + (qInvNat (dbl (qtr k)) + qInvNat (dbl (qtr k)) + rBound (qtr k) (qtr k)))
+        _
+        (qFourSum (qInvNat n) (qInvNat (dbl (qtr k))) (rBound (qtr k) (qtr k)))
+        (bndVia
+          _
+          _
+          _
+          _
+          _
+          (bndVia
+            _
+            _
+            _
+            _
+            _
+            (regBnd _ (regOf x) n (dbl (qtr k)))
+            (bndEqB
+              _
+              _
+              _
+              (rBoundHalf (qtr k) (qtr k))
+              (bndVia _ _ _ _ _ (u (dbl (qtr k))) (v (dbl (qtr k))))))
+          (regBnd _ (regOf z) (dbl (qtr k)) n))))
+
+def reqTrans : {x : RSeq} (y : RSeq) {z : RSeq} → REq x y → REq y z → REq x z
+  using (Core.id.Id.eq,
+    Rat.bound.Bnd.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.rBound.eq,
+    Real.neg.seqOf.eq) ≔
+  λx. λy. λz. λhxy. λhyz. squash-elim hxy (u. squash-elim hyz (v. reqOf
+    _
+    _
+    (λn. bndOfArch (seqOf x n + qNeg (seqOf z n)) (λk. reqStep x y z u v n k))))
+
+-- ...so REq-related representatives name the same real, and the
+-- quotient is by an honest equivalence
+def realEqTrans : (x y z : RSeq) → REq x y → REq y z → class x ≡ class z ∈ Real
+  using (Real.Real.unfold) ≔
+  λx. λy. λz. λh1. λh2. realEqOfREq _ _ (reqTrans _ h1 h2)

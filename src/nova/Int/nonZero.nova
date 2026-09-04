@@ -1,0 +1,106 @@
+-- The DATA-valued view of an integer: either an NZ whose image it is,
+-- or a proof that it is zero. This is Rat/inv.nova's intNZView with
+-- the squash removed — and removing the squash is exactly what turns
+-- "an inverse exists" into "here is the inverse".
+--
+-- It is definable because intCanon is an honest FUNCTION Int → ℕ × ℕ
+-- (its well-definedness was discharged in Int/eq.nova), so the case
+-- analysis below is on nats, not on a quotient: no further
+-- well-definedness obligation arises, and nothing has to be erased.
+-- ===== the view =====
+
+import Natural (+, *, zeroMult, multSucId, sucPlus, plusComm)
+import Int (Int, IntR, intZero, intOne)
+import Int.mul (*, intMulCong2, classPairEta)
+import Natural.eq (zNotS)
+import Int.eq (intCanon, intCanonClass)
+import Core.prop (¬, ⊥, absurdP)
+import Rat.frac (NZ, nzPos, nzNeg, nzToInt, nzMul)
+import Rat (nzToIntMul)
+import Int.effective (intEffective)
+import Rat.inv (nzOfPair, notIntro, notApply, intCanonProdZero)
+import Core.equality (trans, sym, cong)
+
+def nzOfPairD : (a b : ℕ)
+  (hab : a * b ≡ Z)
+  → ((e : NZ) × nzToInt e ≡ class (a, b)) ⊎ (class (a, b) ≡ intZero)
+  using (Int.Int.unfold,
+    Int.intZero.eq,
+    Rat.frac.nzNeg.eq,
+    Rat.frac.nzPos.eq,
+    Rat.frac.nzToInt.eq,
+    sucPlus,
+    zeroMult) ≔
+  λa. ℕ-elim
+    (λb. ℕ-elim (λhab. inj₂ ⋆) (j ihb. λhab. inj₁ (nzNeg j, ⋆)) b)
+    (k ih. λb. ℕ-elim
+      (λhab. inj₁ (nzPos k, ⋆))
+      (j ihb. λhab. 𝟘-elim (zNotS
+        (trans _ _ _ (sym _ _ hab) (trans _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))))
+      b)
+    a
+
+-- kept abstract in p, as always (docs/ProvingFeedback.md D-3)
+def nzOfIntAt : {z : Int}
+  (p : ℕ × ℕ)
+  (hz : class p ≡ z)
+  (hab : p .π₁ * p .π₂ ≡ Z)
+  → ((e : NZ) × nzToInt e ≡ z) ⊎ (z ≡ intZero)
+  using (classPairEta, Int.Int.unfold) ≔
+  λz. λp. λhz. λhab. ⊎-elim
+    (u. inj₁ (u .π₁, trans _ _ _ (u .π₂) (trans _ _ _ (classPairEta p) hz)))
+    (u. inj₂ (trans _ _ _ (sym _ _ (trans _ _ _ (classPairEta p) hz)) u))
+    (nzOfPairD _ _ hab)
+
+def nzOfInt : (z : Int) → ((e : NZ) × nzToInt e ≡ z) ⊎ (z ≡ intZero) using (intCanonClass) ≔
+  λz. nzOfIntAt _ (intCanonClass z) (intCanonProdZero z)
+
+-- ===== the image of NZ misses zero =====
+-- a disequality of CLASSES from a refuted relation: this is what
+-- effectivity is for. Before Int/effective.nova landed the only route
+-- was through a computing observational equality (Int/eq.nova's EqZ);
+-- now the class equation hands IntR back directly.
+def intNeqOfNotRel : {p q : ℕ × ℕ} (k : IntR p q → 𝟘) → ¬ (class p ≡ class q ∈ Int)
+  using (Int.Int.unfold, Core.prop.¬.unfold, Core.prop.⊃.unfold, Core.prop.⊥.unfold) ≔
+  λp. λq. λk. notIntro _ (λh. ⋆ (k (intEffective h)))
+
+-- IntR (S n , Z) (Z , Z) reduces to S n ≡ Z, and IntR (Z , S n) (Z , Z)
+-- to Z ≡ S n — both refuted by Natural/eq.nova's zNotS
+def nzToIntNonZero : (e : NZ) → ¬ (nzToInt e ≡ intZero)
+  using (Int.IntR.eq,
+    Int.IntR.unfold,
+    Int.intZero.eq,
+    Natural.plusZeroId,
+    Natural.zeroPlusId,
+    Core.prop.¬.unfold,
+    Core.prop.⊃.unfold,
+    Rat.frac.NZ.unfold,
+    Rat.frac.nzToInt.eq) ≔
+  λe. ⊎-elim (n. intNeqOfNotRel (λr. zNotS (sym (S n) Z r))) (n. intNeqOfNotRel (λr. zNotS {n} r)) e
+
+-- ===== ℤ has no zero divisors =====
+--
+-- Constructive, and with no double-negation: the view above DECIDES
+-- whether x is zero, so the argument is a case split, not a refutation.
+def intNoZeroDiv : {x : Int}
+  (y : Int)
+  (hxy : x * y ≡ intZero)
+  (hy : ¬ (y ≡ intZero))
+  → x ≡ intZero ≔
+  λx. λy. λhxy. λhy. ⊎-elim
+    (ex. ⊎-elim
+      (ey. absurdP
+        _
+        (notApply
+          _
+          (nzToIntNonZero (nzMul (ex .π₁) (ey .π₁)))
+          (trans
+            _
+            _
+            _
+            (trans _ _ _ (nzToIntMul (ex .π₁) (ey .π₁)) (intMulCong2 _ _ _ _ (ex .π₂) (ey .π₂)))
+            hxy)))
+      (ey. absurdP _ (notApply _ hy ey))
+      (nzOfInt y))
+    (ex. ex)
+    (nzOfInt x)

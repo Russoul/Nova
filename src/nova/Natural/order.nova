@@ -1,0 +1,172 @@
+-- Order on ℕ as DATA: a ≤ b is a CODE inhabited by a difference and
+-- the Id-witness that it closes the gap — the OnlyZ pattern of
+-- Core/id.nova, scaled to a theory. Everything downstream (ℤ order, ℚ
+-- order, the reals' moduli and bounds) consumes these as Σ-data, so
+-- no choice principle is ever needed: a bound IS its witness.
+
+import Natural (+, *, plusZeroId, zeroPlusId, sucPlus, plusComm, plusAssoc, plusCongL, plusCongR, sucInj, plusCancel, multDistrib, multComm)
+import Natural.eq (zNotS)
+import Core.equality (trans, sym, cong)
+import Core.id (Id, idToEq, eqToId)
+
+infixl 4 ≤
+def ≤ : ℕ → ℕ → 𝕌 ≔ λa. λb. (k : ℕ) × Id _ (a + k) b
+
+-- ===== basics =====
+def leRefl : (a : ℕ) → a ≤ a using (Natural.order.≤.unfold) ≔ λa. Z, eqToId _ _ (plusZeroId a)
+
+def leOfEq : {a b : ℕ} → (a ≡ b) → a ≤ b using (Natural.order.≤.unfold) ≔
+  λa. λb. λh. Z, eqToId _ _ (trans _ _ _ (plusZeroId a) h)
+
+def leZero : (a : ℕ) → Z ≤ a using (Natural.order.≤.unfold) ≔ λa. a, eqToId _ _ (zeroPlusId a)
+
+-- a + S Z unwinds to S a by computation alone
+def leSucSelf : (a : ℕ) → a ≤ S a using (Natural.+.eq, Natural.order.≤.unfold) ≔
+  λa. S Z, eqToId _ _ ⋆
+
+def leStep : {a b : ℕ} → a ≤ b → a ≤ S b
+  using (+.eq, Natural.order.≤.eq, Core.id.Id.unfold, Core.id.idToEq.eq, Natural.order.≤.unfold) ≔
+  λa. λb. λle. S (le .π₁), eqToId _ _ (let h ≔ idToEq _ _ _ (le .π₂) in ⋆)
+
+-- ===== transitivity, antisymmetry =====
+def leTrans : (a b c : ℕ) → a ≤ b → b ≤ c → a ≤ c
+  using (Core.id.Id.unfold, Natural.order.≤.unfold) ≔
+  λa. λb. λc. λl1. λl2. l1 .π₁
+    + l2 .π₁,
+    eqToId
+      _
+      _
+      (let h1 ≔ idToEq
+        _
+        _
+        _
+        (l1 .π₂) in let h2 ≔ idToEq
+        _
+        _
+        _
+        (l2 .π₂) in a + (l1 .π₁ + l2 .π₁)
+          ≡⟨ sym _ _ (plusAssoc a (l1 .π₁) (l2 .π₁)) ⟩ a + l1 .π₁ + l2 .π₁
+          ≡⟨ plusCongL (l2 .π₁) h1 ⟩ b + l2 .π₁
+          ≡⟨ h2 ⟩ c)
+
+-- a summand of zero is zero (both sides)
+def sumZeroR : (x y : ℕ) → (x + y ≡ Z) → y ≡ Z using (Natural.plusSucId) ≔
+  λx. λy. ℕ-elim (λh. ⋆) (j ih. λh. 𝟘-elim (zNotS {x + j} (sym (x + S j) _ h))) y
+
+def sumZeroL : (x y : ℕ) → (x + y ≡ Z) → x ≡ Z ≔
+  λx. λy. λh. sumZeroR _ _ (trans _ _ _ (plusComm x y) h)
+
+def leZeroInv : {a : ℕ} → a ≤ Z → a ≡ Z using (Natural.order.≤.unfold) ≔
+  λa. λle. sumZeroL _ _ (trans _ _ Z (idToEq _ _ _ (le .π₂)) ⋆)
+
+def leAntisym : (a b : ℕ) → a ≤ b → b ≤ a → a ≡ b
+  using (Core.id.Id.unfold, Natural.order.≤.unfold) ≔
+  λa. λb. λl1. λl2. let h1 ≔ idToEq
+    _
+    _
+    _
+    (l1 .π₂) in let h2 ≔ idToEq
+    _
+    _
+    _
+    (l2 .π₂) in let loop : a
+    + (l1 .π₁
+      + l2 .π₁) ≡ a ≔ a + (l1 .π₁ + l2 .π₁)
+      ≡⟨ sym _ _ (plusAssoc a (l1 .π₁) (l2 .π₁)) ⟩ a + l1 .π₁ + l2 .π₁
+      ≡⟨ plusCongL (l2 .π₁) h1 ⟩ b + l2 .π₁
+      ≡⟨ h2 ⟩ a in let kz ≔ plusCancel
+    (l1 .π₁ + l2 .π₁)
+    Z
+    a
+    (l1 .π₁ + l2 .π₁ + a
+        ≡⟨ plusComm a (l1 .π₁ + l2 .π₁) ⟩ a + (l1 .π₁ + l2 .π₁)
+        ≡⟨ loop ⟩ a
+        ≡⟨ sym
+          _
+          _
+          (zeroPlusId
+            a) ⟩ Z
+          + a) in let k1z ≔ sumZeroL
+    _
+    _
+    kz in a ≡⟨ sym _ _ (plusZeroId a) ⟩ a + Z ≡⟨ plusCongR a (sym _ _ k1z) ⟩ a + l1 .π₁ ≡⟨ h1 ⟩ b
+
+-- ===== monotonicity =====
+def leSucMono : {a b : ℕ} → a ≤ b → S a ≤ S b using (Core.id.Id.unfold, Natural.order.≤.unfold) ≔
+  λa. λb. λle. le .π₁,
+    eqToId
+      _
+      _
+      (let h ≔ idToEq
+        _
+        _
+        _
+        (le .π₂) in S a + le .π₁
+          ≡⟨ sucPlus a (le .π₁) ⟩ S (a + le .π₁)
+          ≡⟨ cong (λu. ℕ) (λu. S u) h ⟩ S b)
+
+def leSucInv : (a b : ℕ) → S a ≤ S b → a ≤ b using (Core.id.Id.unfold, Natural.order.≤.unfold) ≔
+  λa. λb. λle. le .π₁,
+    eqToId
+      _
+      _
+      (sucInj
+        (a + le .π₁)
+        b
+        (let h ≔ idToEq
+          _
+          _
+          _
+          (le .π₂) in S (a + le .π₁) ≡⟨ sym _ _ (sucPlus a (le .π₁)) ⟩ S a + le .π₁ ≡⟨ h ⟩ S b))
+
+def lePlusMonoR : {a : ℕ} (b c : ℕ) → a ≤ b → a + c ≤ b + c
+  using (Core.id.Id.unfold, Natural.order.≤.unfold) ≔
+  λa. λb. λc. λle. le .π₁,
+    eqToId
+      _
+      _
+      (let h ≔ idToEq
+        _
+        _
+        _
+        (le .π₂) in a + c + le .π₁
+          ≡⟨ plusAssoc a c (le .π₁) ⟩ a + (c + le .π₁)
+          ≡⟨ plusCongR a (plusComm (le .π₁) c) ⟩ a + (le .π₁ + c)
+          ≡⟨ sym _ _ (plusAssoc a (le .π₁) c) ⟩ a + le .π₁ + c
+          ≡⟨ plusCongL c h ⟩ b + c)
+
+def lePlusMonoL : {a b : ℕ} (c : ℕ) → a ≤ b → c + a ≤ c + b using (Natural.order.≤.unfold) ≔
+  λa. λb. λc. λle. leTrans
+    _
+    _
+    _
+    (leOfEq (plusComm a c))
+    (leTrans _ _ _ (lePlusMonoR _ c le) (leOfEq (plusComm c b)))
+
+def leMultMonoR : {a b : ℕ} (c : ℕ) → a ≤ b → a * c ≤ b * c
+  using (Core.id.Id.unfold, Natural.order.≤.unfold) ≔
+  λa. λb. λc. λle. le .π₁
+    * c,
+    eqToId
+      _
+      _
+      (let h ≔ idToEq
+        _
+        _
+        _
+        (le .π₂) in a * c + le .π₁ * c
+          ≡⟨ plusCongL (le .π₁ * c) (multComm c a) ⟩ c * a + le .π₁ * c
+          ≡⟨ plusCongR (c * a) (multComm c (le .π₁)) ⟩ c * a + c * le .π₁
+          ≡⟨ sym _ _ (multDistrib c a (le .π₁)) ⟩ c * (a + le .π₁)
+          ≡⟨ multComm (a + le .π₁) c ⟩ (a + le .π₁) * c
+          ≡⟨ cong (λu. ℕ) (λu. u * c) h ⟩ b * c)
+
+-- ===== totality: the DECISION, as data =====
+def leTotal : (a b : ℕ) → a ≤ b ⊎ b ≤ a ≔
+  λa. ℕ-elim
+    (λb. inj₁ (leZero _))
+    (j ih. λb. ℕ-elim
+      (inj₂ (leZero _))
+      (i ih2. ⊎-elim (u. inj₁ (leSucMono u)) (u. inj₂ (leSucMono u)) (ih i))
+      b)
+    a

@@ -1,0 +1,13 @@
+-- Group structure on a small carrier: a monoid COMPONENT (IsMonoid is
+-- a code, so it layers directly — the underlying monoid of a group g
+-- is just g .π₁) plus an inverse operation and its laws. The lets
+-- name the monoid's projections so the laws read as written math.
+
+import Core.id (Id)
+import Algebra.monoid (IsMonoid)
+
+def IsGroup : 𝕌 → 𝕌 using (Algebra.monoid.IsMonoid.unfold) ≔
+  λG. (m : IsMonoid G)
+    (inv : G → G)
+    × let op ≔ m .π₁ in let e ≔ m .π₂ .π₁ in ((x : G)
+      → Id _ (op (inv x) x) e) × ((x : G) → Id _ (op x (inv x)) e)

@@ -1,0 +1,66 @@
+-- IDEALS.
+--
+-- An ideal is an additive SUBGROUP closed under multiplication by
+-- arbitrary ring elements. Both halves are Ω-valued propositions, for
+-- the same reason Algebra/subgroup.nova's are: the quotient's relation
+-- must be.
+--
+-- The additive half is Algebra/subgroup.nova's IsSubgroup at the ring's
+-- additive group — nothing is restated. And because that group is
+-- abelian (rAddComm), idNormal is Algebra.subgroup.abelianNormal
+-- applied and nothing more: an ideal is automatically a normal
+-- subgroup, so the whole of Algebra/quotGroup.nova is available to R/I
+-- before a single new well-definedness proof is written. Only the
+-- MULTIPLICATION has to descend, and that is Algebra/quotRing.nova.
+
+import Core.prop (∧, andIntro, andFst, andSnd)
+import Algebra.monoid (IsMonoid)
+import Algebra.group (IsGroup)
+import Algebra.ring (IsCommRing)
+import Algebra.groupTheory (gop, ge, ginv)
+import Algebra.ringTheory (raddGroup, rmul, rone, rMulComm, rAddComm, rMulSub)
+import Algebra.subgroup (IsSubgroup, IsNormal, sgIntro, sgUnit, sgOp, sgInv, abelianNormal, cosetRel)
+import Core.equality (transportP, sym, trans, cong)
+
+def closedScale : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → Ω ≔
+  λR. λr. λI. ∥(a x : R) → I x → I (rmul _ r a x)∥
+
+def IsIdeal : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → Ω ≔
+  λR. λr. λI. IsSubgroup (raddGroup r) I ∧ closedScale _ r I
+
+def idIntro : {R : 𝕌}
+  {r : IsCommRing R}
+  {I : R → Ω}
+  → IsSubgroup (raddGroup r) I → ((a x : R) → I x → I (rmul _ r a x)) → IsIdeal _ r I
+  using (IsIdeal.eq, closedScale.eq) ≔
+  λR. λr. λI. λsub. λsc. andIntro sub (⋆ sc)
+
+def idSub : {R : 𝕌} {r : IsCommRing R} {I : R → Ω} → IsIdeal _ r I → IsSubgroup (raddGroup r) I
+  using (IsIdeal.eq) ≔
+  λR. λr. λI. λh. andFst h
+
+def idScale : (R : 𝕌)
+  (r : IsCommRing R)
+  (I : R → Ω)
+  → IsIdeal _ r I → (a x : R) → I x → I (rmul _ r a x)
+  using (IsIdeal.eq, closedScale.unfold) ≔
+  λR. λr. λI. λh. λa. λx. λhx. squash-elim (andSnd h) (u. u a x hx)
+
+-- an ideal is a normal subgroup of (R , +), because (R , +) is abelian
+def idNormal : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → IsNormal (raddGroup r) I ≔
+  λR. λr. λI. abelianNormal (rAddComm _ r)
+
+-- ===== the two closure facts the descent will want =====
+--
+-- The ideal is a LEFT ideal — closed under a·x — and multiplication is
+-- commutative, so the same closure serves both sides of the descent.
+-- In a non-commutative ring these would be two independent hypotheses
+-- (a two-sided ideal), and the outer half of the descent below would
+-- use the RIGHT one. The asymmetry Algebra/quotGroup.nova had to face
+-- for the group operation is here paid for by commutativity — which is
+-- exactly what "commutative ring" buys and what a group does not have.
+def idScaleR : (R : 𝕌)
+  (r : IsCommRing R)
+  (I : R → Ω)
+  → IsIdeal _ r I → (a x : R) → I x → I (rmul _ r x a) ≔
+  λR. λr. λI. λh. λa. λx. λhx. transportP I (rMulComm _ r a x) (idScale _ _ _ h a x hx)

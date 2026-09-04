@@ -1,0 +1,32 @@
+-- Int as a 𝕌-CODE (not a `type` item): a `type` name can only appear in
+-- type position, but a `def ... : 𝕌` name is an ordinary term, usable
+-- wherever a 𝕌-code is expected (e.g. the (A : 𝕌) argument of
+-- Core/equality.nova's generic combinators) — Int in type position.
+
+import Natural (+)
+
+def Int : 𝕌 ≔ ℕ × ℕ / (p q. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁)
+
+-- Int's own quotient relation, named: the relation slot above written as
+-- an ordinary function, for callers that need to SPEAK about it — a
+-- witness for it gives equal classes (el-quot-eq), and effectivity gives
+-- it back (Int/effective.nova)
+def IntR : ℕ × ℕ → ℕ × ℕ → Ω ≔ λp. λq. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁
+
+def toInt : ℕ × ℕ → Int using (Int.Int.unfold) ≔ λr. class r
+
+-- 0 = 0: (Z,Z) and (S Z, S Z) are the same integer
+def zeroEq : class (Z, Z) ≡ class (S Z, S Z) ∈ Int using (Int.Int.unfold) ≔ ⋆
+
+-- the two constants, here rather than in each caller: they are pure Int
+-- notions, and Int/mul.nova, Rat/frac.nova and Int/eq.nova all need
+-- them
+def intZero : Int using (Int.Int.unfold) ≔ class (Z, Z)
+
+def intOne : Int using (Int.Int.unfold) ≔ class (S Z, Z)
+
+-- negation swaps the components of a representative; the
+-- well-definedness goal is the defining relation read backwards
+def intNeg : Int → Int using (Int.Int.unfold) ≔ λz. quot-elim (p. class (p .π₂, p .π₁)) z
+
+def intNegZero : intNeg intZero ≡ intZero using (Int.Int.unfold, Int.intNeg.eq, Int.intZero.eq) ≔ ⋆

@@ -1,0 +1,293 @@
+-- ABSOLUTE VALUE on ℝ, defined POINTWISE. It works pointwise — with no
+-- index shift and no Archimedean argument — for one reason: the
+-- reverse triangle inequality in ℚ,
+--
+--   | |a| − |b| |  ≤  |a − b|          (Rat/abs.nova's bndAbsSub)
+--
+-- says |·| is 1-Lipschitz, so it preserves BOTH the regularity modulus
+-- and the closeness relation on the nose. The same accident makes the
+-- triangle inequality for ℝ a pointwise fact: |x ⊕ y| and |x| ⊕ |y|
+-- sample at the SAME doubled index, so the ℚ-level inequality is all
+-- that is needed.
+
+import Rat (Q, +, qNeg, qZero, qOne)
+import Rat.order (≤, leQTrans)
+import Rat.bound (Bnd)
+import Rat.abs (qAbs, qAbsNeg, qAbsAbs, qAbsZero, qAbsTriangle, leQZeroAbs, bndAbsSub, qAbsOfNonNeg)
+import Rat.half (dbl)
+import Real (rBound, leQZeroBound, Regular, RSeq, REq, Real, constReg, realOfQ, realZero, realOne)
+import Real.neg (seqOf, regOf, regBnd, bndReg, reqOf, realEqOfREq, realEqOfPointwise, rNeg, realNeg)
+import Real.add (rAdd, +)
+import Real.seq (realEqOfSeqEq)
+import Real.order (RLeP, rleOf, ≤, leQSubZero)
+import Core.equality (trans, sym, cong, transport)
+
+def absSeq : (ℕ → Q) → ℕ → Q using (Rat.Q.unfold) ≔ λf. λn. qAbs (f n)
+
+def absReg : {f : ℕ → Q} → Regular f → Regular (absSeq f)
+  using (Core.id.Id.eq,
+    Rat.abs.qAbs.eq,
+    Rat.bound.Bnd.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.Q.unfold,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.Regular.unfold,
+    Real.rBound.eq,
+    Real.abs.absSeq.eq) ≔
+  λf. λh. bndReg (λm. λn. bndAbsSub _ _ _ (regBnd _ h m n))
+
+def rAbs : RSeq → RSeq using (Real.RSeq.unfold) ≔ λx. absSeq (seqOf x), absReg (regOf x)
+
+def rAbsWD : {x y : RSeq} → REq x y → REq (rAbs x) (rAbs y)
+  using (Core.id.Id.eq,
+    Rat.abs.qAbs.eq,
+    Rat.bound.Bnd.eq,
+    Rat.frac.ratAdd.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.order.≤.eq,
+    Rat.order.Sign.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnCases.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.qInvNat.eq,
+    Real.rBound.eq,
+    Real.abs.absSeq.eq,
+    Real.abs.rAbs.eq,
+    Real.neg.seqOf.eq) ≔
+  λx. λy. λh. squash-elim h (u. reqOf
+    _
+    _
+    (λn. bndAbsSub (rBound n n) (seqOf x n) (seqOf y n) (u n)))
+
+def rAbsWDCls : (x y : RSeq) (h : REq x y) → class (rAbs x) ≡ class (rAbs y) ∈ Real
+  using (Real.Real.unfold) ≔
+  λx. λy. λh. realEqOfREq _ _ (rAbsWD h)
+
+def realAbs : Real → Real
+  using (rAbsWDCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold) ≔
+  λu. quot-elim (p. class (rAbs p)) u
+
+def realAbsCls : {x : RSeq} → realAbs (class x) ≡ class (rAbs x)
+  using (Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.abs.rAbs.eq,
+    Real.abs.realAbs.eq) ≔
+  λx. ⋆
+
+-- ===== the laws =====
+def realAbsNeg : (u : Real) → realAbs (realNeg u) ≡ realAbs u
+  using (Rat.abs.qAbs.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.order.sgnCases.eq,
+    Rat.order.sgnQ.eq,
+    Rat.qNeg.eq,
+    Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.abs.absSeq.eq,
+    Real.abs.rAbs.eq,
+    Real.abs.realAbs.eq,
+    Real.abs.realAbsCls,
+    Real.neg.negSeq.eq,
+    Real.neg.rNeg.eq,
+    Real.neg.realNeg.eq,
+    Real.neg.seqOf.eq) ≔
+  λu. quot-elim (p. realEqOfSeqEq (rAbs (rNeg p)) (rAbs p) (λn. qAbsNeg (seqOf p n))) u
+
+def realAbsAbs : (u : Real) → realAbs (realAbs u) ≡ realAbs u
+  using (Rat.abs.qAbs.eq,
+    Rat.order.sgnCases.eq,
+    Rat.order.sgnQ.eq,
+    Rat.qNeg.eq,
+    Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.abs.absSeq.eq,
+    Real.abs.rAbs.eq,
+    Real.abs.realAbs.eq,
+    Real.neg.seqOf.eq) ≔
+  λu. quot-elim (p. realEqOfSeqEq (rAbs (rAbs p)) (rAbs p) (λn. qAbsAbs (seqOf p n))) u
+
+def realAbsOfQ : (q : Q) → realAbs (realOfQ q) ≡ realOfQ (qAbs q)
+  using (Rat.abs.qAbs.eq,
+    Rat.order.sgnCases.eq,
+    Rat.order.sgnQ.eq,
+    Rat.Q.unfold,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.constReg.eq,
+    Real.realOfQ.eq,
+    Real.abs.absSeq.eq,
+    Real.abs.rAbs.eq,
+    Real.abs.realAbs.eq,
+    Real.neg.seqOf.eq) ≔
+  λq. realEqOfSeqEq (rAbs ((λn. q), constReg)) ((λn. qAbs q), constReg) (λn. ⋆)
+
+def realAbsZero : realAbs realZero ≡ realZero
+  using (Core.equality.sym.eq,
+    Core.equality.transport.eq,
+    qAbsZero,
+    Rat.order.≤.eq,
+    Rat.Q.eq,
+    Rat.+.eq,
+    Rat.qAddNegR.eq,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.constReg.eq,
+    Real.leQNegBoundZero.eq,
+    Real.leQZeroBound.eq,
+    Real.rBound.eq,
+    Real.realOfQ.eq,
+    Real.realZero.eq,
+    Real.abs.absReg.eq,
+    Real.abs.absSeq.eq,
+    Real.abs.rAbs.eq,
+    Real.abs.realAbs.eq,
+    Real.neg.regOf.eq,
+    Real.neg.seqOf.eq) ≔
+  realEqOfSeqEq (rAbs ((λn. qZero), constReg)) ((λn. qZero), constReg) (λn. ⋆)
+
+-- ===== nonnegativity and the triangle inequality =====
+-- 0 ≤ |x| : pointwise, since 0 − |x_n| ≤ 0 ≤ 2/(n+1)
+def rleZeroAbs : {x : RSeq} → RLeP ((λn. qZero), constReg) (rAbs x)
+  using (Core.id.Id.eq,
+    Rat.abs.qAbs.eq,
+    Rat.frac.ratAdd.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.frac.ratZero.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnCases.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Rat.qZero.eq,
+    Rat.qcls.eq,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.constReg.eq,
+    Real.qInvNat.eq,
+    Real.rBound.eq,
+    Real.abs.absSeq.eq,
+    Real.abs.rAbs.eq,
+    Real.neg.seqOf.eq,
+    Real.order.RLeP.unfold) ≔
+  λx. rleOf
+    _
+    _
+    (λn. leQTrans
+      (qZero + qNeg (qAbs (seqOf x n)))
+      _
+      _
+      (leQSubZero (leQZeroAbs (seqOf x n)))
+      (leQZeroBound n n))
+
+def leRZeroAbs : (u : Real) → realZero ≤ realAbs u
+  using (Core.equality.sym.eq,
+    Core.equality.transport.eq,
+    Rat.frac.ratZero.eq,
+    Rat.order.≤.eq,
+    Rat.Q.eq,
+    Rat.+.eq,
+    Rat.qAddNegR.eq,
+    Rat.qNeg.eq,
+    Rat.qZero.eq,
+    Rat.qcls.eq,
+    Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.constReg.eq,
+    Real.leQNegBoundZero.eq,
+    Real.leQZeroBound.eq,
+    Real.rBound.eq,
+    Real.realOfQ.eq,
+    Real.realOfQ.unfold,
+    Real.realZero.eq,
+    Real.realZero.unfold,
+    Real.abs.absReg.eq,
+    Real.abs.absSeq.eq,
+    Real.abs.rAbs.eq,
+    Real.abs.realAbs.eq,
+    Real.abs.realAbs.unfold,
+    Real.neg.regOf.eq,
+    Real.neg.seqOf.eq,
+    Real.order.≤.eq,
+    Real.order.≤.unfold,
+    Real.order.RLeP.eq) ≔
+  λu. quot-elim (x. rleZeroAbs) u
+
+-- |x + y| ≤ |x| + |y| : both sides sample at the SAME doubled index,
+-- so this is ℚ's triangle inequality, pointwise
+def rleAbsTriangle : {x y : RSeq} → RLeP (rAbs (rAdd x y)) (rAdd (rAbs x) (rAbs y))
+  using (Core.id.Id.eq,
+    Rat.abs.qAbs.eq,
+    Rat.half.dbl.eq,
+    Rat.frac.ratAdd.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnCases.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.qInvNat.eq,
+    Real.rBound.eq,
+    Real.abs.absSeq.eq,
+    Real.abs.rAbs.eq,
+    Real.add.addSeq.eq,
+    Real.add.rAdd.eq,
+    Real.neg.seqOf.eq,
+    Real.order.RLeP.unfold) ≔
+  λx. λy. rleOf
+    _
+    _
+    (λn. leQTrans
+      (qAbs
+        (seqOf
+          x
+          (dbl n) + seqOf y (dbl n)) + qNeg (qAbs (seqOf x (dbl n)) + qAbs (seqOf y (dbl n))))
+      _
+      _
+      (leQSubZero (qAbsTriangle (seqOf x (dbl n)) (seqOf y (dbl n))))
+      (leQZeroBound n n))
+
+def leRAbsTriangle : {u v : Real} → realAbs (u + v) ≤ realAbs u + realAbs v
+  using (Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.abs.rAbs.eq,
+    Real.abs.realAbs.eq,
+    Real.abs.realAbs.unfold,
+    Real.add.rAdd.eq,
+    Real.add.+.eq,
+    Real.add.+.unfold,
+    Real.order.≤.eq,
+    Real.order.≤.unfold,
+    Real.order.RLeP.eq) ≔
+  λu. λv. quot-elim (x. quot-elim (y. rleAbsTriangle) v) u

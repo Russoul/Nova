@@ -1,0 +1,213 @@
+-- MAX and MIN on ℚ, from the same sign decision `qAbs` uses. Both are
+-- 1-Lipschitz in each argument — `bndMaxSub` — which is exactly what a
+-- pointwise definition on regular sequences needs, and is proved from
+-- the lattice characterisation (least upper bound / greatest lower
+-- bound) with no case analysis beyond the two the definitions make.
+
+import Rat (Q, +, qNeg, qZero, qAddComm, qNegNeg)
+import Rat.order (Sign, sZero, sPos, sNeg, sgnFlip, sgnQ, sgnQNegFlip, sgnCases, NonNegS, ≤, leQRefl, leQTrans, leQPlusMono, leQAntisym, qSubNeg, qPlusNegCancelR)
+import Rat.bound (Bnd, bndNeg, bndEq, bndSubSym, bndOfBothLe, leQNegFlip, qSubFlip)
+import Rat.abs (sgnQNegOfNeg, leQSubOfLeAdd)
+import Rat.arch (leQSubShift, leQAddShift)
+import Core.equality (trans, sym, cong, transport)
+import Core.id (Id, eqToId, idToEq)
+
+def qMax : Q → Q → Q using (Rat.Q.unfold) ≔
+  λu. λv. ⊎-elim (nn. v) (hn. u) (sgnCases (sgnQ (v + qNeg u)))
+
+-- ===== the lattice characterisation =====
+def leQMaxL : (u v : Q) → u ≤ qMax u v
+  using (Core.id.Id.eq,
+    Rat.max.qMax.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnCases.eq,
+    Rat.order.sgnQ.eq,
+    Rat.Q.unfold,
+    Rat.+.eq,
+    Rat.qNeg.eq) ≔
+  λu. λv. ⊎-elim (w. u ≤ ⊎-elim (nn. v) (hn. u) w)
+    (nn. nn)
+    (hn. leQRefl _)
+    (sgnCases (sgnQ (v + qNeg u)))
+
+-- v < u : the flipped difference is positive, and u − v IS the
+-- negation of v − u
+def leQMaxR : (u v : Q) → v ≤ qMax u v
+  using (Core.id.Id.eq,
+    Rat.max.qMax.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnCases.eq,
+    Rat.order.sgnQ.eq,
+    Rat.Q.unfold,
+    Rat.+.eq,
+    Rat.qNeg.eq) ≔
+  λu. λv. ⊎-elim (w. v ≤ ⊎-elim (nn. v) (hn. u) w)
+    (nn. leQRefl _)
+    (hn. inj₂ (eqToId
+      _
+      _
+      (trans
+        _
+        _
+        _
+        (cong (λw. Sign) (λw. sgnQ w) {u + qNeg v} {qNeg (v + qNeg u)} qSubNeg)
+        (sgnQNegOfNeg hn))))
+    (sgnCases (sgnQ (v + qNeg u)))
+
+def qMaxLub : {u v w : Q} → u ≤ w → v ≤ w → qMax u v ≤ w
+  using (Core.id.Id.eq,
+    Rat.max.qMax.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnCases.eq,
+    Rat.order.sgnQ.eq,
+    Rat.Q.unfold,
+    Rat.+.eq,
+    Rat.qNeg.eq) ≔
+  λu. λv. λw. λh1. λh2. ⊎-elim (t. ⊎-elim (nn. v) (hn. u) t ≤ w)
+    (nn. h2)
+    (hn. h1)
+    (sgnCases (sgnQ (v + qNeg u)))
+
+-- ===== Lipschitz =====
+-- a two-sided bound on a difference is a pair of shifted ≤'s
+def leQAddOfBnd : {b u v : Q} → Bnd b (u + qNeg v) → u ≤ v + b
+  using (Rat.bound.Bnd.unfold, Rat.order.≤.unfold, Rat.order.NonNegS.unfold) ≔
+  λb. λu. λv. λh. leQAddShift _ (h .π₂)
+
+def bndMaxSub : (b a c a' c' : Q)
+  → Bnd b (a + qNeg c) → Bnd b (a' + qNeg c') → Bnd b (qMax a a' + qNeg (qMax c c'))
+  using (Rat.bound.Bnd.unfold) ≔
+  λb. λa. λc. λa'. λc'. λh1. λh2. bndOfBothLe
+    _
+    _
+    (leQSubShift
+      _
+      _
+      (qMaxLub
+        (leQTrans _ _ _ (leQAddOfBnd h1) (leQPlusMono b (leQMaxL c c')))
+        (leQTrans _ _ _ (leQAddOfBnd h2) (leQPlusMono b (leQMaxR c c')))))
+    (leQSubShift
+      _
+      _
+      (qMaxLub
+        (leQTrans _ _ _ (leQAddOfBnd (bndSubSym _ _ _ h1)) (leQPlusMono b (leQMaxL a a')))
+        (leQTrans _ _ _ (leQAddOfBnd (bndSubSym _ _ _ h2)) (leQPlusMono b (leQMaxR a a')))))
+
+def qMaxSelf : (u : Q) → qMax u u ≡ u ≔
+  λu. leQAntisym (qMaxLub (leQRefl u) (leQRefl u)) (leQMaxL u u)
+
+def qMaxComm : (u v : Q) → qMax u v ≡ qMax v u ≔
+  λu. λv. leQAntisym (qMaxLub (leQMaxR v u) (leQMaxL v u)) (qMaxLub (leQMaxR u v) (leQMaxL u v))
+
+-- ===== the dual =====
+def qMin : Q → Q → Q using (Rat.Q.unfold) ≔ λu. λv. qNeg (qMax (qNeg u) (qNeg v))
+
+def leQMinL : (u v : Q) → qMin u v ≤ u
+  using (Core.id.Id.eq,
+    Rat.max.qMax.eq,
+    Rat.max.qMin.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.Q.unfold,
+    Rat.+.eq,
+    Rat.qNeg.eq) ≔
+  λu. λv. transport (λw. qMin u v ≤ w) (qNegNeg u) (leQNegFlip _ _ (leQMaxL (qNeg u) (qNeg v)))
+
+def leQMinR : (u v : Q) → qMin u v ≤ v
+  using (Core.id.Id.eq,
+    Rat.max.qMax.eq,
+    Rat.max.qMin.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.Q.unfold,
+    Rat.+.eq,
+    Rat.qNeg.eq) ≔
+  λu. λv. transport (λw. qMin u v ≤ w) (qNegNeg v) (leQNegFlip _ _ (leQMaxR (qNeg u) (qNeg v)))
+
+def qMinGlb : {u v w : Q} → w ≤ u → w ≤ v → w ≤ qMin u v
+  using (Core.id.Id.eq,
+    Rat.max.qMax.eq,
+    Rat.max.qMin.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.Q.unfold,
+    Rat.+.eq,
+    Rat.qNeg.eq) ≔
+  λu. λv. λw. λh1. λh2. transport
+    (λt. t ≤ qMin u v)
+    (qNegNeg w)
+    (leQNegFlip _ _ (qMaxLub (leQNegFlip _ _ h1) (leQNegFlip _ _ h2)))
+
+def qMinComm : (u v : Q) → qMin u v ≡ qMin v u
+  using (Rat.max.qMax.eq, Rat.max.qMin.eq, Rat.Q.unfold, Rat.qNeg.eq) ≔
+  λu. λv. cong (λw. Q) (λw. qNeg w) (qMaxComm (qNeg u) (qNeg v))
+
+-- (−a) − (−c) ≡ c − a : the difference of negations is reversed
+def qNegDiff : (a c : Q) → qNeg a + qNeg (qNeg c) ≡ c + qNeg a ≔
+  λa. λc. trans _ _ _ (cong (λw. Q) (λw. qNeg a + w) (qNegNeg c)) (qAddComm (qNeg a) c)
+
+-- min is 1-Lipschitz because max is: the negations cancel
+def bndMinSub : (b a c a' c' : Q)
+  → Bnd b (a + qNeg c) → Bnd b (a' + qNeg c') → Bnd b (qMin a a' + qNeg (qMin c c'))
+  using (Rat.bound.Bnd.unfold,
+    Rat.max.qMax.eq,
+    Rat.max.qMin.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.Q.unfold,
+    Rat.+.eq,
+    Rat.qNeg.eq) ≔
+  λb. λa. λc. λa'. λc'. λh1. λh2. bndEq
+    _
+    _
+    (trans
+      _
+      _
+      _
+      (qSubFlip (qMax (qNeg a) (qNeg a')) (qMax (qNeg c) (qNeg c')))
+      (sym _ _ (qNegDiff (qMax (qNeg a) (qNeg a')) (qMax (qNeg c) (qNeg c')))))
+    (bndNeg
+      _
+      _
+      (bndMaxSub
+        _
+        _
+        _
+        _
+        _
+        (bndEq _ _ (sym _ _ (qNegDiff a c)) (bndSubSym _ _ _ h1))
+        (bndEq _ _ (sym _ _ (qNegDiff a' c')) (bndSubSym _ _ _ h2))))
+
+-- a shifted greatest-lower-bound: w ≤ a + r and w ≤ b + r give
+-- w ≤ min a b + r. (The max side needs no such lemma — qMaxLub's
+-- target is already an upper bound.)
+def qMinGlbShift : (a b w r : Q) → w ≤ a + r → w ≤ b + r → w ≤ qMin a b + r
+  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold) ≔
+  λa. λb. λw. λr. λh1. λh2. transport
+    (λt. t ≤ qMin a b + r)
+    (qPlusNegCancelR w r)
+    (leQPlusMono r (qMinGlb (leQSubOfLeAdd h1) (leQSubOfLeAdd h2)))

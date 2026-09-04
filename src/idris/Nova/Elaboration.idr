@@ -1845,7 +1845,7 @@ ordered cs = let (a, b) = orderedParts cs in a ++ b
 ||| parameter spine (v, v .π₁, v x) matches every same-shaped term
 ||| first-order, and with matching type-blind such a rule fires at
 ||| arbitrarily ill-typed positions — the certificate then dies at
-||| replay and takes the whole discharge down with it (id.nova's
+||| replay and takes the whole discharge down with it (Core/id.nova's
 ||| onlyZIsZ, v .π₁ ≡ Z at El OnlyZ, was the observed shape: in
 ||| global-store mode it rewrote a .π₁ at El (IsNatAlgebra A)).
 ||| Whole-equation and hop use are unaffected: there the FULL

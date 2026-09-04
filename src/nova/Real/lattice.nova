@@ -1,0 +1,507 @@
+-- MAX and MIN on ℝ, POINTWISE. Like |·| (Real/abs.nova) and unlike +,
+-- the lattice operations are 1-Lipschitz in each argument, so they
+-- preserve the regularity modulus and closeness on the nose: no
+-- doubled index, no Archimedean argument. Rat/max.nova's bndMaxSub is
+-- the whole content; everything here is plumbing plus the two
+-- order laws.
+-- ===== max =====
+
+import Rat (Q, +, qNeg, qZero)
+import Rat.order (≤, leQTrans)
+import Rat.bound (Bnd, bndSubEq)
+import Rat.max (qMax, qMin, leQMaxL, leQMaxR, qMaxLub, leQMinL, leQMinR, qMinGlb, bndMaxSub, bndMinSub, leQAddOfBnd, qMinGlbShift, qMaxComm, qMinComm)
+import Rat.arch (leQSubShift, leQAddShift)
+import Real (rBound, leQZeroBound, Regular, RSeq, REq, Real, constReg, realOfQ, realZero)
+import Real.neg (seqOf, regOf, regBnd, bndReg, reqOf, realEqOfREq)
+import Real.seq (rseqEq, wdOuterOfComm)
+import Real.order (RLeP, rleOf, ≤, leQSubZero)
+import Core.equality (trans, sym, cong, transport)
+
+def maxSeq : (ℕ → Q) → (ℕ → Q) → ℕ → Q using (Rat.Q.unfold) ≔ λf. λg. λn. qMax (f n) (g n)
+
+def maxReg : {f g : ℕ → Q} → Regular f → Regular g → Regular (maxSeq f g)
+  using (Core.id.Id.eq,
+    Rat.bound.Bnd.unfold,
+    Rat.max.qMax.eq,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.Q.unfold,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.Regular.unfold,
+    Real.rBound.eq,
+    Real.lattice.maxSeq.eq) ≔
+  λf. λg. λhf. λhg. bndReg (λm. λn. bndMaxSub _ _ _ _ _ (regBnd _ hf m n) (regBnd _ hg m n))
+
+def rMax : RSeq → RSeq → RSeq using (Real.RSeq.unfold) ≔
+  λx. λy. maxSeq (seqOf x) (seqOf y), maxReg (regOf x) (regOf y)
+
+def rMaxWDInner : (x : RSeq) {y y' : RSeq} → REq y y' → REq (rMax x y) (rMax x y')
+  using (Core.id.Id.eq,
+    Rat.bound.Bnd.unfold,
+    Rat.max.qMax.eq,
+    Rat.frac.ratAdd.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.order.Sign.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnCases.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.qInvNat.eq,
+    Real.rBound.eq,
+    Real.lattice.maxSeq.eq,
+    Real.lattice.rMax.eq,
+    Real.neg.seqOf.eq) ≔
+  λx. λy. λy'. λh. squash-elim h (u. reqOf
+    _
+    _
+    (λn. bndMaxSub
+      _
+      _
+      _
+      (seqOf y n)
+      (seqOf y' n)
+      (bndSubEq _ (seqOf x n) (seqOf x n) (leQZeroBound n n) ⋆)
+      (u n)))
+
+def rMaxWDInnerCls : (x y y' : RSeq) (h : REq y y') → class (rMax x y) ≡ class (rMax x y') ∈ Real
+  using (Real.Real.unfold) ≔
+  λx. λy. λy'. λh. realEqOfREq _ _ (rMaxWDInner x h)
+
+-- max on representatives is commutative on the nose, so the outer
+-- descent is the inner one with the arguments swapped
+def rMaxComm : (x y : RSeq) → rMax x y ≡ rMax y x
+  using (Rat.max.qMax.eq,
+    Rat.order.sgnCases.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.lattice.maxSeq.eq,
+    Real.lattice.rMax.eq,
+    Real.neg.seqOf.eq) ≔
+  λx. λy. rseqEq (λn. qMaxComm (seqOf x n) (seqOf y n))
+
+def rMaxWDOuterCls : {x x' c : RSeq} (h : REq x x') → class (rMax x c) ≡ class (rMax x' c) ∈ Real
+  using (Real.Real.unfold) ≔
+  wdOuterOfComm rMax rMaxComm rMaxWDInnerCls
+
+def rMaxWDOuter : (x x' : RSeq)
+  (h : REq x x')
+  (v : Real)
+  → quot-elim (w. Real) (q. class (rMax x q)) v ≡ quot-elim (q. class (rMax x' q)) v
+  using (rMaxWDInnerCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold) ≔
+  λx. λx'. λh. λv. quot-elim (w. quot-elim (z. Real)
+    (q. class (rMax x q))
+    w ≡ quot-elim (q. class (rMax x' q)) w)
+    (c. rMaxWDOuterCls h)
+    v
+
+def realMax : Real → Real → Real
+  using (rMaxWDInnerCls,
+    rMaxWDOuter,
+    Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold) ≔
+  λu. λv. quot-elim (p. quot-elim (q. class (rMax p q)) v) u
+
+def realMaxCls : (x y : RSeq) → realMax (class x) (class y) ≡ class (rMax x y)
+  using (Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.lattice.rMax.eq,
+    Real.lattice.realMax.eq) ≔
+  λx. λy. ⋆
+
+-- ===== min =====
+def minSeq : (ℕ → Q) → (ℕ → Q) → ℕ → Q using (Rat.Q.unfold) ≔ λf. λg. λn. qMin (f n) (g n)
+
+def minReg : {f g : ℕ → Q} → Regular f → Regular g → Regular (minSeq f g)
+  using (Core.id.Id.eq,
+    Rat.bound.Bnd.unfold,
+    Rat.max.qMin.eq,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.Q.unfold,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.Regular.unfold,
+    Real.rBound.eq,
+    Real.lattice.minSeq.eq) ≔
+  λf. λg. λhf. λhg. bndReg (λm. λn. bndMinSub _ _ _ _ _ (regBnd _ hf m n) (regBnd _ hg m n))
+
+def rMin : RSeq → RSeq → RSeq using (Real.RSeq.unfold) ≔
+  λx. λy. minSeq (seqOf x) (seqOf y), minReg (regOf x) (regOf y)
+
+def rMinWDInner : (x : RSeq) {y y' : RSeq} → REq y y' → REq (rMin x y) (rMin x y')
+  using (Core.id.Id.eq,
+    Rat.bound.Bnd.unfold,
+    Rat.max.qMax.eq,
+    Rat.max.qMin.eq,
+    Rat.frac.ratAdd.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.order.≤.eq,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.qInvNat.eq,
+    Real.rBound.eq,
+    Real.lattice.minSeq.eq,
+    Real.lattice.rMin.eq,
+    Real.neg.seqOf.eq) ≔
+  λx. λy. λy'. λh. squash-elim h (u. reqOf
+    _
+    _
+    (λn. bndMinSub
+      _
+      _
+      _
+      (seqOf y n)
+      (seqOf y' n)
+      (bndSubEq _ (seqOf x n) (seqOf x n) (leQZeroBound n n) ⋆)
+      (u n)))
+
+def rMinWDInnerCls : (x y y' : RSeq) (h : REq y y') → class (rMin x y) ≡ class (rMin x y') ∈ Real
+  using (Real.Real.unfold) ≔
+  λx. λy. λy'. λh. realEqOfREq _ _ (rMinWDInner x h)
+
+def rMinComm : (x y : RSeq) → rMin x y ≡ rMin y x
+  using (Rat.max.qMax.eq,
+    Rat.max.qMin.eq,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.lattice.minSeq.eq,
+    Real.lattice.rMin.eq,
+    Real.neg.seqOf.eq) ≔
+  λx. λy. rseqEq (λn. qMinComm (seqOf x n) (seqOf y n))
+
+def rMinWDOuterCls : {x x' c : RSeq} (h : REq x x') → class (rMin x c) ≡ class (rMin x' c) ∈ Real
+  using (Real.Real.unfold) ≔
+  wdOuterOfComm rMin rMinComm rMinWDInnerCls
+
+def rMinWDOuter : (x x' : RSeq)
+  (h : REq x x')
+  (v : Real)
+  → quot-elim (w. Real) (q. class (rMin x q)) v ≡ quot-elim (q. class (rMin x' q)) v
+  using (rMinWDInnerCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold) ≔
+  λx. λx'. λh. λv. quot-elim (w. quot-elim (z. Real)
+    (q. class (rMin x q))
+    w ≡ quot-elim (q. class (rMin x' q)) w)
+    (c. rMinWDOuterCls h)
+    v
+
+def realMin : Real → Real → Real
+  using (rMinWDInnerCls,
+    rMinWDOuter,
+    Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold) ≔
+  λu. λv. quot-elim (p. quot-elim (q. class (rMin p q)) v) u
+
+def realMinCls : (x y : RSeq) → realMin (class x) (class y) ≡ class (rMin x y)
+  using (Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.lattice.rMin.eq,
+    Real.lattice.realMin.eq) ≔
+  λx. λy. ⋆
+
+-- ===== the lattice laws =====
+def rleMaxL : {x y : RSeq} → RLeP x (rMax x y)
+  using (Core.id.Id.eq,
+    Rat.max.qMax.eq,
+    Rat.frac.ratAdd.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnCases.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.qInvNat.eq,
+    Real.rBound.eq,
+    Real.lattice.maxSeq.eq,
+    Real.lattice.rMax.eq,
+    Real.neg.seqOf.eq,
+    Real.order.RLeP.unfold) ≔
+  λx. λy. rleOf
+    _
+    _
+    (λn. leQTrans
+      (seqOf x n + qNeg (qMax (seqOf x n) (seqOf y n)))
+      _
+      _
+      (leQSubZero (leQMaxL (seqOf x n) (seqOf y n)))
+      (leQZeroBound n n))
+
+def rleMaxR : {x y : RSeq} → RLeP y (rMax x y)
+  using (Core.id.Id.eq,
+    Rat.max.qMax.eq,
+    Rat.frac.ratAdd.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnCases.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.qInvNat.eq,
+    Real.rBound.eq,
+    Real.lattice.maxSeq.eq,
+    Real.lattice.rMax.eq,
+    Real.neg.seqOf.eq,
+    Real.order.RLeP.unfold) ≔
+  λx. λy. rleOf
+    _
+    _
+    (λn. leQTrans
+      (seqOf y n + qNeg (qMax (seqOf x n) (seqOf y n)))
+      _
+      _
+      (leQSubZero (leQMaxR (seqOf x n) (seqOf y n)))
+      (leQZeroBound n n))
+
+-- least upper bound: the two shifted ≤'s combine by qMaxLub and shift back
+def rMaxLub : {x y z : RSeq} → RLeP x z → RLeP y z → RLeP (rMax x y) z
+  using (Core.id.Id.eq,
+    Rat.max.qMax.eq,
+    Rat.frac.ratAdd.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnCases.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.qInvNat.eq,
+    Real.rBound.eq,
+    Real.lattice.maxSeq.eq,
+    Real.lattice.rMax.eq,
+    Real.neg.seqOf.eq,
+    Real.order.RLeP.unfold) ≔
+  λx. λy. λz. λh1. λh2. squash-elim h1 (u. squash-elim h2 (v. rleOf
+    _
+    _
+    (λn. leQSubShift
+      (qMax (seqOf x n) (seqOf y n))
+      _
+      (qMaxLub (leQAddShift _ (u n)) (leQAddShift _ (v n))))))
+
+def rleMinL : {x y : RSeq} → RLeP (rMin x y) x
+  using (Core.id.Id.eq,
+    Rat.max.qMax.eq,
+    Rat.max.qMin.eq,
+    Rat.frac.ratAdd.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.qInvNat.eq,
+    Real.rBound.eq,
+    Real.lattice.minSeq.eq,
+    Real.lattice.rMin.eq,
+    Real.neg.seqOf.eq,
+    Real.order.RLeP.unfold) ≔
+  λx. λy. rleOf
+    _
+    _
+    (λn. leQTrans
+      (qMin (seqOf x n) (seqOf y n) + qNeg (seqOf x n))
+      _
+      _
+      (leQSubZero (leQMinL (seqOf x n) (seqOf y n)))
+      (leQZeroBound n n))
+
+def rleMinR : {x y : RSeq} → RLeP (rMin x y) y
+  using (Core.id.Id.eq,
+    Rat.max.qMax.eq,
+    Rat.max.qMin.eq,
+    Rat.frac.ratAdd.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.qInvNat.eq,
+    Real.rBound.eq,
+    Real.lattice.minSeq.eq,
+    Real.lattice.rMin.eq,
+    Real.neg.seqOf.eq,
+    Real.order.RLeP.unfold) ≔
+  λx. λy. rleOf
+    _
+    _
+    (λn. leQTrans
+      (qMin (seqOf x n) (seqOf y n) + qNeg (seqOf y n))
+      _
+      _
+      (leQSubZero (leQMinR (seqOf x n) (seqOf y n)))
+      (leQZeroBound n n))
+
+def rMinGlb : {x y z : RSeq} → RLeP z x → RLeP z y → RLeP z (rMin x y)
+  using (Core.id.Id.eq,
+    Rat.max.qMax.eq,
+    Rat.max.qMin.eq,
+    Rat.frac.ratAdd.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.qInvNat.eq,
+    Real.rBound.eq,
+    Real.lattice.minSeq.eq,
+    Real.lattice.rMin.eq,
+    Real.neg.seqOf.eq,
+    Real.order.RLeP.unfold) ≔
+  λx. λy. λz. λh1. λh2. squash-elim h1 (u. squash-elim h2 (v. rleOf
+    _
+    _
+    (λn. leQSubShift
+      _
+      (qMin (seqOf x n) (seqOf y n))
+      (qMinGlbShift _ _ _ _ (leQAddShift _ (u n)) (leQAddShift _ (v n))))))
+
+-- ===== lifted to ℝ =====
+def leRMaxL : (u v : Real) → u ≤ realMax u v
+  using (Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.lattice.rMax.eq,
+    Real.lattice.realMax.eq,
+    Real.order.≤.eq,
+    Real.order.≤.unfold,
+    Real.order.RLeP.eq) ≔
+  λu. λv. quot-elim (x. quot-elim (y. rleMaxL) v) u
+
+def leRMaxR : (u v : Real) → v ≤ realMax u v
+  using (Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.lattice.rMax.eq,
+    Real.lattice.realMax.eq,
+    Real.order.≤.eq,
+    Real.order.≤.unfold,
+    Real.order.RLeP.eq) ≔
+  λu. λv. quot-elim (x. quot-elim (y. rleMaxR) v) u
+
+def leRMinL : (u v : Real) → realMin u v ≤ u
+  using (Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.lattice.rMin.eq,
+    Real.lattice.realMin.eq,
+    Real.lattice.realMin.unfold,
+    Real.order.≤.eq,
+    Real.order.≤.unfold,
+    Real.order.RLeP.eq) ≔
+  λu. λv. quot-elim (x. quot-elim (y. rleMinL) v) u
+
+def leRMinR : (u v : Real) → realMin u v ≤ v
+  using (Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.lattice.rMin.eq,
+    Real.lattice.realMin.eq,
+    Real.lattice.realMin.unfold,
+    Real.order.≤.eq,
+    Real.order.≤.unfold,
+    Real.order.RLeP.eq) ≔
+  λu. λv. quot-elim (x. quot-elim (y. rleMinR) v) u
+
+def leRMaxLub : (u v w : Real) → u ≤ w → v ≤ w → realMax u v ≤ w
+  using (Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.lattice.rMax.eq,
+    Real.lattice.rMaxLub.eq,
+    Real.lattice.realMax.eq,
+    Real.lattice.realMax.unfold,
+    Real.order.≤.eq,
+    Real.order.≤.unfold,
+    Real.order.RLeP.eq,
+    Real.order.RLeP.unfold,
+    Real.order.leRCls) ≔
+  λu. λv. λw. quot-elim (x. quot-elim (y. quot-elim (z. λp. λq. rMaxLub p q) w) v) u
+
+def leRMinGlb : (u v w : Real) → w ≤ u → w ≤ v → w ≤ realMin u v
+  using (Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.lattice.rMin.eq,
+    Real.lattice.rMinGlb.eq,
+    Real.lattice.realMin.eq,
+    Real.order.≤.eq,
+    Real.order.≤.unfold,
+    Real.order.RLeP.eq,
+    Real.order.RLeP.unfold,
+    Real.order.leRCls) ≔
+  λu. λv. λw. quot-elim (x. quot-elim (y. quot-elim (z. λp. λq. rMinGlb p q) w) v) u

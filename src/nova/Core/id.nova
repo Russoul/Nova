@@ -1,0 +1,45 @@
+-- The identity FAMILY: structural equality as a small QIIT
+-- (docs/NovaFoundation.txt, Ω block — the prf-code construction).
+-- Equality the PROPOSITION lives at Ω and carries no data; Id is its
+-- structural counterpart IN 𝕌: a code, storable inside small types,
+-- usable as an eliminator motive, indexwise-injective through the
+-- qidx selector. The two are logically equivalent (the bridge lemmas
+-- below), and that iff is all a proposition can soundly give.
+
+import Core.prop (↔, iffIntro)
+
+data [a : 𝕌] ( Id : a → a → U
+     ; refl : (x : a) → El (Id x x) )
+
+-- reflection, by prop-motive induction (J into a proposition): the
+-- refl method's equation is evident, and ElimP asks no coherences
+def idToEq : (a : 𝕌) (x y : a) → Id _ x y → x ≡ y using (Core.id.Id.unfold) ≔
+  λa. λx. λy. λp. IdElimP a (λu. λv. λw. u ≡ v) (λu. ⋆) x y p
+
+-- introduction: with x ≐ y reflected from the hypothesis, refl a x
+-- already inhabits Id a x y (index congruence)
+def eqToId : {a : 𝕌} (x y : a) → (x ≡ y) → Id _ x y
+  using (hyp.rw, Core.id.Id.eq, Core.id.Id.unfold) ≔
+  λa. λx. λy. λh. refl a x
+
+-- the bridge, packaged: Id and ≡ are the same proposition up to iff
+def idIffEq : {a : 𝕌} {x y : a} → ∥Id _ x y∥ ↔ (x ≡ y)
+  using (Core.id.Id.unfold, Core.prop.↔.unfold, Core.prop.∧.unfold) ≔
+  λa. λx. λy. iffIntro (λh. squash-elim h (p. idToEq _ x y p)) (λh. ⋆ (eqToId _ _ h))
+
+-- round trips compute: β at refl on one side, index congruence on the
+-- other
+def idToEqBeta : (a : 𝕌) (x : a) → idToEq _ x x (refl a x) ≡ (⋆) using (Core.id.Id.unfold) ≔
+  λa. λx. ⋆
+
+def eqToIdBeta : (a : 𝕌) (x : a) → eqToId _ _ ⋆ ≡ refl a x ∈ Id _ x x
+  using (Core.id.Id.unfold, Core.id.eqToId.eq, Core.id.refl.eq) ≔
+  λa. λx. ⋆
+
+-- equality as DATA in a small type — what the Ω-valued ≡ cannot do
+-- (no 𝕌-code) and Id restores: a subset code by an equation
+def OnlyZ : 𝕌 ≔ (n : ℕ) × Id _ n Z
+
+def onlyZ : OnlyZ using (Core.id.Id.eq, Core.id.OnlyZ.unfold) ≔ Z, refl ℕ Z
+
+def onlyZIsZ : (v : OnlyZ) → v .π₁ ≡ Z using (Core.id.OnlyZ.unfold) ≔ λv. idToEq _ _ _ (v .π₂)

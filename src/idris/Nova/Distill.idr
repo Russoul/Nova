@@ -1089,7 +1089,11 @@ distillPath rootPath outDir = do
   -- α-exactly? (docs/NovaPerfectSurface.txt, Phase 4)
   let Right (sigOrig, verdicts, blanks, _) = elabProgramSugar units
     | Left err => pure (Left ("input is not accepted; distill only transforms accepted programs:\n" ++ err))
-  let False = normDir (dirOf rootPath) == normDir outDir
+  -- the guard is against overwriting SOURCES, and a module's source
+  -- sits under the project root — not necessarily beside the entry
+  -- file (Nova.Elaboration.Loader.findRoot)
+  srcDir <- findRoot rootPath
+  let False = normDir srcDir == normDir outDir
     | True => pure (Left "output directory equals the source directory; refusing to overwrite sources")
   -- blank emission iterates to a FIXPOINT: blanking an argument
   -- flips the spines inside it from checking to inference at the

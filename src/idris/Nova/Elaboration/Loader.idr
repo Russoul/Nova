@@ -3,11 +3,18 @@ module Nova.Elaboration.Loader
 -- The module loader: resolves a root .nova file's import graph into
 -- the dependency-ordered list of modules that elabProgram consumes.
 --
--- A module is a file; a dotted module name resolves against the ROOT
--- file's directory (import Data.Nat ⇝ <rootDir>/Data/Nat.nova). The
--- graph must be a DAG — cycles are reported by name — and diamonds
--- are deduplicated by module name, so a shared dependency elaborates
--- once. All file IO lives here; elaboration itself stays pure.
+-- A module is a file; a dotted module name resolves against the
+-- PROJECT ROOT (import Data.Natural ⇝ <rootDir>/Data/Natural.nova) —
+-- the nearest ancestor directory of the entry file holding a
+-- `nova.root` marker, or, absent a marker, the entry file's own
+-- directory. Resolving against a marked root rather than the entry
+-- makes a module's name its path from that root, the SAME name
+-- whichever file the run entered through: a nested module elaborates
+-- standalone (and under the LSP) exactly as it does inside an
+-- aggregate root that imports it. The graph must be a DAG — cycles
+-- are reported by name — and diamonds are deduplicated by module
+-- name, so a shared dependency elaborates once. All file IO lives
+-- here; elaboration itself stays pure.
 
 import Data.List
 import Data.List1
@@ -39,6 +46,33 @@ dirOf path =
   case reverse (forget (split (== '/') path)) of
     (_ :: parentRev@(_ :: _)) => joinBy "/" (reverse parentRev)
     _ => "."
+
+||| The file whose presence marks a directory as a project root.
+||| Contents are irrelevant — only the name is read.
+public export
+rootMarker : String
+rootMarker = "nova.root"
+
+||| The directory dotted module names resolve against: the nearest
+||| ancestor of `entry` (its own directory first) holding
+||| `rootMarker`. Without one the entry's directory IS the root, which
+||| is the pre-marker convention — a standalone file keeps resolving
+||| its imports beside itself.
+|||
+||| The walk stops at a fixed point of `dirOf` (the filesystem root,
+||| or "." for a relative entry, so a relative path never escapes the
+||| working directory) and is depth-capped besides.
+export
+findRoot : (entry : String) -> IO String
+findRoot entry = go 64 (dirOf entry)
+ where
+  go : Nat -> String -> IO String
+  go Z _ = pure (dirOf entry)
+  go (S k) dir = do
+    False <- exists "\{dir}/\{rootMarker}"
+      | True => pure dir
+    let up = dirOf dir
+    if up == dir || up == "" then pure (dirOf entry) else go k up
 
 export
 modPath : (rootDir : String) -> (mname : String) -> String
@@ -186,7 +220,8 @@ loadProgram rootPath = do
     | Left err => pure (Left (plainErr "cannot read '\{rootPath}': \{show err}"))
   let Right hdr = parseHeader rootPath content
     | Left err => pure (Left err)
-  Right (_, fixs, deps) <- loadMany (dirOf rootPath) [] [] [] [] rootPath content hdr
+  rootDir <- findRoot rootPath
+  Right (_, fixs, deps) <- loadMany rootDir [] [] [] [] rootPath content hdr
     | Left err => pure (Left err)
   let tbl0 = importTable fixs hdr
   let Nothing = fixityConflict tbl0

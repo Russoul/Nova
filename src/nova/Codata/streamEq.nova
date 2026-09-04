@@ -1,0 +1,76 @@
+-- Observational equality of streams: two streams are related iff
+-- every finite observation agrees — the ℕ-indexed spelling of
+-- bisimilarity, definable TODAY as an Ω-proposition (squash of a Π
+-- over ℕ of equations). Its theory below runs on ℕ-INDUCTION where a
+-- bisimulation proof would use coinduction: el-nu-eta is judgemental
+-- in the theory but has no kernel certificate (NovaKernel.txt, A5),
+-- so the REFLECTION of obsEq into ≡ is the one statement that stays
+-- out of reach here — everything observational is provable now.
+-- n-fold tail, unfolding head-first: tlN (S n) s ≐ tlN n (tl s)
+
+import Core.prelude (id, ∘)
+import Codata.stream (stream, hd, tl, map, iterate)
+
+def tlN : {a : 𝕌} → ℕ → stream a → stream a using (Codata.stream.stream.unfold) ≔
+  λa. λn. ℕ-elim (λs. s) (m ih. λs. ih (tl s)) n
+
+-- the n-th observation
+def nth : {a : 𝕌} → ℕ → stream a → a ≔ λa. λn. λs. hd (tlN n s)
+
+-- observational equality, in Ω
+def obsEq : {a : 𝕌} → stream a → stream a → Ω ≔ λa. λs. λt. ∥(n : ℕ) → nth n s ≡ nth n t∥
+
+-- reflexivity: every observation is ≐-reflexive
+def obsEqRefl : {a : 𝕌} (s : stream a) → obsEq s s using (Codata.streamEq.obsEq.unfold) ≔
+  λa. λs. ⋆ (λn. ⋆)
+
+-- map commutes with EVERY observation, by ℕ-induction — the step is
+-- judgemental: tl (map f s) ≐ map f (tl s) is one el-nu-beta
+def nthMap : {a b : 𝕌} (f : a → b) (n : ℕ) (s : stream a) → nth n (map f s) ≡ f (nth n s)
+  using (nth.eq,
+    Codata.stream.hd.eq,
+    Codata.stream.map.eq,
+    Codata.stream.stream.eq,
+    Codata.stream.stream.unfold,
+    Codata.stream.tl.eq,
+    tlN.eq) ≔
+  λa. λb. λf. λn. ℕ-elim (λs. ⋆) (m ih. λs. ih (tl s)) n
+
+-- mapping the identity is observationally the identity — the
+-- η-needing `map id s ≡ s` weakened to its observational shadow,
+-- where it is PROVABLE
+def mapIdObsEq : {a : 𝕌} (s : stream a) → obsEq (map (id {a}) s) s
+  using (Codata.streamEq.obsEq.unfold, Core.prelude.id.eq) ≔
+  λa. λs. ⋆ (λn. nthMap (id {a}) n s)
+
+-- likewise map fusion, observationally: composing maps is mapping
+-- the composite
+def mapFuseObsEq : {a b c : 𝕌}
+  (f : a → b)
+  (g : b → c)
+  (s : stream a)
+  → obsEq (map g (map f s)) (map (g ∘ f) s)
+  using (nth.eq,
+    Codata.stream.hd.eq,
+    Codata.stream.map.eq,
+    Core.prelude.∘.eq,
+    Codata.stream.stream.eq,
+    Codata.stream.stream.unfold,
+    Codata.stream.tl.eq,
+    Codata.streamEq.obsEq.unfold,
+    tlN.eq) ≔
+  λa. λb. λc. λf. λg. λs. ⋆ (λn. (ℕ-elim (m. (t : stream a)
+    → nth m (map g (map f t)) ≡ nth m (map (g ∘ f) t))
+    (λt. ⋆)
+    (m ih. λt. ih (tl t))
+    n)
+    s)
+
+-- the tail of an iterate is the iterate of the image, observationally
+def iterShiftObsEq : {a : 𝕌} (f : a → a) (x : a) → obsEq (tl (iterate f x)) (iterate f (f x))
+  using (hyp.rw,
+    Codata.stream.iterate.eq,
+    Codata.stream.stream.eq,
+    Codata.stream.tl.eq,
+    Codata.streamEq.obsEq.unfold) ≔
+  λa. λf. λx. ⋆ (λn. ⋆)

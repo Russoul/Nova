@@ -34,23 +34,28 @@ trap 'rm -rf "$tmp"' EXIT
 # distilled — and, for the same reason, never checked by
 # check-distill.sh. Name them rather than silently leaving them behind
 # (check-elaborations.sh --per-file exists for the same blind spot).
+# paths are compared RELATIVE to each root: the corpus is a tree, and
+# distill mirrors it under $tmp, so a basename is not unique
 missing=0
-for f in src/nova/*.nova; do
-  if [ ! -e "$tmp/$(basename "$f")" ]; then
+while IFS= read -r f; do
+  rel="${f#src/nova/}"
+  if [ ! -e "$tmp/$rel" ]; then
     echo "warning: $f is not in all.nova's import closure — not normalized, and not covered by check-distill.sh"
     missing=1
   fi
-done
+done < <(find src/nova -name '*.nova' | LC_ALL=C sort)
 
 changed=0
-for f in "$tmp"/*.nova; do
-  target="src/nova/$(basename "$f")"
+while IFS= read -r f; do
+  rel="${f#"$tmp"/}"
+  target="src/nova/$rel"
   if ! diff -q "$f" "$target" > /dev/null 2>&1; then
+    mkdir -p "$(dirname "$target")"
     cp "$f" "$target"
     echo "  normalized $target"
     changed=$((changed + 1))
   fi
-done
+done < <(find "$tmp" -name '*.nova' | LC_ALL=C sort)
 
 if [ "$changed" -eq 0 ]; then
   echo "normalize-corpus: already canonical, nothing rewritten"

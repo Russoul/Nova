@@ -1,0 +1,399 @@
+-- intNonZero FIRST: it fixes the elaboration order of the transitive
+-- imports, and integerNormalize's own well-definedness proof only
+-- survives if it is elaborated before rationalQ's clsEqOfRel enters
+-- the store (docs/ProvingFeedback.md B-3/B-5)
+-- The ALGORITHMIC inverse: a total function qInv : Q → Q that
+-- computes a multiplicative inverse (and returns 0 at 0), together
+-- with the non-erased existence statement
+--
+--   (u : Q) (h : (u ≢ 0)) → (v : Q) × (qMul u v ≡ qOne)
+--
+-- whose first component IS the inverse, not a squashed promise.
+--
+-- What makes this possible is Int/nonZero.nova's DATA-valued view
+-- nzOfInt: the numerator's sign is decided by a function, so the
+-- inverse can branch on it. The price is that qInv's descent to the
+-- quotient needs ℤ to have no zero divisors — for related p, p′ the
+-- numerators are not equal, so the two branches must be shown to agree,
+-- and the mixed case (one numerator zero, the other not) is refuted
+-- exactly by intNoZeroDiv.
+-- ===== the inverse on representatives =====
+-- taking the view as an argument (rather than calling nzOfInt inside)
+-- is what lets the proofs below case-split on it: they eliminate the
+-- same scrutinee under a motive mentioning invRepAt
+
+import Int.nonZero (nzOfInt, nzToIntNonZero, intNoZeroDiv)
+import Natural (+, *, plusComm, plusAssoc, multComm)
+import Int (Int, intZero, intOne)
+import Int.mul (*, intMulComm, intMulOneL, intMulOneR, intMulZeroL, intMulZeroR, intMulCong2)
+import Core.prop (¬, ⊥, absurdP)
+import Rat.frac (NZ, nzPos, nzToInt, nzMul, Rat, mkRat, num, den, ratZero, ratOne, ratEta, half, third)
+import Rat (Q, qcls, qZero, qOne, *, ratMul, RatR, clsEqOfRel, dInt, nzToIntMul, mulCongL, mulCongR, NZQ, qOfNzq, qMulOneL, qMulOneR, qMulComm, qMulAssoc)
+import Rat.inv (notIntro, notApply, numNonZero)
+import Core.equality (trans, sym, cong)
+
+def invRepAt : (p : Rat) → ((e : NZ) × nzToInt e ≡ num p) ⊎ (num p ≡ intZero) → Rat
+  using (Rat.frac.Rat.unfold) ≔
+  λp. λv. ⊎-elim (u. mkRat (dInt p) (u .π₁)) (u. ratZero) v
+
+def invRep : Rat → Rat using (Rat.frac.Rat.unfold) ≔ λp. invRepAt _ (nzOfInt (num p))
+
+-- ===== well-definedness =====
+-- both numerators non-zero: the goal IS the hypothesis, commuted
+-- p′'s numerator is zero, p's is not: impossible, by no zero divisors
+-- p's numerator is zero, p′'s is not: impossible, symmetrically
+-- both zero: both inverses are the junk value
+def invRepWDAt : {p p' : Rat}
+  (h : RatR p p')
+  (v : ((e : NZ) × nzToInt e ≡ num p) ⊎ (num p ≡ intZero))
+  (v' : ((e : NZ) × nzToInt e ≡ num p') ⊎ (num p' ≡ intZero))
+  → num (invRepAt _ v) * dInt (invRepAt _ v') ≡ num (invRepAt _ v') * dInt (invRepAt _ v)
+  using (intMulOneR,
+    intMulZeroL,
+    Int.Int.eq,
+    Int.Int.unfold,
+    Int.mul.*.eq,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzToInt.eq,
+    Rat.algInv.invRepAt.eq,
+    Rat.RatR.eq,
+    Rat.RatR.unfold,
+    Rat.dInt.eq) ≔
+  λp. λp'. λh. λv. λv'. ⊎-elim
+    (ex. ⊎-elim
+      (ey. trans
+        (dInt p * nzToInt (ey .π₁))
+        _
+        (dInt p' * nzToInt (ex .π₁))
+        (mulCongR (dInt p) _ _ (ey .π₂))
+        (trans
+          _
+          _
+          _
+          (trans
+            _
+            _
+            _
+            (intMulComm (dInt p) (num p'))
+            (trans
+              _
+              _
+              _
+              (sym (num p * dInt p') (num p' * dInt p) h)
+              (intMulComm (num p) (dInt p'))))
+          (mulCongR (dInt p') _ _ (sym _ _ (ex .π₂)))))
+      (ey. absurdP
+        _
+        (notApply
+          _
+          (nzToIntNonZero (ex .π₁))
+          (trans
+            _
+            _
+            _
+            (ex .π₂)
+            (intNoZeroDiv
+              _
+              (trans
+                (num p * dInt p')
+                _
+                _
+                h
+                (trans _ _ _ (mulCongL _ _ (dInt p) ey) (intMulZeroL (dInt p))))
+              (nzToIntNonZero (den p'))))))
+      v')
+    (ex. ⊎-elim
+      (ey. absurdP
+        _
+        (notApply
+          _
+          (nzToIntNonZero (ey .π₁))
+          (trans
+            _
+            _
+            _
+            (ey .π₂)
+            (intNoZeroDiv
+              _
+              (trans
+                _
+                _
+                _
+                (sym (num p * dInt p') (num p' * dInt p) h)
+                (trans _ _ _ (mulCongL _ _ (dInt p') ex) (intMulZeroL (dInt p'))))
+              (nzToIntNonZero (den p))))))
+      (ey. ⋆)
+      v')
+    v
+
+def invRepWD : {p p' : Rat}
+  (h : RatR p p')
+  → num (invRep p) * dInt (invRep p') ≡ num (invRep p') * dInt (invRep p)
+  using (Int.nonZero.nzOfInt.eq,
+    Int.Int.unfold,
+    Int.mul.*.eq,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.frac.num.eq,
+    Rat.algInv.invRep.eq,
+    Rat.algInv.invRepAt.eq,
+    Rat.RatR.unfold,
+    Rat.dInt.eq) ≔
+  λp. λp'. λh. invRepWDAt h (nzOfInt (num p)) (nzOfInt (num p'))
+
+-- ===== the inverse on ℚ =====
+def invRepWDCls : (p p' : Rat) (h : RatR p p') → class (invRep p) ≡ class (invRep p') ∈ Q
+  using (Int.Int.unfold,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.Q.unfold,
+    Rat.RatR.eq,
+    Rat.RatR.unfold) ≔
+  λp. λp'. λh. clsEqOfRel _ _ (invRepWD h)
+
+def qInv : Q → Q
+  using (Int.Int.unfold,
+    invRepWDCls,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.Q.unfold,
+    Rat.RatR.unfold) ≔
+  λu. quot-elim (p. class (invRep p)) u
+
+def qInvCls : (p : Rat) → qInv (qcls p) ≡ qcls (invRep p)
+  using (Int.Int.unfold,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.algInv.invRep.eq,
+    Rat.algInv.qInv.eq,
+    Rat.Q.unfold,
+    Rat.qcls.eq) ≔
+  λp. ⋆
+
+-- junk at zero, by construction
+def qInvZero : qInv qZero ≡ qZero
+  using (Int.eq.classNormPairEq.eq,
+    Int.eq.intCanon.eq,
+    Int.eq.intCanonClass.eq,
+    Core.equality.sym.eq,
+    Core.equality.trans.eq,
+    Int.nonZero.nzOfInt.eq,
+    Int.nonZero.nzOfIntAt.eq,
+    Int.nonZero.nzOfPairD.eq,
+    Int.Int.eq,
+    Int.intZero.eq,
+    Int.mul.classPairEta.eq,
+    Int.normalize.normPair.eq,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzOne.eq,
+    Rat.frac.nzPos.eq,
+    Rat.frac.nzToInt.eq,
+    Rat.frac.ratOfInt.eq,
+    Rat.frac.ratZero.eq,
+    Rat.algInv.invRep.eq,
+    Rat.algInv.invRepAt.eq,
+    Rat.algInv.qInv.eq,
+    Rat.inv.intCanonProdZero.eq,
+    Rat.inv.normProdZero.eq,
+    Rat.Q.unfold,
+    Rat.dInt.eq,
+    Rat.qZero.eq,
+    Rat.qcls.eq) ≔
+  ⋆
+
+-- ===== correctness =====
+-- at a representative with a non-zero numerator: p · (D/e) is
+-- (n·D)/(d·e), and cross-multiplying against 1/1 leaves n·D ≡ D·n
+def invRepRel : {p : Rat}
+  {e : NZ}
+  (he : nzToInt e ≡ num p)
+  → num
+    (ratMul p (mkRat (dInt p) e)) * dInt ratOne ≡ num ratOne * dInt (ratMul p (mkRat (dInt p) e))
+  using (Int.Int.unfold,
+    Int.intOne.eq,
+    Int.mul.*.eq,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzMul.eq,
+    Rat.frac.nzOne.eq,
+    Rat.frac.nzPos.eq,
+    Rat.frac.nzToInt.eq,
+    Rat.frac.ratOfInt.eq,
+    Rat.frac.ratOne.eq,
+    Rat.dInt.eq,
+    Rat.ratMul.eq) ≔
+  λp. λe. λhe. trans
+    _
+    _
+    _
+    (intMulOneR (num p * dInt p))
+    (trans
+      _
+      _
+      _
+      (trans _ _ _ (intMulComm (num p) (dInt p)) (mulCongR (dInt p) _ _ (sym _ _ he)))
+      (trans
+        (dInt p * nzToInt e)
+        (dInt (ratMul p (mkRat (dInt p) e)))
+        (num ratOne * dInt (ratMul p (mkRat (dInt p) e)))
+        (sym _ _ (nzToIntMul (den p) e))
+        (sym _ _ (intMulOneL (dInt (ratMul p (mkRat (dInt p) e)))))))
+
+def invRepCorrectAt : {p : Rat}
+  (hnz : ¬ (num p ≡ intZero))
+  (v : ((e : NZ) × nzToInt e ≡ num p) ⊎ (num p ≡ intZero))
+  → class (ratMul p (invRepAt _ v)) ≡ qOne
+  using (intMulZeroR,
+    Int.Int.eq,
+    Int.Int.unfold,
+    Int.intOne.eq,
+    Int.mul.*.eq,
+    Core.prop.¬.unfold,
+    Core.prop.⊃.unfold,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzMulOneR,
+    Rat.frac.ratOfInt.eq,
+    Rat.frac.ratOne.eq,
+    Rat.algInv.invRepAt.eq,
+    Rat.Q.unfold,
+    Rat.RatR.eq,
+    Rat.dInt.eq,
+    Rat.qOne.eq,
+    Rat.qcls.eq,
+    Rat.ratMul.eq) ≔
+  λp. λhnz. λv. ⊎-elim
+    (ex. clsEqOfRel (ratMul p (mkRat (dInt p) (ex .π₁))) ratOne (invRepRel (ex .π₂)))
+    (ex. absurdP _ (notApply _ hnz ex))
+    v
+
+def qMulInvR : {u : Q} (h : ¬ (u ≡ qZero)) → u * qInv u ≡ qOne
+  using (Int.eq.intCanon.eq,
+    Int.eq.intCanonClass.eq,
+    Int.nonZero.nzOfInt.eq,
+    Int.nonZero.nzOfIntAt.eq,
+    Int.Int.unfold,
+    Int.mul.*.eq,
+    pi.eta,
+    Core.prop.¬.unfold,
+    Core.prop.⊃.unfold,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzMul.eq,
+    Rat.frac.ratZero.eq,
+    Rat.algInv.invRep.eq,
+    Rat.algInv.invRepAt.eq,
+    Rat.algInv.qInv.eq,
+    Rat.inv.intCanonProdZero.eq,
+    Rat.Q.unfold,
+    Rat.RatR.unfold,
+    Rat.dInt.eq,
+    Rat.*.eq,
+    Rat.ratMul.eq) ≔
+  λu. quot-elim (p. λh. invRepCorrectAt (numNonZero h) (nzOfInt (num p))) u
+
+-- ===== the non-erased existence statement =====
+--
+-- a Σ-TYPE, not a squash: the first component is the inverse itself
+def qInvExistsD : (u : Q) (h : ¬ (u ≡ qZero)) → (v : Q) × u * v ≡ qOne ≔ λu. λh. qInv u, qMulInvR h
+
+-- and it computes: (⅓)⁻¹ = 3
+def qInvThird : qInv (qcls third) ≡ qcls (mkRat (class (3, Z)) (nzPos Z))
+  using (Int.eq.classNormPairEq.eq,
+    Int.eq.intCanon.eq,
+    Int.eq.intCanonClass.eq,
+    Core.equality.sym.eq,
+    Core.equality.trans.eq,
+    Int.nonZero.nzOfInt.eq,
+    Int.nonZero.nzOfIntAt.eq,
+    Int.nonZero.nzOfPairD.eq,
+    Int.Int.eq,
+    Int.Int.unfold,
+    Int.intOne.eq,
+    Int.intZero.eq,
+    Int.mul.classPairEta.eq,
+    Int.normalize.normPair.eq,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzPos.eq,
+    Rat.frac.nzToInt.eq,
+    Rat.frac.ratOfInt.eq,
+    Rat.frac.ratZero.eq,
+    Rat.frac.third.eq,
+    Rat.algInv.invRep.eq,
+    Rat.algInv.invRepAt.eq,
+    Rat.algInv.qInv.eq,
+    Rat.inv.intCanonProdZero.eq,
+    Rat.inv.normProdZero.eq,
+    Rat.Q.unfold,
+    Rat.dInt.eq,
+    Rat.qcls.eq) ≔
+  ⋆
+
+-- ===== the inverse type is a proposition =====
+--
+-- Inverses are unique, so ((v : Q) × (qMul u v ≡ qOne)) has at
+-- most one element: it is an h-prop, even though it is not a prop.
+-- (See docs/ProvingFeedback.md A-5 on what an eliminator into such
+-- types would and would not buy.)
+def qInvUniqueVal : (u : Q) {v v' : Q} (h : u * v ≡ qOne) (h' : u * v' ≡ qOne) → v ≡ v' ≔
+  λu. λv. λv'. λh. λh'. trans
+    _
+    _
+    _
+    (sym _ _ (qMulOneR v))
+    (trans
+      _
+      _
+      _
+      (cong (λx. Q) (λx. v * x) (sym _ _ h'))
+      (trans
+        _
+        _
+        _
+        (sym _ _ (qMulAssoc v u v'))
+        (trans
+          _
+          _
+          _
+          (cong (λx. Q) (λx. x * v') (qMulComm v u))
+          (trans _ _ _ (cong (λx. Q) (λx. x * v') h) (qMulOneL v')))))
+
+-- packaging: with the two values equal (and the two proofs equal by
+-- proof irrelevance) the pairs are equal. Note trans/sym/cong are
+-- 𝕌-INDEXED, so none of them apply at this Σ — it carries a prop and is
+-- therefore not a code. Everything here has to be a bare ⋆.
+-- Packaging it as "the inverse type is an h-prop" runs into the fact
+-- that Core/equality.nova's trans/sym/cong are 𝕌-INDEXED: this Σ
+-- carries a a prop, so it is not a code and none of them apply. What is
+-- available without them is the pair-congruence form — no Σ-η needed,
+-- since both sides are literal pairs.
+def invPairCong : {u a a' : Q}
+  {b : u * a ≡ qOne}
+  {b' : u * a' ≡ qOne}
+  (h : a ≡ a')
+  → (a, b) ≡ (a', b') ∈ (v : Q) × u * v ≡ qOne
+  using (hyp.rw, Rat.Q.unfold, sigma.eta) ≔
+  λu. λa. λa'. λb. λb'. λh. ⋆
+
+-- so any two inverse-witnesses are equal, given as pairs
+def qInvWitnessUnique : (u a a' : Q)
+  (b : u * a ≡ qOne)
+  (b' : u * a' ≡ qOne)
+  → (a, b) ≡ (a', b') ∈ (v : Q) × u * v ≡ qOne ≔
+  λu. λa. λa'. λb. λb'. invPairCong (qInvUniqueVal _ b b')

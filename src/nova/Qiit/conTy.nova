@@ -1,0 +1,62 @@
+-- INDUCTION-INDUCTION: contexts and types over them, mutually
+-- (Foundation's Con/Ty worked example). Ty is a sort INDEXED BY AN
+-- ELEMENT OF ANOTHER SORT of the same signature.
+
+data ( Con : U
+     ; Ty : El Con → U
+     ; nil : El Con
+     ; ext : (gamma : El Con) → El (Ty gamma) → El Con
+     ; unit : (gamma : El Con) → El (Ty gamma)
+     ; arr : (gamma : El Con) → El (Ty gamma) → El (Ty gamma) → El (Ty gamma) )
+
+-- a context: nil ▷ unit ▷ (unit → unit)
+def g1 : Con using (Qiit.conTy.Con.unfold) ≔ ext nil (unit nil)
+
+def g2 : Con using (Qiit.conTy.Con.unfold) ≔ ext g1 (arr g1 (unit g1) (unit g1))
+
+-- mutual elimination: the LENGTH of a context and the SIZE of a type,
+-- one elimination problem (both motives, all four methods)
+def clen : Con → ℕ using (Qiit.conTy.Con.unfold) ≔
+  λg. ConElim
+    (λw. ℕ)
+    (λg. λw. ℕ)
+    Z
+    (λg. λihg. λA. λihA. S ihg)
+    (λg. λihg. S Z)
+    (λg. λihg. λA. λihA. λB. λihB. S ihA)
+    g
+
+def clenG2 : clen g2 ≡ 2
+  using (Qiit.conTy.ConElim.eq,
+    Qiit.conTy.arr.eq,
+    Qiit.conTy.clen.eq,
+    Qiit.conTy.ext.eq,
+    Qiit.conTy.g1.eq,
+    Qiit.conTy.g2.eq,
+    Qiit.conTy.nil.eq,
+    Qiit.conTy.unit.eq) ≔
+  ⋆
+
+-- the same elimination problem read at the Ty motive: type size
+def tsize : (g : Con) → Ty g → ℕ using (Qiit.conTy.Con.unfold, Qiit.conTy.Ty.unfold) ≔
+  λg. λt. TyElim
+    (λw. ℕ)
+    (λg. λw. ℕ)
+    Z
+    (λg. λihg. λA. λihA. S ihg)
+    (λg. λihg. S Z)
+    (λg. λihg. λA. λihA. λB. λihB. S ihA)
+    g
+    t
+
+def tsizeArr : tsize g1 (arr g1 (unit g1) (unit g1)) ≡ 2
+  using (Qiit.conTy.Con.unfold,
+    Qiit.conTy.Ty.unfold,
+    Qiit.conTy.TyElim.eq,
+    Qiit.conTy.arr.eq,
+    Qiit.conTy.ext.eq,
+    Qiit.conTy.g1.eq,
+    Qiit.conTy.nil.eq,
+    Qiit.conTy.tsize.eq,
+    Qiit.conTy.unit.eq) ≔
+  ⋆

@@ -1,0 +1,47 @@
+-- (ℤ, +, ·, 0, 1) is a commutative ring. The additive component is
+-- Int.group.intAddGroup wholesale — IsCommRing takes an IsGroup, so
+-- nothing additive is restated — and each remaining law is an existing
+-- Int/mul.nova lemma across the Id bridge, exactly as
+-- Real.ring.realCommRing assembles ℝ's.
+--
+-- A gap worth closing on its own: ℤ had a group but no ring, and every
+-- ring-level statement about ℤ had to be made in terms of intMul
+-- directly.
+
+import Int (Int, intZero, intOne, intNeg)
+import Int.add (+, intAddComm)
+import Int.mul (*, intMulAssoc, intMulComm, intMulOneR, intMulDistribL)
+import Int.group (intAddGroup)
+import Core.id (Id, eqToId)
+import Algebra.monoid (IsMonoid)
+import Algebra.group (IsGroup)
+import Algebra.ring (IsCommRing)
+
+def intCommRing : IsCommRing Int using (Int.group.intAddGroup.eq, Algebra.ring.IsCommRing.unfold) ≔
+  intAddGroup,
+    (*),
+      intOne,
+        (λx. λy. λz. eqToId
+          _
+          _
+          (intMulAssoc
+            x
+            y
+            z)),
+          (λx. λy. eqToId
+            _
+            _
+            (intMulComm
+              x
+              y)),
+            (λx. eqToId
+              _
+              _
+              (intMulOneR
+                x)),
+              (λx. λy. eqToId
+                (x + y)
+                (y + x)
+                (intAddComm
+                  x
+                  y)), λx. λy. λz. eqToId (x * (y + z)) (x * y + x * z) (intMulDistribL x y z)

@@ -1,0 +1,132 @@
+-- The constructive reals: REGULAR sequences of rationals (Bishop),
+-- quotiented by eventual closeness. Everything below the quotient is
+-- DATA — the modulus is baked into regularity (|x_m − x_n| bounded by
+-- 1/(m+1) + 1/(n+1)), stated two-sidedly so no absolute value is
+-- needed, with LeQ-codes as the bounds. A bound IS its witness, so no
+-- choice principle enters anywhere downstream.
+-- 1/(n+1), and its positivity (the nz layer computes the sign)
+
+import Int (Int, intOne)
+import Int.mul (*)
+import Rat.frac (NZ, nzPos, nzOne, nzMul, nzToInt, mkRat, Rat)
+import Rat (Q, qcls, +, qNeg, qZero, qOne, qAddNegR, qNegNeg, nzToIntMul)
+import Rat.bound (Bnd, bndIsProp)
+import Rat.order (Sign, sPos, sZero, nzSgn, intSgn, intSgnNz, sgnQ, sgnQZero, NonNegS, ≤, sgnQAddPos)
+import Core.equality (trans, sym, cong, transport)
+import Core.id (Id, eqToId)
+
+def qInvNat : ℕ → Q using (Rat.Q.unfold) ≔ λn. qcls (mkRat intOne (nzPos n))
+
+def qInvNatPos : (n : ℕ) → sgnQ (qInvNat n) ≡ sPos
+  using (Int.eq.intCanon.eq,
+    Int.eq.intCanonClass.eq,
+    Int.nonZero.nzOfInt.eq,
+    Int.nonZero.nzOfIntAt.eq,
+    Int.intOne.eq,
+    Int.mul.*.eq,
+    Rat.frac.denInt.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzMul.eq,
+    Rat.frac.nzOne.eq,
+    Rat.frac.nzPos.eq,
+    Rat.frac.nzToInt.eq,
+    Rat.inv.intCanonProdZero.eq,
+    Rat.order.Sign.unfold,
+    Rat.order.intSgn.eq,
+    Rat.order.nzSgn.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sNeg.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.qcls.eq,
+    Real.qInvNat.eq) ≔
+  λn. trans
+    _
+    _
+    _
+    (cong (λv. Sign) (λv. intSgn v) (sym _ _ (nzToIntMul nzOne (nzPos n))))
+    (trans _ _ sPos (intSgnNz (nzMul nzOne (nzPos n))) ⋆)
+
+-- the regularity bound 1/(m+1) + 1/(n+1), positive
+def rBound : ℕ → ℕ → Q using (Rat.Q.unfold) ≔ λm. λn. qInvNat m + qInvNat n
+
+def rBoundPos : {m n : ℕ} → sgnQ (rBound m n) ≡ sPos
+  using (Rat.+.eq, Real.qInvNat.eq, Real.rBound.eq) ≔
+  λm. λn. sgnQAddPos _ _ (qInvNatPos m) (qInvNatPos n)
+
+def qNegZero : qNeg qZero ≡ qZero
+  using (Int.intNeg.eq,
+    Int.intZero.eq,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.frac.ratOfInt.eq,
+    Rat.frac.ratZero.eq,
+    Rat.Q.unfold,
+    Rat.qNeg.eq,
+    Rat.qZero.eq,
+    Rat.qcls.eq) ≔
+  ⋆
+
+-- −(bound) ≤ 0 ≤ bound
+def leQNegBoundZero : {m n : ℕ} → qNeg (rBound m n) ≤ qZero
+  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold) ≔
+  λm. λn. inj₂ (eqToId
+    _
+    _
+    (trans
+      _
+      _
+      sPos
+      (cong
+        (λv. Sign)
+        (λv. sgnQ v)
+        (trans _ _ _ (Rat.qAddZeroL (qNeg (qNeg (rBound m n)))) (qNegNeg (rBound m n))))
+      rBoundPos))
+
+def leQZeroBound : (m n : ℕ) → qZero ≤ rBound m n
+  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold) ≔
+  λm. λn. inj₂ (eqToId
+    _
+    _
+    (trans
+      _
+      _
+      sPos
+      (cong
+        (λv. Sign)
+        (λv. sgnQ v)
+        (trans _ _ _ (cong (λv. Q) (λv. rBound m n + v) qNegZero) (Rat.qAddZeroR (rBound m n))))
+      rBoundPos))
+
+-- ===== the carrier =====
+-- regularity, two-sided: −(1/(m+1)+1/(n+1)) ≤ f m − f n ≤ ⋯
+def Regular : (ℕ → Q) → 𝕌 ≔ λf. (m n : ℕ) → Bnd (rBound m n) (f m + qNeg (f n))
+
+def RSeq : 𝕌 ≔ (f : ℕ → Q) × Regular f
+
+-- eventual closeness: |x_n − y_n| ≤ 2/(n+1), squashed — the relation
+-- is a PROPOSITION (Ω), as a quotient's must be
+def REq : RSeq → RSeq → Ω using (Real.RSeq.unfold) ≔
+  λx. λy. ∥(n : ℕ)
+    → qNeg (rBound n n) ≤ x .π₁ n + qNeg (y .π₁ n) × x .π₁ n + qNeg (y .π₁ n) ≤ rBound n n∥
+
+def Real : 𝕌 ≔ RSeq / (x y. REq x y)
+
+-- ===== ℚ embeds =====
+-- a constant sequence is regular: its differences are zero, and the
+-- zero-bounds transport along q − q ≡ 0
+def constReg : {q : Q} → Regular (λn. q) using (Rat.bound.Bnd.unfold, Real.Regular.unfold) ≔
+  λq. λm. λn. transport
+    (λw. qNeg (rBound m n) ≤ w)
+    (sym _ _ (qAddNegR q))
+    leQNegBoundZero, transport (λw. w ≤ rBound m n) (sym _ _ (qAddNegR q)) (leQZeroBound m n)
+
+def realOfQ : Q → Real using (Real.RSeq.unfold, Real.Real.unfold) ≔ λq. class ((λn. q), constReg)
+
+def realZero : Real using (Real.Real.unfold) ≔ realOfQ qZero
+
+def realOne : Real using (Real.Real.unfold) ≔ realOfQ qOne

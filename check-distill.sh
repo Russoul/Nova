@@ -18,13 +18,18 @@ fi
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 "$NOVA" distill src/nova/all.nova "$tmp"
+# the corpus is a TREE, and distill mirrors it under $tmp (a module's
+# path IS its dotted name — Nova.Elaboration.Loader.modPath), so
+# compare by path RELATIVE to each root, not by basename: Int/order,
+# Rat/order and Real/order share one.
 fail=0
-for f in "$tmp"/*.nova; do
-  if ! diff -q "$f" "src/nova/$(basename "$f")" > /dev/null; then
-    echo "not in canonical distill form: src/nova/$(basename "$f")"
+while IFS= read -r f; do
+  rel="${f#"$tmp"/}"
+  if ! diff -q "$f" "src/nova/$rel" > /dev/null; then
+    echo "not in canonical distill form: src/nova/$rel"
     fail=1
   fi
-done
+done < <(find "$tmp" -name '*.nova' | LC_ALL=C sort)
 if [ "$fail" -ne 0 ]; then
   echo "check-distill: FAILED — run ./normalize-corpus.sh to fix"
   exit 1
