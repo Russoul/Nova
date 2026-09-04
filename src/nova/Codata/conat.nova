@@ -1,0 +1,44 @@
+-- Conaturals, split out of Codata/stream.nova: the ν-scheme at its
+-- simplest sum polynomial (NovaFoundation.txt, "Coinductive
+-- types"). conat ≔ ν (K 𝟙 ⊎ 𝕏): zero observes as inj₁, a successor
+-- as inj₂ of its predecessor; ∞ is its own predecessor. β-shaped
+-- lemmas close by computation; infSucc is the classic coinductive
+-- theorem, by el-nu-coind.
+-- Conaturals: ν (K 𝟙 ⊎ 𝕏) — zero observes as inj₁, a successor as
+-- inj₂ of its predecessor; ∞ is its own predecessor
+
+def conat : 𝕌 ≔ ν (K 𝟙 ⊎ 𝕏)
+
+def czero : conat using (Codata.conat.unfold) ≔ corec (s : 𝟙. inj₁ s) ()
+
+def cinf : conat using (Codata.conat.unfold) ≔ corec (s : 𝟙. inj₂ s) ()
+
+-- observation shapes, by computation (el-nu-beta + el-sum-beta)
+def outZero : out czero ≡ inj₁ () ∈ 𝟙 ⊎ conat
+  using (Codata.conat.eq, czero.eq, hyp.rw, Codata.conat.unfold) ≔
+  ⋆
+
+def outInf : out cinf ≡ inj₂ cinf ∈ 𝟙 ⊎ conat
+  using (cinf.eq, Codata.conat.eq, hyp.rw, Codata.conat.unfold) ≔
+  ⋆
+
+-- csucc: emit inj₂ of the stored conat, continuing by observation
+def csucc : conat → conat using (Codata.conat.unfold) ≔
+  λn. corec (p : 𝟙 ⊎ conat. inj₂ (⊎-elim (u. inj₁ u) (m. out m) p)) (out n)
+
+-- a successor always observes as inj₂ — one β step, the payload
+-- irrelevant to the shape (⊎-elim at an equality motive would refute
+-- inj₁; here the equation is between the injections themselves)
+def outSuccInf : out (csucc cinf) ≡ inj₂ (csucc cinf) ∈ 𝟙 ⊎ conat
+  using (cinf.eq, Codata.conat.eq, csucc.eq, hyp.rw, Codata.conat.unfold) ≔
+  ⋆
+
+-- conat's classic coinductive theorem: ∞ is its own successor. The
+-- closure exercises the relator's SUM clause: the ⊎-elim at motive Ω
+-- is stuck at the generic observations, un-stuck by the invariant's
+-- variable-definition equations, and collapses definitionally on the
+-- inj₂/inj₂ diagonal.
+def infSucc : cinf ≡ csucc cinf using (cinf.eq, csucc.eq, hyp.rw, Codata.conat.unfold) ≔
+  coind (x y. ∥(x ≡ cinf ∈ conat) × (y ≡ csucc cinf ∈ conat)∥)
+    (⋆ (⋆, ⋆))
+    (x y h. squash-elim h (w. ⋆ (⋆, ⋆)))

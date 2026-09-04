@@ -1,0 +1,34 @@
+-- unsquash: eliminating a ∥∥ VARIABLE, and trading it for its witness.
+--
+-- `unsquash (x. t) w` takes a VARIABLE w of a squash type and
+-- elaborates t where w is GONE and a witness x of the squashee stands
+-- innermost instead. Checking-only, and the goal must be a
+-- PROPOSITION — both inherited from el-squash-e-prf, which this is an
+-- ordinary use of.
+--
+-- The contrast is `squash-elim h (x. b)`, which ADDS the witness and
+-- keeps h. The witness lands innermost either way — that is forced,
+-- not chosen: putting it in h's slot would mean Π-closing the later
+-- entries into the goal, and a Π is never a proposition. So the whole
+-- difference is that h disappears, which is what a hole under it reads.
+--
+-- This is the one member of the family that substitutes NOTHING. The
+-- others refine because later entries can name the eliminated
+-- variable's components or value; a witness is new, so nothing could
+-- ever have named it. By the same token a type that names w blocks the
+-- rule outright — remove w and no proof of ∥A∥ is left to stand there.
+
+import Natural (+)
+
+def halves : (n : ℕ) (w : ∥(k : ℕ) × n ≡ k + k∥) → ∥(k : ℕ) × n + Z ≡ k + k∥
+  using (Natural.plusZeroId) ≔
+  λn. λw. unsquash (x. ⋆ x) w
+
+-- entries stand on both sides of the variable, and none names it, so
+-- every one of them survives the trade
+def keeps : (n : ℕ) (w : ∥ℕ∥) (h : n ≡ n) → n ≡ n ≔ λn. λw. λh. unsquash (x. h) w
+
+-- squashed disjunction: the witness is a ⊎, and sum-elim takes it
+-- from there
+def orComm : (a b : Ω) (w : ∥a ⊎ b∥) → ∥b ⊎ a∥ ≔
+  λa. λb. λw. unsquash (x. ⋆ (sum-elim (l. inj₂ l) (r. inj₁ r) x)) w

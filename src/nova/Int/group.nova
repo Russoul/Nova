@@ -1,0 +1,37 @@
+-- (ℤ, +, -, 0) is a group: the monoid component first (every law an
+-- existing corpus lemma across the Id bridge — the unit laws live in
+-- Rat/frac.nova, the inverse laws in Int/mul.nova, imported from
+-- where they are), then the inverse operation and its two laws.
+
+import Int (Int, intZero, intNeg)
+import Int.add (+, intAddAssoc)
+import Int.mul (intAddNegL, intAddNegR)
+import Rat.frac (intAddZeroL, intAddZeroR)
+import Core.id (eqToId)
+import Algebra.monoid (IsMonoid)
+import Algebra.group (IsGroup)
+
+def intAddGroup : IsGroup Int using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold) ≔
+  ((+),
+    intZero,
+      (λx. λy. λz. eqToId
+        _
+        _
+        (intAddAssoc
+          x
+          y
+          z)),
+        (λx. eqToId
+          _
+          _
+          (intAddZeroL
+            x)),
+          λx. eqToId
+            _
+            _
+            (intAddZeroR x)), intNeg, (λx. eqToId _ _ (intAddNegL x)), λx. eqToId _ _ (intAddNegR x)
+
+-- the underlying monoid is the group's first component
+def intAddMonoid : IsMonoid Int
+  using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold) ≔
+  intAddGroup .π₁

@@ -13,7 +13,9 @@ module Nova.Docs.Render
 -- built from the loaded ModUnits) turns every resolvable
 -- identifier/operator token into a link. Each rendered line carries
 -- an id ("L<n>", 1-based), so a link's target is the defining item's
--- first line — same page as "#L37", cross-module as "nat.html#L12".
+-- first line — same page as "#L37", cross-module as
+-- "Natural.order.html#L12" (a page is named for its MODULE, not its
+-- basename — see pageNameOf).
 -- A written name that resolves to nothing but names a loaded module
 -- links to that module's page (import heads navigate). Local
 -- (λ/Π-bound) names resolve to nothing and stay plain — with the
@@ -129,24 +131,49 @@ htmlPage title body = joinBy "\n"
 
 -- ===== driver =====
 
-baseNameOf : String -> String
-baseNameOf path =
-  let name = List1.last (split (== '/') path) in
+dropDotNova : String -> String
+dropDotNova name =
   if isSuffixOf ".nova" name
     then pack (reverse (drop 5 (reverse (unpack name))))
     else name
+
+baseNameOf : String -> String
+baseNameOf = dropDotNova . List1.last . split (== '/')
+
+||| A page's name — and so its file name and every href to it: the
+||| MODULE's dotted name, i.e. the source's path relative to the
+||| project root (Nova.Elaboration.Loader.findRoot) with '/' written
+||| '.'. Not the basename: the corpus is a tree, and Int/order,
+||| Rat/order and Real/order share a basename but are three modules —
+||| keying pages by basename would have them overwrite one another and
+||| every cross-module link land on whichever won.
+|||
+||| The name this yields for a module is exactly its `mname`, so the
+||| `pages` fallback below (a written name that IS a loaded module)
+||| needs no separate convention.
+pageNameOf : (rootDir : String) -> (path : String) -> String
+pageNameOf rootDir path =
+  let pfx = if rootDir == "." then "" else rootDir ++ "/" in
+  if pfx == "" then dotted (dropDotNova path)
+  else if isPrefixOf pfx path
+    then dotted (dropDotNova (substr (length pfx) (length path) path))
+    -- outside the root: no module name to speak of, so fall back
+    else baseNameOf path
+ where
+  dotted : String -> String
+  dotted = pack . map (\c => if c == '/' then '.' else c) . unpack
 
 ||| The static go-to-definition resolver for one page: written name →
 ||| qualified (the module's own aliases, Nova.LSP.Definitions), then
 ||| the program-wide index gives (file, item range) → an href to the
 ||| defining line; a miss that names a loaded module links to its
 ||| page instead (import heads).
-hrefResolver : (path : String) -> (lns : List String)
+hrefResolver : (rootDir : String) -> (path : String) -> (lns : List String)
             -> SortedMap String String
             -> SortedMap String (String, NRange)
             -> SortedMap String ()
             -> Range -> TokenKind -> Maybe String
-hrefResolver path lns aliases index pages r k =
+hrefResolver rootDir path lns aliases index pages r k =
   if not (isNameKind k) then Nothing else
   let txt = sliceRange lns r in
   if txt == "" then Nothing else
@@ -154,7 +181,7 @@ hrefResolver path lns aliases index pages r k =
   case SortedMap.lookup q index of
     Just (file, MkRange (MkPosition dl _) _) =>
       let frag = "#L" ++ show (dl + 1) in
-      Just (if file == path then frag else baseNameOf file ++ ".html" ++ frag)
+      Just (if file == path then frag else pageNameOf rootDir file ++ ".html" ++ frag)
     Nothing =>
       case SortedMap.lookup txt pages of
         Just () => Just (txt ++ ".html")
@@ -165,6 +192,7 @@ hrefResolver path lns aliases index pages r k =
 ||| not thrown — one bad file shouldn't abort the whole batch.
 renderFile : String -> IO (Either String (String, String))
 renderFile path = do
+  rootDir <- findRoot path
   Right units <- loadProgram path
     | Left err => pure (Left (showLoadErr err))
   let Just root = last' units
@@ -179,8 +207,8 @@ renderFile path = do
                 (mapMaybe (\u => if u.mname == "" then Nothing
                                   else Just (u.mname, ())) units)
   let body = renderSource source (toList root.mtokens)
-               (hrefResolver path lns aliases index pages)
-  let base = baseNameOf path
+               (hrefResolver rootDir path lns aliases index pages)
+  let base = pageNameOf rootDir path
   pure (Right (base, htmlPage base body))
 
 indexPage : List String -> String

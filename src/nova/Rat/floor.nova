@@ -1,0 +1,175 @@
+-- THE FLOOR REALLY IS A LOWER BOUND: qOfNat (qFloor u) ≤ u whenever
+-- u ≥ 0. Rat/ceil.nova proved the upper half (u ≤ qNatBound u, which is
+-- the floor plus one); this is the other half, and √ needs both — the
+-- rational approximant is isqrt ⌊w⌋ / (n+1), so its square is under w
+-- only because ⌊w⌋ is.
+--
+-- The hypothesis is the awkward part: a `LeQ 0 u` cannot be carried
+-- INTO the quot-elim, because it is data and the descent would owe a
+-- well-definedness proof for it. The fix is to state the descending
+-- fact about `qAbs u` instead, which needs no hypothesis at all —
+-- qFloor is defined off the magnitude, so it is the floor of |u|
+-- whatever the sign — and then to use `LeQ 0 u` OUTSIDE the descent,
+-- where qAbs u ≡ u.
+-- ===== a subtraction, flipped =====
+
+import Natural (+, *, multComm)
+import Natural.order (≤, leRefl)
+import Natural.div (divN, modN, divModEq)
+import Int (Int, intNeg, intZero)
+import Int.order (intOfNat)
+import Int.abs (intMag, intMagNeg)
+import Rat.frac (NZ, nzOne, nzPos, Rat, mkRat, num, den, ratEta)
+import Rat (Q, qcls, +, qNeg, qZero, qAddComm, qNegNeg)
+import Rat.order (Sign, sNeg, sPos, sgnQ, intSgn, NonNegS, ≤, sgnCases, qNegAdd)
+import Rat.nat (qOfNat, nonNegSgnOfLe)
+import Rat.abs (qAbs, qAbsOfNonNeg, sgnQNegOfNeg)
+import Rat.ceil (qFloor, qDiffNatFrac, sgnQFracPos, intOfNatMagNonNeg)
+import Rat.arch (PosDenView, qPosDenView, leQUnsquash)
+import Core.equality (trans, sym, cong, transport)
+import Core.id (Id, idToEq, eqToId)
+
+def qSubFlip : (x y : Q) → x + qNeg y ≡ qNeg (y + qNeg x) ≔
+  λx. λy. x + qNeg y
+      ≡⟨ qAddComm x (qNeg y) ⟩ qNeg y + x
+      ≡⟨ cong (λv. Q) (λv. qNeg y + v) (sym _ _ (qNegNeg x)) ⟩ qNeg y + qNeg (qNeg x)
+      ≡⟨ sym _ _ (qNegAdd y (qNeg x)) ⟩ qNeg (y + qNeg x)
+
+def qNegFrac : (N : Int)
+  (b : ℕ)
+  → qNeg (qcls (mkRat N (nzPos b))) ≡ qcls (mkRat (intNeg N) (nzPos b))
+  using (Int.Int.unfold,
+    Int.intNeg.eq,
+    Rat.frac.Rat.unfold,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzPos.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.Q.unfold,
+    Rat.qNeg.eq,
+    Rat.qcls.eq) ≔
+  λN. λb. ⋆
+
+def intNegPair : (a b : ℕ) → intNeg (class (a, b)) ≡ class (b, a)
+  using (Int.Int.unfold, Int.intNeg.eq) ≔
+  λa. λb. ⋆
+
+-- ===== comparing a natural with a fraction, the other way round =====
+-- ratCeil's qDiffNatFrac, negated on both sides
+def qDiffFracNat : {m b K : ℕ}
+  → qcls
+    (mkRat (intOfNat m) (nzPos b)) + qNeg (qOfNat K) ≡ qcls (mkRat (class (m, S b * K)) (nzPos b))
+  using (Rat.Q.unfold, Rat.frac.Rat.unfold, Int.Int.unfold) ≔
+  λm. λb. λK. qcls (mkRat (intOfNat m) (nzPos b)) + qNeg (qOfNat K)
+      ≡⟨ qSubFlip
+        (qcls (mkRat (intOfNat m) (nzPos b)))
+        (qOfNat K) ⟩ qNeg (qOfNat K + qNeg (qcls (mkRat (intOfNat m) (nzPos b))))
+      ≡⟨ cong
+        (λv. Q)
+        (λv. qNeg v)
+        {qOfNat K + qNeg (qcls (mkRat (intOfNat m) (nzPos b)))}
+        {qcls (mkRat (class (S b * K, m)) (nzPos b))}
+        qDiffNatFrac ⟩ qNeg (qcls (mkRat (class (S b * K, m)) (nzPos b)))
+      ≡⟨ qNegFrac (class (S b * K, m)) b ⟩ qcls (mkRat (intNeg (class (S b * K, m))) (nzPos b))
+      ≡⟨ cong
+        (λv. Q)
+        (λv. qcls (mkRat v (nzPos b)))
+        (intNegPair (S b * K) m) ⟩ qcls (mkRat (class (m, S b * K)) (nzPos b))
+
+def leQNatOfFrac : {m b K : ℕ} → K * S b ≤ m → qOfNat K ≤ qcls (mkRat (intOfNat m) (nzPos b))
+  using (Int.Int.unfold, Rat.frac.Rat.unfold, Rat.order.≤.eq, Rat.Q.unfold) ≔
+  λm. λb. λK. λle. transport
+    NonNegS
+    (sym
+      _
+      _
+      (trans
+        _
+        _
+        (intSgn (class (m, S b * K)))
+        (cong
+          (λw. Sign)
+          (λw. sgnQ w)
+          {qcls (mkRat (intOfNat m) (nzPos b)) + qNeg (qOfNat K)}
+          {qcls (mkRat (class (m, S b * K)) (nzPos b))}
+          qDiffFracNat)
+        sgnQFracPos))
+    (nonNegSgnOfLe (transport (λw. w ≤ m) (multComm (S b) K) le))
+
+-- ===== the quotient really is under the dividend =====
+def divMulLe : (a b : ℕ) → divN a b * S b ≤ a using (Natural.order.≤.unfold) ≔
+  λa. λb. modN a b, eqToId _ _ (sym _ _ (divModEq a b))
+
+-- ===== at a representative =====
+def leQFloorPos : {M : Int} {b : ℕ} → qOfNat (divN (intMag M) b) ≤ qAbs (qcls (mkRat M (nzPos b)))
+  using (Int.Int.unfold,
+    Rat.abs.qAbs.eq,
+    Rat.frac.Rat.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.Q.unfold) ≔
+  λM. λb. ⊎-elim (w. qOfNat
+    (divN
+      (intMag M)
+      b) ≤ ⊎-elim (nn. qcls (mkRat M (nzPos b))) (hn. qNeg (qcls (mkRat M (nzPos b)))) w)
+    (nn. transport
+      (λv. qOfNat (divN (intMag M) b) ≤ qcls (mkRat v (nzPos b)))
+      (intOfNatMagNonNeg
+        (transport NonNegS {sgnQ (qcls (mkRat M (nzPos b)))} {intSgn M} sgnQFracPos nn))
+      (leQNatOfFrac (divMulLe (intMag M) b)))
+    (hn. transport
+      (λw. qOfNat (divN (intMag M) b) ≤ w)
+      (sym _ _ (qNegFrac M b))
+      (transport
+        (λk. qOfNat (divN k b) ≤ qcls (mkRat (intNeg M) (nzPos b)))
+        {intMag (intNeg M)}
+        {intMag M}
+        intMagNeg
+        (transport
+          (λv. qOfNat (divN (intMag (intNeg M)) b) ≤ qcls (mkRat v (nzPos b)))
+          (intOfNatMagNonNeg
+            (transport
+              NonNegS
+              {sgnQ (qcls (mkRat (intNeg M) (nzPos b)))}
+              {intSgn (intNeg M)}
+              sgnQFracPos
+              (transport
+                NonNegS
+                (cong (λw. Sign) (λw. sgnQ w) (qNegFrac M b))
+                (transport NonNegS (sym _ _ (sgnQNegOfNeg hn)) (inj₂ (eqToId sPos sPos ⋆))))))
+          (leQNatOfFrac (divMulLe (intMag (intNeg M)) b)))))
+    (sgnCases (sgnQ (qcls (mkRat M (nzPos b)))))
+
+def leQFloorAt : (N : Int) (d : NZ) → qOfNat (qFloor (qcls (mkRat N d))) ≤ qAbs (qcls (mkRat N d))
+  using (Int.abs.nzMag.eq,
+    Int.Int.unfold,
+    Rat.arch.PosDenView.unfold,
+    Rat.ceil.qFloor.eq,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzPos.eq,
+    Rat.Q.unfold,
+    Rat.qcls.eq) ≔
+  λN. λd. let v ≔ qPosDenView
+    N
+    d in transport (λw. qOfNat (qFloor w) ≤ qAbs w) (idToEq _ _ _ (v .π₂ .π₂)) leQFloorPos
+
+-- ===== ...and on the quotient =====
+def leQFloorAbsSq : (u : Q) → ∥qOfNat (qFloor u) ≤ qAbs u∥
+  using (Int.Int.unfold, Rat.frac.Rat.unfold, Rat.Q.unfold, Rat.qcls.eq) ≔
+  λu. quot-elim
+    (p. ⋆ (transport
+      (λr. qOfNat (qFloor (qcls r)) ≤ qAbs (qcls r))
+      {mkRat (num p) (den p)}
+      {p}
+      ratEta
+      (leQFloorAt (num p) (den p))))
+    u
+
+def leQFloorAbs : {u : Q} → qOfNat (qFloor u) ≤ qAbs u ≔ λu. leQUnsquash _ (leQFloorAbsSq u)
+
+def leQFloor : {u : Q} → qZero ≤ u → qOfNat (qFloor u) ≤ u ≔
+  λu. λnn. transport (λw. qOfNat (qFloor u) ≤ w) (qAbsOfNonNeg nn) leQFloorAbs

@@ -1,0 +1,69 @@
+-- CROSS-QIIT constructions: each data item below builds on the
+-- previous ones through their Nova-level reflections.
+-- 1. the free monoid (lists) and its abelianization (bags)
+
+data ( L : U
+     ; lnil : El L
+     ; lcons : ℕ → El L → El L )
+
+data [a : 𝕌] ( Bag : U
+     ; bnil : El Bag
+     ; bins : a → El Bag → El Bag
+     ; bswp : (x : a) (y : a) (m : El Bag) → bins x (bins y m) ≡ bins y (bins x m) ∈ El Bag )
+
+-- 2. elimination INTO a QIIT: bag append — the motive is the Bag code
+--    itself, and the coherence is exactly the swap lemma
+def bapp : {a : 𝕌} → Bag a → Bag a → Bag a using (bswp, Qiit.cross.Bag.unfold, Qiit.cross.bins.eq) ≔
+  λa. λm. λn. BagElim a (λw. Bag a) n (λx. λr. λih. bins a x ih) (λx. λy. λr. λih. ⋆) m
+
+-- 3. a map BETWEEN QIITs: the order-forgetting quotient map L → Bag ℕ
+def toBag : L → Bag ℕ
+  using (Qiit.cross.Bag.eq, Qiit.cross.Bag.unfold, Qiit.cross.L.eq, Qiit.cross.L.unfold) ≔
+  λt. LElim (λw. Bag ℕ) (bnil ℕ) (λx. λr. λih. bins ℕ x ih) t
+
+-- toBag coequalizes adjacent transpositions (the universal property's
+-- defining triangle, at the generators): by β + the swap lemma
+def toBagSwap : (x y : ℕ) (t : L) → toBag (lcons x (lcons y t)) ≡ toBag (lcons y (lcons x t))
+  using (bswp,
+    Qiit.cross.Bag.unfold,
+    Qiit.cross.L.eq,
+    Qiit.cross.L.unfold,
+    Qiit.cross.LElim.eq,
+    Qiit.cross.bins.eq,
+    Qiit.cross.lcons.eq,
+    Qiit.cross.toBag.eq) ≔
+  λx. λy. λt. ⋆
+
+-- 4. a QIIT whose signature EMBEDS a previous QIIT's reflection: trees
+--    with bag-of-naturals labels ((Bag ℕ) is an external domain
+--    carrying the whole Bag signature inside it)
+data ( P : U
+     ; leaf : Bag ℕ → El P
+     ; node : El P → El P → El P )
+
+-- flatten a tree by appending its bags — elimination whose methods use
+-- the previous eliminator-derived function
+def flatten : P → Bag ℕ using (Qiit.cross.Bag.unfold, Qiit.cross.P.unfold) ≔
+  λp. PElim (λw. Bag ℕ) (λb. b) (λl. λihl. λr. λihr. bapp ihl ihr) p
+
+-- computation across all three QIITs at once
+def two : Bag ℕ using (Qiit.cross.Bag.eq, Qiit.cross.Bag.unfold) ≔ bins ℕ Z (bins ℕ (S Z) (bnil ℕ))
+
+def flatTest : flatten (node (leaf (toBag (lcons Z lnil))) (leaf (bins ℕ (S Z) (bnil ℕ)))) ≡ two
+  using (Qiit.cross.Bag.eq,
+    Qiit.cross.BagElim.eq,
+    Qiit.cross.L.eq,
+    Qiit.cross.LElim.eq,
+    Qiit.cross.P.eq,
+    Qiit.cross.PElim.eq,
+    Qiit.cross.bapp.eq,
+    Qiit.cross.bins.eq,
+    Qiit.cross.bnil.eq,
+    Qiit.cross.flatten.eq,
+    Qiit.cross.lcons.eq,
+    Qiit.cross.leaf.eq,
+    Qiit.cross.lnil.eq,
+    Qiit.cross.node.eq,
+    Qiit.cross.toBag.eq,
+    Qiit.cross.two.eq) ≔
+  ⋆

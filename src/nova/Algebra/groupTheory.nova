@@ -1,0 +1,144 @@
+-- ELEMENTARY GROUP THEORY, over an ABSTRACT carrier.
+--
+-- Algebra/group.nova gives the SIGNATURE: IsGroup G is a Σ-code whose
+-- components are the operation, the unit, the inverse and their laws.
+-- Everything the rest of this development needs about a group is
+-- derived here, once, at abstract (G , g) — D-3, and it is what makes
+-- the quotient modules readable: they never project out of g.
+--
+-- Two layers:
+--   * the ACCESSORS gop/ge/ginv and the five laws they satisfy, each
+--     one projection of g crossed over the Id/≡ bridge (idToEq).
+--     Below this point g is never projected again, and the accessors'
+--     `.eq` licenses are never cited again either — the accessors stay
+--     OPAQUE, so the engine matches on `gop G g`, not on a spine of
+--     `.π₁`s;
+--   * the derived facts: uniqueness of an inverse, involutivity,
+--     the anti-homomorphism law for inverses, and cancellation.
+--
+-- Orientation follows Algebra/monoid.nova: assoc reassociates to the
+-- RIGHT, units and inverses cancel toward the bare element. So as
+-- rewrite rules the five laws point "inwards", and a chain only ever
+-- has to supply the re-association steps that go the other way.
+-- ===== the accessors =====
+
+import Core.id (Id, idToEq)
+import Algebra.monoid (IsMonoid)
+import Algebra.group (IsGroup)
+import Core.equality (trans, sym, cong)
+
+def gop : {G : 𝕌} (g : IsGroup G) → G → G → G
+  using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold) ≔
+  λG. λg. g .π₁ .π₁
+
+def ge : {G : 𝕌} (g : IsGroup G) → G
+  using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold) ≔
+  λG. λg. g .π₁ .π₂ .π₁
+
+def ginv : {G : 𝕌} (g : IsGroup G) → G → G using (Algebra.group.IsGroup.unfold) ≔ λG. λg. g .π₂ .π₁
+
+-- ===== the five laws, as ≡-equations =====
+def gAssoc : {G : 𝕌} (g : IsGroup G) (x y z : G) → gop g (gop g x y) z ≡ gop g x (gop g y z)
+  using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold, gop.eq) ≔
+  λG. λg. λx. λy. λz. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₁ x y z)
+
+def gUnitL : {G : 𝕌} (g : IsGroup G) (x : G) → gop g (ge g) x ≡ x
+  using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold, gop.eq, ge.eq) ≔
+  λG. λg. λx. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₂ .π₁ x)
+
+def gUnitR : {G : 𝕌} (g : IsGroup G) (x : G) → gop g x (ge g) ≡ x
+  using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold, gop.eq, ge.eq) ≔
+  λG. λg. λx. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₂ .π₂ x)
+
+def gInvL : {G : 𝕌} (g : IsGroup G) (x : G) → gop g (ginv g x) x ≡ ge g
+  using (Algebra.group.IsGroup.unfold, gop.eq, ge.eq, ginv.eq) ≔
+  λG. λg. λx. idToEq _ _ _ (g .π₂ .π₂ .π₁ x)
+
+def gInvR : {G : 𝕌} (g : IsGroup G) (x : G) → gop g x (ginv g x) ≡ ge g
+  using (Algebra.group.IsGroup.unfold, gop.eq, ge.eq, ginv.eq) ≔
+  λG. λg. λx. idToEq _ _ _ (g .π₂ .π₂ .π₂ x)
+
+-- ===== cancellation of an adjacent inverse =====
+--
+-- The three shapes in which an element meets its own inverse. Each is
+-- one re-association followed by gInvL/gInvR and a unit law, written
+-- out with an explicit `cong` rather than left to the rewriter.
+--
+-- Leaving it to the rewriter does NOT work, and the reason is worth
+-- recording (B-17 in the small): gAssoc is itself an oriented rule,
+-- pointing products to the RIGHT, so it rewrites the re-associated
+-- side of every one of these goals straight back to the side one
+-- started from. Two oriented rules whose critical pair is the goal
+-- cancel each other out. The cure is not more licenses — it is to name
+-- the congruence step, which is unconstrained by orientation.
+def gCancelInner : {G : 𝕌} (g : IsGroup G) (a b : G) → gop g a (gop g (ginv g a) b) ≡ b ≔
+  λG. λg. λa. λb. gop g a (gop g (ginv g a) b)
+      ≡⟨ sym _ _ (gAssoc g a (ginv g a) b) ⟩ gop g (gop g a (ginv g a)) b
+      ≡⟨ cong (λw. G) (λw. gop g w b) (gInvR g a) ⟩ gop g (ge g) b
+      ≡⟨ gUnitL g b ⟩ b
+
+def gCancelInnerInv : {G : 𝕌} (g : IsGroup G) (a b : G) → gop g (ginv g a) (gop g a b) ≡ b ≔
+  λG. λg. λa. λb. gop g (ginv g a) (gop g a b)
+      ≡⟨ sym _ _ (gAssoc g (ginv g a) a b) ⟩ gop g (gop g (ginv g a) a) b
+      ≡⟨ cong (λw. G) (λw. gop g w b) (gInvL g a) ⟩ gop g (ge g) b
+      ≡⟨ gUnitL g b ⟩ b
+
+def gCancelOuter : {G : 𝕌} (g : IsGroup G) (a b : G) → gop g (gop g b a) (ginv g a) ≡ b ≔
+  λG. λg. λa. λb. gop g (gop g b a) (ginv g a)
+      ≡⟨ gAssoc g b a (ginv g a) ⟩ gop g b (gop g a (ginv g a))
+      ≡⟨ cong (λw. G) (λw. gop g b w) (gInvR g a) ⟩ gop g b (ge g)
+      ≡⟨ gUnitR g b ⟩ b
+
+def gCancelOuterInv : {G : 𝕌} (g : IsGroup G) (a b : G) → gop g (gop g b (ginv g a)) a ≡ b ≔
+  λG. λg. λa. λb. gop g (gop g b (ginv g a)) a
+      ≡⟨ gAssoc g b (ginv g a) a ⟩ gop g b (gop g (ginv g a) a)
+      ≡⟨ cong (λw. G) (λw. gop g b w) (gInvL g a) ⟩ gop g b (ge g)
+      ≡⟨ gUnitR g b ⟩ b
+
+-- ===== uniqueness of inverses, and its three corollaries =====
+def gInvUniq : {G : 𝕌} {g : IsGroup G} {x y : G} → (gop g x y ≡ ge g) → ginv g x ≡ y ≔
+  λG. λg. λx. λy. λh. ginv g x
+      ≡⟨ sym _ _ (gUnitR g (ginv g x)) ⟩ gop g (ginv g x) (ge g)
+      ≡⟨ cong (λw. G) (λw. gop g (ginv g x) w) (sym _ _ h) ⟩ gop g (ginv g x) (gop g x y)
+      ≡⟨ gCancelInnerInv g x y ⟩ y
+
+def gInvInv : {G : 𝕌} (g : IsGroup G) (x : G) → ginv g (ginv g x) ≡ x ≔
+  λG. λg. λx. gInvUniq (gInvL g x)
+
+def gInvUnit : {G : 𝕌} (g : IsGroup G) → ginv g (ge g) ≡ ge g ≔ λG. λg. gInvUniq (gUnitL g (ge g))
+
+-- the anti-homomorphism law: (x·y)⁻¹ = y⁻¹·x⁻¹, from uniqueness plus
+-- the computation (x·y)·(y⁻¹·x⁻¹) = e, which is one re-association and
+-- two cancellations
+def gOpInv : {G : 𝕌} (g : IsGroup G) (x y : G) → ginv g (gop g x y) ≡ gop g (ginv g y) (ginv g x) ≔
+  λG. λg. λx. λy. gInvUniq
+    (gop g (gop g x y) (gop g (ginv g y) (ginv g x))
+        ≡⟨ gAssoc
+          g
+          x
+          y
+          (gop g (ginv g y) (ginv g x)) ⟩ gop g x (gop g y (gop g (ginv g y) (ginv g x)))
+        ≡⟨ cong (λw. G) (λw. gop g x w) (gCancelInner g y (ginv g x)) ⟩ gop g x (ginv g x)
+        ≡⟨ gInvR g x ⟩ ge g)
+
+-- x · y⁻¹ = e is the same statement as x = y, and this direction is
+-- the one every quotient argument needs: a coset-relation witness
+-- turns into an equation of representatives
+def gEqOfOpInvUnit : {G : 𝕌} (g : IsGroup G) {x y : G} → (gop g x (ginv g y) ≡ ge g) → x ≡ y ≔
+  λG. λg. λx. λy. λh. x
+      ≡⟨ sym _ _ (gInvInv g x) ⟩ ginv g (ginv g x)
+      ≡⟨ cong (λw. G) (ginv g) (gInvUniq h) ⟩ ginv g (ginv g y)
+      ≡⟨ gInvInv g y ⟩ y
+
+-- ===== cancellation =====
+def gCancelL : {G : 𝕌} (g : IsGroup G) (x : G) {y z : G} → (gop g x y ≡ gop g x z) → y ≡ z ≔
+  λG. λg. λx. λy. λz. λh. y
+      ≡⟨ sym _ _ (gCancelInnerInv g x y) ⟩ gop g (ginv g x) (gop g x y)
+      ≡⟨ cong (λw. G) (λw. gop g (ginv g x) w) h ⟩ gop g (ginv g x) (gop g x z)
+      ≡⟨ gCancelInnerInv g x z ⟩ z
+
+def gCancelR : {G : 𝕌} (g : IsGroup G) (x y z : G) → (gop g y x ≡ gop g z x) → y ≡ z ≔
+  λG. λg. λx. λy. λz. λh. y
+      ≡⟨ sym _ _ (gCancelOuter g x y) ⟩ gop g (gop g y x) (ginv g x)
+      ≡⟨ cong (λw. G) (λw. gop g w (ginv g x)) h ⟩ gop g (gop g z x) (ginv g x)
+      ≡⟨ gCancelOuter g x z ⟩ z

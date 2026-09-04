@@ -1,0 +1,331 @@
+-- Observational equality of Int, and its logical equivalence with the
+-- built-in ≡ ∈ Int. Int is a quotient (ℕ × ℕ) / IntR, so its OWN
+-- defining relation is already the natural "observational" candidate —
+-- but lifting IntR to Int × Int directly (via a double quot-elim
+-- landing in Ω) needs its well-definedness proved as an Ω-code
+-- equality, i.e. propositional extensionality between two DIFFERENT
+-- IntR-applications, and this elaborator's propext check only
+-- discharges the evident (𝟙-/reflexive-≡-shaped) cases automatically —
+-- it does not search for the mutual-implication witnesses even when
+-- they're sitting in context (see the Core/prop.nova-only bonus attempt
+-- in the sibling Natural/eq.nova). So EqI instead compares CANONICAL
+-- representatives (Int/normalize.nova's intNormalize), squashing an
+-- ordinary EQUATION rather than an Ω-code — equations are
+-- proof-irrelevant (every ≡-proof is ⋆ on the nose), so THIS
+-- well-definedness is free.
+-- IntR is Int's own quotient relation (Int.nova); a proof of it
+-- gives equal classes directly (el-quot-eq, automatic given a term of
+-- IntR p q in context — no extra machinery needed).
+
+import Natural (+, zeroPlusId, sucPlus)
+import Int (Int, IntR, intZero, intOne, toInt)
+import Int.normalize (normPair, normSound, intNormalize)
+import Core.equality (sym, trans, cong, pairext)
+import Core.prop (↔, iffIntro, ∧, ¬, ⊥, andIntro, andFst, andSnd, impIntro, impApply)
+import Natural.eq (EqN, eqNRefl, eqNSound, eqNComplete, predEq)
+
+def classEqOfRel : {p q : ℕ × ℕ} → IntR p q → class p ≡ class q ∈ Int
+  using (Int.Int.unfold, Int.IntR.unfold) ≔
+  λp. λq. λh. ⋆
+
+-- normPair's own representative is IntR-related to its input (that's
+-- normSound), so its class is the same Int
+def classNormPairEq : {p : ℕ × ℕ} → class (normPair (p .π₁) (p .π₂)) ≡ class p ∈ Int
+  using (Int.Int.unfold,
+    Int.IntR.eq,
+    Int.normalize.normClass,
+    Int.normalize.normPair.eq,
+    normSound) ≔
+  λp. classEqOfRel (normSound (p .π₁) (p .π₂))
+
+-- normalization doesn't change the value: intNormalize z is z. The
+-- quot-elim's well-definedness goal here is an EQUATION (not an Ω
+-- code), so it's discharged for free by proof irrelevance regardless
+-- of how the representative varies.
+def intNormalizeId : (z : Int) → intNormalize z ≡ z
+  using (classNormPairEq,
+    Int.Int.unfold,
+    Int.normalize.intNormalize.eq,
+    Int.normalize.normClass,
+    Int.normalize.normPair.eq) ≔
+  λz. quot-elim (p. classNormPairEq) z
+
+def EqI : Int → Int → Ω ≔ λz1. λz2. intNormalize z1 ≡ intNormalize z2
+
+def eqIRefl : (z : Int) → EqI z z using (Int.eq.EqI.unfold, intNormalizeId) ≔ λz. ⋆
+
+-- soundness: z1 and z2 both equal their own normalizations, which
+-- coincide whenever EqI holds
+def eqISound : {z1 z2 : Int} → EqI z1 z2 → z1 ≡ z2
+  using (Int.eq.EqI.eq,
+    Int.eq.EqI.unfold,
+    intNormalizeId,
+    Int.Int.eq,
+    Int.Int.unfold,
+    Int.normalize.intNormalize.eq) ≔
+  λz1. λz2. λh. trans
+    _
+    _
+    _
+    (sym _ _ (intNormalizeId z1))
+    (trans (intNormalize z1) _ _ h (intNormalizeId z2))
+
+-- completeness: z1 ≡ z2 reflects, so intNormalize z1 and intNormalize
+-- z2 are the same term — the evident-≡-shape squashee bare ⋆ handles
+def eqIComplete : {z1 z2 : Int} → (z1 ≡ z2) → EqI z1 z2
+  using (Int.eq.EqI.unfold, intNormalizeId, Int.Int.unfold) ≔
+  λz1. λz2. λh. ⋆
+
+-- the logical equivalence, packaged with Core/prop.nova's ↔ against the
+-- squashed built-in equality
+def eqISoundP : {z1 z2 : Int} → EqI z1 z2 → z1 ≡ z2 using (intNormalizeId) ≔
+  λz1. λz2. λh. eqISound h
+
+-- ∥p∥ ≐ p (code-squash-idem): h already proves the equation
+def eqICompleteP : {z1 z2 : Int} → (z1 ≡ z2) → EqI z1 z2 using (Int.eq.EqI.unfold, intNormalizeId) ≔
+  λz1. λz2. λh. eqIComplete h
+
+def eqIIff : {z1 z2 : Int} → EqI z1 z2 ↔ (z1 ≡ z2)
+  using (intNormalizeId, Core.prop.↔.unfold, Core.prop.∧.unfold) ≔
+  λz1. λz2. iffIntro eqISoundP eqICompleteP
+
+-- ===== observational equality, the computing one =====
+--
+-- EqI above compares canonical representatives with the BUILT-IN
+-- equality, so it never reduces to ⊤/⊥ and yields no disequalities.
+-- The relation below does: it extracts the canonical representative as
+-- a PAIR OF NATS and compares componentwise with Natural/eq.nova's EqN.
+--
+-- Extracting the representative is the whole difficulty. It is a
+-- quot-elim landing in ℕ × ℕ, so its well-definedness is
+--   normPair a b ≡ normPair c d  whenever  a + d ≡ b + c,
+-- a NAT-level equation — no propositional extensionality anywhere,
+-- which is what blocked the direct Ω-valued comparison (see the note
+-- at the top of this file).
+--
+-- SINCE: Core/prop.nova's propExt (supplied witnesses, e-star-propext)
+-- and Int/effective.nova have both landed, so the Ω-valued route is no
+-- longer blocked, and a bare DISEQUALITY no longer needs any of this —
+-- effectivity reads IntR straight off a class equation
+-- (Int/nonZero.nova's intNeqOfNotRel). What survives the change is the
+-- part effectivity cannot give: intCanon is a FUNCTION into data, and
+-- that is what lets Int/nonZero.nova DECIDE zero-ness and hand back a
+-- witness. Propositional effectivity is not a decision procedure.
+-- normPair n Z ≡ (n , Z)
+def normPairZR : {n : ℕ} → normPair n Z ≡ (n, Z) using (Int.normalize.normPair.eq) ≔
+  λn. ℕ-elim ⋆ (k ih. ⋆) n
+
+-- normPair c (b + c) ≡ (Z , b): the successors cancel pairwise
+def normPairLeftZ : (b c : ℕ) → normPair c (b + c) ≡ (Z, b)
+  using (Int.normalize.normPair.eq, Natural.+.eq, Natural.plusZeroId) ≔
+  λb. λc. ℕ-elim ⋆ (k ih. ⋆) c
+
+-- normPair (n + d) d ≡ (n , Z)
+def normPairRightZ : (n d : ℕ) → normPair (n + d) d ≡ (n, Z)
+  using (Int.normalize.normPair.eq, Natural.+.eq, normPairZR) ≔
+  λn. λd. ℕ-elim normPairZR (k ih. ⋆) d
+
+def normPairWD : (a b c d : ℕ) (h : a + d ≡ b + c) → normPair a b ≡ normPair c d
+  using (Int.eq.normPairZR,
+    Int.normalize.normPair.eq,
+    normPairLeftZ,
+    normPairRightZ,
+    sucPlus,
+    zeroPlusId) ≔
+  λa. ℕ-elim
+    (λb. λc. λd. λh. trans
+      _
+      _
+      _
+      ⋆
+      (trans
+        _
+        _
+        _
+        (sym _ _ (normPairLeftZ b c))
+        (cong (λu. ℕ × ℕ) (λx. normPair c x) (sym _ _ (trans _ _ _ (sym _ _ (zeroPlusId d)) h)))))
+    (a' ih. λb. ℕ-elim
+      (λc. λd. λh. trans
+        _
+        _
+        _
+        ⋆
+        (trans
+          _
+          _
+          _
+          (sym _ _ (normPairRightZ (S a') d))
+          (cong (λu. ℕ × ℕ) (λx. normPair x d) (trans _ _ _ h (zeroPlusId c)))))
+      (b' ihb. λc. λd. λh. ih
+        b'
+        c
+        d
+        (predEq (trans _ _ _ (sym _ _ (sucPlus a' d)) (trans _ _ _ h (sucPlus b' c)))))
+      b)
+    a
+
+-- the canonical representative of an integer
+def intCanon : Int → ℕ × ℕ using (Int.Int.unfold, normPairWD) ≔
+  λz. quot-elim (p. normPair (p .π₁) (p .π₂)) z
+
+def intCanonToInt : (z : Int) → toInt (intCanon z) ≡ z
+  using (classNormPairEq,
+    Int.eq.intCanon.eq,
+    Int.Int.eq,
+    Int.Int.unfold,
+    Int.toInt.unfold,
+    Int.toInt.eq,
+    Int.normalize.normClass,
+    Int.normalize.normPair.eq) ≔
+  λz. quot-elim (p. classNormPairEq) z
+
+def intCanonClass : (z : Int) → class (intCanon z) ≡ z
+  using (classNormPairEq,
+    Int.eq.intCanon.eq,
+    Int.Int.eq,
+    Int.Int.unfold,
+    Int.normalize.normClass,
+    Int.normalize.normPair.eq) ≔
+  λz. quot-elim (p. classNormPairEq) z
+
+def intCanonOne : intCanon intOne ≡ (S Z, Z)
+  using (Int.eq.intCanon.eq, Int.intOne.eq, Int.normalize.normPair.eq) ≔
+  ⋆
+
+def intCanonZero : intCanon intZero ≡ (Z, Z)
+  using (Int.eq.intCanon.eq, Int.intZero.eq, Int.normalize.normPair.eq) ≔
+  ⋆
+
+-- ===== EqZ: equality that computes =====
+def EqZ : Int → Int → Ω ≔
+  λz1. λz2. EqN (intCanon z1 .π₁) (intCanon z2 .π₁) ∧ EqN (intCanon z1 .π₂) (intCanon z2 .π₂)
+
+def eqZRefl : (z : Int) → EqZ z z
+  using (Int.eq.EqZ.eq,
+    Int.eq.EqZ.unfold,
+    Int.eq.intCanon.eq,
+    Natural.eq.EqN.eq,
+    Int.Int.unfold,
+    Core.prop.∧.unfold) ≔
+  λz. andIntro (eqNRefl (intCanon z .π₁)) (eqNRefl (intCanon z .π₂))
+
+def eqZSound : {z1 z2 : Int} → EqZ z1 z2 → z1 ≡ z2 using (Int.eq.EqZ.eq) ≔
+  λz1. λz2. λh. trans
+    _
+    _
+    _
+    (sym _ _ (intCanonToInt z1))
+    (trans
+      _
+      _
+      _
+      (cong _ toInt (pairext (eqNSound (andFst h)) (eqNSound (andSnd h))))
+      (intCanonToInt z2))
+
+def eqZComplete : {z1 z2 : Int} → (z1 ≡ z2) → EqZ z1 z2
+  using (Int.eq.EqZ.eq,
+    Int.eq.EqZ.unfold,
+    Int.eq.intCanon.eq,
+    Natural.eq.EqN.eq,
+    Int.Int.unfold,
+    Core.prop.∧.unfold) ≔
+  λz1. λz2. λh. andIntro
+    (eqNComplete (cong (λu. ℕ) (λz. intCanon z .π₁) h))
+    (eqNComplete (cong (λu. ℕ) (λz. intCanon z .π₂) h))
+
+def eqZSoundP : {z1 z2 : Int} → EqZ z1 z2 → z1 ≡ z2 ≔ λz1. λz2. λh. eqZSound h
+
+def eqZCompleteP : {z1 z2 : Int} → (z1 ≡ z2) → EqZ z1 z2
+  using (Int.eq.EqZ.unfold, Core.prop.∧.unfold) ≔
+  λz1. λz2. λh. eqZComplete h
+
+def eqZIff : (z1 z2 : Int) → EqZ z1 z2 ↔ (z1 ≡ z2) using (Core.prop.↔.unfold, Core.prop.∧.unfold) ≔
+  λz1. λz2. iffIntro eqZSoundP eqZCompleteP
+
+-- ===== NeqZ: disequality that computes =====
+def NeqZ : Int → Int → Ω ≔ λz1. λz2. ¬ (EqZ z1 z2)
+
+def neqZSound : {z1 z2 : Int} → NeqZ z1 z2 → ¬ (z1 ≡ z2)
+  using (Int.eq.EqZ.eq,
+    Int.eq.NeqZ.eq,
+    Int.eq.NeqZ.unfold,
+    Int.eq.intCanon.eq,
+    Natural.eq.EqN.eq,
+    Int.Int.eq,
+    Int.Int.unfold,
+    Natural.+.eq,
+    Core.prop.¬.eq,
+    Core.prop.¬.unfold,
+    Core.prop.∧.eq,
+    Core.prop.⊃.eq,
+    Core.prop.⊃.unfold,
+    Core.prop.⊥.eq) ≔
+  λz1. λz2. λh. impIntro {z1 ≡ z2} {∥𝟘∥} (λe. impApply h (eqZCompleteP e))
+
+def neqZComplete : {z1 z2 : Int} → ¬ (z1 ≡ z2) → NeqZ z1 z2
+  using (Int.eq.EqZ.eq,
+    Int.eq.EqZ.unfold,
+    Int.eq.NeqZ.eq,
+    Int.eq.NeqZ.unfold,
+    Int.eq.intCanon.eq,
+    Natural.eq.EqN.eq,
+    Int.Int.eq,
+    Int.Int.unfold,
+    Int.normalize.normPair.eq,
+    Core.prop.¬.eq,
+    Core.prop.¬.unfold,
+    Core.prop.∧.eq,
+    Core.prop.∧.unfold,
+    Core.prop.⊃.eq,
+    Core.prop.⊃.unfold,
+    Core.prop.⊤.eq,
+    Core.prop.⊥.eq) ≔
+  λz1. λz2. λh. impIntro {EqZ z1 z2} {∥𝟘∥} (λe. impApply h (eqZSoundP e))
+
+def neqZIff : (z1 z2 : Int) → NeqZ z1 z2 ↔ ¬ (z1 ≡ z2)
+  using (Core.prop.↔.unfold, Core.prop.∧.unfold) ≔
+  λz1. λz2. iffIntro neqZSound neqZComplete
+
+-- ===== the payoff: an actual disequality =====
+--
+-- EqZ intOne intZero REDUCES: the canonical representatives are
+-- (S Z, Z) and (Z, Z), so it is EqN (S Z) Z ∧ EqN Z Z, i.e. ⊥ ∧ ⊤.
+-- Its first projection is already the absurdity.
+def eqZOneZero : NeqZ intOne intZero
+  using (Int.eq.EqZ.eq,
+    Int.eq.EqZ.unfold,
+    Int.eq.NeqZ.eq,
+    Int.eq.NeqZ.unfold,
+    Int.eq.intCanon.eq,
+    Natural.eq.EqN.eq,
+    Int.intOne.eq,
+    Int.intZero.eq,
+    Int.normalize.normPair.eq,
+    Core.prop.¬.eq,
+    Core.prop.¬.unfold,
+    Core.prop.∧.eq,
+    Core.prop.∧.unfold,
+    Core.prop.⊃.eq,
+    Core.prop.⊃.unfold,
+    Core.prop.⊥.eq) ≔
+  impIntro
+    {EqZ intOne intZero}
+    {⊥}
+    (λh. andFst {⊥} {EqN (intCanon intOne .π₂) (intCanon intZero .π₂)} h)
+
+def intOneNotZero : ¬ (intOne ≡ intZero) using (Core.prop.¬.unfold, Core.prop.⊃.unfold) ≔
+  neqZSound eqZOneZero
+
+-- and a positive computation: 2 = 2 even spelled differently
+def eqZTwo : EqZ (class (2, Z)) (class (3, S Z))
+  using (Int.eq.EqZ.eq,
+    Int.eq.EqZ.unfold,
+    Int.eq.intCanon.eq,
+    Natural.eq.EqN.eq,
+    Int.Int.unfold,
+    Int.normalize.normPair.eq,
+    Core.prop.∧.eq,
+    Core.prop.∧.unfold,
+    Core.prop.⊤.eq,
+    Core.prop.⊥.eq) ≔
+  andIntro {∥𝟙∥} {∥𝟙∥} ⋆ ⋆

@@ -1,0 +1,94 @@
+-- ===== helpers for the well-definedness obligations =====
+-- addition of pairs is well-defined in its second argument: the
+-- cross-sum equation, conditional on the relation hypothesis
+-- the relation is Ω-valued now, so the conditional hypothesis is the
+-- squash ∥…∥; reflection unsquashes it where the proof is used
+
+import Natural (+, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc, swapLeft)
+import Int (Int)
+import Core.equality (cong)
+
+def intAddWD : (a1 a2 b1 b2 c1 c2 : ℕ)
+  (h : b1 + c2 ≡ b2 + c1)
+  → a1 + b1 + (a2 + c2) ≡ a2 + b2 + (a1 + c1)
+  using (hyp.rw,
+    plusAssoc,
+    plusAssoc.rw,
+    plusSucId,
+    plusSucId.rw,
+    sucPlus,
+    sucPlus.rw,
+    swapLeft,
+    swapLeft.rw,
+    zeroPlusId,
+    zeroPlusId.rw) ≔
+  λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim ⋆ (k ih. ⋆) a2
+
+-- cross-sum well-definedness in the OUTER argument, conditional on h
+def intAddCross : (a1 a2 b1 b2 c1 c2 : ℕ)
+  (h : a1 + b2 ≡ a2 + b1)
+  → a1 + c1 + (b2 + c2) ≡ a2 + c2 + (b1 + c1)
+  using (hyp.rw,
+    plusAssoc,
+    plusComm,
+    plusSucId,
+    plusSucId.rw,
+    plusZeroId,
+    sucPlus,
+    sucPlus.rw,
+    swapLeft) ≔
+  λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim
+    (a1 + c1 + (b2 + Z)
+        ≡⟨ plusZeroId b2 ⟩ a1 + c1 + b2
+        ≡⟨ plusAssoc a1 c1 b2 ⟩ a1 + (c1 + b2)
+        ≡⟨ swapLeft a1 c1 b2 ⟩ c1 + (a1 + b2)
+        ≡⟨ h ⟩ c1 + (a2 + b1)
+        ≡⟨ swapLeft c1 a2 b1 ⟩ a2 + (c1 + b1)
+        ≡⟨ plusComm b1 c1 ⟩ a2 + (b1 + c1)
+        ≡⟨ plusZeroId a2 ⟩ a2 + Z + (b1 + c1))
+    (k ih. ⋆)
+    c2
+
+-- the same, one level up: the inner elimination is well-defined in the
+-- OUTER argument — proven by quotient elimination with an ≡-motive
+def intAddWDOuter : (a b : ℕ × ℕ)
+  (h : a .π₁ + b .π₂ ≡ a .π₂ + b .π₁)
+  (zy : Int)
+  → quot-elim (z. Int)
+    (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂))
+    zy ≡ quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) zy
+  using (intAddCross, intAddWD, Int.Int.unfold, plusAssoc) ≔
+  λa. λb. λh. λzy. quot-elim (q. quot-elim (z. Int)
+    (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂))
+    q ≡ quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) q)
+    (c. ⋆)
+    zy
+
+infixl 6 +
+def + : Int → Int → Int using (intAddWD, intAddWDOuter, Int.Int.unfold, plusAssoc) ≔
+  λzx. λzy. quot-elim (a. quot-elim (b. class (a .π₁ + b .π₁, a .π₂ + b .π₂)) zy) zx
+
+def intAddTest : class (Z, Z) + class (S Z, S Z) ≡ class (S Z, S Z)
+  using (Int.Int.unfold, Int.add.+.eq) ≔
+  ⋆
+
+-- ===== the algebra =====
+-- the cross-sum permutation in exactly the shape the commutativity
+-- join's quotient condition takes
+def crossComm : (x y z w : ℕ) → x + y + (z + w) ≡ w + z + (y + x) ≔
+  λx. λy. λz. λw. x + y + (z + w)
+      ≡⟨ cong (λu. ℕ) (λu. u + (z + w)) (plusComm y x) ⟩ y + x + (z + w)
+      ≡⟨ plusComm w z ⟩ y + x + (w + z)
+      ≡⟨ plusComm (w + z) (y + x) ⟩ w + z + (y + x)
+
+-- commutativity: two quotient eliminations at ≡-motives reduce to the
+-- representative-level cross-sum permutation
+def intAddComm : (x y : Int) → x + y ≡ y + x
+  using (crossComm, Int.Int.unfold, Int.add.+.eq, Natural.swapMid, plusAssoc, plusComm, swapLeft) ≔
+  λx. λy. quot-elim (a. quot-elim (b. ⋆) y) x
+
+-- associativity: three eliminations; the representatives reassociate
+-- by plusAssoc and close by commutativity of the cross sum
+def intAddAssoc : (x y z : Int) → x + y + z ≡ x + (y + z)
+  using (hyp.rw, Int.add.+.eq, Int.Int.eq, Int.Int.unfold, plusAssoc, plusAssoc.rw) ≔
+  λx. λy. λz. quot-elim (a. quot-elim (b. quot-elim (c. ⋆) z) y) x

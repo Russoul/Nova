@@ -1,0 +1,7 @@
+This file marks a PROJECT ROOT: dotted module names in every .nova
+file at or below this directory resolve against it, so a module's
+name is its path from here (Real/mul.nova is the module Real.mul).
+
+Only the file's NAME is read — its contents are ignored. See
+docs/NovaElaboration.txt, "Modules", and
+Nova.Elaboration.Loader.findRoot.

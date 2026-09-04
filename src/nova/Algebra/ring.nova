@@ -1,0 +1,23 @@
+-- COMMUTATIVE RINGS, in the same style as Algebra/monoid.nova and
+-- Algebra/group.nova: a Σ-code whose components are the operations
+-- followed by their laws, stated with `Id` because a code cannot carry
+-- a prop.
+--
+-- The additive part is reused wholesale — an IsGroup, whose operation
+-- is reached as `add .π₁ .π₁` and whose unit is `add .π₁ .π₂ .π₁`.
+-- Commutativity of addition is NOT part of IsGroup, so it is listed
+-- here; everything else additive comes for free.
+
+import Algebra.monoid (IsMonoid)
+import Algebra.group (IsGroup)
+import Core.id (Id)
+
+def IsCommRing : 𝕌 → 𝕌 using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold) ≔
+  λR. (add : IsGroup R)
+    (mul : R → R → R)
+    (one : R)
+    (mulAssoc : (x y z : R) → Id _ (mul (mul x y) z) (mul x (mul y z)))
+    (mulComm : (x y : R) → Id _ (mul x y) (mul y x))
+    (mulOne : (x : R) → Id _ (mul x one) x)
+    (addComm : (x y : R) → Id _ (add .π₁ .π₁ x y) (add .π₁ .π₁ y x))
+    × (x y z : R) → Id _ (mul x (add .π₁ .π₁ y z)) (add .π₁ .π₁ (mul x y) (mul x z))

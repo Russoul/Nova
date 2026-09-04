@@ -1,0 +1,603 @@
+-- THE CEILING of a rational, as a natural: `qNatBound u` is
+-- ⌊|u|⌋ + 1, and it is a FUNCTION on ℚ — the first natural-valued one
+-- the corpus has that is not already determined by an integer.
+--
+-- That it descends to the quotient is exactly natDiv's uniqueness of
+-- the Euclidean quotient, transported across the cross-multiplication
+-- by intMag's multiplicativity. No canonical form for ℚ is needed;
+-- lowest terms would need gcd, the ceiling only needs division.
+--
+-- What it is for: ℝ's multiplication samples at a depth proportional
+-- to a bound on both factors, and a bound has to be a natural computed
+-- from a rational by something the quotient respects.
+
+import Natural (+, *, plusZeroId, zeroPlusId, plusComm, sucPlus, multComm)
+import Natural.order (≤, leRefl, leZero, leTrans, lePlusMonoR, leMultMonoR)
+import Natural.div (divN, modN, divModEq, modLe, divNUnique, leDivSuc)
+import Int (Int, intZero, intOne, intNeg)
+import Int.mul (*, intMulZeroL)
+import Int.add (+)
+import Int.order (intOfNat)
+import Int.abs (intMag, nzMag, intMagNz, intMagMul, intMagOfNat, intMagZero, intMagNeg)
+import Rat.frac (NZ, ratEta, nzOne, nzPos, nzNeg, nzToInt, nzMul, nzMulOneL, Rat, mkRat, num, den, denInt, ratNeg, intScale, intScaleOne)
+import Rat (Q, qcls, RatR, dInt, clsEqOfRel, +, qNeg, qZero, qAddZeroL, qNegNeg, nzToIntMul)
+import Rat.order (Sign, sZero, sPos, sNeg, sgnQ, intSgn, intSgnZero, intSgnNz, nzSgn, NonNegS, ≤, leQTrans, intSgnNeg, intSgnPos, sgnQNegFlip, sgnFlip)
+import Rat.bound (Bnd, leQNegFlip, nonNegIsProp, nonNegNotNeg, bndIsProp, bndOfBothLe, leQIsProp, qNegZeroQ)
+import Rat.abs (qAbs, bndAbs, sgnQNegOfNeg)
+import Rat.nat (qOfNat, nonNegSgnOfLe, leQOfNat)
+import Rat.arch (qPosDenView, PosDenView, leQUnsquash)
+import Int.nonZero (nzOfInt)
+import Core.equality (trans, sym, cong, transport, transportP)
+import Core.id (Id, idToEq, eqToId)
+
+def qFloorRep : Rat → ℕ ≔ λp. divN (intMag (num p)) (nzMag (den p))
+
+-- the cross-multiplication, in magnitudes. Explicit `trans`, not a
+-- chain: every link here rewrites inside intMag's quot-elim, which a
+-- chain step may not do (B-1/B-13).
+def crossAbs : (p p' : Rat)
+  → RatR p p' → intMag (num p) * S (nzMag (den p')) ≡ intMag (num p') * S (nzMag (den p))
+  using (Int.Int.eq,
+    Int.Int.unfold,
+    Int.mul.*.eq,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.frac.den.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzToInt.eq,
+    Rat.RatR.eq,
+    Rat.RatR.unfold,
+    Rat.dInt.eq) ≔
+  λp. λp'. λh. trans
+    _
+    _
+    _
+    (sym
+      _
+      _
+      (trans
+        (intMag (num p * dInt p'))
+        (intMag (num p) * intMag (nzToInt (den p')))
+        _
+        (intMagMul (num p) (dInt p'))
+        (cong (λu. ℕ) (λw. intMag (num p) * w) (intMagNz (den p')))))
+    (trans
+      _
+      _
+      _
+      (cong (λv. ℕ) (λv. intMag v) {num p * dInt p'} {num p' * dInt p} h)
+      (trans
+        (intMag (num p' * dInt p))
+        (intMag (num p') * intMag (nzToInt (den p)))
+        _
+        (intMagMul (num p') (dInt p))
+        (cong (λu. ℕ) (λw. intMag (num p') * w) (intMagNz (den p)))))
+
+-- stated over the COMPONENTS, as eqInt's normPairWD is: that is the
+-- shape the descent's well-definedness goal actually has
+def qFloorWD : {N : Int}
+  {d : NZ}
+  {N' : Int}
+  {d' : NZ}
+  (h : N * nzToInt d' ≡ N' * nzToInt d)
+  → divN (intMag N) (nzMag d) ≡ divN (intMag N') (nzMag d')
+  using (Int.abs.intMag.eq,
+    Int.abs.nzMag.eq,
+    Int.Int.eq,
+    Int.Int.unfold,
+    Int.mul.*.eq,
+    Rat.frac.NZ.unfold,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzToInt.eq,
+    Rat.RatR.eq,
+    Rat.dInt.eq) ≔
+  λN. λd. λN'. λd'. λh. divNUnique (crossAbs (mkRat N d) (mkRat N' d') h)
+
+-- the same fact, restated over whole representatives: this is the
+-- vocabulary the quot-elim well-definedness goal is phrased in
+def qFloorRepWD : (p p' : Rat)
+  → RatR p p' → divN (intMag (p .π₁)) (nzMag (p .π₂)) ≡ divN (intMag (p' .π₁)) (nzMag (p' .π₂))
+  using (Int.Int.unfold,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.frac.den.eq,
+    Rat.frac.num.eq,
+    Rat.RatR.eq,
+    Rat.RatR.unfold,
+    Rat.dInt.eq) ≔
+  λp. λp'. λh. qFloorWD h
+
+def qFloor : Q → ℕ
+  using (Int.Int.unfold,
+    qFloorRepWD,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.frac.den.eq,
+    Rat.frac.num.eq,
+    Rat.Q.unfold,
+    Rat.RatR.eq,
+    Rat.RatR.unfold,
+    Rat.dInt.eq) ≔
+  λu. quot-elim (p. divN (intMag (p .π₁)) (nzMag (p .π₂))) u
+
+def qNatBound : Q → ℕ ≔ λu. S (qFloor u)
+
+def qNatBoundCls : (p : Rat) → qNatBound (qcls p) ≡ S (divN (intMag (num p)) (nzMag (den p)))
+  using (Int.abs.intMag.eq,
+    Int.abs.magPair.eq,
+    Int.abs.nzMag.eq,
+    Int.Int.unfold,
+    Natural.div.divN.eq,
+    Natural.div.dmAux.eq,
+    Rat.ceil.qFloor.eq,
+    Rat.ceil.qNatBound.eq,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.frac.den.eq,
+    Rat.frac.num.eq,
+    Rat.qcls.eq) ≔
+  λp. ⋆
+
+-- ½ and 2/4 are the same rational, and get the same bound: 1
+def qNatBoundHalf : qNatBound (qcls (mkRat intOne (nzPos (S Z)))) ≡ S Z
+  using (Int.abs.intMag.eq,
+    Int.abs.magPair.eq,
+    Int.abs.nzMag.eq,
+    Int.intOne.eq,
+    Natural.+.eq,
+    Natural.div.divN.eq,
+    Natural.div.dmAux.eq,
+    Natural.div.natCase.eq,
+    Natural.more.∸.eq,
+    Natural.more.pred.eq,
+    Rat.ceil.qFloor.eq,
+    Rat.ceil.qNatBound.eq,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzPos.eq,
+    Rat.qcls.eq) ≔
+  ⋆
+
+def qNatBoundQuarters : qNatBound (qcls (mkRat (class (2, Z)) (nzPos 3))) ≡ S Z
+  using (Int.abs.intMag.eq,
+    Int.abs.magPair.eq,
+    Int.abs.nzMag.eq,
+    Int.Int.unfold,
+    Natural.+.eq,
+    Natural.div.divN.eq,
+    Natural.div.dmAux.eq,
+    Natural.div.natCase.eq,
+    Natural.more.pred.eq,
+    Natural.more.∸.eq,
+    Rat.ceil.qFloor.eq,
+    Rat.ceil.qNatBound.eq,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzPos.eq,
+    Rat.qcls.eq) ≔
+  ⋆
+
+-- ===== the sign of a fraction with positive denominator =====
+-- multiplying by a positive integer preserves the sign
+def intSgnMulPos : {z : Int} {k : ℕ} → intSgn (z * nzToInt (nzPos k)) ≡ intSgn z
+  using (Int.Int.unfold,
+    Rat.frac.NZ.unfold,
+    Rat.frac.nzMul.eq,
+    Rat.frac.nzNeg.eq,
+    Rat.frac.nzPos.eq,
+    Rat.order.Sign.unfold,
+    Rat.order.nzSgn.eq,
+    Rat.order.sNeg.eq,
+    Rat.order.sPos.eq) ≔
+  λz. λk. ⊎-elim
+    (e. trans
+      _
+      _
+      _
+      (trans
+        _
+        _
+        _
+        (cong
+          (λv. Sign)
+          (λv. intSgn v)
+          (trans
+            _
+            _
+            _
+            (cong (λv. Int) (λv. v * nzToInt (nzPos k)) (sym _ _ (e .π₂)))
+            (sym _ _ (nzToIntMul (e .π₁) (nzPos k)))))
+        (trans
+          _
+          _
+          (nzSgn (e .π₁))
+          (intSgnNz (nzMul (e .π₁) (nzPos k)))
+          (⊎-elim (n. ⋆) (n. ⋆) (e .π₁))))
+      (trans _ _ _ (sym _ _ (intSgnNz (e .π₁))) (cong (λv. Sign) (λv. intSgn v) (e .π₂))))
+    (hz. trans
+      _
+      _
+      _
+      (trans
+        _
+        _
+        _
+        (cong
+          (λv. Sign)
+          (λv. intSgn v)
+          (trans
+            _
+            _
+            _
+            (cong (λv. Int) (λv. v * nzToInt (nzPos k)) hz)
+            (intMulZeroL (nzToInt (nzPos k)))))
+        intSgnZero)
+      (sym _ _ (trans _ _ _ (cong (λv. Sign) (λv. intSgn v) hz) intSgnZero)))
+    (nzOfInt z)
+
+def sgnQFracPos : {N : Int} {b : ℕ} → sgnQ (qcls (mkRat N (nzPos b))) ≡ intSgn N
+  using (Int.eq.intCanon.eq,
+    Int.eq.intCanonClass.eq,
+    Int.nonZero.nzOfInt.eq,
+    Int.nonZero.nzOfIntAt.eq,
+    Int.Int.unfold,
+    Int.mul.*.eq,
+    Rat.frac.denInt.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzPos.eq,
+    Rat.frac.nzToInt.eq,
+    Rat.inv.intCanonProdZero.eq,
+    Rat.order.intSgn.eq,
+    Rat.order.nzSgn.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sNeg.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.qcls.eq) ≔
+  λN. λb. intSgnMulPos
+
+-- ===== a nonnegative integer is its own magnitude =====
+def intOfNatMagNonNeg : {z : Int} → NonNegS (intSgn z) → intOfNat (intMag z) ≡ z
+  using (Int.abs.nzMag.eq,
+    Int.order.intOfNat.eq,
+    Int.order.intOfNatZero,
+    Int.Int.unfold,
+    Int.intZero.eq,
+    Rat.half.nzPosInt,
+    Rat.frac.NZ.unfold,
+    Rat.frac.nzNeg.eq,
+    Rat.frac.nzPos.eq,
+    Rat.frac.nzToInt.eq,
+    Rat.order.NonNegS.unfold) ≔
+  λz. λnn. ⊎-elim
+    (e. (⊎-elim (w. (nzToInt w ≡ z) → intOfNat (intMag z) ≡ z)
+      (n. λhe. trans
+        _
+        _
+        _
+        (trans
+          _
+          _
+          (nzToInt (nzPos n))
+          (cong
+            (λu. Int)
+            (λw. intOfNat w)
+            (trans
+              _
+              _
+              (S n)
+              (cong (λv. ℕ) (λv. intMag v) (sym (nzToInt (nzPos n)) _ he))
+              (intMagNz (nzPos n))))
+          ⋆)
+        he)
+      (n. λhe. 𝟘-elim (nonNegNotNeg
+        _
+        nn
+        (eqToId
+          _
+          _
+          (trans
+            _
+            _
+            sNeg
+            (cong (λv. Sign) (λv. intSgn v) (sym (nzToInt (nzNeg n)) _ he))
+            intSgnNeg))))
+      (e .π₁))
+      (e .π₂))
+    (hz. trans
+      _
+      _
+      _
+      (trans
+        _
+        _
+        intZero
+        (cong (λu. Int) (λw. intOfNat w) (trans _ _ _ (cong (λv. ℕ) (λv. intMag v) hz) intMagZero))
+        ⋆)
+      (sym _ _ hz))
+    (nzOfInt z)
+
+-- ===== comparing a fraction with a natural =====
+def qDiffNatFrac : {m b K : ℕ}
+  → qOfNat
+    K + qNeg (qcls (mkRat (intOfNat m) (nzPos b))) ≡ qcls (mkRat (class (S b * K, m)) (nzPos b))
+  using (Int.order.intOfNat.eq,
+    Int.Int.unfold,
+    Int.intNeg.eq,
+    Int.add.+.eq,
+    Natural.multZeroId.rw,
+    plusComm,
+    plusZeroId.rw,
+    Rat.nat.qOfNat.eq,
+    Rat.frac.den.eq,
+    Rat.frac.intScale.eq,
+    Rat.frac.intScaleN.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzMul.eq,
+    Rat.frac.nzNeg.eq,
+    Rat.frac.nzOne.eq,
+    Rat.frac.nzPos.eq,
+    Rat.frac.ratAdd.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.Q.unfold,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Rat.qcls.eq,
+    zeroPlusId.rw) ≔
+  λm. λb. λK. trans
+    _
+    (qcls (mkRat (intScale (nzPos b) (intOfNat K) + intNeg (intOfNat m)) (nzMul nzOne (nzPos b))))
+    _
+    (cong
+      (λv. Q)
+      (λv. qcls (mkRat (intScale (nzPos b) (intOfNat K) + v) (nzMul nzOne (nzPos b))))
+      {intScale nzOne (intNeg (intOfNat m))}
+      {intNeg (intOfNat m)}
+      intScaleOne)
+    (trans
+      _
+      _
+      (qcls (mkRat (class (S b * K, m)) (nzPos b)))
+      (cong
+        (λv. Q)
+        (λv. qcls (mkRat (intScale (nzPos b) (intOfNat K) + intNeg (intOfNat m)) v))
+        {nzMul nzOne (nzPos b)}
+        {nzPos b}
+        nzMulOneL)
+      ⋆)
+
+def leQFracOfNat : {m b K : ℕ} → m ≤ K * S b → qcls (mkRat (intOfNat m) (nzPos b)) ≤ qOfNat K
+  using (Core.id.Id.unfold,
+    Int.Int.unfold,
+    Natural.order.≤.unfold,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold) ≔
+  λm. λb. λK. λle. transport
+    NonNegS
+    (sym
+      _
+      _
+      (trans
+        _
+        _
+        (intSgn (class (S b * K, m)))
+        (cong
+          (λw. Sign)
+          (λw. sgnQ w)
+          {qOfNat K + qNeg (qcls (mkRat (intOfNat m) (nzPos b)))}
+          {qcls (mkRat (class (S b * K, m)) (nzPos b))}
+          qDiffNatFrac)
+        sgnQFracPos))
+    (nonNegSgnOfLe (transport (λw. m ≤ w) (multComm (S b) K) le))
+
+-- ===== the bound really bounds =====
+def leQZeroNat : (K : ℕ) → qZero ≤ qOfNat K
+  using (Rat.nat.qOfNatZero, Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold) ≔
+  λK. transport (λw. w ≤ qOfNat K) {qOfNat Z} {qZero} ⋆ (leQOfNat (leZero K))
+
+-- at a positive denominator: nonnegative numerators land on the
+-- division estimate, negative ones are below zero and so below it too
+def leQBoundPos : {M : Int}
+  {b : ℕ}
+  → qcls (mkRat M (nzPos b)) ≤ qOfNat (qNatBound (qcls (mkRat M (nzPos b))))
+  using (Core.id.Id.eq,
+    Int.abs.intMag.eq,
+    Int.abs.magPair.eq,
+    Int.abs.nzMag.eq,
+    Int.order.intOfNat.eq,
+    Int.Int.unfold,
+    Int.intNeg.eq,
+    Int.add.+.eq,
+    Int.mul.*.eq,
+    Natural.div.divN.eq,
+    Natural.div.dmAux.eq,
+    Natural.div.natCase.eq,
+    Rat.ceil.qFloor.eq,
+    Rat.ceil.qNatBound.eq,
+    Rat.nat.qOfNat.eq,
+    Rat.frac.NZ.unfold,
+    Rat.frac.den.eq,
+    Rat.frac.denInt.eq,
+    Rat.frac.intScale.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzMul.eq,
+    Rat.frac.nzNeg.eq,
+    Rat.frac.nzOne.eq,
+    Rat.frac.nzPos.eq,
+    Rat.frac.ratAdd.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.intSgn.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnFlip.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Rat.qcls.eq) ≔
+  λM. λb. ⊎-elim (w. qcls (mkRat M (nzPos b)) ≤ qOfNat (S (divN (intMag M) b)))
+    (e. (⊎-elim (w. (nzToInt w ≡ M) → qcls (mkRat M (nzPos b)) ≤ qOfNat (S (divN (intMag M) b)))
+      (n. λhe. transport
+        (λv. qcls (mkRat v (nzPos b)) ≤ qOfNat (S (divN (intMag M) b)))
+        (intOfNatMagNonNeg
+          (transport
+            NonNegS
+            (cong (λv. Sign) (λv. intSgn v) {nzToInt (nzPos n)} he)
+            (inj₂ (eqToId _ _ (intSgnPos n)))))
+        (leQFracOfNat (leDivSuc (intMag M) b)))
+      (n. λhe. leQTrans
+        _
+        _
+        _
+        (inj₂ (eqToId
+          _
+          _
+          (trans
+            _
+            _
+            _
+            (cong (λw. Sign) (λw. sgnQ w) (qAddZeroL (qNeg (qcls (mkRat M (nzPos b))))))
+            (sgnQNegOfNeg
+              (eqToId
+                _
+                _
+                (trans
+                  (sgnQ (qcls (mkRat M (nzPos b))))
+                  _
+                  _
+                  sgnQFracPos
+                  (trans
+                    _
+                    _
+                    sNeg
+                    (cong (λv. Sign) (λv. intSgn v) (sym (nzToInt (nzNeg n)) _ he))
+                    intSgnNeg)))))))
+        (leQZeroNat (S (divN (intMag M) b))))
+      (e .π₁))
+      (e .π₂))
+    (hz. leQTrans
+      _
+      _
+      _
+      (transport
+        (λv. qcls (mkRat v (nzPos b)) ≤ qZero)
+        (sym _ _ hz)
+        (inj₁ (eqToId
+          _
+          _
+          (trans
+            _
+            _
+            _
+            (trans
+              _
+              _
+              (sgnFlip (sgnQ (qcls (mkRat intZero (nzPos b)))))
+              (cong (λw. Sign) (λw. sgnQ w) (qAddZeroL (qNeg (qcls (mkRat intZero (nzPos b))))))
+              sgnQNegFlip)
+            (trans
+              _
+              _
+              sZero
+              (cong
+                (λw. Sign)
+                (λw. sgnFlip w)
+                (trans (sgnQ (qcls (mkRat intZero (nzPos b)))) _ _ sgnQFracPos intSgnZero))
+              ⋆)))))
+      (leQZeroNat (S (divN (intMag M) b))))
+    (nzOfInt M)
+
+-- ...at any representative, by normalizing the denominator's sign
+def leQBoundAt : (N : Int) (d : NZ) → qcls (mkRat N d) ≤ qOfNat (qNatBound (qcls (mkRat N d)))
+  using (Rat.arch.PosDenView.unfold, Rat.order.≤.unfold, Rat.order.NonNegS.unfold) ≔
+  λN. λd. let v ≔ qPosDenView
+    N
+    d in transport (λw. w ≤ qOfNat (qNatBound w)) (idToEq _ _ _ (v .π₂ .π₂)) leQBoundPos
+
+-- squashed first, so the descent is free; then unsquashed, because ≤
+-- is decidable
+def leQBoundSq : (u : Q) → ∥u ≤ qOfNat (qNatBound u)∥
+  using (Core.id.Id.eq,
+    Int.Int.unfold,
+    Rat.ceil.qNatBound.eq,
+    Rat.nat.qOfNat.eq,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.order.≤.unfold,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.Q.unfold,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Rat.qcls.eq) ≔
+  λu. quot-elim
+    (p. ⋆ (transport
+      (λr. qcls r ≤ qOfNat (qNatBound (qcls r)))
+      {mkRat (num p) (den p)}
+      {p}
+      ratEta
+      (leQBoundAt (num p) (den p))))
+    u
+
+def leQBound : (u : Q) → u ≤ qOfNat (qNatBound u)
+  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold) ≔
+  λu. leQUnsquash _ (leQBoundSq u)
+
+def qNatBoundNeg : {u : Q} → qNatBound (qNeg u) ≡ qNatBound u
+  using (Int.abs.intMag.eq,
+    Int.abs.magPair.eq,
+    Int.abs.nzMag.eq,
+    Int.Int.unfold,
+    Int.intNeg.eq,
+    Natural.div.divN.eq,
+    Natural.div.dmAux.eq,
+    Natural.div.natCase.eq,
+    Core.prop.irrel,
+    Rat.ceil.qFloor.eq,
+    Rat.ceil.qNatBound.eq,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.Q.unfold,
+    Rat.RatR.unfold,
+    Rat.qNeg.eq) ≔
+  λu. quot-elim
+    (p. cong
+      (λx. ℕ)
+      (λx. S (divN x (nzMag (den p))))
+      {intMag (intNeg (num p))}
+      {intMag (num p)}
+      intMagNeg)
+    u
+
+-- the two-sided bound: −K ≤ u ≤ K
+def bndNatBound : (u : Q) → Bnd (qOfNat (qNatBound u)) u using (Rat.bound.Bnd.unfold) ≔
+  λu. transport
+    (λw. qNeg (qOfNat (qNatBound u)) ≤ w)
+    (qNegNeg u)
+    (leQNegFlip
+      _
+      _
+      (transport
+        (λk. qNeg u ≤ qOfNat k)
+        {qNatBound (qNeg u)}
+        {qNatBound u}
+        qNatBoundNeg
+        (leQBound (qNeg u)))), leQBound _

@@ -1,0 +1,244 @@
+-- Negation on ℝ, and the two halves of REq being an equivalence that
+-- need no analysis (reflexivity and symmetry). Everything is done in
+-- the Bnd algebra of Rat/bound.nova: a regular sequence is exactly one
+-- whose differences are Bnd-bounded by rBound, and REq is exactly a
+-- pointwise Bnd by rBound n n.
+-- ===== regularity and closeness, in Bnd form =====
+-- `Regular f` unfolds to a Π of the same pair Bnd is: the two bridges
+-- below are the identity, and exist only to name the shape
+
+import Rat (Q, +, qNeg, qZero, qOne, qAddComm, qNegNeg)
+import Rat.order (≤)
+import Rat.bound (Bnd, bndAdd, bndNeg, bndEq, bndEqB, bndZero, bndSubEq, bndSubSym, bndVia, bndWeaken, leQAdd, leQNegFlip)
+import Real (qInvNat, rBound, rBoundPos, leQZeroBound, leQNegBoundZero, Regular, RSeq, REq, Real, constReg, realOfQ, realZero, realOne)
+import Core.equality (trans, sym, cong, transport)
+
+def regBnd : (f : ℕ → Q) → Regular f → (m n : ℕ) → Bnd (rBound m n) (f m + qNeg (f n))
+  using (Rat.bound.Bnd.unfold, Rat.Q.unfold, Real.Regular.unfold) ≔
+  λf. λh. λm. λn. h m n
+
+def bndReg : {f : ℕ → Q} → ((m n : ℕ) → Bnd (rBound m n) (f m + qNeg (f n))) → Regular f
+  using (Rat.bound.Bnd.unfold, Rat.Q.unfold, Real.Regular.unfold) ≔
+  λf. λh. λm. λn. h m n
+
+def seqOf : RSeq → ℕ → Q using (Rat.Q.unfold, Real.RSeq.unfold) ≔ λx. x .π₁
+
+def regOf : (x : RSeq) → Regular (seqOf x)
+  using (Core.id.Id.eq,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.rBound.eq,
+    Real.neg.seqOf.eq) ≔
+  λx. x .π₂
+
+-- REq is a squashed pointwise bound; intro takes the witness, elim is
+-- squash-elim (the target below is always a prop, so this is legal)
+def reqOf : (x y : RSeq) → ((n : ℕ) → Bnd (rBound n n) (seqOf x n + qNeg (seqOf y n))) → REq x y
+  using (Core.id.Id.eq,
+    Rat.bound.Bnd.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.rBound.eq,
+    Real.neg.seqOf.eq) ≔
+  λx. λy. λh. ⋆ h
+
+-- ===== the bound is symmetric and nonnegative =====
+def rBoundSym : (m n : ℕ) → rBound m n ≡ rBound n m
+  using (Rat.+.eq, Real.qInvNat.eq, Real.rBound.eq) ≔
+  λm. λn. qAddComm (qInvNat m) (qInvNat n)
+
+-- ===== reflexivity and symmetry of REq =====
+-- pointwise-equal sequences are REq-close: every difference is zero,
+-- and zero is bounded by the (nonnegative) rBound
+def reqOfPointwise : {x y : RSeq} → ((n : ℕ) → seqOf x n ≡ seqOf y n) → REq x y
+  using (Real.REq.unfold) ≔
+  λx. λy. λe. reqOf _ _ (λn. bndSubEq _ _ _ (leQZeroBound n n) (e n))
+
+def reqRefl : {x : RSeq} → REq x x using (Real.REq.unfold) ≔ λx. reqOfPointwise (λn. ⋆)
+
+def reqSym : {x y : RSeq} → REq x y → REq y x
+  using (Core.id.Id.eq,
+    Rat.bound.Bnd.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.rBound.eq,
+    Real.neg.seqOf.eq) ≔
+  λx. λy. λh. squash-elim h (u. reqOf
+    _
+    _
+    (λn. bndSubSym (rBound n n) (seqOf x n) (seqOf y n) (u n)))
+
+-- classes are equal as soon as the representatives are close
+-- (el-quot-eq), and pointwise equality suffices
+def realEqOfREq : (x y : RSeq) → REq x y → class x ≡ class y ∈ Real using (Real.Real.unfold) ≔
+  λx. λy. λh. ⋆ h
+
+def realEqOfPointwise : (x y : RSeq) → ((n : ℕ) → seqOf x n ≡ seqOf y n) → class x ≡ class y ∈ Real
+  using (Real.Real.unfold) ≔
+  λx. λy. λe. realEqOfREq _ _ (reqOfPointwise e)
+
+-- ===== negation =====
+def negSeq : (ℕ → Q) → ℕ → Q using (Rat.Q.unfold) ≔ λf. λn. qNeg (f n)
+
+-- (−u) − (−v) ≡ v − u : the difference of the negations is the
+-- difference reversed
+def qNegSub : (u v : Q) → qNeg u + qNeg (qNeg v) ≡ v + qNeg u using (Rat.Q.unfold) ≔
+  λu. λv. qNeg u + qNeg (qNeg v)
+      ≡⟨ cong (λw. Q) (λw. qNeg u + w) (qNegNeg v) ⟩ qNeg u + v
+      ≡⟨ qAddComm (qNeg u) v ⟩ v + qNeg u
+
+-- the negated sequence is regular: its (m,n) difference is the
+-- original's (n,m) difference, and rBound is symmetric
+def negReg : {f : ℕ → Q} → Regular f → Regular (negSeq f)
+  using (Core.id.Id.eq,
+    Rat.bound.Bnd.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.Q.unfold,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.Regular.unfold,
+    Real.rBound.eq,
+    Real.neg.negSeq.eq) ≔
+  λf. λh. bndReg
+    (λm. λn. bndEq
+      _
+      (qNeg (f m) + qNeg (qNeg (f n)))
+      (sym _ _ (qNegSub (f m) (f n)))
+      (bndEqB _ _ _ (rBoundSym n m) (regBnd _ h n m)))
+
+def rNeg : RSeq → RSeq using (Real.RSeq.unfold) ≔ λx. negSeq (seqOf x), negReg (regOf x)
+
+-- negation respects closeness — same reversal, one index at a time
+def rNegWD : {x y : RSeq} → REq x y → REq (rNeg x) (rNeg y)
+  using (Core.id.Id.eq,
+    Rat.bound.Bnd.unfold,
+    Rat.frac.ratAdd.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.order.≤.eq,
+    Rat.order.NonNegS.unfold,
+    Rat.order.Sign.eq,
+    Rat.order.ratSgn.eq,
+    Rat.order.sPos.eq,
+    Rat.order.sZero.eq,
+    Rat.order.sgnQ.eq,
+    Rat.+.eq,
+    Rat.qNeg.eq,
+    Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Regular.unfold,
+    Real.qInvNat.eq,
+    Real.rBound.eq,
+    Real.neg.negSeq.eq,
+    Real.neg.rNeg.eq,
+    Real.neg.seqOf.eq) ≔
+  λx. λy. λh. squash-elim h (u. reqOf
+    _
+    _
+    (λn. bndEq
+      _
+      (qNeg (seqOf x n) + qNeg (qNeg (seqOf y n)))
+      (sym _ _ (qNegSub (seqOf x n) (seqOf y n)))
+      (bndSubSym (rBound n n) (seqOf x n) (seqOf y n) (u n))))
+
+def rNegWDCls : (x y : RSeq) (h : REq x y) → class (rNeg x) ≡ class (rNeg y) ∈ Real
+  using (Real.Real.unfold) ≔
+  λx. λy. λh. realEqOfREq _ _ (rNegWD h)
+
+def realNeg : Real → Real
+  using (rNegWDCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold) ≔
+  λu. quot-elim (p. class (rNeg p)) u
+
+def realNegCls : {x : RSeq} → realNeg (class x) ≡ class (rNeg x)
+  using (Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.neg.rNeg.eq,
+    Real.neg.realNeg.eq) ≔
+  λx. ⋆
+
+-- ===== the laws =====
+def realNegNeg : (u : Real) → realNeg (realNeg u) ≡ u
+  using (Rat.frac.ratNeg.eq,
+    Rat.qNeg.eq,
+    Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.neg.negSeq.eq,
+    Real.neg.rNeg.eq,
+    Real.neg.realNeg.eq,
+    Real.neg.seqOf.eq) ≔
+  λu. quot-elim (p. realEqOfPointwise (rNeg (rNeg p)) p (λn. qNegNeg (seqOf p n))) u
+
+-- the embedding of ℚ is a homomorphism for negation: both sides are
+-- the constant sequence at −q
+def realNegOfQ : (q : Q) → realNeg (realOfQ q) ≡ realOfQ (qNeg q)
+  using (Rat.frac.ratNeg.eq,
+    Rat.Q.unfold,
+    Rat.qNeg.eq,
+    Real.RSeq.unfold,
+    Real.constReg.eq,
+    Real.realOfQ.eq,
+    Real.neg.negSeq.eq,
+    Real.neg.rNeg.eq,
+    Real.neg.realNeg.eq,
+    Real.neg.seqOf.eq) ≔
+  λq. realEqOfPointwise (rNeg ((λn. q), constReg)) ((λn. qNeg q), constReg) (λn. ⋆)
+
+def realNegZero : realNeg realZero ≡ realZero
+  using (Core.equality.sym.eq,
+    Core.equality.transport.eq,
+    Int.intNeg.eq,
+    Int.intZero.eq,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzOne.eq,
+    Rat.frac.nzPos.eq,
+    Rat.frac.ratNeg.eq,
+    Rat.frac.ratOfInt.eq,
+    Rat.frac.ratZero.eq,
+    Rat.order.≤.eq,
+    Rat.Q.eq,
+    Rat.+.eq,
+    Rat.qAddNegR.eq,
+    Rat.qNeg.eq,
+    Rat.qZero.eq,
+    Rat.qcls.eq,
+    Real.RSeq.unfold,
+    Real.constReg.eq,
+    Real.leQNegBoundZero.eq,
+    Real.leQZeroBound.eq,
+    Real.rBound.eq,
+    Real.realOfQ.eq,
+    Real.realZero.eq,
+    Real.neg.negReg.eq,
+    Real.neg.negSeq.eq,
+    Real.neg.rNeg.eq,
+    Real.neg.realNeg.eq,
+    Real.neg.regOf.eq,
+    Real.neg.seqOf.eq) ≔
+  realEqOfPointwise (rNeg ((λn. qZero), constReg)) ((λn. qZero), constReg) (λn. ⋆)

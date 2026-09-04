@@ -1,0 +1,74 @@
+-- ℕ-algebras, in the IsXXX style: structure on a small carrier as a
+-- 𝕌-family. An ℕ-algebra is a point and an endomap — no laws — and a
+-- homomorphism is a map commuting with both, its two laws stated with
+-- Id so hom-ness is itself a code. ℕ with (Z, S) is the INITIAL such
+-- algebra: natAlgInitial builds the fold into any algebra, and
+-- natAlgHomUnique shows any two homs out of ℕ agree — pointwise
+-- first, then at function level through prelude's funext (a theorem
+-- here: extensional theory).
+
+import Core.id (Id, idToEq, eqToId)
+import Core.prelude (funext)
+
+def IsNatAlgebra : 𝕌 → 𝕌 ≔ λA. (z : A) × A → A
+
+def NatAlgHom : (A B : 𝕌) → IsNatAlgebra A → IsNatAlgebra B → 𝕌
+  using (Natural.algebra.IsNatAlgebra.unfold) ≔
+  λA. λB. λa. λb. (h : A → B)
+    × Id _ (h (a .π₁)) (b .π₁) × ((x : A) → Id _ (h (a .π₂ x)) (b .π₂ (h x)))
+
+-- ℕ is an ℕ-algebra (S eta-expanded: constructors are not functions).
+def natAlg : IsNatAlgebra ℕ using (Natural.algebra.IsNatAlgebra.unfold) ≔ Z, λn. S n
+
+-- The fold: iterate the algebra's endomap from its point.
+def natFold : (A : 𝕌) → IsNatAlgebra A → ℕ → A using (Natural.algebra.IsNatAlgebra.unfold) ≔
+  λA. λa. λn. ℕ-elim (a .π₁) (k ih. a .π₂ ih) n
+
+-- EXISTENCE: the fold is a homomorphism into any algebra — both laws
+-- are δβ-computations (ℕ-elim at Z and at S), so each ⋆ is free.
+def natAlgInitial : (A : 𝕌) (a : IsNatAlgebra A) → NatAlgHom _ _ natAlg a
+  using (Core.id.Id.eq,
+    Natural.algebra.IsNatAlgebra.unfold,
+    Natural.algebra.NatAlgHom.unfold,
+    Natural.algebra.natAlg.eq,
+    Natural.algebra.natFold.eq) ≔
+  λA. λa. natFold _ a, eqToId (natFold _ a Z) _ ⋆, λx. eqToId (natFold _ a (S x)) _ ⋆
+
+-- UNIQUENESS: any two homomorphisms out of ℕ agree on every point, by
+-- induction. Each case let-binds the homs' laws (reflected from Id)
+-- as hypotheses; the base joins at a's point, the step joins at
+-- a's endomap of the induction hypothesis' common value.
+def natAlgHomUnique : (A : 𝕌)
+  (a : IsNatAlgebra A)
+  (f g : NatAlgHom _ _ natAlg a)
+  (n : ℕ)
+  → f .π₁ n ≡ g .π₁ n
+  using (hyp.rw,
+    Core.id.Id.eq,
+    Core.id.Id.unfold,
+    Natural.algebra.IsNatAlgebra.unfold,
+    Natural.algebra.NatAlgHom.unfold,
+    Natural.algebra.natAlg.eq) ≔
+  λA. λa. λf. λg. λn. ℕ-elim
+    (let hf ≔ idToEq
+      _
+      (f .π₁ Z)
+      (a .π₁)
+      (f .π₂ .π₁) in let hg ≔ idToEq _ (g .π₁ Z) (a .π₁) (g .π₂ .π₁) in ⋆)
+    (k ih. let hf ≔ idToEq
+      _
+      (f .π₁ (S k))
+      (a .π₂ (f .π₁ k))
+      (f .π₂ .π₂
+        k) in let hg ≔ idToEq
+      _
+      (g .π₁ (S k))
+      (a .π₂ (g .π₁ k))
+      (g .π₂ .π₂
+        k) in f .π₁ (S k) ≡⟨ hf ⟩ a .π₂ (f .π₁ k) ≡⟨ ih ⟩ a .π₂ (g .π₁ k) ≡⟨ hg ⟩ g .π₁ (S k))
+    n
+
+-- and at FUNCTION level, one funext away.
+def natAlgHomUniqueFun : (A : 𝕌) (a : IsNatAlgebra A) (f g : NatAlgHom _ _ natAlg a) → f .π₁ ≡ g .π₁
+  using (Natural.algebra.NatAlgHom.unfold) ≔
+  λA. λa. λf. λg. funext (natAlgHomUnique _ _ f g)

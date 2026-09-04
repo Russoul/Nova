@@ -35,7 +35,7 @@ and the multi-level `quot-elim`s: `qAddAssoc` +3.8s, `distribNum`
 
 ## The split
 
-`NOVA_PROFILE=1 nova elab src/nova/rationalQ.nova`, 36.6s wall:
+`NOVA_PROFILE=1 nova elab src/nova/Rat.nova`, 36.6s wall:
 
 | phase | calls | time | share |
 |---|---|---|---|

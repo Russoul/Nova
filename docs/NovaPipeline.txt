@@ -223,10 +223,11 @@ surface stays exactly as clean as the theory promises.
 ////////// Status //////////
 
 Implemented: the front end; the elaborator; the obligation lifecycle;
-the src/nova/ corpus; the MODULE SYSTEM (file = module, DAG imports
-resolved by transitive re-elaboration, qualified names as flat Σ
-strings, only accepted modules importable — docs/NovaElaboration.txt,
-"Modules"); the EQUATION KERNEL with the demotion of
+the src/nova/ corpus; the MODULE SYSTEM (file = module, a module's
+dotted name its path from the `nova.root`-marked project root, DAG
+imports resolved by transitive re-elaboration, qualified names as flat
+Σ strings, only accepted modules importable —
+docs/NovaElaboration.txt, "Modules"); the EQUATION KERNEL with the demotion of
 engine verdicts to proposals — Nova.Kernel provides
 fuel-bounded normalization (mirroring the ≜ rules clause for clause,
 exhaustion = reject), proof-element inference/checking for elimination

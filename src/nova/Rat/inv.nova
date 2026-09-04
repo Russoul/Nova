@@ -1,0 +1,188 @@
+-- Every non-zero rational has an inverse — the classical statement,
+-- recovered from the structural one.
+--
+-- Rat.nova's qMulInv inverts elements of NZQ, where BOTH
+-- components are structurally non-zero. That is the constructive
+-- shape: no function can read a proof of u ≢ 0 (proofs are
+-- irrelevant), so inversion cannot be a map out of the non-zero
+-- rationals themselves. What CAN be proved is that the two agree
+-- propositionally: every u with u ≢ 0 is qOfNzq of some x. The
+-- existential lives in Ω as a squash, and squash-elim unpacks it
+-- because the goal is itself a proposition.
+-- ===== canonical representatives are canonical =====
+-- one component of normPair a b is Z; stated as a single equation
+-- (a*b ≡ Z in ℕ says exactly "a is Z or b is Z") rather than a
+-- disjunction, so the case analysis below stays first-order
+
+import Natural (+, *, zeroMult, multSucId, sucPlus, plusZeroId, zeroPlusId, plusComm, plusAssoc)
+import Int (Int, intZero, intOne)
+import Int.normalize (normPair)
+import Int.mul (*, intMulOneR, intMulZeroL, classPairEta)
+import Natural.eq (zNotS)
+import Int.eq (intCanon, intCanonClass)
+import Core.prop (¬, ⊥, impIntro, impApply, absurdP)
+import Rat.frac (NZ, nzPos, nzNeg, nzToInt, Rat, mkRat, num, den, ratEta, ratZero)
+import Rat (Q, qcls, qZero, qOne, *, qMulInv, NZQ, qOfNzq, nzqInv, clsEqOfRel, dInt)
+import Core.equality (trans, sym, cong)
+
+def normProdZero : {a b : ℕ} → normPair a b .π₁ * normPair a b .π₂ ≡ Z
+  using (Int.normalize.normPair.eq, Natural.multZeroId, zeroMult) ≔
+  λa. ℕ-elim (λb. ⋆) (k ih. λb. ℕ-elim ⋆ (j ihb. ih j) b) a
+
+def intCanonProdZero : (z : Int) → intCanon z .π₁ * intCanon z .π₂ ≡ Z
+  using (Int.eq.intCanon.eq, Int.Int.unfold, Int.normalize.normPair.eq, normProdZero) ≔
+  λz. quot-elim (p. normProdZero) z
+
+-- ===== a non-zero integer is the image of an NZ =====
+-- on a pair with one component Z, non-zeroness leaves exactly the two
+-- productive cases; the (Z,Z) case contradicts the hypothesis and the
+-- (S,S) case contradicts canonicity
+def nzOfPair : (a b : ℕ)
+  (hab : a * b ≡ Z)
+  (hnz : ¬ (class (a, b) ≡ intZero))
+  → ∥(e : NZ) × nzToInt e ≡ class (a, b)∥
+  using (Int.Int.eq,
+    Int.Int.unfold,
+    Int.intZero.eq,
+    Core.prop.¬.eq,
+    Core.prop.¬.unfold,
+    Core.prop.⊃.eq,
+    Core.prop.⊃.unfold,
+    Core.prop.⊥.eq,
+    Rat.frac.nzNeg.eq,
+    Rat.frac.nzPos.eq,
+    Rat.frac.nzToInt.eq,
+    sucPlus,
+    zeroMult) ≔
+  λa. ℕ-elim
+    (λb. ℕ-elim (λhab. λhnz. absurdP _ (impApply hnz ⋆)) (j ihb. λhab. λhnz. ⋆ (nzNeg j, ⋆)) b)
+    (k ih. λb. ℕ-elim
+      (λhab. λhnz. ⋆ (nzPos k, ⋆))
+      (j ihb. λhab. λhnz. 𝟘-elim (zNotS
+        (trans _ _ _ (sym _ _ hab) (trans _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))))
+      b)
+    a
+
+-- ¬ introduction/elimination stated AT ¬, so callers never have to
+-- convert between ¬ p and p ⊃ ⊥ (the engine handles that conversion
+-- badly once the terms get large)
+def notIntro : (p : Ω) → (p → ⊥) → ¬ p using (Core.prop.¬.unfold, Core.prop.⊃.unfold) ≔ λp. λf. ⋆ f
+
+def notApply : (p : Ω) → ¬ p → p → ⊥
+  using (Core.prop.¬.unfold, Core.prop.⊃.unfold, Core.prop.⊥.unfold) ≔
+  λp. λh. λe. squash-elim h (g. g e)
+
+-- The view, with the representative kept ABSTRACT — and taken as a
+-- PAIR, not as two projections. Both matter: inside this lemma every
+-- term is a variable, so the class-equation conversions the elaborator
+-- performs stay small and their certificates stay kernel-checkable. At
+-- the instantiation below the representative is `intCanon z`, a
+-- quot-elim spine; a type mentioning `class (intCanon z .π₁ ,
+-- intCanon z .π₂)` makes the checker route through the quotient
+-- relation and the kernel then refuses the step (the eliminee is not
+-- ⇒ᴺ-inferable).
+def intNZViewAt : {z : Int}
+  (p : ℕ × ℕ)
+  (hz : class p ≡ z)
+  (hab : p .π₁ * p .π₂ ≡ Z)
+  (hnz : ¬ (z ≡ intZero))
+  → ∥(e : NZ) × nzToInt e ≡ z∥
+  using (classPairEta, Int.Int.unfold) ≔
+  λz. λp. λhz. λhab. λhnz. squash-elim (nzOfPair
+    _
+    _
+    hab
+    (notIntro
+      (class (p .π₁, p .π₂) ≡ intZero)
+      (λe. notApply
+        _
+        hnz
+        (trans
+          _
+          _
+          _
+          (sym _ _ (trans _ _ _ (classPairEta p) hz))
+          e)))) (w. ⋆ (w .π₁, trans _ _ _ (w .π₂) (trans _ _ _ (classPairEta p) hz)))
+
+def intNZView : (z : Int) (hnz : ¬ (z ≡ intZero)) → ∥(e : NZ) × nzToInt e ≡ z∥
+  using (intCanonProdZero) ≔
+  λz. λhnz. intNZViewAt _ (intCanonClass z) (intCanonProdZero z) hnz
+
+-- ===== transferring non-zeroness to the numerator =====
+-- the easy direction of effectivity (el-quot-eq): a zero numerator
+-- makes the class zero
+def ratZeroOfNumZero : (p : Rat) (h : num p ≡ intZero) → class p ≡ qZero
+  using (intMulOneR,
+    intMulZeroL,
+    Int.Int.eq,
+    Int.Int.unfold,
+    Int.intOne.eq,
+    Int.intZero.eq,
+    Int.mul.*.eq,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzOne.eq,
+    Rat.frac.nzPos.eq,
+    Rat.frac.nzToInt.eq,
+    Rat.frac.ratOfInt.eq,
+    Rat.frac.ratZero.eq,
+    Rat.Q.unfold,
+    Rat.RatR.eq,
+    Rat.dInt.eq,
+    Rat.qZero.eq,
+    Rat.qcls.eq) ≔
+  λp. λh. clsEqOfRel
+    _
+    ratZero
+    (trans
+      _
+      _
+      (num ratZero * dInt p)
+      (trans (num p * dInt ratZero) _ _ (intMulOneR (num p)) h)
+      (sym _ _ (intMulZeroL (dInt p))))
+
+def numNonZero : {p : Rat} (h : ¬ (class p ≡ qZero)) → ¬ (num p ≡ intZero)
+  using (Core.prop.¬.unfold, Core.prop.⊃.unfold, Rat.Q.unfold) ≔
+  λp. λh. notIntro _ (λe. notApply _ h (ratZeroOfNumZero _ e))
+
+-- ===== every non-zero rational is qOfNzq of something =====
+def qNonZeroIsNzq : {u : Q} (h : ¬ (u ≡ qZero)) → ∥(x : NZQ) × qOfNzq x ≡ u∥
+  using (Int.Int.unfold,
+    Core.prop.¬.unfold,
+    Core.prop.⊃.unfold,
+    Rat.frac.NZ.unfold,
+    Rat.frac.Rat.unfold,
+    Rat.frac.den.eq,
+    Rat.frac.mkRat.eq,
+    Rat.frac.num.eq,
+    Rat.frac.nzToInt.eq,
+    Rat.NZQ.unfold,
+    Rat.Q.unfold,
+    Rat.nzqToRat.eq,
+    Rat.qOfNzq.eq,
+    Rat.qcls.eq) ≔
+  λu. quot-elim
+    (p. λh. squash-elim (intNZView
+      _
+      (numNonZero
+        h)) (w. ⋆ ((w .π₁,
+      den
+        p),
+      trans
+        (class (mkRat (nzToInt (w .π₁)) (den p)))
+        (class (mkRat (num p) (den p)))
+        _
+        (cong (λv. Q) (λx. class (mkRat x (den p))) {nzToInt (w .π₁)} {p .π₁} (w .π₂))
+        (cong (λv. Q) (λt. class t) {mkRat (num p) (den p)} {p} ratEta))))
+    u
+
+-- ===== the theorem =====
+def qInvExists : {u : Q} (h : ¬ (u ≡ qZero)) → ∥(v : Q) × u * v ≡ qOne∥ ≔
+  λu. λh. squash-elim (qNonZeroIsNzq
+    h) (w. ⋆ (qOfNzq
+    (nzqInv
+      (w .π₁)),
+    trans _ _ _ (sym _ _ (cong (λv. Q) (λx. x * qOfNzq (nzqInv (w .π₁))) (w .π₂))) qMulInv))

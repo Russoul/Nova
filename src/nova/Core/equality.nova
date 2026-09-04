@@ -1,0 +1,56 @@
+-- The equality combinators. In an extensional theory each is one
+-- ⋆ (or the coerced term itself): reflecting the hypotheses makes
+-- the sides — and, for coercion and transport, the types — equal, so
+-- what other theories build from J is judgemental here.
+
+def refl : {A : 𝕌} (a : A) → a ≡ a ≔ λA. λa. ⋆
+
+def sym : {A : 𝕌} (a b : A) → (a ≡ b) → b ≡ a ≔ λA. λa. λb. λh. ⋆
+
+def trans : {A : 𝕌} (a b c : A) → (a ≡ b) → (b ≡ c) → a ≡ c ≔
+  λA. λa. λb. λc. λab. λbc. a ≡⟨ ab ⟩ b ≡⟨ bc ⟩ c
+
+-- coercion along a universe equation: the element itself, at the
+-- other type (A ≐ B by reflection)
+def coe : {A B : 𝕌} → (A ≡ B) → A → B ≔ λA. λB. λh. λa. a
+
+-- transport along an equation in the base: again the element itself
+-- (P a ≐ P b by congruence over the reflected hypothesis)
+def transport : {A : 𝕌} (P : A → 𝕌) {a b : A} → (a ≡ b) → P a → P b ≔ λA. λP. λa. λb. λh. λp. p
+
+-- transport at a PROP motive: equality is Ω-valued, so prop-indexed
+-- facts move along an equation the same way elements do — the proof
+-- itself, at the other instance ((P a) ≐ (P b) by congruence
+-- over the reflected hypothesis)
+def transportP : {A : 𝕌} (P : A → Ω) {a b : A} → (a ≡ b) → P a → P b ≔ λA. λP. λa. λb. λh. λp. p
+
+-- dependent congruence: in an extensional theory it is one ⋆, since
+-- reflecting the hypothesis makes the sides and their types equal
+def cong : {A : 𝕌} (B : A → 𝕌) (f : (v : A) → B v) {v w : A} → (v ≡ w) → f v ≡ f w ≔
+  λA. λB. λf. λv. λw. λh. ⋆
+
+def appCong : {A : 𝕌}
+  (B : A → 𝕌)
+  {f0 f1 : (x : A) → B x}
+  {a0 a1 : A}
+  → (f0 ≡ f1) → (a0 ≡ a1) → f0 a0 ≡ f1 a1 ∈ B a1 ≔
+  λA. λB. λf0. λf1. λa0. λa1. λf. λa. f0 a0 ≡⟨ a ⟩ f0 a1 ≡⟨ cong (λ_. B a1) (λg. g a1) f ⟩ f1 a1
+
+def irr : {A : 𝕌} {v u : A} (p : v ≡ u) → p ≡ (⋆) ≔ λA. λv. λu. λp. ⋆
+
+-- Σ-η and componentwise equality at a DEPENDENT pair. Both are the
+-- non-dependent versions (Int/eq.nova's pairEtaG/pairEq2) with the
+-- second component's type allowed to mention the first: reflecting h1
+-- makes x .π₁ ≐ y .π₁, which is exactly what h2's type needs. Stated
+-- type-generically, as every shape-generic lemma must be (B-3).
+def paireta : {A : 𝕌} {B : A → 𝕌} (p : (a : A) × B a) → (p .π₁, p .π₂) ≡ p using (sigma.eta) ≔
+  λA. λB. λp. ⋆
+
+def pairext : {A : 𝕌} {B : A → 𝕌} {x y : (a : A) × B a} → (x .π₁ ≡ y .π₁) → (x .π₂ ≡ y .π₂) → x ≡ y
+  using (sigma.eta, hyp.rw) ≔
+  λA. λB. λx. λy. λh1. λh2. trans
+    _
+    _
+    _
+    (trans _ _ (y .π₁, y .π₂) (sym _ _ (paireta x)) ⋆)
+    (paireta y)

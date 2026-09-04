@@ -101,7 +101,9 @@ rec {
     cd ${siteSrc}
     mkdir -p $out/nova
     python3 tools/render-specs.py --out $out/specs.html
-    ${nova-docs}/bin/nova-docs $out/nova src/nova/*.nova
+    # the corpus is a TREE — recurse, and let nova-docs name each page
+    # for its module rather than its basename
+    ${nova-docs}/bin/nova-docs $out/nova $(find src/nova -name '*.nova' | sort)
     cp tools/nova-docs.css $out/nova/
     cp tools/pages-index.html $out/index.html
   '';

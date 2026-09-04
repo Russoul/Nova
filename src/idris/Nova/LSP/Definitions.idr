@@ -64,14 +64,14 @@ qualify "" x = x
 qualify m  x = "\{m}.\{x}"
 
 ||| (qualified name, defining file, item range) for every item one
-||| loaded module defines. `mname == ""` is the ROOT unit (see
-||| `Nova.Elaboration.Loader.loadProgram`) — its file is `rootPath`
-||| itself, not something `modPath` can derive (that convention only
-||| covers modules resolved by name via an `import`).
-moduleEntries : (rootPath : String) -> (rootDir : String) -> ModUnit -> List (String, String, NRange)
-moduleEntries rootPath rootDir unit =
-  let path = if unit.mname == "" then rootPath else modPath rootDir unit.mname in
-  concatMap (\(rng, item) => map (\n => (qualify unit.mname n, path, itemRange rng)) (itemNames item))
+||| loaded module defines. The file is the unit's own `mpath` — the
+||| path the loader actually resolved it at. Re-deriving it with
+||| `modPath` would have to re-find the project root
+||| (`Nova.Elaboration.Loader.findRoot`) and would still miss the ROOT
+||| unit, whose `mname` is "" and whose file is the entry itself.
+moduleEntries : ModUnit -> List (String, String, NRange)
+moduleEntries unit =
+  concatMap (\(rng, item) => map (\n => (qualify unit.mname n, unit.mpath, itemRange rng)) (itemNames item))
             unit.mitems
 
 ||| Every qualified name defined anywhere in the loaded program, with
@@ -80,7 +80,7 @@ moduleEntries rootPath rootDir unit =
 ||| duplicate here is unremarkable best-effort "first found wins".
 export
 buildIndex : (rootPath : String) -> List ModUnit -> List (String, String, NRange)
-buildIndex rootPath = concatMap (moduleEntries rootPath (dirOf rootPath))
+buildIndex _ = concatMap moduleEntries
 
 ||| Mirrors `Nova.Elaboration.resolveSigName`'s `vis`: the module's own
 ||| items (by their bare name) plus its imports' opened aliases.
