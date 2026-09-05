@@ -1,0 +1,58 @@
+-- Part 3 — what "extensional" means, concretely.
+--
+-- In Nova, a ≡ b is a PROPOSITION (it lives in Ω), and a hypothesis
+-- h : a ≡ b is REFLECTED: wherever h is in scope, a and b are the same
+-- term for the type checker. Everything Agda derives from J by pattern
+-- matching on refl is therefore one ⋆ here — and two things Agda
+-- cannot derive at all (function extensionality, uniqueness of
+-- equality proofs) are theorems.
+
+import Arith (plus, times, plusZr)
+import Vect (V, vnil, vcons, vhead, vreverse)
+
+-- ===== the J-toolkit, each one line =====
+def sym : {A : 𝕌} {a b : A} → (a ≡ b) → b ≡ a ≔ λA. λa. λb. λh. ⋆
+
+def trans : {A : 𝕌} {a b c : A} → (a ≡ b) → (b ≡ c) → a ≡ c using (hyp.rw) ≔
+  λA. λa. λb. λc. λab. λbc. ⋆
+
+def cong : {A B : 𝕌} (f : A → B) {a b : A} → (a ≡ b) → f a ≡ f b ≔ λA. λB. λf. λa. λb. λh. ⋆
+
+-- transport is the IDENTITY function: P a and P b are the same type
+def subst : {A : 𝕌} (P : A → 𝕌) {a b : A} → (a ≡ b) → P a → P b ≔ λA. λP. λa. λb. λh. λp. p
+
+-- uniqueness of identity proofs: any two proofs of an equation are
+-- equal, because equality proofs are proofs of a proposition
+def uip : {A : 𝕌} {a b : A} (p q : a ≡ b) → p ≡ q ≔ λA. λa. λb. λp. λq. ⋆
+
+-- function extensionality is a THEOREM (Agda: a postulate, or cubical)
+def funext : {A B : 𝕌} {f g : A → B} → ((x : A) → f x ≡ g x) → f ≡ g using (pi.eta) ≔
+  λA. λB. λf. λg. λh. ⋆
+
+-- ===== for engineers: program equivalence IS equality =====
+-- two implementations of one function are equal AS FUNCTIONS, so
+-- anything proved about one transfers to the other by rewriting —
+-- refactoring with a proof, not with a test suite
+def double1 : ℕ → ℕ ≔ λn. plus n n
+
+def double2 : ℕ → ℕ ≔ λn. times 2 n
+
+def double2Unfold : (n : ℕ) → double2 n ≡ plus n n using (double2.eq, times.eq, plusZr) ≔ λn. ⋆
+
+def doublesAgree : double1 ≡ double2 using (double1.eq, double2Unfold, pi.eta) ≔ ⋆
+
+-- ===== coercion-free programming with indexed types =====
+-- a vector whose length we have LEARNED is three is a V ℕ 3 — no
+-- subst, no cast: the hypothesis is reflected into the type
+def learnedLength : {n : ℕ} (v : V ℕ n) (h : n ≡ 3) → V ℕ 3 ≔ λn. λv. λh. v
+
+-- and so it can be used at that type immediately
+def headOfLearned : {n : ℕ} (v : V ℕ n) (h : n ≡ 3) → ℕ using (V.unfold) ≔
+  λn. λv. λh. vhead (vreverse (learnedLength v h))
+
+-- ===== ≡-elim: rewriting the CONTEXT =====
+-- reflection makes the equation available silently; ≡-elim goes one
+-- step further and removes the variable, restating every later
+-- hypothesis and the goal at the other side — what you want when
+-- reading a goal, not when proving it (it adds no power)
+def pinned : (x : ℕ) (w : x ≡ Z) → plus x x ≡ x using (plusZr) ≔ λx. λw. ≡-elim ⋆ x w

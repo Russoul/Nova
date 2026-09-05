@@ -1,0 +1,90 @@
+-- Part 2 — correct by construction: length-indexed vectors.
+--
+-- The index lives in the type, so "head of an empty vector" is not a
+-- runtime error but a type error, and every length computation the
+-- program does is checked. The interesting part: those computations
+-- are ARITHMETIC, and arithmetic facts (n + 0 = n, n + (1 + m) =
+-- (1 + n) + m) are not definitional in any intensional theory. Agda
+-- makes you coerce (subst) INSIDE the program. Nova asks you for the
+-- equation and then forgets it ever came up.
+
+import Arith (plus, plusZ, plusS, plusZr, plusSr, plusComm, plusAssoc)
+
+data [a : 𝕌] ( V : ℕ → U
+     ; vnil : El (V Z)
+     ; vcons : (n : ℕ) → a → El (V n) → El (V (S n)) )
+
+-- head of a NON-EMPTY vector: no Maybe, no exception, no default
+def vhead : {a : 𝕌} {n : ℕ} → V a (S n) → a using (V.unfold) ≔
+  λa. λn. λv. VElim a (λm. λw. ℕ-elim 𝟙 (k ih. a) m) () (λm. λx. λxs. λih. x) (S n) v
+
+def vtail : {a : 𝕌} {n : ℕ} → V a (S n) → V a n using (V.unfold) ≔
+  λa. λn. λv. VElim a (λm. λw. ℕ-elim 𝟙 (k ih. V a k) m) () (λm. λx. λxs. λih. xs) (S n) v
+
+-- append: the result length is COMPUTED, plus n m
+def vappend : {a : 𝕌} {n m : ℕ} → V a n → V a m → V a (plus n m) using (V.unfold, plus.eq) ≔
+  λa. λn. λm. λv. λw. VElim a (λk. λu. V a (plus k m)) w (λk. λx. λxs. λih. vcons a (plus k m) x ih) n v
+
+-- zip: both inputs must have the SAME length — a mismatch is a type error
+def vzip : {a b : 𝕌} {n : ℕ} → V a n → V b n → V (a × b) n using (V.unfold) ≔
+  λa. λb. λn. λv. VElim a (λk. λu. V b k → V (a × b) k)
+    (λw. vnil (a × b))
+    (λk. λx. λxs. λih. λw. vcons (a × b) k (x, vhead w) (ih (vtail w)))
+    n v
+
+-- reverse, with an accumulator. In Agda the cons case does not type
+-- check: the recursive call has length n + (1 + m), the signature
+-- wants (1 + n) + m, and you write
+--     subst (Vec A) (+-suc n m) (rev-acc xs (x ∷ acc))
+-- — a coercion in the PROGRAM, which then haunts every proof about it.
+-- Here: three obligations (one per arithmetic fact), three citations,
+-- and the code is exactly what you would write in Haskell.
+def vrevAcc : {a : 𝕌} {n : ℕ} → V a n → {m : ℕ} → V a m → V a (plus n m)
+  using (V.unfold, plusZ.rw, plusS.rw, plusSr.rw) ≔
+  λa. λn. λv. VElim a (λk. λu. (m : ℕ) → V a m → V a (plus k m))
+    (λm. λacc. acc)
+    (λk. λx. λxs. λih. λm. λacc. ih (S m) (vcons a m x acc))
+    n v
+
+def vreverse : {a : 𝕌} {n : ℕ} → V a n → V a n using (V.unfold, plusZr.rw) ≔
+  λa. λn. λv. vrevAcc v (vnil a)
+
+-- it runs: closed terms compute, and a computed equation is proved by ⋆
+def v123 : V ℕ 3 using (V.unfold) ≔ vcons ℕ 2 1 (vcons ℕ 1 2 (vcons ℕ 0 3 (vnil ℕ)))
+
+def v321 : V ℕ 3 using (V.unfold) ≔ vcons ℕ 2 3 (vcons ℕ 1 2 (vcons ℕ 0 1 (vnil ℕ)))
+
+def reverseTest : vreverse v123 ≡ v321 ∈ V ℕ 3
+  using (vreverse.eq, vrevAcc.eq, v123.eq, v321.eq, V.eq, VElim.eq, vcons.eq, vnil.eq, plus.eq) ≔
+  ⋆
+
+def headOfReverse : vhead (vreverse v123) ≡ 3
+  using (vhead.eq, vreverse.eq, vrevAcc.eq, v123.eq, V.eq, VElim.eq, vcons.eq, vnil.eq, plus.eq) ≔
+  ⋆
+
+def zipTest : vzip v123 v321 ≡ vcons (ℕ × ℕ) 2 (1, 3) (vcons (ℕ × ℕ) 1 (2, 2) (vcons (ℕ × ℕ) 0 (3, 1) (vnil (ℕ × ℕ)))) ∈ V (ℕ × ℕ) 3
+  using (vzip.eq, vhead.eq, vtail.eq, v123.eq, v321.eq, V.eq, VElim.eq, vcons.eq, vnil.eq) ≔
+  ⋆
+
+-- ===== proofs about the programs =====
+
+-- the two computation rules of vappend, as named lemmas: from here on
+-- nobody needs to know how vappend was implemented
+def vappendNilL : {a : 𝕌} {m : ℕ} (w : V a m) → vappend {a} {Z} {m} (vnil a) w ≡ w ∈ V a m
+  using (vappend.eq, V.eq, VElim.eq, vnil.eq, plus.eq) ≔
+  λa. λm. λw. ⋆
+
+def vappendCons : {a : 𝕌} {n m : ℕ} (x : a) (xs : V a n) (w : V a m)
+  → vappend {a} {S n} {m} (vcons a n x xs) w ≡ vcons a (plus n m) x (vappend {a} {n} {m} xs w) ∈ V a (S (plus n m))
+  using (vappend.eq, V.eq, VElim.eq, vcons.eq, plus.eq) ≔
+  λa. λn. λm. λx. λxs. λw. ⋆
+
+-- THE statement Agda cannot even write down:
+--   vappend v vnil : V a (plus n Z)     but     v : V a n
+-- In Agda the two sides have different types; you state it through
+-- subst, or with heterogeneous equality, and then fight both. Here
+-- the elaborator reports ONE obligation, plus n Z ≐ n, and hints at
+-- the lemma that closes it.
+def vappendNil : {a : 𝕌} {n : ℕ} (v : V a n) → vappend {a} {n} {Z} v (vnil a) ≡ v ∈ V a n
+  using (hyp.rw, V.eq, V.unfold, VElim.eq, vnil.eq, vcons.eq, vappend.eq, plusZr.rw, plusZ.rw, plusS.rw) ≔
+  λa. λn. λv. VElimP a (λk. λu. vappend {a} {k} {Z} u (vnil a) ≡ u ∈ V a k) ⋆ (λk. λx. λxs. λih. ⋆) n v

@@ -1,0 +1,86 @@
+-- Part 4 — quotients: order-independent aggregation, enforced.
+--
+-- A multiset is a list in which swapping two adjacent elements gives
+-- an EQUAL value — not an "equivalent" one that every function must
+-- separately be shown to respect. In Nova the swap is an equation
+-- constructor of a quotient inductive type (a QIIT), and equality is
+-- equality: any function out of Bag must respect it, and the type
+-- checker asks for exactly that, as an obligation, when you define
+-- one. This is the type-level version of "your reducer must be
+-- commutative" (map-reduce, CRDTs, event-sourced aggregates).
+
+import Arith (plus, plusZ, plusS, plusZr, plusSr, plusComm, plusAssoc, plusSwap)
+
+data [a : 𝕌] ( Bag : U
+     ; nil : El Bag
+     ; ins : a → El Bag → El Bag
+     ; swp : (x : a) (y : a) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
+
+-- insertion order is invisible: an EQUALITY, usable anywhere
+def oneTwo : ins ℕ 1 (ins ℕ 2 (nil ℕ)) ≡ ins ℕ 2 (ins ℕ 1 (nil ℕ)) ∈ Bag ℕ
+  using (swp, Bag.unfold, ins.eq) ≔
+  ⋆
+
+-- a fold out of a Bag takes the nil case, the ins case, and a PROOF
+-- that the ins case does not care about order (the last argument).
+-- size: S ih twice is S ih twice — the coherence is by computation
+def size : {a : 𝕌} → Bag a → ℕ using (Bag.unfold) ≔
+  λa. λm. BagElim a (λw. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
+
+-- sum: the coherence is plus x (plus y ih) ≡ plus y (plus x ih) — the
+-- exchange law from Part 1. (Live: put ?coherent there and hover.)
+def sum : Bag ℕ → ℕ using (Bag.unfold) ≔
+  λm. BagElim ℕ (λw. ℕ) Z (λx. λr. λih. plus x ih) (λx. λy. λr. λih. plusSwap x y ih) m
+
+-- a function that would depend on order — the "first element" — has
+-- coherence x ≡ y for ARBITRARY x y. It cannot be written. (Live:
+-- see start/Bag.nova, the hole ?impossible.)
+
+-- union of two bags: eliminate into Bag itself; coherence is the
+-- swap equation again
+def union : {a : 𝕌} → Bag a → Bag a → Bag a using (swp, Bag.unfold, ins.eq) ≔
+  λa. λm. λn. BagElim a (λw. Bag a) n (λx. λr. λih. ins a x ih) (λx. λy. λr. λih. ⋆) m
+
+def sumTest : sum (union (ins ℕ 1 (ins ℕ 2 (nil ℕ))) (ins ℕ 3 (nil ℕ))) ≡ 6
+  using (sum.eq, union.eq, Bag.eq, BagElim.eq, ins.eq, nil.eq, plus.eq) ≔
+  ⋆
+
+-- ===== proofs =====
+-- sum respects the quotient — of course it does, it is a function on
+-- the quotient. In setoid-Agda this is a lemma (sum-resp) proved by
+-- induction over the equivalence relation; in cubical Agda it is
+-- cong sum (swap x y m). Here it is one ⋆: the two bags are equal.
+def sumSwap : (x y : ℕ) (m : Bag ℕ) → sum (ins ℕ x (ins ℕ y m)) ≡ sum (ins ℕ y (ins ℕ x m))
+  using (swp, Bag.unfold, ins.eq) ≔
+  λx. λy. λm. ⋆
+
+-- the computation rules of sum and union, as named lemmas
+def sumNil : sum (nil ℕ) ≡ Z using (sum.eq, Bag.eq, BagElim.eq, nil.eq) ≔ ⋆
+
+def sumIns : (x : ℕ) (m : Bag ℕ) → sum (ins ℕ x m) ≡ plus x (sum m)
+  using (sum.eq, Bag.eq, BagElim.eq, ins.eq) ≔
+  λx. λm. ⋆
+
+def unionNil : (n : Bag ℕ) → union (nil ℕ) n ≡ n using (union.eq, Bag.eq, Bag.unfold, BagElim.eq, nil.eq) ≔ λn. ⋆
+
+def unionIns : (x : ℕ) (m n : Bag ℕ) → union (ins ℕ x m) n ≡ ins ℕ x (union m n)
+  using (union.eq, Bag.eq, Bag.unfold, BagElim.eq, ins.eq) ≔
+  λx. λm. λn. ⋆
+
+-- sum of a union is the sum of the sums: induction over a quotient
+-- type at an equational motive (BagElimP) — no coherence argument,
+-- because equations are propositions and proofs of them are unique.
+-- Both cases are equational chains over the computation rules above.
+def sumUnion : (m n : Bag ℕ) → sum (union m n) ≡ plus (sum m) (sum n) using (hyp.rw) ≔
+  λm. λn. BagElimP ℕ (λw. sum (union w n) ≡ plus (sum w) (sum n))
+    (sum (union (nil ℕ) n)
+      ≡⟨ unionNil n ⟩ sum n
+      ≡⟨ plusZ (sum n) ⟩ plus Z (sum n)
+      ≡⟨ sumNil ⟩ plus (sum (nil ℕ)) (sum n))
+    (λx. λr. λih. sum (union (ins ℕ x r) n)
+      ≡⟨ unionIns x r n ⟩ sum (ins ℕ x (union r n))
+      ≡⟨ sumIns x (union r n) ⟩ plus x (sum (union r n))
+      ≡⟨ ih ⟩ plus x (plus (sum r) (sum n))
+      ≡⟨ plusAssoc x (sum r) (sum n) ⟩ plus (plus x (sum r)) (sum n)
+      ≡⟨ sumIns x r ⟩ plus (sum (ins ℕ x r)) (sum n))
+    m
