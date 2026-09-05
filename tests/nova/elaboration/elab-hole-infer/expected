@@ -8,7 +8,7 @@ input.nova:8:22: error: def viaOut: the hole ?s stands where no type is expected
 declared viaOut [+1 declaration]
 open declarations (2):
   [viaLet] ⊢ ? : ℕ
-      at: input.nova:6:1: def viaLet
+      at: input.nova:6:5: def viaLet
   [viaOut] ⊢ ? : ℕ
-      at: input.nova:8:1: def viaOut
+      at: input.nova:8:5: def viaOut
 Error: 2 items failed to elaborate

@@ -578,7 +578,7 @@ renderQBinders tbl bs@((x, d) :: rest) =
            <-> txt " → " <-> renderQBinders tbl more
 
 renderQDecl : FixTable -> SQDecl -> Doc
-renderQDecl tbl (MkSQDecl n bs res) =
+renderQDecl tbl (MkSQDecl n _ bs res) =
   txt "\{n} : " <-> renderQBinders tbl bs <-> renderQRes tbl res
 
 -- ===== Clauses =====
@@ -598,7 +598,7 @@ mutual
     _ => "(\{renderPat p})"
 
 renderClause : FixTable -> String -> SClause -> Doc
-renderClause tbl iname (MkSClause pats _ rhs mn _) =
+renderClause tbl iname (MkSClause pats _ rhs mn _ _) =
   let lhs = case (isOpName iname, pats) of
               -- an operator-named item's two-pattern clause lays out
               -- infix (the corpus spelling); operands sit at full
@@ -648,7 +648,7 @@ seam hdr bod =
 -- written against BARE syntax: the two entry points below strip the
 -- item's spans once, and nothing under them looks through a wrapper.
 renderItemBare : FixTable -> SItem -> Doc
-renderItemBare tbl (SDef n ty body mu) =
+renderItemBare tbl (SDef _ n ty body mu) =
   -- unreachable through renderItemStr (kept total for other callers)
   txt "def \{n} : " <-> pe tbl LNoComma False ty <-> renderUsing mu <->
   txt " ≔" <-> DGroup (DNest 2 (DLine <-> pe tbl LPair True body))
@@ -662,7 +662,7 @@ renderItemBare tbl (SData params ds) =
      _ => txt "( " <->
           concatD (intersperse (DNest 5 DHard <-> txt "; ") (map (renderQDecl tbl) ds)) <->
           txt " )")
-renderItemBare tbl (SClausalDef _ n ty eta wit cls) =
+renderItemBare tbl (SClausalDef _ n ty eta _ wit cls) =
   txt "def \{n} : " <-> pe tbl LNoComma False ty <->
   (case eta of
      Nothing => DNil
@@ -676,7 +676,7 @@ renderItem : FixTable -> SItem -> Doc
 renderItem tbl item = renderItemBare tbl (stripPosItem item)
 
 renderItemStrBare : FixTable -> SItem -> String
-renderItemStrBare tbl (SDef n ty body mu) =
+renderItemStrBare tbl (SDef _ n ty body mu) =
   let tyPart = txt "def \{n} : " <-> pe tbl LNoComma False ty
       usePart = renderUsing mu
       bod = pe tbl LPair True body
@@ -916,8 +916,8 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
       SPPi x a f => SPPi x (esE a) (esP f)
 
   esQDecl : SQDecl -> SQDecl
-  esQDecl (MkSQDecl n bs res) =
-    MkSQDecl n (map (\(x, d) => (x, case d of
+  esQDecl (MkSQDecl n r bs res) =
+    MkSQDecl n r (map (\(x, d) => (x, case d of
                                      Left t => Left (esT t)
                                      Right qt => Right (esQTm qt))) bs)
       (case res of
@@ -931,12 +931,12 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
     esQTm (SQAppI f a) = SQAppI (esQTm f) (esQTm a)
 
   esItem : SItem -> SItem
-  esItem (SDef x ty body mu) = SDef x (esT ty) (esE body) mu
+  esItem (SDef r x ty body mu) = SDef r x (esT ty) (esE body) mu
   esItem (SDeclDef r x ty) = SDeclDef r x (esT ty)
   esItem (STypeDef x ty) = STypeDef x (esT ty)
   esItem (SData params ds) = SData (map (\(x, t) => (x, esT t)) params) (map esQDecl ds)
-  esItem (SClausalDef r x ty eta wit cls) =
-    SClausalDef r x (esT ty) eta (map esE wit) (map ({ crhs $= esE }) cls)
+  esItem (SClausalDef r x ty eta er wit cls) =
+    SClausalDef r x (esT ty) eta er (map esE wit) (map ({ crhs $= esE }) cls)
 
 ||| Apply the verdict map to one module.
 elideSugar : List (String, Range, Bool) -> List (String, Range, Nat) -> ModUnit -> ModUnit

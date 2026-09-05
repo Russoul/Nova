@@ -21,9 +21,9 @@ errors.nova:4:34: error: def notSigma: sigma-elim eliminates a variable of type 
 declared notSigma [+1 declaration]
 open declarations (2):
   [notVar] ⊢ ? : (ℕ × ℕ) → ℕ
-      at: errors.nova:2:1: def notVar
+      at: errors.nova:2:5: def notVar
   [notSigma] ⊢ ? : ℕ → ℕ
-      at: errors.nova:4:1: def notSigma
+      at: errors.nova:4:5: def notSigma
 Error: 2 items failed to elaborate
 --- the body cannot name what it eliminates:
 scope.nova:3:58: error: expected a sigma-elim body free of 'p' — the variable this eliminates, so the body's context has no such entry (its components are a and b), but reached the end of the file

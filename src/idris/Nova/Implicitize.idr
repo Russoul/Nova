@@ -69,7 +69,7 @@ export
 unitResolver : ModUnit -> (String -> String)
 unitResolver u =
   let own = mapMaybe (\(_, it) => case it of
-              SDef x _ _ _ => Just (x, qualify u.mname x)
+              SDef _ x _ _ _ => Just (x, qualify u.mname x)
               SDeclDef _ x _ => Just (x, qualify u.mname x)
               STypeDef x _ => Just (x, qualify u.mname x)
               _ => Nothing) u.mitems
@@ -267,8 +267,8 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
   xfQTm (SQAppI f a) = SQAppI (xfQTm f) (xfQTm a)
 
   xfQDecl : SQDecl -> SQDecl
-  xfQDecl (MkSQDecl n bs res) =
-    MkSQDecl n (map (\(x, d) => (x, case d of
+  xfQDecl (MkSQDecl n r bs res) =
+    MkSQDecl n r (map (\(x, d) => (x, case d of
                                      Left t => Left (xfT t)
                                      Right qt => Right (xfQTm qt))) bs)
       (case res of
@@ -281,11 +281,11 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
   ||| rewrite. Clausal and data items are never implicitized
   ||| themselves — their embedded pieces are use sites like any other.
   xfItem : (ownQ : String -> String) -> SItem -> SItem
-  xfItem ownQ (SDef x ty body mu) =
+  xfItem ownQ (SDef r x ty body mu) =
     let ty' = case lookup (ownQ x) cands of
                 Just poss => impTy poss (xfT ty)
                 Nothing => xfT ty
-    in SDef x ty' (xfE body) mu
+    in SDef r x ty' (xfE body) mu
   xfItem ownQ (SDeclDef r x ty) =
     let ty' = case lookup (ownQ x) cands of
                 Just poss => impTy poss (xfT ty)
@@ -294,8 +294,8 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
   xfItem ownQ (STypeDef x ty) = STypeDef x (xfT ty)
   xfItem ownQ (SData params ds) =
     SData (map (\(x, t) => (x, xfT t)) params) (map xfQDecl ds)
-  xfItem ownQ (SClausalDef r x ty eta wit cls) =
-    SClausalDef r x (xfT ty) eta (map xfE wit)
+  xfItem ownQ (SClausalDef r x ty eta er wit cls) =
+    SClausalDef r x (xfT ty) eta er (map xfE wit)
       (map (\c => { crhs $= xfE } c) cls)
 
 ||| Transform a whole module.
@@ -390,7 +390,7 @@ driftCulprits a b = nub (go (toList a) (toList b))
 
 defItemNames : List ModUnit -> List String
 defItemNames = concatMap (\u => mapMaybe (\(_, it) => case it of
-    SDef x _ _ _ => Just (qualify u.mname x)
+    SDef _ x _ _ _ => Just (qualify u.mname x)
     SDeclDef _ x _ => Just (qualify u.mname x)
     _ => Nothing) u.mitems)
 
@@ -567,18 +567,18 @@ sitesOfUnit resolve q u = concatMap (\(_, it) => goItem it) u.mitems
       SPPi _ a f => goE a ++ goP f
 
   goItem : SItem -> List (Maybe Range, List SElem)
-  goItem (SDef _ ty body _) = goT ty ++ goE body
+  goItem (SDef _ _ ty body _) = goT ty ++ goE body
   goItem (SDeclDef _ _ ty) = goT ty
   goItem (STypeDef _ ty) = goT ty
   goItem (SData params ds) = concatMap (goT . snd) params
-  goItem (SClausalDef _ _ ty _ wit cls) =
+  goItem (SClausalDef _ _ ty _ _ wit cls) =
     goT ty ++ concatMap goE wit ++ concatMap (\c => goE c.crhs) cls
 
 ||| find a def by bare or qualified name: (qualified, surface type)
 findDef : List ModUnit -> String -> Either String (String, STy)
 findDef units name =
   case concatMap (\u => mapMaybe (\(_, it) => case it of
-         SDef x ty _ _ => hit u x ty
+         SDef _ x ty _ _ => hit u x ty
          SDeclDef _ x ty => hit u x ty
          _ => Nothing) u.mitems) units of
     [one] => Right one

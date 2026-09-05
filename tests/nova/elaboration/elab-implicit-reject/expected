@@ -5,5 +5,5 @@ input.nova:2:23: error: def bad: cannot infer implicit argument #0 of 'id2' — 
 declared bad [+1 declaration]
 open declarations (1):
   [bad] ⊢ ? : ℕ
-      at: input.nova:2:1: def bad
+      at: input.nova:2:5: def bad
 Error: 1 item failed to elaborate

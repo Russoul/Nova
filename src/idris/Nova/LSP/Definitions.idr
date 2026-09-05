@@ -51,11 +51,11 @@ itemRange = fromMaybe emptyRange
 ||| `Nova.Elaboration.Parser.parseSData`), so this is item-level
 ||| granularity, same caveat as `ModUnit.mitems`.
 itemNames : SItem -> List String
-itemNames (SDef x _ _ _) = [x]
+itemNames (SDef _ x _ _ _) = [x]
 itemNames (SDeclDef _ x _) = [x]
 itemNames (STypeDef x _) = [x]
 itemNames (SData _ decls) = map dqname decls
-itemNames (SClausalDef _ x _ eta _ cls) = clausalNames x eta cls
+itemNames (SClausalDef _ x _ eta _ _ cls) = clausalNames x eta cls
 
 ||| Σ's own qualification: bare in the root file, module-prefixed
 ||| otherwise (`Nova.Elaboration.emitCoreDef`'s `q`).
@@ -164,8 +164,8 @@ documentSymbols lns = concatMap toSymbols
   toSymbols (rng, item) =
     let r = itemRange rng in
     case item of
-      SDef x _ _ _  => [mkSymbol lns x Function r]
+      SDef _ x _ _ _  => [mkSymbol lns x Function r]
       SDeclDef _ x _ => [mkSymbol lns x Function r]
       STypeDef x _  => [mkSymbol lns x Class r]
       SData _ decls => map (\d => mkSymbol lns d.dqname (declSymbolKind d.dqres) r) decls
-      SClausalDef _ x _ eta _ cls => map (\n => mkSymbol lns n Function r) (clausalNames x eta cls)
+      SClausalDef _ x _ eta _ _ cls => map (\n => mkSymbol lns n Function r) (clausalNames x eta cls)

@@ -1,0 +1,16 @@
+-- DEFINITION SITES hover like references: the name ascribed its
+-- elaborated type. A clausal def's [name] overrides, its generated
+-- clause lemmas (at the clause, when unnamed), a declaration, and a
+-- data literal's entries all record an entry
+def plus : ℕ → ℕ → ℕ [plusUniq]
+  | plus Z m ≔ m [plusZ]
+  | plus (S n) m ≔ S (plus n m)
+
+def use : (m : ℕ) → plus Z m ≡ m ≔ λm. plusZ m
+
+def decl : (n : ℕ) → plus n Z ≡ n
+
+data [a : 𝕌] ( Bag : U
+     ; nil : El Bag
+     ; ins : a → El Bag → El Bag
+     ; swp : (x : a) (y : a) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )

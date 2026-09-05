@@ -61,7 +61,7 @@ SYMBOLS (2):
   plus (kind 12) [L1:1-L1:62]
   needsLemma (kind 12) [L3:1-L3:52]
 DEFINITION(plus): SAME FILE [L1:1-L1:62]
-HOVER(plus): null
+HOVER(plus): [L1:5-L1:9] ```nova ⏎ plus : ℕ → ℕ → ℕ ⏎ ```
 CODE ACTIONS(plus) (0):
 DIAGNOSTICS FOR FIXTURE (1):
   [L3:51-L3:52] (error)   [1] (n : ℕ) ⊢ plus Z n ≐ n : ℕ

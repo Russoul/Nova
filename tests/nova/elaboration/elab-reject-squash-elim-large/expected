@@ -4,5 +4,5 @@ input.nova:3:28: error: def choice: squash-elim checked against ℕ, which is no
 declared choice [+1 declaration]
 open declarations (1):
   [choice] ⊢ ? : ∥ℕ∥ → ℕ
-      at: input.nova:3:1: def choice
+      at: input.nova:3:5: def choice
 Error: 1 item failed to elaborate

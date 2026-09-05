@@ -1097,9 +1097,9 @@ sqTele tbl tos ext =
 
 sqDecl : FixTable -> NameEnv -> NameEnv -> Rule SQDecl
 sqDecl tbl penv entries = do
-  n <- parseName; sp; kwc ':'; sp
+  (nr, n) <- bounds parseName; sp; kwc ':'; sp
   (bs, res) <- sqTele tbl entries penv
-  pure (MkSQDecl n bs res)
+  pure (MkSQDecl n nr bs res)
 
 parseSData : FixTable -> Rule SItem
 parseSData tbl = do
@@ -1232,8 +1232,8 @@ parseSClauseRaw tbl iname = do
   sp; kw2 "≔" ":="; sp
   let vars = patVarsOf pats
   rhs <- parseSElem tbl ([<] <>< map fst vars)
-  mn <- optional (do sp; kwc '['; sp; n <- parseName; sp; kwc ']'; pure n)
-  pure (MkSClause pats vars rhs mn Nothing)
+  mn <- optional (do sp; kwc '['; sp; (nr, n) <- bounds parseName; sp; kwc ']'; pure (n, nr))
+  pure (MkSClause pats vars rhs (map fst mn) (mn >>= snd) Nothing)
 
 ||| The clause with its own source span attached — what the item macro
 ||| reports its generated equation lemma at.
@@ -1264,11 +1264,11 @@ parseSItem tbl =
           -- EVERY discharge of the item — ⋆s, switches, WD premises —
           -- to the named lemmas plus hypotheses
           muses <- optional (do kw "using"; sp; ns <- parseUsingNames; sp; pure ns)
-          metaEta <- optional (do kwc '['; sp; n <- parseName; sp; kwc ']'; sp; pure n)
+          metaEta <- optional (do kwc '['; sp; (nr, n) <- bounds parseName; sp; kwc ']'; sp; pure (n, nr))
           mbody <- optional (do kw2 "≔" ":="; sp; commit; parseSElem tbl [<])
           cls <- many (do sp; parseSClause tbl x)
           case (metaEta, mbody, cls) of
-            (Nothing, Just body, []) => pure (SDef x ty body muses)
+            (Nothing, Just body, []) => pure (SDef r x ty body muses)
             -- a def without a definiens: a DECLARATION
             (Nothing, Nothing, []) =>
               case muses of
@@ -1276,7 +1276,7 @@ parseSItem tbl =
                 Just _ => fail "!a declaration discharges nothing — a using-clause is for defs with a definiens"
             (_, _, (c :: cs)) =>
               case muses of
-                Nothing => pure (SClausalDef r x ty metaEta mbody (c :: cs))
+                Nothing => pure (SClausalDef r x ty (map fst metaEta) (metaEta >>= snd) mbody (c :: cs))
                 Just _ => fail "!a using-clause on a clausal def is not supported yet"
             (Just _, _, []) => fail "!a uniqueness-name override must be followed by clauses")
   <|> (do kw "type"; space; commit

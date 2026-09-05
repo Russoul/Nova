@@ -5,5 +5,5 @@ input.nova:5:29: error: def bad: cannot infer the blank at argument #1 of 'cst' 
 declared bad [+1 declaration]
 open declarations (1):
   [bad] ⊢ ? : ℕ → ℕ
-      at: input.nova:5:1: def bad
+      at: input.nova:5:5: def bad
 Error: 1 item failed to elaborate

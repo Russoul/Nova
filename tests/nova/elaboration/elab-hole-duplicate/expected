@@ -7,5 +7,5 @@ holes reached before the failure (1):
 declared bad [+1 declaration]
 open declarations (1):
   [bad] ⊢ ? : ℕ × ℕ
-      at: input.nova:3:1: def bad
+      at: input.nova:3:5: def bad
 Error: 1 item failed to elaborate

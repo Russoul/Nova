@@ -31,15 +31,15 @@ errors.nova:12:51: error: def notProp: squash-elim checked against ℕ, which is
 declared notProp [+1 declaration]
 open declarations (5):
   [notVar] ⊢ ? : ∥ℕ∥ → (Z ≡ Z ∈ ℕ)
-      at: errors.nova:3:1: def notVar
+      at: errors.nova:3:5: def notVar
   [notSquash] ⊢ ? : ℕ → (Z ≡ Z ∈ ℕ)
-      at: errors.nova:5:1: def notSquash
+      at: errors.nova:5:5: def notSquash
   [inGoal] ⊢ ? : (h : ∥ℕ∥) → (h ≡ h ∈ ∥ℕ∥)
-      at: errors.nova:9:1: def inGoal
+      at: errors.nova:9:5: def inGoal
   [inHyp] ⊢ ? : (h : ∥ℕ∥) → (h ≡ h ∈ ∥ℕ∥) → (Z ≡ Z ∈ ℕ)
-      at: errors.nova:10:1: def inHyp
+      at: errors.nova:10:5: def inHyp
   [notProp] ⊢ ? : ∥ℕ∥ → ℕ
-      at: errors.nova:12:1: def notProp
+      at: errors.nova:12:5: def notProp
 Error: 5 items failed to elaborate
 --- the body cannot name what it eliminates:
 scope.nova:3:74: error: expected an unsquash body free of 'w' — the variable this eliminates, so the body's context has no such entry (it has the witness x instead), but reached the end of the file
