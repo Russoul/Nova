@@ -7,5 +7,5 @@ holes reached before the failure (1):
 declared broken [+1 declaration]
 open declarations (1):
   [broken] ⊢ ? : ℕ × ℕ
-      at: input.nova:3:1: def broken
+      at: input.nova:3:5: def broken
 Error: 1 item failed to elaborate

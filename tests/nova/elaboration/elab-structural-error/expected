@@ -4,5 +4,5 @@ input.nova:1:15: error: def bad: λ checked against ℕ, which is not a Π type
 declared bad [+1 declaration]
 open declarations (1):
   [bad] ⊢ ? : ℕ
-      at: input.nova:1:1: def bad
+      at: input.nova:1:5: def bad
 Error: 1 item failed to elaborate

@@ -17,7 +17,7 @@ TOKENS (11):
 SYMBOLS (1):
   id (kind 12) [L1:1-L1:23]
 DEFINITION(id): SAME FILE [L1:1-L1:23]
-HOVER(id): null
+HOVER(id): [L1:5-L1:7] ```nova ⏎ id : ℕ → ℕ ⏎ ```
 CODE ACTIONS(id) (0):
 DIAGNOSTICS FOR FIXTURE (0):
 ELABTIME: reported

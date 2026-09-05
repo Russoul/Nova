@@ -278,8 +278,13 @@ handleRequest TextDocumentHover params = whenActiveRequest $ \_ => do
       let rng = maybe (toLspRange lns (MkRange pos pos)) (toLspRange lns) v.hvDecl.dvrange
       pure (pure (make (MkHover (make content) (Just rng))))
     [] =>
-      -- binder occurrences: ascribe the elaborated type
-      case [ (r, txt) | (r, txt) <- doc.report.binderTable, posInRange pos r ] of
+      -- binder occurrences: ascribe the elaborated type. Entries nest
+      -- (a clause's generated lemma is recorded at the WHOLE clause
+      -- when it has no [name] of its own, and the pattern variables
+      -- inside that clause are entries too), so the NARROWEST span
+      -- containing the position wins — what the cursor is on
+      case sortBy (\(a, _), (b, _) => compare (width a) (width b))
+                  [ (r, txt) | (r, txt) <- doc.report.binderTable, posInRange pos r ] of
         ((r, txt) :: _) => do
           let content = MkMarkupContent Markdown ("```nova\n" ++ txt ++ "\n```")
           pure (pure (make (MkHover (make content) (Just (toLspRange lns r)))))
@@ -287,6 +292,10 @@ handleRequest TextDocumentHover params = whenActiveRequest $ \_ => do
  where
   posInRange : Me.Russoul.Text.Position.Position -> Me.Russoul.Text.Range.Range -> Bool
   posInRange p (MkRange s e) = s <= p && p <= e
+  ||| a span's extent, lexicographically by (lines, columns) — enough
+  ||| to order nested spans, which is all the sort above needs
+  width : Me.Russoul.Text.Range.Range -> (Int, Int)
+  width (MkRange s e) = (cast e.line - cast s.line, cast e.column - cast s.column)
 
 handleRequest TextDocumentDefinition params = whenActiveRequest $ \_ => do
   logI Channel "Received definition request for \{show params.textDocument.uri}"

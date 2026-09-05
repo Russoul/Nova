@@ -2142,6 +2142,18 @@ its goals show at once; that is the honest account of what filling it
 commits to, and it is why the span is readable where it is not
 rewritable (In-place elimination, Restrictions).
 
+HOVERING A NAME ascribes it its elaborated type, `x : T`, at a
+reference (e-sig) and at a binder alike — and at the DEFINITION SITE:
+the name of a def or declaration, a data literal's entry names (each
+at the type of the def the expansion emitted for it, so `ins` reads
+as its saturated, parameter-abstracted constructor), and a clausal
+def's generated lemmas — at the `[name]` override where one is
+written, else at the clause it is about, since the lemma's name
+occurs nowhere in the source. Spans nest (a clause contains its
+pattern variables), and the narrowest span containing the position
+answers. Definition-site entries are recorded once the item's TYPE
+has elaborated, so a def whose body fails still hovers.
+
 WHAT A GOAL IS PRINTED AS is decided by the UNFOLD LICENCE of the
 item that surfaced it. A report computes the licensed unfolds rather
 than showing the folded spelling: for every definition the item cited
@@ -2274,8 +2286,10 @@ holes are display material only. What replaces it is a DECLARATION of
 its own signature (`def x : T` with no definiens, the sig-decl item),
 so that later items' references to it still resolve. That declaration
 is reported as open and blocks acceptance exactly as a written one
-does: recovery never turns a failure into an acceptance, it only
-stops one broken proof from hiding every goal after it.
+does — and it stands where a written one stands, at the NAME, so it
+reports and hovers there rather than claiming the whole broken item:
+recovery never turns a failure into an acceptance, it only stops one
+broken proof from hiding every goal after it.
 
 Items with no signature to declare recover nothing and are skipped: a
 `data` literal, or a def whose failure was in its TYPE. A module-level

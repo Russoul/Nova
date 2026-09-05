@@ -7,5 +7,5 @@ input.nova:20:53: error: def bad: cannot infer the blank at argument #0 of 'cong
 declared bad [+1 declaration]
 open declarations (1):
   [bad] ⊢ ? : (n : ℕ) → (double n ≡ double n ∈ ℕ)
-      at: input.nova:20:1: def bad
+      at: input.nova:20:5: def bad
 Error: 1 item failed to elaborate

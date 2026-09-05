@@ -159,8 +159,8 @@ parameters (rm : RenameMap, resolve : String -> String)
       SPPi x a f => SPPi x (rnE a) (rnP f)
 
   rnQDecl : SQDecl -> SQDecl
-  rnQDecl (MkSQDecl n bs res) =
-    MkSQDecl n (map (\(x, d) => (x, case d of
+  rnQDecl (MkSQDecl n r bs res) =
+    MkSQDecl n r (map (\(x, d) => (x, case d of
                                      Left t => Left (rnT t)
                                      Right qt => Right (rnQTm qt))) bs)
       (case res of
@@ -177,14 +177,14 @@ parameters (rm : RenameMap, resolve : String -> String)
   defName ownQ x = fromMaybe x (lookup (ownQ x) rm)
 
   rnItem : (ownQ : String -> String) -> SItem -> SItem
-  rnItem ownQ (SDef x ty body mu) =
-    SDef (defName ownQ x) (rnT ty) (rnE body) (map (map citeName) mu)
+  rnItem ownQ (SDef r x ty body mu) =
+    SDef r (defName ownQ x) (rnT ty) (rnE body) (map (map citeName) mu)
   rnItem ownQ (SDeclDef r x ty) = SDeclDef r (defName ownQ x) (rnT ty)
   rnItem ownQ (STypeDef x ty) = STypeDef (defName ownQ x) (rnT ty)
   rnItem ownQ (SData params ds) =
     SData (map (\(x, t) => (x, rnT t)) params) (map rnQDecl ds)
-  rnItem ownQ (SClausalDef r x ty eta wit cls) =
-    SClausalDef r (defName ownQ x) (rnT ty) eta (map rnE wit)
+  rnItem ownQ (SClausalDef r x ty eta er wit cls) =
+    SClausalDef r (defName ownQ x) (rnT ty) eta er (map rnE wit)
       (map ({ crhs $= rnE }) cls)
 
 

@@ -51,19 +51,19 @@ open obligations (1):
       at: errors.nova:16:32: def blocked: inferred vs expected type
 open declarations (7):
   [notVar] ⊢ ? : (n : ℕ) → (n ≡ Z ∈ ℕ) → ℕ
-      at: errors.nova:2:1: def notVar
+      at: errors.nova:2:5: def notVar
   [notHyp] ⊢ ? : (n : ℕ) → (n ≡ Z ∈ ℕ) → ℕ
-      at: errors.nova:4:1: def notHyp
+      at: errors.nova:4:5: def notHyp
   [outside] ⊢ ? : (Z ≡ Z ∈ ℕ) → ℕ → ℕ
-      at: errors.nova:6:1: def outside
+      at: errors.nova:6:5: def outside
   [offSide] ⊢ ? : ℕ → (n : ℕ) → (n ≡ Z ∈ ℕ) → ℕ
-      at: errors.nova:8:1: def offSide
+      at: errors.nova:8:5: def offSide
   [notEq] ⊢ ? : ℕ → ℕ → ℕ
-      at: errors.nova:10:1: def notEq
+      at: errors.nova:10:5: def notEq
   [notOutside] ⊢ ? : (n : ℕ) → (n ≡ S n ∈ ℕ) → ℕ
-      at: errors.nova:12:1: def notOutside
+      at: errors.nova:12:5: def notOutside
   [blocked] ⊢ ? : (n : ℕ) → (ℕ ≡ n ∈ 𝕌) → (m : ℕ) → (n ≡ S m ∈ ℕ) → ℕ
-      at: errors.nova:16:1: def blocked
+      at: errors.nova:16:5: def blocked
 Error: 7 items failed to elaborate
 --- the proof cannot name what it eliminates:
 scope.nova:3:55: error: expected a ≡-elim proof free of 'x' and 'w' — the variables this eliminates, so the proof's context has no such entry, but reached the end of the file

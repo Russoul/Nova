@@ -6695,7 +6695,7 @@ elabItem irng item = withScope (if scopedMode then Just [] else Nothing) $ do
   pre <- getSt
   timedM "item \{pre.modPrefix}.\{itemName item}" (elabItemGo irng item)
 
-elabItemGo irng (SDef x ty body muses) = do
+elabItemGo irng (SDef nrng x ty body muses) = do
   census <- openCensus
   st <- getSt
   -- the Σ-name is qualified by the module; the root file's entries
@@ -6717,6 +6717,9 @@ elabItemGo irng (SDef x ty body muses) = do
   -- items live in the EMPTY context: parameters are Π-binders in the
   -- item's type, references are bare names
   (ty', tySk) <- withScope sc (withEqScope eqs (elabTy [<] [<] (MkSite "def \{x}" irng) ty))
+  -- the DEFINITION SITE hovers like a reference: the name ascribed
+  -- its elaborated type (references record at e-sig, see SSig)
+  recordBinder nrng [<] [<] x ty'
   -- the type is elaborated at the EMPTY context, so only the body runs
   -- under the item's own binders: the implicit depths are installed
   -- here and stay for everything the body mints
@@ -6742,6 +6745,7 @@ elabItemGo irng (SDeclDef nrng x ty) = do
     Just _ => throwAt irng "def \{x}: duplicate signature name"
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] (MkSite "def \{x}" irng) ty
+  recordBinder nrng [<] [<] x ty'
   modifySt $ { sig $= (:< SigDecl [<] q ty')
              , declMeta $= (:< MkDeclMeta q [<] "def \{x}" st.modFile nrng (unfsOf st) st.curImps) }
   addVis (x, q)
@@ -6804,6 +6808,11 @@ elabItemGo irng (SData params decls) = do
   st <- getSt
   let qual : String -> String
       qual x = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
+  -- the written entry names hover like definition sites: each is
+  -- ascribed the type of the def the expansion emitted for it
+  ignore $ traverse (\d => case cachedSigLookup st.sig (qual d.dqname) of
+                              Just (SigDef [<] _ _ dty) => recordBinder d.dqrng [<] [<] d.dqname dty
+                              _ => pure ()) decls
   let kindOf : Nat -> QEntryKind
       kindOf k = qEntryKind (fromMaybe QU (qEntry sg k))
   let atKind : QEntryKind -> (SQDecl -> a) -> List a
@@ -7069,7 +7078,7 @@ elabItemGo irng (SData params decls) = do
     upto Z = []
     upto (S n) = upto n ++ [n]
 
-elabItemGo irng (SClausalDef nrng x ty etaName witness clauses) = do
+elabItemGo irng (SClausalDef nrng x ty etaName etaRng witness clauses) = do
   -- a def with DEFINING EQUATIONS (docs/NovaElaboration.txt,
   -- "Defining equations"): an ITEM MACRO. The expansion is pure
   -- surface-level synthesis (Nova.Elaboration.Clauses); the batch —
@@ -7080,7 +7089,7 @@ elabItemGo irng (SClausalDef nrng x ty etaName witness clauses) = do
   -- everything non-structural degrades inside the expansion (witness
   -- tier / declaration tier) rather than failing.
   census <- openCensus
-  case expandClausal nrng x ty etaName witness clauses of
+  case expandClausal nrng x ty etaName etaRng witness clauses of
     Left err => throw "def \{x}: \{err}"
     Right (MkExpansion items echo) => do
       -- each batch item is its OWN item for anything keyed by the
@@ -7382,10 +7391,13 @@ failedLine n = "Error: \{show n} item\{if n == 1 then "" else "s"} failed to ela
 ||| a written `def x : T` does, so a failed def can never pass for a
 ||| definition. Items with no signature to declare (a `data` literal,
 ||| a declaration that failed on its own type) recover nothing and
-||| are simply skipped.
+||| are simply skipped. The fallback declaration stands at the NAME,
+||| as a written declaration does — so it reports there, and hovers
+||| there (its whole-item span would otherwise answer every hover
+||| inside the broken item).
 declFallback : Maybe Range -> SItem -> Maybe (Maybe Range, SItem)
-declFallback irng (SDef x ty _ _) = Just (irng, SDeclDef irng x ty)
-declFallback irng (SClausalDef nrng x ty _ _ _) = Just (irng, SDeclDef (nrng <|> irng) x ty)
+declFallback irng (SDef nrng x ty _ _) = Just (irng, SDeclDef (nrng <|> irng) x ty)
+declFallback irng (SClausalDef nrng x ty _ _ _ _) = Just (irng, SDeclDef (nrng <|> irng) x ty)
 declFallback _ _ = Nothing
 
 ||| The holes a FAILED item had already minted, as report views. Its

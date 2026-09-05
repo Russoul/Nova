@@ -9,7 +9,7 @@ input.nova:9:60: error: def badVar: cannot infer the blank at argument #1 of 'f'
 declared badVar [+1 declaration]
 open declarations (2):
   [badDef] ⊢ ? : ℕ → ℕ
-      at: input.nova:5:1: def badDef
+      at: input.nova:5:5: def badDef
   [badVar] ⊢ ? : ((A : 𝕌) → (B : 𝕌) → A → B → A) → ℕ → ℕ
-      at: input.nova:9:1: def badVar
+      at: input.nova:9:5: def badVar
 Error: 2 items failed to elaborate

@@ -4,7 +4,9 @@ Language support for [Nova](https://github.com/Russoul/Nova) `.nova`
 files, backed by the `nova-lsp` language server.
 
 * diagnostics — every elaboration error, with its caret range
-* hover — the type of the name under the cursor
+* hover — the type of the name under the cursor, at references,
+  binders and definition sites alike (a clause of a clausal def hovers
+  as the equation lemma it generates); a hole hovers as its goal
 * go-to-definition — across the file's whole import closure, including
   modules that are not themselves open
 * document symbols — the file's top-level items

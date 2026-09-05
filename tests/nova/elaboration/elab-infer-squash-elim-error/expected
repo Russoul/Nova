@@ -4,5 +4,5 @@ input.nova:3:25: error: def bad: cannot infer the type of squash-elim — ascrib
 declared bad [+1 declaration]
 open declarations (1):
   [bad] ⊢ ? : ∥𝟙∥ → ℕ
-      at: input.nova:3:1: def bad
+      at: input.nova:3:5: def bad
 Error: 1 item failed to elaborate

@@ -8,5 +8,5 @@ input.nova:7:1: error: def amb: '+' is ambiguous here — natp2.+, natp.+ all fi
 declared amb [+1 declaration]
 open declarations (1):
   [amb] ⊢ ? : ℕ
-      at: input.nova:7:1: def amb
+      at: input.nova:7:5: def amb
 Error: 1 item failed to elaborate

@@ -25,11 +25,11 @@ errors.nova:6:36: error: def infers: sum-elim infers nothing — the branches me
 declared infers [+1 declaration]
 open declarations (3):
   [notVar] ⊢ ? : (ℕ ⊎ ℕ) → ℕ
-      at: errors.nova:2:1: def notVar
+      at: errors.nova:2:5: def notVar
   [notSum] ⊢ ? : ℕ → ℕ
-      at: errors.nova:4:1: def notSum
+      at: errors.nova:4:5: def notSum
   [infers] ⊢ ? : (ℕ ⊎ ℕ) → ℕ
-      at: errors.nova:6:1: def infers
+      at: errors.nova:6:5: def infers
 Error: 3 items failed to elaborate
 --- a branch cannot name what it eliminates:
 scope.nova:3:66: error: expected a sum-elim branch free of 'w' — the variable this eliminates, so a branch's context has no such entry (it has a or b there instead), but reached the end of the file

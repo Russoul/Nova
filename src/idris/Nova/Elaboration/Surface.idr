@@ -790,6 +790,8 @@ public export
 record SQDecl where
   constructor MkSQDecl
   dqname : String
+  ||| the entry name's own span (hover: the generated def's type)
+  dqrng : Maybe Range
   ||| binders in order: Left = EXTERNAL domain (a surface type over the
   ||| external zone), Right = INDUCTIVE domain (a sort code)
   dqbinders : List (String, Either STy SQTm)
@@ -823,6 +825,8 @@ record SClause where
   crhs : SElem
   ||| the [name] override for this clause's equation lemma
   cname : Maybe String
+  ||| the override name's own span, when written (hover: the lemma's type)
+  cnrng : Maybe Range
   ||| the clause's own source span. The item macro expands each clause
   ||| into an equation lemma of its own, and that lemma is ABOUT this
   ||| clause — it is where its obligations and failures belong
@@ -834,7 +838,7 @@ data SItem : Type where
   ||| The optional using-clause scopes EVERY discharge of the item to
   ||| the named Σ lemmas plus hypotheses
   ||| (docs/SearchlessElaboration.md §5.3)
-  SDef : String -> STy -> SElem -> Maybe (List String) -> SItem
+  SDef : (nrng : Maybe Range) -> String -> STy -> SElem -> Maybe (List String) -> SItem
   ||| def x : T — a DECLARATION: a def without a definiens, entering Σ
   ||| as a sig-decl and reported as an open declaration (the name's
   ||| span is kept for diagnostics)
@@ -854,8 +858,8 @@ data SItem : Type where
   ||| equation lemma per clause, and the pointwise uniqueness lemma
   ||| (named by the [eta] override)
   SClausalDef : (nrng : Maybe Range) -> String -> STy ->
-                (etaName : Maybe String) -> (witness : Maybe SElem) ->
-                List SClause -> SItem
+                (etaName : Maybe String) -> (etaRng : Maybe Range) ->
+                (witness : Maybe SElem) -> List SClause -> SItem
 
 ||| One fixity declaration as written: (operator, associativity, level).
 public export
@@ -880,7 +884,7 @@ SBodyEntry = Either (Maybe Range, SFixity) (Maybe Range, SItem)
 export
 covering
 stripPosItem : SItem -> SItem
-stripPosItem (SDef n ty body mu) = SDef n (stripPos ty) (stripPos body) mu
+stripPosItem (SDef r n ty body mu) = SDef r n (stripPos ty) (stripPos body) mu
 stripPosItem (SDeclDef r n ty) = SDeclDef r n (stripPos ty)
 stripPosItem (STypeDef n ty) = STypeDef n (stripPos ty)
 stripPosItem (SData ps ds) =
@@ -889,19 +893,19 @@ stripPosItem (SData ps ds) =
   stripQDecl : SQDecl -> SQDecl
   stripQDecl d =
     { dqbinders := map (\(x, b) => (x, mapFst stripPos b)) d.dqbinders } d
-stripPosItem (SClausalDef r n ty eta wit cls) =
-  SClausalDef r n (stripPos ty) eta (map stripPos wit)
+stripPosItem (SClausalDef r n ty eta er wit cls) =
+  SClausalDef r n (stripPos ty) eta er (map stripPos wit)
               (map (\c => { crhs := stripPos c.crhs } c) cls)
 
 export
 itemName : SItem -> String
-itemName (SDef n _ _ _) = n
+itemName (SDef _ n _ _ _) = n
 itemName (SDeclDef _ n _) = n
 itemName (STypeDef n _) = n
 itemName (SData _ ds) = case ds of
   (d :: _) => d.dqname
   [] => "data"
-itemName (SClausalDef _ n _ _ _ _) = n
+itemName (SClausalDef _ n _ _ _ _ _) = n
 
 -- ===== Show instances (parser golden tests) =====
 
@@ -991,7 +995,7 @@ Show SPat where
 
 export covering
 Show SClause where
-  show (MkSClause ps _ rhs mn _) =
+  show (MkSClause ps _ rhs mn _ _) =
     "| " ++ joinBy " " (map show ps) ++ " := " ++ show rhs
       ++ maybe "" (\n => " [\{n}]") mn
 
@@ -1009,7 +1013,7 @@ Show SQRes where
 
 export covering
 Show SQDecl where
-  show (MkSQDecl n bs res) =
+  show (MkSQDecl n _ bs res) =
     "\{n} : " ++ concatMap showB bs ++ show res
    where
     showB : (String, Either STy SQTm) -> String
@@ -1018,7 +1022,7 @@ Show SQDecl where
 
 export covering
 Show SItem where
-  show (SDef x ty body mu) =
+  show (SDef _ x ty body mu) =
     "def \{x} : \{show ty}" ++
     (case mu of
        Nothing => ""
@@ -1029,7 +1033,7 @@ Show SItem where
   show (SData ps ds) =
     "data " ++ concatMap (\p => case p of (x, t) => "[\{x} : \{show t}] ") ps
       ++ "(" ++ joinBy " ; " (map show ds) ++ ")"
-  show (SClausalDef _ x ty eta w cls) =
+  show (SClausalDef _ x ty eta _ w cls) =
     "def \{x} : \{show ty}"
       ++ maybe "" (\n => " [\{n}]") eta
       ++ maybe "" (\t => " := \{show t}") w
