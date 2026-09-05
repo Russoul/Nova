@@ -1,0 +1,58 @@
+-- Part 4 — LIVE. Multisets: order-independence enforced by the type checker.
+
+import Arith (plus, plusZ, plusS, plusZr, plusSr, plusComm, plusAssoc, plusSwap)
+
+data [a : 𝕌] ( Bag : U
+     ; nil : El Bag
+     ; ins : a → El Bag → El Bag
+     ; swp : (x : a) (y : a) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
+
+-- 1. insertion order is invisible. ⋆, then cite what the hint says
+--    (swp, Bag.unfold, ins.eq)
+def oneTwo : ins ℕ 1 (ins ℕ 2 (nil ℕ)) ≡ ins ℕ 2 (ins ℕ 1 (nil ℕ)) ∈ Bag ℕ ≔ ⋆
+
+-- 2. size: hover ?sizeOk — the fold must not care about order. Here
+--    it is S (S ih) ≡ S (S ih): ⋆
+def size : {a : 𝕌} → Bag a → ℕ using (Bag.unfold) ≔
+  λa. λm. BagElim a (λw. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ?sizeOk) m
+
+-- 3. sum: hover ?sumOk — the exchange law. plusSwap x y ih
+def sum : Bag ℕ → ℕ using (Bag.unfold) ≔
+  λm. BagElim ℕ (λw. ℕ) Z (λx. λr. λih. plus x ih) (λx. λy. λr. λih. ?sumOk) m
+
+-- 4. "the first element": hover ?impossible. It asks for x ≡ y for
+--    arbitrary x and y. This function does not exist — delete it.
+def first : Bag ℕ → ℕ using (Bag.unfold) ≔
+  λm. BagElim ℕ (λw. ℕ) Z (λx. λr. λih. x) (λx. λy. λr. λih. ?impossible) m
+
+-- 5. union (given): eliminating INTO Bag, coherence is the swap itself
+def union : {a : 𝕌} → Bag a → Bag a → Bag a using (swp, Bag.unfold, ins.eq) ≔
+  λa. λm. λn. BagElim a (λw. Bag a) n (λx. λr. λih. ins a x ih) (λx. λy. λr. λih. ⋆) m
+
+def sumTest : sum (union (ins ℕ 1 (ins ℕ 2 (nil ℕ))) (ins ℕ 3 (nil ℕ))) ≡ 6
+  using (sum.eq, union.eq, Bag.eq, BagElim.eq, ins.eq, nil.eq, plus.eq) ≔
+  ⋆
+
+-- 6. sum respects swaps — of course: the inputs are EQUAL. ⋆ (cite swp, Bag.unfold, ins.eq)
+def sumSwap : (x y : ℕ) (m : Bag ℕ) → sum (ins ℕ x (ins ℕ y m)) ≡ sum (ins ℕ y (ins ℕ x m)) ≔
+  λx. λy. λm. ?respects
+
+-- 7. the computation rules, as lemmas (given)
+def sumNil : sum (nil ℕ) ≡ Z using (sum.eq, Bag.eq, BagElim.eq, nil.eq) ≔ ⋆
+
+def sumIns : (x : ℕ) (m : Bag ℕ) → sum (ins ℕ x m) ≡ plus x (sum m)
+  using (sum.eq, Bag.eq, BagElim.eq, ins.eq) ≔
+  λx. λm. ⋆
+
+def unionNil : (n : Bag ℕ) → union (nil ℕ) n ≡ n using (union.eq, Bag.eq, Bag.unfold, BagElim.eq, nil.eq) ≔ λn. ⋆
+
+def unionIns : (x : ℕ) (m n : Bag ℕ) → union (ins ℕ x m) n ≡ ins ℕ x (union m n)
+  using (union.eq, Bag.eq, Bag.unfold, BagElim.eq, ins.eq) ≔
+  λx. λm. λn. ⋆
+
+-- 8. sum of a union: induction over the QUOTIENT at an equational
+--    motive. Hover the two holes; write each as a chain over the rules
+--    above (nil: unionNil, plusZ, sumNil · ins: unionIns, sumIns, ih,
+--    plusAssoc, sumIns). Cite hyp.rw.
+def sumUnion : (m n : Bag ℕ) → sum (union m n) ≡ plus (sum m) (sum n) ≔
+  λm. λn. BagElimP ℕ (λw. sum (union w n) ≡ plus (sum w) (sum n)) ?nilCase (λx. λr. λih. ?insCase) m

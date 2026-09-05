@@ -1,0 +1,41 @@
+-- Part 3 — LIVE. Extensional equality, concretely.
+-- Every hole below is filled by ⋆ (or by the term itself). Hover each
+-- one first: the point is what the GOAL looks like once the
+-- hypotheses are reflected.
+
+import Arith (plus, times, plusZr)
+import Vect (V, vnil, vcons, vhead, vreverse)
+
+-- 1. the J-toolkit
+def sym : {A : 𝕌} {a b : A} → (a ≡ b) → b ≡ a ≔ λA. λa. λb. λh. ?sym
+
+def trans : {A : 𝕌} {a b c : A} → (a ≡ b) → (b ≡ c) → a ≡ c ≔ λA. λa. λb. λc. λab. λbc. ?trans
+
+def cong : {A B : 𝕌} (f : A → B) {a b : A} → (a ≡ b) → f a ≡ f b ≔ λA. λB. λf. λa. λb. λh. ?cong
+
+-- 2. transport: P a → P b. Hover: the goal is P b, and p : P a is in
+--    scope. Type p.
+def subst : {A : 𝕌} (P : A → 𝕌) {a b : A} → (a ≡ b) → P a → P b ≔ λA. λP. λa. λb. λh. λp. ?subst
+
+-- 3. uniqueness of equality proofs
+def uip : {A : 𝕌} {a b : A} (p q : a ≡ b) → p ≡ q ≔ λA. λa. λb. λp. λq. ?uip
+
+-- 4. function extensionality — a theorem. ⋆, then read the hint (pi.eta)
+def funext : {A B : 𝕌} {f g : A → B} → ((x : A) → f x ≡ g x) → f ≡ g ≔
+  λA. λB. λf. λg. λh. ?funext
+
+-- 5. two implementations of one function are EQUAL as functions
+def double1 : ℕ → ℕ ≔ λn. plus n n
+
+def double2 : ℕ → ℕ ≔ λn. times 2 n
+
+def double2Unfold : (n : ℕ) → double2 n ≡ plus n n using (double2.eq, times.eq, plusZr) ≔ λn. ⋆
+
+def doublesAgree : double1 ≡ double2 using (double1.eq, double2Unfold, pi.eta) ≔ ?agree
+
+-- 6. a vector whose length we LEARNED is three is a V ℕ 3 — no cast
+def learnedLength : {n : ℕ} (v : V ℕ n) (h : n ≡ 3) → V ℕ 3 ≔ λn. λv. λh. ?learned
+
+-- 7. ≡-elim rewrites the context: hover ?pinned, then the code action
+--    "eliminate w" and hover again
+def pinned : (x : ℕ) (w : x ≡ Z) → plus x x ≡ x using (plusZr) ≔ λx. λw. ?pinned

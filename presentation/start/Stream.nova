@@ -1,0 +1,34 @@
+-- Part 5 — LIVE. Streams: equality of infinite behaviours.
+
+import Arith (plus, times)
+
+def stream : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
+
+def hd : {a : 𝕌} → stream a → a using (stream.unfold) ≔ λa. λs. out s .π₁
+
+def tl : {a : 𝕌} → stream a → stream a using (stream.unfold) ≔ λa. λs. out s .π₂
+
+def iterate : {a : 𝕌} → (a → a) → a → stream a using (stream.unfold) ≔
+  λa. λf. λx. corec (s : a. s, f s) x
+
+def nats : stream ℕ ≔ iterate (λn. S n) Z
+
+def map : {a b : 𝕌} → (a → b) → stream a → stream b using (stream.unfold) ≔
+  λa. λb. λf. λs. corec (t : stream a. f (hd t), tl t) s
+
+def evens : stream ℕ ≔ map (λn. times 2 n) nats
+
+-- 1. observations compute: ⋆, then cite what the hint says
+def evens2 : hd (tl (tl evens)) ≡ 4 ≔ ⋆
+
+def id : {a : 𝕌} → a → a ≔ λa. λx. x
+
+-- 2. map id s ≡ s by coinduction. The invariant is given; hover the
+--    two holes.
+--      ?start:  ⋆ (s, ⋆, ⋆)
+--      ?step:   squash-elim h (w. ⋆ (⋆, ⋆ (tl (w .π₁), ⋆, ⋆)))
+--    then cite: map.eq, hd.eq, tl.eq, id.eq, hyp.rw
+def mapId : {a : 𝕌} (s : stream a) → map (id {a}) s ≡ s using (stream.unfold) ≔
+  λa. λs. coind (u v. ∥(w : stream a) × (u ≡ map (id {a}) w ∈ stream a) × (v ≡ w ∈ stream a)∥)
+    ?start
+    (u v h. ?step)

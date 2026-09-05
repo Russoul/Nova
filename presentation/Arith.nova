@@ -1,0 +1,56 @@
+-- Part 1 — the primer: natural numbers, from nothing.
+--
+-- A `def` with clauses is a program (structural recursion, as in
+-- Haskell). Its clauses become named equations (plusZ, plusS) that
+-- proofs may cite. Nothing is unfolded unless a proof says so: the
+-- `using` clause is the item's licence — what it may unfold (`x.eq`),
+-- which lemmas it may rewrite with (`l.rw`) or match against (`l`),
+-- and whether its own hypotheses may rewrite (`hyp.rw`). The
+-- elaborator's report HINTS at what to cite.
+
+def plus : ℕ → ℕ → ℕ
+  | plus Z m ≔ m
+  | plus (S n) m ≔ S (plus n m)
+
+def times : ℕ → ℕ → ℕ
+  | times Z m ≔ Z
+  | times (S n) m ≔ plus m (times n m)
+
+-- programs run: a closed equation holds by computation, and ⋆ proves
+-- every proposition that holds — equality included. There is no refl.
+def twoPlusThree : plus 2 3 ≡ 5 using (plus.eq) ≔ ⋆
+
+def sixTimesSeven : times 6 7 ≡ 42 using (plus.eq, times.eq) ≔ ⋆
+
+-- ===== proofs by induction =====
+-- ℕ-elim is the induction principle; the motive is read off the goal.
+-- Base and step are each ⋆: after unfolding plus (the licence) the
+-- base is Z ≐ Z and the step is S (plus k Z) ≐ S k under ih.
+def plusZr : (n : ℕ) → plus n Z ≡ n using (plus.eq) ≔ λn. ℕ-elim ⋆ (k ih. ⋆) n
+
+def plusSr : (n m : ℕ) → plus n (S m) ≡ S (plus n m) using (plus.eq) ≔ λn. λm. ℕ-elim ⋆ (k ih. ⋆) n
+
+-- commutativity, pen-and-paper style: an equational chain. Each link
+-- is a proof term; the sides are checked to line up. No cong, no
+-- rewrite: the link's equation is REFLECTED, so S (plus k m) and
+-- S (plus m k) are literally the same term once ih is in scope.
+def plusComm : (n m : ℕ) → plus n m ≡ plus m n ≔
+  λn. λm. ℕ-elim
+    (plus Z m ≡⟨ plusZ m ⟩ m ≡⟨ plusZr m ⟩ plus m Z)
+    (k ih. plus (S k) m ≡⟨ plusS k m ⟩ S (plus k m) ≡⟨ ih ⟩ S (plus m k) ≡⟨ plusSr m k ⟩ plus m (S k))
+    n
+
+-- the same theorem, rewriting style: cite the equations as rules
+-- (`.rw`) and let both cases close by ⋆
+def plusComm2 : (n m : ℕ) → plus n m ≡ plus m n using (plusZ.rw, plusS.rw, plusZr.rw, plusSr.rw) ≔
+  λn. λm. ℕ-elim ⋆ (k ih. ⋆) n
+
+def plusAssoc : (n m k : ℕ) → plus (plus n m) k ≡ plus n (plus m k) using (plus.eq) ≔
+  λn. λm. λk. ℕ-elim ⋆ (j ih. ⋆) n
+
+-- an exchange law — the shape a commutative fold needs (Part 4)
+def plusSwap : (a b c : ℕ) → plus a (plus b c) ≡ plus b (plus a c) ≔
+  λa. λb. λc. plus a (plus b c)
+    ≡⟨ plusComm a (plus b c) ⟩ plus (plus b c) a
+    ≡⟨ plusAssoc b c a ⟩ plus b (plus c a)
+    ≡⟨ plusComm c a ⟩ plus b (plus a c)
