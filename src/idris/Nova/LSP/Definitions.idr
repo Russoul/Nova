@@ -54,7 +54,7 @@ itemNames : SItem -> List String
 itemNames (SDef _ x _ _ _) = [x]
 itemNames (SDeclDef _ x _) = [x]
 itemNames (SData _ decls) = map dqname decls
-itemNames (SClausalDef _ x _ eta _ _ cls) = clausalNames x eta cls
+itemNames (SClausalDef _ x _ _ eta _ _ cls) = clausalNames x eta cls
 
 ||| Σ's own qualification: bare in the root file, module-prefixed
 ||| otherwise (`Nova.Elaboration.emitCoreDef`'s `q`).
@@ -166,4 +166,4 @@ documentSymbols lns = concatMap toSymbols
       SDef _ x _ _ _  => [mkSymbol lns x Function r]
       SDeclDef _ x _ => [mkSymbol lns x Function r]
       SData _ decls => map (\d => mkSymbol lns d.dqname (declSymbolKind d.dqres) r) decls
-      SClausalDef _ x _ eta _ _ cls => map (\n => mkSymbol lns n Function r) (clausalNames x eta cls)
+      SClausalDef _ x _ _ eta _ _ cls => map (\n => mkSymbol lns n Function r) (clausalNames x eta cls)

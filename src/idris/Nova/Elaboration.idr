@@ -7064,7 +7064,7 @@ elabItemGo irng (SData params decls) = do
     upto Z = []
     upto (S n) = upto n ++ [n]
 
-elabItemGo irng (SClausalDef nrng x ty etaName etaRng witness clauses) = do
+elabItemGo irng (SClausalDef nrng x ty muses etaName etaRng witness clauses) = do
   -- a def with DEFINING EQUATIONS (docs/NovaElaboration.txt,
   -- "Defining equations"): an ITEM MACRO. The expansion is pure
   -- surface-level synthesis (Nova.Elaboration.Clauses); the batch —
@@ -7075,7 +7075,7 @@ elabItemGo irng (SClausalDef nrng x ty etaName etaRng witness clauses) = do
   -- everything non-structural degrades inside the expansion (witness
   -- tier / declaration tier) rather than failing.
   census <- openCensus
-  case expandClausal nrng x ty etaName etaRng witness clauses of
+  case expandClausal nrng x ty muses etaName etaRng witness clauses of
     Left err => throw "def \{x}: \{err}"
     Right (MkExpansion items echo) => do
       -- each batch item is its OWN item for anything keyed by the
@@ -7383,7 +7383,7 @@ failedLine n = "Error: \{show n} item\{if n == 1 then "" else "s"} failed to ela
 ||| inside the broken item).
 declFallback : Maybe Range -> SItem -> Maybe (Maybe Range, SItem)
 declFallback irng (SDef nrng x ty _ _) = Just (irng, SDeclDef (nrng <|> irng) x ty)
-declFallback irng (SClausalDef nrng x ty _ _ _ _) = Just (irng, SDeclDef (nrng <|> irng) x ty)
+declFallback irng (SClausalDef nrng x ty _ _ _ _ _) = Just (irng, SDeclDef (nrng <|> irng) x ty)
 declFallback _ _ = Nothing
 
 ||| The holes a FAILED item had already minted, as report views. Its

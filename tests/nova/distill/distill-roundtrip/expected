@@ -41,7 +41,7 @@ double n = n + n
 infixl 6 ⊞
 ⊞ : ℕ → ℕ → ℕ [oplusEta]
 Z ⊞ n = n [oplusZ]
-S m ⊞ n = S (m ⊞ n) [oplusS]
+S m ⊞ n using (plusZeroId) = S (m ⊞ n) [oplusS]
 
 data
   Bag : U

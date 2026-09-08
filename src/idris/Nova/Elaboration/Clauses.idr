@@ -773,11 +773,19 @@ record Expansion where
 ||| name overrides on an operator-named item). Everything else
 ||| degrades through the tiers: full synthesis / witness-supplied /
 ||| declarations — one semantics, three labor divisions.
+|||
+||| SCOPES (docs/NovaElaboration.txt, Defining equations): the item's
+||| `using` (`uses`) scopes EVERY generated item — the definition or
+||| witness, each equation lemma, the uniqueness lemma; a clause's own
+||| `using` is ADDED to its equation lemma's scope alone. Each lemma
+||| also cites what its synthesized proof needs: the defining equation
+||| (`f.eq`) for the clause lemmas, the clause lemmas and `hyp.rw` for
+||| the uniqueness lemma.
 export
-expandClausal : (nrng : Maybe Range) -> (fname : String) -> STy ->
+expandClausal : (nrng : Maybe Range) -> (fname : String) -> STy -> (uses : Maybe (List String)) ->
                 (etaName : Maybe String) -> (etaRng : Maybe Range) ->
                 (witness : Maybe SElem) -> List SClause -> Either String Expansion
-expandClausal nrng fname ty etaName etaRng witness clauses = do
+expandClausal nrng fname ty uses etaName etaRng witness clauses = do
   -- arity and columns
   k <- case map (length . cpats) clauses of
          [] => Left "at least one clause is required"
@@ -825,6 +833,9 @@ expandClausal nrng fname ty etaName etaRng witness clauses = do
   -- the uniqueness lemma has no clause of its own: at its [name]
   -- override, else at the head name, where it has always reported
   let etaR = etaRng <|> nrng
+  let itemU = fromMaybe [] uses
+  let lemUses = map (\c => Just ([fname ++ ".eq"] ++ itemU ++ fromMaybe [] c.cuses)) clauses
+  let etaUses = Just (lemNames ++ map (++ ".rw") lemNames ++ [fname ++ ".eq", "hyp.rw"] ++ itemU)
   case witness of
     Just w =>
       -- WITNESS TIER: existence is the user's; the clause lemmas pay
@@ -833,26 +844,26 @@ expandClausal nrng fname ty etaName etaRng witness clauses = do
       -- are fragment-shaped — it rewrites by the clause lemmas, never
       -- by unfolding the witness
       Right (MkExpansion
-               ((nrng, SDef nrng fname ty w Nothing)
+               ((nrng, SDef nrng fname ty w uses)
                   -- the clause lemmas hold by the definition's own
                   -- computation: cite its defining equation explicitly
                   -- (the join needs the license to unfold the definition
                   -- it otherwise), and the uniqueness proof cites the
                   -- clause lemmas it rewrites by
-                  :: atClauses (zipWith4 (\r, n, t, b => SDef r n t b (Just [fname ++ ".eq"])) lemRngs lemNames lemTys lemBodies)
-                  ++ [(nrng, SDef etaR etaN eTy (fromMaybe eBodyStar eBodySynth) (Just (lemNames ++ map (++ ".rw") lemNames ++ [fname ++ ".eq", "hyp.rw"])))])
+                  :: atClauses (zipWith4 (\r, n, t, (b, u) => SDef r n t b u) lemRngs lemNames lemTys (zip lemBodies lemUses))
+                  ++ [(nrng, SDef etaR etaN eTy (fromMaybe eBodyStar eBodySynth) etaUses)])
                "defined \{fname} by clauses via witness (\{joinBy ", " names})")
     Nothing =>
       case (shape, shape >>= shapedRho cols b k) of
         (Just _, Just rho) =>
           -- THE FRAGMENT: everything synthesized
           Right (MkExpansion
-                   ((nrng, SDef nrng fname ty rho Nothing)
+                   ((nrng, SDef nrng fname ty rho uses)
                       -- as at the witness tier: clause lemmas cite the
                       -- defining equation, uniqueness cites the clause
                       -- lemmas
-                      :: atClauses (zipWith4 (\r, n, t, b => SDef r n t b (Just [fname ++ ".eq"])) lemRngs lemNames lemTys lemBodies)
-                      ++ [(nrng, SDef etaR etaN eTy (fromMaybe eBodyStar eBodySynth) (Just (lemNames ++ map (++ ".rw") lemNames ++ [fname ++ ".eq", "hyp.rw"])))])
+                      :: atClauses (zipWith4 (\r, n, t, (b, u) => SDef r n t b u) lemRngs lemNames lemTys (zip lemBodies lemUses))
+                      ++ [(nrng, SDef etaR etaN eTy (fromMaybe eBodyStar eBodySynth) etaUses)])
                    "defined \{fname} by clauses (\{joinBy ", " names})")
         _ =>
           -- DECLARATION TIER: the whole batch demotes to named rigid

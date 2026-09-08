@@ -648,6 +648,11 @@ renderQDecl tbl (MkSQDecl n _ bs res) =
 
 -- ===== Clauses =====
 
+renderUsing : Maybe (List String) -> Doc
+renderUsing Nothing = DNil
+renderUsing (Just ns) = txt " using (" <-> usingNames ns <-> txt ")"
+
+
 mutual
   renderPat : SPat -> String
   renderPat (SPVar (x, _)) = x
@@ -663,7 +668,7 @@ mutual
     _ => "(\{renderPat p})"
 
 renderClause : FixTable -> String -> SClause -> Doc
-renderClause tbl iname (MkSClause pats _ rhs mn _ _) =
+renderClause tbl iname (MkSClause pats _ rhs mu mn _ _) =
   let lhs = case (isOpName iname, pats) of
               -- an operator-named item's two-pattern clause lays out
               -- infix (the corpus spelling); operands sit at full
@@ -673,26 +678,24 @@ renderClause tbl iname (MkSClause pats _ rhs mn _ _) =
               (False, _) => joinBy " " (iname :: map renderPatAtom pats)
   -- a clause is a COLUMN-0 line (docs/NovaElaboration.txt, Layout);
   -- a right-hand side that does not fit moves under the `=` at +2
-  in txt "\{lhs} =" <-> DGroup (DNest 2 (DLine <-> pe tbl LPair True rhs)) <->
+  in txt lhs <-> renderUsing mu <-> txt " =" <-> DGroup (DNest 2 (DLine <-> pe tbl LPair True rhs)) <->
      (case mn of
         Nothing => DNil
         Just n => txt " [\{n}]")
 
 ||| The DEFINIENS clause `n = t` — the zero-pattern clause that is a
-||| plain definition alone and the witness beside pattern clauses.
+||| plain definition alone and the witness beside pattern clauses. The
+||| head is the name as a reference spells it (sigRef): an operator
+||| with a fixity in mention form, `(+) = …`, a fixity-less one bare,
+||| `⊥ = …`.
 renderDefClause : FixTable -> String -> SElem -> Doc
 renderDefClause tbl n body =
-  let hd = if isOpName n then "(\{n})" else n in
-  txt "\{hd} =" <-> DGroup (DNest 2 (DLine <-> pe tbl LPair True body))
+  txt "\{sigRef tbl n} =" <-> DGroup (DNest 2 (DLine <-> pe tbl LPair True body))
 
 -- ===== Items, fixities, imports, modules =====
 
 concatD : List Doc -> Doc
 concatD = foldr DCat DNil
-
-renderUsing : Maybe (List String) -> Doc
-renderUsing Nothing = DNil
-renderUsing (Just ns) = txt " using (" <-> usingNames ns <-> txt ")"
 
 ||| The flat (single-line) width of a document; a hard break never
 ||| fits flat.
@@ -736,8 +739,8 @@ renderItemBare tbl (SData params ds) =
   txt "data" <->
   concatD (map (\(x, t) => txt " [\{x} : " <-> pe tbl LNoComma True t <-> txt "]") params) <->
   concatD (map (\d => DNest 2 (DHard <-> renderQDecl tbl d)) ds)
-renderItemBare tbl (SClausalDef _ n ty eta _ wit cls) =
-  txt "\{n} : " <-> pe tbl LNoComma False ty <->
+renderItemBare tbl (SClausalDef _ n ty mu eta _ wit cls) =
+  txt "\{n} : " <-> pe tbl LNoComma False ty <-> renderUsing mu <->
   (case eta of
      Nothing => DNil
      Just e => txt " [\{e}]") <->
@@ -997,8 +1000,8 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
   esItem (SDef r x ty body mu) = SDef r x (esT ty) (esE body) mu
   esItem (SDeclDef r x ty) = SDeclDef r x (esT ty)
   esItem (SData params ds) = SData (map (\(x, t) => (x, esT t)) params) (map esQDecl ds)
-  esItem (SClausalDef r x ty eta er wit cls) =
-    SClausalDef r x (esT ty) eta er (map esE wit) (map ({ crhs $= esE }) cls)
+  esItem (SClausalDef r x ty mu eta er wit cls) =
+    SClausalDef r x (esT ty) mu eta er (map esE wit) (map ({ crhs $= esE }) cls)
 
 ||| Apply the verdict map to one module.
 elideSugar : List (String, Range, Bool) -> List (String, Range, Nat) -> ModUnit -> ModUnit

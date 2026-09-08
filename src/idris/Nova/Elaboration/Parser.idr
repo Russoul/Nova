@@ -1599,7 +1599,7 @@ itemStart =
       (do ignore (parseName <|> parseOpName); sp; kwc ':')
   <|> kw "data" <|> kw "import" <|> kw "infixl" <|> kw "infixr"
 
-||| clause ::= lhs = t ([n])? — a COLUMN-0 line directly under its
+||| clause ::= lhs uses? = t ([n])? — a COLUMN-0 line directly under its
 ||| signature (docs/NovaElaboration.txt, Layout); nothing marks it but
 ||| its column and its not being an item. The RHS is parsed in the
 ||| LHS's binder telescope; the optional [n] names the clause's
@@ -1610,11 +1610,15 @@ parseSClauseRaw tbl iname = do
   guard "a clause (this line begins an item)" (not isItem)
   commit
   pats <- parseClauseLhs iname
+  -- a clause's own using, before its `=` as the signature's stands
+  -- before its definiens: lemmas ADDED to this clause's equation
+  -- lemma's scope (docs/NovaElaboration.txt, Defining equations)
+  mu <- optional (do sp; kw "using"; sp; parseUsingNames)
   sp; kwEq; sp
   let vars = patVarsOf pats
   rhs <- parseSElem tbl ([<] <>< map fst vars)
   mn <- optional (do sp; kwc '['; sp; (nr, n) <- bounds parseName; sp; kwc ']'; pure (n, nr))
-  pure (MkSClause pats vars rhs (map fst mn) (mn >>= snd) Nothing)
+  pure (MkSClause pats vars rhs mu (map fst mn) (mn >>= snd) Nothing)
 
 ||| The clause with its own source span attached — what the item macro
 ||| reports its generated equation lemma at.
@@ -1667,20 +1671,19 @@ parseSItem tbl =
                 (Nothing, Just _) => fail "!a declaration discharges nothing — a using-clause is for definitions with a definiens"
                 (Nothing, Nothing) => pure (SDeclDef r x ty)
             ([c], []) =>
-              case (metaEta, c.cname) of
-                (Just _, _) => fail "!a uniqueness-name override must be followed by clauses"
-                (_, Just _) => fail "!a definition's clause names no lemma — the [name] override belongs to a pattern clause"
-                (Nothing, Nothing) => pure (SDef r x ty c.crhs muses)
+              case (metaEta, c.cname, c.cuses) of
+                (Just _, _, _) => fail "!a uniqueness-name override must be followed by clauses"
+                (_, Just _, _) => fail "!a definition's clause names no lemma — the [name] override belongs to a pattern clause"
+                (_, _, Just _) => fail "!a definition's clause takes no using — the signature's using is the item's"
+                (Nothing, Nothing, Nothing) => pure (SDef r x ty c.crhs muses)
             (_ :: _ :: _, _) => fail "!at most one clause of an item may spell no pattern — that clause is its definiens (or, beside pattern clauses, its witness)"
             (mw, (e :: es)) =>
-              case muses of
-                Just _ => fail "!a using-clause on a clausal definition is not supported yet"
-                Nothing =>
-                  case mw of
-                    [w] => case w.cname of
-                      Just _ => fail "!the witness clause names no lemma — the [name] override belongs to a pattern clause"
-                      Nothing => pure (SClausalDef r x ty (map fst metaEta) (metaEta >>= snd) (Just w.crhs) (e :: es))
-                    _ => pure (SClausalDef r x ty (map fst metaEta) (metaEta >>= snd) Nothing (e :: es)))
+              case mw of
+                [w] => case (w.cname, w.cuses) of
+                  (Just _, _) => fail "!the witness clause names no lemma — the [name] override belongs to a pattern clause"
+                  (_, Just _) => fail "!the witness clause takes no using — the signature's using is the item's"
+                  (Nothing, Nothing) => pure (SClausalDef r x ty muses (map fst metaEta) (metaEta >>= snd) (Just w.crhs) (e :: es))
+                _ => pure (SClausalDef r x ty muses (map fst metaEta) (metaEta >>= snd) Nothing (e :: es)))
 
 export
 parseSImport : Rule SImport

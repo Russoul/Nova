@@ -1,0 +1,3 @@
+-- the zero-pattern clause takes no using: the signature's is the item's
+dbl : ℕ → ℕ
+dbl using (foo) = λn. n
