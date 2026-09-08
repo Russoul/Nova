@@ -540,6 +540,66 @@ unsquashBody i b = mapVarsE remap b
     else if k == S i then Nothing         -- w itself: eliminated
     else Just (minus k 1)                 -- the entries before it
 
+-- ===== The (,) head =====
+
+||| The marker the `(,)` head parses to while its spine is read. No
+||| user name can spell it (parentheses are not name characters), and
+||| foldPairSpine removes every occurrence before the term escapes.
+pairHead : String
+pairHead = "(,)"
+
+isPairHead : SElem -> Bool
+isPairHead (SSig _ x) = x == pairHead
+isPairHead (SPos _ e) = isPairHead e
+isPairHead _ = False
+
+||| Fold a spine headed by the (,) marker into the right-nested tuple
+||| of its arguments. The spine may continue past the tuple — a
+||| projection or a further argument applies to the tuple as a whole
+||| (`(,) a b .π₁`), as with any keyword head — so the fold finds the
+||| marker at the head of the innermost application chain and rebuilds
+||| the chain above it unchanged.
+foldPairSpine : SElem -> Either String SElem
+foldPairSpine e = case e of
+  SPos r t => atPos (Just r) <$> foldPairSpine t
+  SProj1 t => SProj1 <$> foldPairSpine t
+  SProj2 t => SProj2 <$> foldPairSpine t
+  SNoIns t => if isPairHead (chainHead t)
+                then Left "!(,) takes explicit arguments only — it has no implicit positions to suppress"
+                else SNoIns <$> foldPairSpine t
+  SApp f a =>
+    if isPairHead (chainHead e)
+      then let args = chainArgs e in
+           if any isImp args
+             then Left "!(,) takes explicit arguments only — it has no implicit positions to override"
+             else case args of
+               (_ :: _ :: _) => Right (tuple args)
+               _ => Left "!(,) takes at least two arguments — it is the pair constructor as a prefix head, not a value"
+      else (\f' => SApp f' a) <$> foldPairSpine f
+  _ => if isPairHead e
+         then Left "!(,) takes at least two arguments — it is the pair constructor as a prefix head, not a value"
+         else Right e
+ where
+  chainHead : SElem -> SElem
+  chainHead (SApp f _) = chainHead f
+  chainHead (SPos _ t) = chainHead t
+  chainHead t = t
+
+  chainArgs : SElem -> List SElem
+  chainArgs (SApp f a) = chainArgs f ++ [a]
+  chainArgs (SPos _ t) = chainArgs t
+  chainArgs _ = []
+
+  isImp : SElem -> Bool
+  isImp (SImpArg _) = True
+  isImp (SPos _ t) = isImp t
+  isImp _ = False
+
+  tuple : List SElem -> SElem
+  tuple [x] = x
+  tuple (x :: xs) = SPair x (tuple xs)
+  tuple [] = SUnitI
+
 -- ===== Types and elements (mutually recursive) =====
 
 mutual
@@ -817,6 +877,19 @@ mutual
             kw "in"; sp
             b <- parseSElem tbl (env :< fst x :< wildcard)
             pure (SLet x (maybe e (SAnn e) manno) b))
+        -- (,) — the PAIR CONSTRUCTOR as a prefix head: `(,) a₁ … aₙ`
+        -- (n ≥ 2) is the right-nested tuple a₁, (a₂, …, aₙ), exactly
+        -- what the comma builds. It parses AS an application spine —
+        -- same-line atoms and argument lines alike (docs/
+        -- NovaElaboration.txt, Layout) — under a marker head, and the
+        -- spine is folded into pairs once read. (,) is a head, not a
+        -- value: fewer than two arguments is a structural error
+    <|> (do r0 <- indentNow
+            (rng, _) <- bounds (do kwc '('; sp; kwc ','; sp; kwc ')')
+            e <- parseSpine tbl env (MkLay r0 Nothing) (SSig rng pairHead)
+            case foldPairSpine e of
+              Right e' => pure e'
+              Left msg => maybe (fatal msg) (\r => fatalLoc r msg) rng)
         -- a KEYWORD-HEADED form (t{2½}) is a spine HEAD, so a
         -- projection or a further argument reaches it without
         -- parentheses: `out t .π₂` is `(out t) .π₂`. λ and let stay

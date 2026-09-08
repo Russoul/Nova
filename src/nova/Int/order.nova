@@ -101,7 +101,8 @@ leZOfEq = λx. λy. λh. Z, eqToId _ _ (trans (x + intOfNat Z) _ _ (intAddZeroR 
 
 leZTrans : {x : Int} (y : Int) {z : Int} → x ≤ y → y ≤ z → x ≤ z using (Int.order.≤.unfold)
 leZTrans =
-  λx. λy. λz. λl1. λl2. l1 .π₁ + l2 .π₁,
+  λx. λy. λz. λl1. λl2. (,)
+    l1 .π₁ + l2 .π₁
     eqToId
       _
       _
@@ -155,7 +156,8 @@ intAddShiftR =
 
 leZPlusMonoR : {x y : Int} (w : Int) → x ≤ y → x + w ≤ y + w using (Int.order.≤.unfold)
 leZPlusMonoR =
-  λx. λy. λw. λle. le .π₁,
+  λx. λy. λw. λle. (,)
+    le .π₁
     eqToId
       _
       _
@@ -184,7 +186,8 @@ intNegAddCancel =
 
 leZNegFlip : (x y : Int) → x ≤ y → intNeg y ≤ intNeg x using (Int.order.≤.unfold)
 leZNegFlip =
-  λx. λy. λle. le .π₁,
+  λx. λy. λle. (,)
+    le .π₁
     eqToId
       _
       _
@@ -199,7 +202,8 @@ leZNegFlip =
 leZOfNat : (a b : ℕ) → a ≤ b → intOfNat a ≤ intOfNat b
   using (Int.order.≤.unfold, Natural.order.≤.unfold)
 leZOfNat =
-  λa. λb. λle. le .π₁,
+  λa. λb. λle. (,)
+    le .π₁
     eqToId
       _
       _
@@ -248,26 +252,30 @@ leZTotal =
             = intOfNat (nn .π₁)
               ≡⟨ clsOfRelGe _ _ _ hb ⟩ class (intCanon d .π₁, intCanon d .π₂)
               ≡⟨ classPairEta (intCanon d) ⟩ class (intCanon d)
-            in inj₁ (nn .π₁,
-              eqToId
-                _
-                _
-                trans _ _ y (cong (λu. Int) (λu. x + u) (trans _ _ _ e1 hd)) (intPlusDiff x y))
+            in inj₁
+              (,)
+                nn .π₁
+                eqToId
+                  _
+                  _
+                  trans _ _ y (cong (λu. Int) (λu. x + u) (trans _ _ _ e1 hd)) (intPlusDiff x y)
         nn. let ha = idToEq _ _ _ (nn .π₂)
           in let e2 : intOfNat (nn .π₁) ≡ intNeg (class (intCanon d))
             = intOfNat (nn .π₁)
               ≡⟨ clsOfRelLe _ _ _ ha ⟩ class (intCanon d .π₂, intCanon d .π₁)
               ≡⟨ sym _ _ (intNegClass (intCanon d)) ⟩ intNeg (class (intCanon d))
-            in inj₂ (nn .π₁,
-              eqToId
-                _
-                _
-                trans
+            in inj₂
+              (,)
+                nn .π₁
+                eqToId
                   _
                   _
-                  x
-                  cong (λu. Int) (λu. y + u) (trans _ _ _ e2 (cong (λu. Int) (λu. intNeg u) hd))
-                  intPlusNegDiff x y)
+                  trans
+                    _
+                    _
+                    x
+                    cong (λu. Int) (λu. y + u) (trans _ _ _ e2 (cong (λu. Int) (λu. intNeg u) hd))
+                    intPlusNegDiff x y
         leTotal (intCanon d .π₂) (intCanon d .π₁)
 
 -- ===== multiplicative order =====
@@ -299,7 +307,8 @@ intMulDistribR =
 leZMultMonoNat : {x y : Int} {m : ℕ} → x ≤ y → x * intOfNat m ≤ y * intOfNat m
   using (Int.order.≤.unfold)
 leZMultMonoNat =
-  λx. λy. λm. λle. le .π₁ * m,
+  λx. λy. λm. λle. (,)
+    le .π₁ * m
     eqToId
       _
       _

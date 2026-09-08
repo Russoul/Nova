@@ -368,11 +368,16 @@ qIsGroup : (G : 𝕌)
   → IsSubgroup g N → IsNormal g N → IsGroup (QGroup _ g N)
   using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold)
 qIsGroup =
-  λG. λg. λN. λs. λnn. (qMul _ _ _ nn,
-    qUnit _ _ _,
-      (λx. λy. λz. eqToId _ _ (qAssoc _ _ _ nn x y z)),
-        (λx. eqToId _ _ (qUnitL _ _ _ nn x)), λx. eqToId _ _ (qUnitR _ _ _ nn x)),
-    qInv _ _ _ s nn, (λx. eqToId _ _ (qInvLaw _ _ _ s nn x)), λx. eqToId _ _ (qInvLawR _ _ _ s nn x)
+  λG. λg. λN. λs. λnn. (,)
+    (,)
+      qMul _ _ _ nn
+      qUnit _ _ _
+      λx. λy. λz. eqToId _ _ (qAssoc _ _ _ nn x y z)
+      λx. eqToId _ _ (qUnitL _ _ _ nn x)
+      λx. eqToId _ _ (qUnitR _ _ _ nn x)
+    qInv _ _ _ s nn
+    λx. eqToId _ _ (qInvLaw _ _ _ s nn x)
+    λx. eqToId _ _ (qInvLawR _ _ _ s nn x)
 
 qMonoid : (G : 𝕌)
   (g : IsGroup G)

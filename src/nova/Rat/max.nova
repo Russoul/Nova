@@ -55,15 +55,16 @@ leQMaxR =
   λu. λv. ⊎-elim
     w. v ≤ ⊎-elim (nn. v) (hn. u) w
     nn. leQRefl _
-    hn. inj₂ (eqToId
-      _
-      _
-      trans
+    hn. inj₂
+      eqToId
         _
         _
-        _
-        cong (λw. Sign) (λw. sgnQ w) {u + qNeg v} {qNeg (v + qNeg u)} qSubNeg
-        sgnQNegOfNeg hn)
+        trans
+          _
+          _
+          _
+          cong (λw. Sign) (λw. sgnQ w) {u + qNeg v} {qNeg (v + qNeg u)} qSubNeg
+          sgnQNegOfNeg hn
     sgnCases (sgnQ (v + qNeg u))
 
 qMaxLub : {u v w : Q} → u ≤ w → v ≤ w → qMax u v ≤ w

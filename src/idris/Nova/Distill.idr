@@ -169,11 +169,14 @@ data ELvl
                    --   form stands bare here (the postfix marker is
                    --   unmistakable): out t .π₂
   | LApp           -- t{3}: the head of an application spine. A
-                   --   keyword-headed form is a legal head here too
-                   --   (Parser.parseSpine), but prints PARENTHESIZED:
-                   --   an eliminator's own arguments are juxtaposed
-                   --   just like the spine's, so the parens are what
-                   --   shows where its syntax ends
+                   --   keyword-headed form is a legal head here
+                   --   (Parser.parseSpine) and prints BARE: every
+                   --   keyword form has a fixed arity, so where its
+                   --   own arguments end and the spine's begin is
+                   --   settled — ℕ-elim m z s n x is the eliminator
+                   --   applied to x. The ⋆ family is the exception:
+                   --   its witness is OPTIONAL, so `⋆ x` would re-read
+                   --   as a witness, and it parenthesizes
   | LAtom          -- t{5}: parseSElemAtom
 
 ||| Element node classes, by the production that produces them.
@@ -184,7 +187,12 @@ data ECls
   | CProdC
   | COp Nat Assoc
   | CPrefix        -- t{2}: λ and let, whose bodies extend maximally
-  | CKeyword       -- t{2½}: the keyword-headed forms
+  | CKeyword       -- t{2½}: the keyword-headed forms of fixed arity
+  | CStar          -- the bare ⋆: an atom everywhere but as an
+                   --   application head, where `⋆ x` would re-read
+                   --   as a witness
+  | CStarHead      -- ⋆ w, ⋆ using (…): a keyword form whose arity is
+                   --   NOT fixed (the witness is optional)
   | CApp
   | CAtom
 
@@ -204,9 +212,11 @@ fitsE (COp p a) lvl = case lvl of
   ok NoEq = False
   ok (EqIf a') = a == a'
 fitsE CPrefix lvl = case lvl of LProj => False; LApp => False; LAtom => False; _ => True
--- bare under a projection (out t .π₂), parenthesized as an application
--- head — see LProj/LApp above
-fitsE CKeyword lvl = case lvl of LApp => False; LAtom => False; _ => True
+-- bare under a projection (out t .π₂) and as an application head — see
+-- LProj/LApp above; only the ⋆ family parenthesizes as a head
+fitsE CKeyword lvl = case lvl of LAtom => False; _ => True
+fitsE CStar lvl = case lvl of LApp => False; _ => True
+fitsE CStarHead lvl = case lvl of LApp => False; LAtom => False; _ => True
 fitsE CApp lvl = case lvl of LAtom => False; _ => True
 fitsE CAtom _ = True
 
@@ -309,8 +319,9 @@ mutual
     SCorec _ _ _ _ => CKeyword
     SCoind _ _ _ _ _ _ _ _ => CKeyword
     SSquashElim _ _ _ => CKeyword
-    SStarWit _ => CKeyword
-    SStarUsing _ _ => CKeyword
+    SStar _ => CStar
+    SStarWit _ => CStarHead
+    SStarUsing _ _ => CStarHead
     SImpArg _ => CAtom
     SNoIns _ => CApp
     _ => CAtom
@@ -335,7 +346,16 @@ mutual
   peRaw : FixTable -> (tr : Bool) -> SElem -> Doc
   peRaw tbl tr e = case e of
     SPos _ t => peRaw tbl tr t
-    SPair u v => DGroup (pe tbl LNoComma False u <-> txt "," <-> DNest 2 (DLine <-> pe tbl LPair tr v))
+    -- a pair prints with its comma when it fits the line; broken, it
+    -- is the prefix head (,) over its right-nested chain, one
+    -- component per ARGUMENT LINE (docs/NovaPerfectSurface.txt) — a
+    -- record that does not fit is one field per line, with no
+    -- staircase of trailing commas. Both spellings are one AST
+    SPair u v =>
+      let comps = pairChain e
+          flat = pe tbl LNoComma False u <-> txt ", " <-> pe tbl LPair tr v
+          broken = txt "(,)" <-> DNest 2 (concatDoc (map (\c => DLine <-> argDoc tbl c) comps))
+      in DGroup (DAlt flat broken)
     SLam (x, _) b => txt "λ\{x}. " <-> pe tbl LPair tr b
     -- an ascribed definiens prints in the annotated-let form (the two
     -- spellings parse to the same AST). The seams before ≔ and `in`
@@ -370,12 +390,12 @@ mutual
     SProj2 t => pe tbl LProj False t <-> txt " .π₂"
     SSuc t => case numeralView e of
       Just n => txt (show n)
-      Nothing => txt "S " <-> pe tbl LAtom False t
-    SZeroElim t => txt "𝟘-elim " <-> pe tbl LAtom False t
-    SInj1 t => txt "inj₁ " <-> pe tbl LAtom False t
-    SInj2 t => txt "inj₂ " <-> pe tbl LAtom False t
-    SClass t => txt "class " <-> pe tbl LAtom False t
-    SOut t => txt "out " <-> pe tbl LAtom False t
+      Nothing => headDoc tbl "S" t
+    SZeroElim t => headDoc tbl "𝟘-elim" t
+    SInj1 t => headDoc tbl "inj₁" t
+    SInj2 t => headDoc tbl "inj₂" t
+    SClass t => headDoc tbl "class" t
+    SOut t => headDoc tbl "out" t
     SNuC f => txt "ν " <-> pp tbl PAtom f
     SNatElim mot z (n2, _) (ih, _) s t =>
       DGroup (txt "ℕ-elim" <-> motDoc tbl mot <->
@@ -426,7 +446,7 @@ mutual
       DGroup (txt "squash-elim" <->
               DNest 2 (DLine <-> argDoc tbl sc <->
                        DLine <-> absDoc tbl [x] b))
-    SStarWit w => txt "⋆ " <-> pe tbl LAtom False w
+    SStarWit w => headDoc tbl "⋆" w
     SStarUsing _ ns => txt "⋆ using (" <-> usingNames ns <-> txt ")"
     -- links sit at +2, the column the head's own argument lines would
     -- take: deeper, a link line would be read INSIDE the head's last
@@ -483,6 +503,13 @@ mutual
 
   concatDoc : List Doc -> Doc
   concatDoc = foldr DCat DNil
+
+  ||| The right-nested chain of a pair: `a, b, c` is Pair a (Pair b c),
+  ||| and its components are [a, b, c] — the arguments of the (,) head
+  ||| that rebuilds it.
+  pairChain : SElem -> List SElem
+  pairChain (SPair a b) = a :: pairChain b
+  pairChain t = [t]
 
   ||| Unfold an application chain to (head, arguments); stops at any
   ||| non-application head and at an infix node (which prints as an
@@ -554,6 +581,12 @@ mutual
   ||| line's extent closes it.
   argDoc : FixTable -> SElem -> Doc
   argDoc tbl arg = DAlt (pe tbl LAtom False arg) (peRaw tbl True arg)
+
+  ||| A ONE-ARGUMENT keyword head (S, inj₁, class, out, 𝟘-elim, a ⋆ with
+  ||| its witness): the argument on the line, parenthesized as an atom,
+  ||| when it fits — else bare on an ARGUMENT LINE, like any spine's.
+  headDoc : FixTable -> String -> SElem -> Doc
+  headDoc tbl kw arg = DGroup (txt kw <-> DNest 2 (DLine <-> argDoc tbl arg))
 
   ||| A binder ABSTRACTION slot `(x₁ … xₙ. body)`: parenthesized on the
   ||| head's line, bare on an argument line — the dot glued to the last
@@ -752,20 +785,34 @@ renderItemBare tbl (SClausalDef _ n ty mu eta _ wit cls) =
 renderItem : FixTable -> SItem -> Doc
 renderItem tbl item = renderItemBare tbl (stripPosItem item)
 
+||| A signature's header lines: `n : T using (…) [eta]` when that fits
+||| the width, else the type laid out against the width ALONE (its
+||| telescope seams fire only for its own length) and the using clause
+||| on a line of its own — the seam-first discipline of the item
+||| layout (docs/NovaPerfectSurface.txt).
+renderHeader : FixTable -> String -> STy -> Maybe (List String) -> (etaName : Maybe String) -> String
+renderHeader tbl n ty mu eta =
+  let tyPart = txt "\{n} : " <-> pe tbl LNoComma False ty
+      etaPart = case eta of
+                  Nothing => DNil
+                  Just e => txt " [\{e}]"
+      usePart = renderUsing mu <-> etaPart
+  in if flatW tyPart + flatW usePart <= lineWidth
+       then renderDoc lineWidth (tyPart <-> usePart)
+       else case mu of
+         Just ns => renderDoc lineWidth tyPart ++ "\n" ++
+                    renderDoc lineWidth (DNest 2 (txt "  using (" <-> usingNames ns <-> txt ")" <-> etaPart))
+         Nothing => renderDoc lineWidth (tyPart <-> etaPart)
+
 renderItemStrBare : FixTable -> SItem -> String
 renderItemStrBare tbl (SDef _ n ty body mu) =
-  let tyPart = txt "\{n} : " <-> pe tbl LNoComma False ty
-      usePart = renderUsing mu
-      -- the signature lays out against the width ALONE (the type's
-      -- telescope seams fire only for its own length), the using
-      -- clause getting a line of its own when the two do not fit
-      header = if flatW tyPart + flatW usePart <= lineWidth
-                 then renderDoc lineWidth (tyPart <-> usePart)
-                 else case mu of
-                   Just ns => renderDoc lineWidth tyPart ++ "\n" ++
-                              renderDoc lineWidth (DNest 2 (txt "  using (" <-> usingNames ns <-> txt ")"))
-                   Nothing => renderDoc lineWidth tyPart
-  in header ++ "\n" ++ renderDoc lineWidth (renderDefClause tbl n body)
+  renderHeader tbl n ty mu Nothing ++ "\n" ++ renderDoc lineWidth (renderDefClause tbl n body)
+renderItemStrBare tbl (SClausalDef _ n ty mu eta _ wit cls) =
+  renderHeader tbl n ty mu eta ++
+  (case wit of
+     Nothing => ""
+     Just w => "\n" ++ renderDoc lineWidth (renderDefClause tbl n w)) ++
+  concat (map (\c => "\n" ++ renderDoc lineWidth (renderClause tbl n c)) cls)
 renderItemStrBare tbl item = renderDoc lineWidth (renderItemBare tbl item)
 
 renderItemStr : FixTable -> SItem -> String

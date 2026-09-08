@@ -34,8 +34,11 @@ bisimTl = λa. λs. λt. λh. squash-elim h (w. ⋆ (w .π₁, w .π₂ .π₁, 
 -- itself as the invariant — heads by cong at hd, tails by cong at tl
 bisimRefl : {a : 𝕌} (s : stream a) → bisim s s using (Codata.streamBisim.bisim.unfold)
 bisimRefl =
-  λa. λs. ⋆ ((λx. λy. x ≡ y),
-    (λx. λy. λp. cong (λv. a) (λv. hd {} a v) p, cong (λv. stream a) (λv. tl v) p), ⋆)
+  λa. λs. ⋆
+    (,)
+      λx. λy. x ≡ y
+      λx. λy. λp. cong (λv. a) (λv. hd {} a v) p, cong (λv. stream a) (λv. tl v) p
+      ⋆
 
 -- obsEq ⊃ bisim: the ℕ-indexed relation is ITSELF a bisimulation —
 -- heads are observation 0, and shifting the index moves under one
@@ -49,8 +52,8 @@ obsEqBisim : {a : 𝕌} {s t : stream a} → obsEq s t → bisim s t
     Codata.streamEq.obsEq.unfold,
     Codata.streamEq.tlN.eq)
 obsEqBisim =
-  λa. λs. λt. λh. ⋆ ((λx. λy. obsEq x y),
-    (λx. λy. λp. squash-elim p (w. w Z), squash-elim p (w. ⋆ (λn. w (S n)))), h)
+  λa. λs. λt. λh. ⋆
+    (λx. λy. obsEq x y), (λx. λy. λp. squash-elim p (w. w Z), squash-elim p (w. ⋆ (λn. w (S n)))), h
 
 -- bisim ⊃ obsEq: unfold n times, by ℕ-induction over the depth
 bisimObsEq : {a : 𝕌} {s t : stream a} → bisim s t → obsEq s t
@@ -62,14 +65,15 @@ bisimObsEq : {a : 𝕌} {s t : stream a} → bisim s t → obsEq s t
     Codata.streamEq.obsEq.unfold,
     Codata.streamEq.tlN.eq)
 bisimObsEq =
-  λa. λs. λt. λh. ⋆ (λn. (ℕ-elim
-    m. (x y : stream a) → bisim x y → nth m x ≡ nth m y
-    λx. λy. λg. bisimHd g
-    m ih. λx. λy. λg. ih (tl x) (tl y) (bisimTl g)
-    n)
-    s
-    t
-    h)
+  λa. λs. λt. λh. ⋆
+    λn. ℕ-elim
+      m. (x y : stream a) → bisim x y → nth m x ≡ nth m y
+      λx. λy. λg. bisimHd g
+      m ih. λx. λy. λg. ih (tl x) (tl y) (bisimTl g)
+      n
+      s
+      t
+      h
 
 -- interop corollary: map-identity, now in the corecursive spelling
 mapIdBisim : {a : 𝕌} (s : stream a) → bisim (map (id {a}) s) s

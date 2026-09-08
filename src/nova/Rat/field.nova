@@ -18,18 +18,25 @@ import Algebra.field (IsField)
 
 ratAddGroup : IsGroup Q using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold)
 ratAddGroup =
-  ((+),
-    qZero,
-      (λx. λy. λz. eqToId _ _ (qAddAssoc x y z)),
-        (λx. eqToId _ _ (qAddZeroL x)), λx. eqToId _ _ (qAddZeroR x)),
-    qNeg, (λx. eqToId _ _ (qAddNegL x)), λx. eqToId _ _ (qAddNegR x)
+  (,)
+    (,)
+      (+)
+      qZero
+      λx. λy. λz. eqToId _ _ (qAddAssoc x y z)
+      λx. eqToId _ _ (qAddZeroL x)
+      λx. eqToId _ _ (qAddZeroR x)
+    qNeg
+    λx. eqToId _ _ (qAddNegL x)
+    λx. eqToId _ _ (qAddNegR x)
 
 ratMulMonoid : IsMonoid Q using (Algebra.monoid.IsMonoid.unfold)
 ratMulMonoid =
-  (*),
-    qOne,
-      (λx. λy. λz. eqToId _ _ (qMulAssoc x y z)),
-        (λx. eqToId _ _ (qMulOneL x)), λx. eqToId _ _ (qMulOneR x)
+  (,)
+    (*)
+    qOne
+    λx. λy. λz. eqToId _ _ (qMulAssoc x y z)
+    λx. eqToId _ _ (qMulOneL x)
+    λx. eqToId _ _ (qMulOneR x)
 
 -- Nontriviality at the DATA level: an element of 𝟘 from Id Q 1 0.
 -- a ⊥-proof could never produce one — the route is the effectivity chain
@@ -88,12 +95,12 @@ ratField : IsField Q
     Rat.qOne.eq,
     Rat.qZero.eq)
 ratField =
-  ratAddGroup,
-    ratMulMonoid,
-      (λx. λy. eqToId _ _ (qAddComm x y)),
-        (λx. λy. eqToId _ _ (qMulComm x y)),
-          (λx. λy. λz. eqToId _ _ (qDistribL x y z)),
-            (λx. λy. λz. eqToId _ _ (qDistribR x y z)),
-              qOneNotZeroD,
-                λx. λk. qInv x,
-                  eqToId _ _ (qMulInvR (notIntro (x ≡ qZero) (λe. ⋆ (k (eqToId _ qZero e)))))
+  (,)
+    ratAddGroup
+    ratMulMonoid
+    λx. λy. eqToId _ _ (qAddComm x y)
+    λx. λy. eqToId _ _ (qMulComm x y)
+    λx. λy. λz. eqToId _ _ (qDistribL x y z)
+    λx. λy. λz. eqToId _ _ (qDistribR x y z)
+    qOneNotZeroD
+    λx. λk. qInv x, eqToId _ _ (qMulInvR (notIntro (x ≡ qZero) (λe. ⋆ (k (eqToId _ qZero e)))))

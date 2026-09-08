@@ -205,12 +205,13 @@ rClosureTrans =
     hab
     uab. squash-elim
       hbc
-      ubc. ⋆ (λR. λcont. λrefl. λtrans. λsymm. trans
-        a
-        b
-        c
-        uab R cont refl trans symm
-        ubc R cont refl trans symm)
+      ubc. ⋆
+        λR. λcont. λrefl. λtrans. λsymm. trans
+          a
+          b
+          c
+          uab R cont refl trans symm
+          ubc R cont refl trans symm
 
 -- least-ness: rClosure r implies membership in ANY equivalence
 -- relation containing r — unsquash the hypothesis and apply its

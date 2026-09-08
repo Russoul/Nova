@@ -62,12 +62,13 @@ mapFuseObsEq : {a b c : 𝕌}
     Codata.streamEq.obsEq.unfold,
     tlN.eq)
 mapFuseObsEq =
-  λa. λb. λc. λf. λg. λs. ⋆ (λn. (ℕ-elim
-    m. (t : stream a) → nth m (map g (map f t)) ≡ nth m (map (g ∘ f) t)
-    λt. ⋆
-    m ih. λt. ih (tl t)
-    n)
-    s)
+  λa. λb. λc. λf. λg. λs. ⋆
+    λn. ℕ-elim
+      m. (t : stream a) → nth m (map g (map f t)) ≡ nth m (map (g ∘ f) t)
+      λt. ⋆
+      m ih. λt. ih (tl t)
+      n
+      s
 
 -- the tail of an iterate is the iterate of the image, observationally
 iterShiftObsEq : {a : 𝕌} (f : a → a) (x : a) → obsEq (tl (iterate f x)) (iterate f (f x))

@@ -209,24 +209,25 @@ posSampleLo =
     qInvNat (dbl k)
     squash-elim
       h
-      u. ⋆ (transport
-        λw. w ≤ seqOf p (recipIdx k n)
-        halfSubEq (qInvNat (dbl k))
+      u. ⋆
         transport
-          λw. w + qNeg (qInvNat (dbl k)) ≤ seqOf p (recipIdx k n)
-          sym _ _ (qInvHalf k)
-          leQSubShift
-            _
-            _
-            transport
-              λw. qInvNat k ≤ w
-              qAddComm (seqOf p (recipIdx k n)) (qInvNat (dbl k))
-              leQTrans
-                qInvNat k
-                seqOf p (recipIdx k n) + rBound (recipIdx k n) (recipIdx k n)
-                _
-                leQAddShift (qInvNat k) (u (recipIdx k n))
-                leQPlusMonoL _ (qInvNat (dbl k)) (seqOf p (recipIdx k n)) (leQRBoundRecip k n))
+          λw. w ≤ seqOf p (recipIdx k n)
+          halfSubEq (qInvNat (dbl k))
+          transport
+            λw. w + qNeg (qInvNat (dbl k)) ≤ seqOf p (recipIdx k n)
+            sym _ _ (qInvHalf k)
+            leQSubShift
+              _
+              _
+              transport
+                λw. qInvNat k ≤ w
+                qAddComm (seqOf p (recipIdx k n)) (qInvNat (dbl k))
+                leQTrans
+                  qInvNat k
+                  seqOf p (recipIdx k n) + rBound (recipIdx k n) (recipIdx k n)
+                  _
+                  leQAddShift (qInvNat k) (u (recipIdx k n))
+                  leQPlusMonoL _ (qInvNat (dbl k)) (seqOf p (recipIdx k n)) (leQRBoundRecip k n)
 
 posSampleSgn : (p : RSeq)
   (k : ℕ)
@@ -239,12 +240,8 @@ posSampleSgn = λp. λk. λh. λn. sgnQPosOfLe _ (recipLoPos k) (posSampleLo h n
 -- ===== the estimate =====
 bndOfNonNegLe : {M u : Q} → qZero ≤ M → qZero ≤ u → u ≤ M → Bnd M u using (Rat.bound.Bnd.unfold)
 bndOfNonNegLe =
-  λM. λu. λhM0. λh0. λhM. leQTrans
-    _
-    _
-    _
-    transport (λw. qNeg M ≤ w) qNegZeroQ (leQNegFlip _ _ hM0)
-    h0,
+  λM. λu. λhM0. λh0. λhM. (,)
+    leQTrans _ _ _ (transport (λw. qNeg M ≤ w) qNegZeroQ (leQNegFlip _ _ hM0)) h0
     hM
 
 -- |1/a − 1/b| ≤ d·Ma·Mb, when a ≥ ca, b ≥ cb and each c inverts its M.

@@ -424,6 +424,17 @@ t{2½} ::= 𝟘-elim t{≥4}
         | squash-elim t{≥4} (x. t{≥0})               # el-squash-e-prf: eliminate a
                                                       #   proof of a squash into a
                                                       #   further proposition
+        | (,) t{≥4} t{≥4}+                 # the PAIR CONSTRUCTOR as a prefix
+                                           #   head: (,) a₁ … aₙ (n ≥ 2) is
+                                           #   the right-nested tuple
+                                           #   a₁, (a₂, …, aₙ) — what the
+                                           #   comma builds — read as an
+                                           #   application spine (argument
+                                           #   lines included) and folded
+                                           #   into pairs. A head, not a
+                                           #   value: fewer than two
+                                           #   arguments is a structural
+                                           #   error
         | ⋆ t{≥4}                          # el-squash-i, explicit witness (any A)
         | ⋆ uses                 # ⋆ with a SITE-LOCAL discharge scope,
                                  #   overriding the item's: the named
@@ -480,6 +491,8 @@ t{1⅜} ::= t{≥1½} × t{≥1⅜}            # the NON-DEPENDENT ×; the BINDE
 # automatic counterpart since there is nothing to search for.
 t{1½} ::= t{≥2} (op t{≥2})*     # declared infix operators, by fixity
 t{0} ::= t{≥1} , t{≥0}                                        (right-assoc)
+                                      # the same node the prefix head
+                                      #   (,) builds (t{2½} above)
 
 # Polynomials (the one-hole codes of Foundation's coinductive
 # section). The hole is 𝕏; external pieces are element-level CODES.
@@ -668,6 +681,10 @@ F{0} ::= F{≥1}
 #           | coind ⟪x y. t⟫ a ⟪x y h. t⟫
 #           | squash-elim a ⟪x. t⟫
 #           | ν F | out a | class a | S a | inj₁ a | inj₂ a | 𝟘-elim a
+#           | (,) a a a*                    # the tuple as a spine: a
+#                                           #   record that does not fit
+#                                           #   one line is one field
+#                                           #   per argument line
 #           | ⋆ a | ⋆ uses
 #
 # Slot arities are unchanged, so a block line past a keyword form's

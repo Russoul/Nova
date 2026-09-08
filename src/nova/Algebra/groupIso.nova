@@ -141,7 +141,8 @@ imFibOp : {G : 𝕌}
   → imFib _ _ _ _ p (gop h y1 y2)
   using (imFib.unfold)
 imFibOp =
-  λG. λg. λH. λh. λp. λy1. λy2. λf1. λf2. gop g (f1 .π₁) (f2 .π₁),
+  λG. λg. λH. λh. λp. λy1. λy2. λf1. λf2. (,)
+    gop g (f1 .π₁) (f2 .π₁)
     eqToId
       _
       _
@@ -161,7 +162,8 @@ imFibInv : {G : 𝕌}
   → imFib _ _ _ _ p (ginv h y)
   using (imFib.unfold)
 imFibInv =
-  λG. λg. λH. λh. λp. λy. λf. ginv g (f .π₁),
+  λG. λg. λH. λh. λp. λy. λf. (,)
+    ginv g (f .π₁)
     eqToId
       _
       _
@@ -241,9 +243,11 @@ imIsGroup : (G : 𝕌) (g : IsGroup G) (H : 𝕌) (h : IsGroup H) (p : Hom g h) 
     imUnit.eq,
     imInv.eq)
 imIsGroup =
-  λG. λg. λH. λh. λp. (imOp _ _ _ _ _,
-    imUnit _ _ _ _ _,
-      (λx. λy. λz. eqToId
+  λG. λg. λH. λh. λp. (,)
+    (,)
+      imOp _ _ _ _ _
+      imUnit _ _ _ _ _
+      λx. λy. λz. eqToId
         _
         _
         imEq
@@ -254,24 +258,18 @@ imIsGroup =
           _
           imOp _ _ _ _ _ (imOp _ _ _ _ _ x y) z
           imOp _ _ _ _ _ x (imOp _ _ _ _ _ y z)
-          gAssoc h (x .π₁) (y .π₁) (z .π₁)),
-        (λx. eqToId
-          _
-          _
-          imEq _ _ _ _ _ (imOp _ _ _ _ _ (imUnit _ _ _ _ p) x) _ (gUnitL h (x .π₁))),
-          λx. eqToId
-            _
-            _
-            imEq _ _ _ _ _ (imOp _ _ _ _ _ x (imUnit _ _ _ _ p)) _ (gUnitR h (x .π₁))),
-    imInv _ _ _ _ _,
-      (λx. eqToId
-        _
-        _
-        imEq _ _ _ _ _ (imOp _ _ _ _ _ (imInv _ _ _ _ _ x) x) (imUnit _ _ _ _ p) (gInvL h (x .π₁))),
-        λx. eqToId
-          _
-          _
-          imEq _ _ _ _ _ (imOp _ _ _ _ _ x (imInv _ _ _ _ _ x)) (imUnit _ _ _ _ p) (gInvR h (x .π₁))
+          gAssoc h (x .π₁) (y .π₁) (z .π₁)
+      λx. eqToId _ _ (imEq _ _ _ _ _ (imOp _ _ _ _ _ (imUnit _ _ _ _ p) x) _ (gUnitL h (x .π₁)))
+      λx. eqToId _ _ (imEq _ _ _ _ _ (imOp _ _ _ _ _ x (imUnit _ _ _ _ p)) _ (gUnitR h (x .π₁)))
+    imInv _ _ _ _ _
+    λx. eqToId
+      _
+      _
+      imEq _ _ _ _ _ (imOp _ _ _ _ _ (imInv _ _ _ _ _ x) x) (imUnit _ _ _ _ p) (gInvL h (x .π₁))
+    λx. eqToId
+      _
+      _
+      imEq _ _ _ _ _ (imOp _ _ _ _ _ x (imInv _ _ _ _ _ x)) (imUnit _ _ _ _ p) (gInvR h (x .π₁))
 
 -- ===== G/ker p  →  im p =====
 --

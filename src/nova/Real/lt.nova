@@ -116,21 +116,22 @@ ltRIrrefl : (u : Real) → u < u → ⊥
 ltRIrrefl =
   λu. λh. squash-elim
     h
-    w. ⋆ (qInvNatNotZero
-      _
-      leQAntisym
-        leQOfLeR
-          qZero
-          transportP
-            λt. t ≤ realZero
-            realAddNegCancel u (realOfQ (qInvNat (w .π₁)))
+    w. ⋆
+      qInvNatNotZero
+        _
+        leQAntisym
+          leQOfLeR
+            qZero
             transportP
-              {Real}
-              λt. u + realOfQ (qInvNat (w .π₁)) + realNeg u ≤ t
-              {u + realNeg u}
-              realAddNegR u
-              leRAddMono (w .π₂)
-        leQZeroInvNat (w .π₁))
+              λt. t ≤ realZero
+              realAddNegCancel u (realOfQ (qInvNat (w .π₁)))
+              transportP
+                {Real}
+                λt. u + realOfQ (qInvNat (w .π₁)) + realNeg u ≤ t
+                {u + realNeg u}
+                realAddNegR u
+                leRAddMono (w .π₂)
+          leQZeroInvNat (w .π₁)
 
 -- ===== ℚ ↪ ℝ preserves and reflects the strict order =====
 -- p < q in ℚ: the Archimedean witness supplies the index, and the

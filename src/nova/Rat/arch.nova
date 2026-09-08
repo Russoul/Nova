@@ -275,16 +275,36 @@ qArchPos : {M : Int}
     Rat.qcls.eq)
 qArchPos =
   λM. λb. λhp. ⊎-elim
-    u. (⊎-elim
+    u. ⊎-elim
       w. (nzToInt w ≡ M) → ArchWit (qcls (mkRat M (nzPos b)))
-      a. λhe. b,
+      a. λhe. (,)
+        b
         transport
           λv. qInvNat b ≤ v
           {qFrac (S a) b}
           {qcls (mkRat M (nzPos b))}
           cong (λv. Q) (λv. qcls (mkRat v (nzPos b))) {nzToInt (nzPos a)} he
           leQInvFrac
-      a. λhe. 𝟘-elim (sNegNotPos
+      a. λhe. 𝟘-elim
+        sNegNotPos
+          trans
+            _
+            _
+            _
+            sym
+              _
+              _
+              trans
+                _
+                _
+                sNeg
+                cong (λv. Sign) (λv. sgnQ (qcls (mkRat v (nzPos b)))) (sym (nzToInt (nzNeg a)) _ he)
+                sgnNegOverPos
+            hp
+      u .π₁
+      u .π₂
+    hz. 𝟘-elim
+      sZeroNotPos
         trans
           _
           _
@@ -295,22 +315,10 @@ qArchPos =
             trans
               _
               _
-              sNeg
-              cong (λv. Sign) (λv. sgnQ (qcls (mkRat v (nzPos b)))) (sym (nzToInt (nzNeg a)) _ he)
-              sgnNegOverPos
-          hp)
-      u .π₁)
-      u .π₂
-    hz. 𝟘-elim (sZeroNotPos
-      trans
-        _
-        _
-        _
-        sym
-          _
-          _
-          trans _ _ sZero (cong (λv. Sign) (λv. sgnQ (qcls (mkRat v (nzPos b)))) hz) sgnZeroOverPos
-        hp)
+              sZero
+              cong (λv. Sign) (λv. sgnQ (qcls (mkRat v (nzPos b)))) hz
+              sgnZeroOverPos
+          hp
     nzOfInt M
 
 -- at a raw fraction: normalize the denominator, then decide
@@ -343,15 +351,16 @@ qArch : (u : Q) → (sgnQ u ≡ sPos) → ∥ArchWit u∥
     Real.qInvNat.eq)
 qArch =
   λu. quot-elim
-    p. λhp. ⋆ (transport
-      λr. ArchWit (qcls r)
-      {mkRat (num p) (den p)}
-      {p}
-      ratEta
-      qArchAt
-        _
-        _
-        trans _ _ sPos (cong (λr. Sign) (λr. sgnQ (qcls r)) {mkRat (num p) (den p)} {p} ratEta) hp)
+    p. λhp. ⋆
+      transport
+        λr. ArchWit (qcls r)
+        {mkRat (num p) (den p)}
+        {p}
+        ratEta
+        qArchAt
+          _
+          _
+          trans _ _ sPos (cong (λr. Sign) (λr. sgnQ (qcls r)) {mkRat (num p) (den p)} {p} ratEta) hp
     u
 
 -- ===== the closeness principle =====
@@ -474,15 +483,16 @@ qNegAddCancel =
 bndOfArch : {b : Q} (d : Q) → ((k : ℕ) → Bnd (b + qInvNat k) d) → Bnd b d
   using (Rat.bound.Bnd.unfold)
 bndOfArch =
-  λb. λd. λh. leQOfArch
-    _
-    _
-    λk. transport
-      λw. w ≤ d + qInvNat k
-      {qNeg (b + qInvNat k) + qInvNat k}
-      {qNeg b}
-      qNegAddCancel
-      leQPlusMono (qInvNat k) (h k .π₁),
+  λb. λd. λh. (,)
+    leQOfArch
+      _
+      _
+      λk. transport
+        λw. w ≤ d + qInvNat k
+        {qNeg (b + qInvNat k) + qInvNat k}
+        {qNeg b}
+        qNegAddCancel
+        leQPlusMono (qInvNat k) (h k .π₁)
     leQOfArch _ _ (λk. h k .π₂)
 
 -- ===== the four-leg sum a triangle chain produces =====

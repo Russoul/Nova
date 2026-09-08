@@ -26,12 +26,12 @@ import Core.id (Id, idToEq, eqToId)
 
 leSplit : {b a : ℕ} → b ≤ a → a ≤ b ⊎ S b ≤ a using (Natural.order.≤.unfold)
 leSplit =
-  λb. λa. λh. (ℕ-elim
+  λb. λa. λh. ℕ-elim
     k. (b + k ≡ a) → a ≤ b ⊎ S b ≤ a
     λe. inj₁ (leOfEq (sym _ _ (trans _ _ _ (sym _ _ (plusZeroId b)) e)))
-    j rec. λe. inj₂ (j,
-      eqToId _ _ (trans _ _ _ (trans _ _ _ (sucPlus b j) (sym _ _ (plusSucId b j))) e))
-    h .π₁)
+    j rec. λe. inj₂
+      j, eqToId _ _ (trans _ _ _ (trans _ _ _ (sucPlus b j) (sym _ _ (plusSucId b j))) e)
+    h .π₁
     idToEq _ _ _ (h .π₂)
 
 natCompare : (a b : ℕ) → a ≤ b ⊎ S b ≤ a
@@ -95,9 +95,8 @@ isqrtAuxMax =
       λj. λe. ⊎-elim
         w. k ≤ isqrtAux m f'
         h. ih k hk h
-        h. 𝟘-elim (leSucNotSelf
-          _
-          leTrans _ _ _ (ltOfMonusSuc _ e) (leTrans _ _ _ (leSquare h) hk))
+        h. 𝟘-elim
+          leSucNotSelf _ (leTrans _ _ _ (ltOfMonusSuc _ e) (leTrans _ _ _ (leSquare h) hk))
         natCompare k f'
     f
 
@@ -157,7 +156,8 @@ sqExpand =
 
 sqSumLe : (y c : ℕ) → y * y + c * c ≤ (y + c) * (y + c) using (Natural.order.≤.unfold)
 sqSumLe =
-  λy. λc. y * c + y * c,
+  λy. λc. (,)
+    y * c + y * c
     eqToId _ _ (trans (y * y + c * c + (y * c + y * c)) _ _ plus4Swap (sym _ _ (sqExpand y c)))
 
 sqrtStepN : {x y T : ℕ} → x * x ≤ y * y + T → x ≤ y + S (isqrt T)
@@ -200,7 +200,8 @@ sucMultSuc =
 sqSumStrict : (x y : ℕ) → S (S x * S x + S y * S y) ≤ (S x + S y) * (S x + S y)
   using (Natural.order.≤.unfold)
 sqSumStrict =
-  λx. λy. x + S x * y + S (x + S x * y),
+  λx. λy. (,)
+    x + S x * y + S (x + S x * y)
     eqToId
       _
       _

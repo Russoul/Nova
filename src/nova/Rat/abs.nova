@@ -57,7 +57,8 @@ bndAbs =
   λu. ⊎-elim
     w. Bnd (⊎-elim (nn. u) (hn. qNeg u) w) u
     nn. leQTrans _ _ _ (bndZero _ (leQZeroOfNonNeg _ nn) .π₁) (leQZeroOfNonNeg _ nn), leQRefl _
-    hn. transport (λw. w ≤ u) (sym _ _ (qNegNeg u)) (leQRefl u),
+    hn. (,)
+      transport (λw. w ≤ u) (sym _ _ (qNegNeg u)) (leQRefl u)
       leQTrans
         _
         _

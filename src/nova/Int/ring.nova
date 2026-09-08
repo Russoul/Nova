@@ -19,11 +19,12 @@ import Algebra.ring (IsCommRing)
 
 intCommRing : IsCommRing Int using (Int.group.intAddGroup.eq, Algebra.ring.IsCommRing.unfold)
 intCommRing =
-  intAddGroup,
-    (*),
-      intOne,
-        (λx. λy. λz. eqToId _ _ (intMulAssoc x y z)),
-          (λx. λy. eqToId _ _ (intMulComm x y)),
-            (λx. eqToId _ _ (intMulOneR x)),
-              (λx. λy. eqToId (x + y) (y + x) (intAddComm x y)),
-                λx. λy. λz. eqToId (x * (y + z)) (x * y + x * z) (intMulDistribL x y z)
+  (,)
+    intAddGroup
+    (*)
+    intOne
+    λx. λy. λz. eqToId _ _ (intMulAssoc x y z)
+    λx. λy. eqToId _ _ (intMulComm x y)
+    λx. eqToId _ _ (intMulOneR x)
+    λx. λy. eqToId (x + y) (y + x) (intAddComm x y)
+    λx. λy. λz. eqToId (x * (y + z)) (x * y + x * z) (intMulDistribL x y z)

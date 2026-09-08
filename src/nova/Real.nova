@@ -77,33 +77,35 @@ qNegZero = ⋆
 leQNegBoundZero : {m n : ℕ} → qNeg (rBound m n) ≤ qZero
   using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 leQNegBoundZero =
-  λm. λn. inj₂ (eqToId
-    _
-    _
-    trans
+  λm. λn. inj₂
+    eqToId
       _
       _
-      sPos
-      cong
-        λv. Sign
-        λv. sgnQ v
-        trans _ _ _ (Rat.qAddZeroL (qNeg (qNeg (rBound m n)))) (qNegNeg (rBound m n))
-      rBoundPos)
+      trans
+        _
+        _
+        sPos
+        cong
+          λv. Sign
+          λv. sgnQ v
+          trans _ _ _ (Rat.qAddZeroL (qNeg (qNeg (rBound m n)))) (qNegNeg (rBound m n))
+        rBoundPos
 
 leQZeroBound : (m n : ℕ) → qZero ≤ rBound m n using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 leQZeroBound =
-  λm. λn. inj₂ (eqToId
-    _
-    _
-    trans
+  λm. λn. inj₂
+    eqToId
       _
       _
-      sPos
-      cong
-        λv. Sign
-        λv. sgnQ v
-        trans _ _ _ (cong (λv. Q) (λv. rBound m n + v) qNegZero) (Rat.qAddZeroR (rBound m n))
-      rBoundPos)
+      trans
+        _
+        _
+        sPos
+        cong
+          λv. Sign
+          λv. sgnQ v
+          trans _ _ _ (cong (λv. Q) (λv. rBound m n + v) qNegZero) (Rat.qAddZeroR (rBound m n))
+        rBoundPos
 
 -- ===== the carrier =====
 -- regularity, two-sided: −(1/(m+1)+1/(n+1)) ≤ f m − f n ≤ ⋯
@@ -128,7 +130,8 @@ Real = RSeq / (x y. REq x y)
 -- zero-bounds transport along q − q ≡ 0
 constReg : {q : Q} → Regular (λn. q) using (Rat.bound.Bnd.unfold, Real.Regular.unfold)
 constReg =
-  λq. λm. λn. transport (λw. qNeg (rBound m n) ≤ w) (sym _ _ (qAddNegR q)) leQNegBoundZero,
+  λq. λm. λn. (,)
+    transport (λw. qNeg (rBound m n) ≤ w) (sym _ _ (qAddNegR q)) leQNegBoundZero
     transport (λw. w ≤ rBound m n) (sym _ _ (qAddNegR q)) (leQZeroBound m n)
 
 realOfQ : Q → Real using (Real.RSeq.unfold, Real.Real.unfold)

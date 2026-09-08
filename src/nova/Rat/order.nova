@@ -511,15 +511,16 @@ leQRefl = λx. inj₁ (eqToId _ _ (trans _ _ _ (cong (λu. Sign) (λu. sgnQ u) (
 
 leQOfEq : (x y : Q) → (x ≡ y) → x ≤ y using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 leQOfEq =
-  λx. λy. λh. inj₁ (eqToId
-    _
-    _
-    trans
+  λx. λy. λh. inj₁
+    eqToId
       _
       _
-      _
-      cong (λu. Sign) (λu. sgnQ u) (trans _ _ _ (cong (λu. Q) (λu. y + qNeg u) h) (qAddNegR y))
-      sgnQZero)
+      trans
+        _
+        _
+        _
+        cong (λu. Sign) (λu. sgnQ u) (trans _ _ _ (cong (λu. Q) (λu. y + qNeg u) h) (qAddNegR y))
+        sgnQZero
 
 -- every sign is nonneg or negative — the DECISION, as data
 sgnCases : (s : Sign) → NonNegS s ⊎ Id _ s sNeg
@@ -543,20 +544,22 @@ leQTotal : (x y : Q) → x ≤ y ⊎ y ≤ x
 leQTotal =
   λx. λy. ⊎-elim
     nn. inj₁ nn
-    hneg. inj₂ (inj₂ (eqToId
-      _
-      _
-      trans
-        _
-        _
-        _
-        trans
+    hneg. inj₂
+      inj₂
+        eqToId
           _
           _
-          sgnFlip (sgnQ (y + qNeg x))
-          cong (λu. Sign) (λu. sgnQ u) {x + qNeg y} {qNeg (y + qNeg x)} qSubNeg
-          sgnQNegFlip
-        trans _ _ sPos (cong (λu. Sign) (λu. sgnFlip u) (idToEq _ _ _ hneg)) ⋆))
+          trans
+            _
+            _
+            _
+            trans
+              _
+              _
+              sgnFlip (sgnQ (y + qNeg x))
+              cong (λu. Sign) (λu. sgnQ u) {x + qNeg y} {qNeg (y + qNeg x)} qSubNeg
+              sgnQNegFlip
+            trans _ _ sPos (cong (λu. Sign) (λu. sgnFlip u) (idToEq _ _ _ hneg)) ⋆
     sgnCases (sgnQ (y + qNeg x))
 
 -- ===== sign discrimination (transport along a discriminating family) =====
@@ -587,46 +590,60 @@ intSgnPosView : (z : Int) → (intSgn z ≡ sPos) → (k : ℕ) × nzToInt (nzPo
   using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.nzNeg.eq, Rat.frac.nzPos.eq)
 intSgnPosView =
   λz. λh. ⊎-elim
-    u. (⊎-elim
+    u. ⊎-elim
       w. (nzToInt w ≡ z) → (k : ℕ) × nzToInt (nzPos k) ≡ z
       k. λhe. k, he
-      k. λhe. 𝟘-elim (sNegNotPos
-        trans
-          _
-          _
-          _
-          sym
+      k. λhe. 𝟘-elim
+        sNegNotPos
+          trans
             _
             _
-            trans _ _ sNeg (cong (λv. Sign) (λv. intSgn v) (sym (nzToInt (nzNeg k)) _ he)) intSgnNeg
-          h)
-      u .π₁)
+            _
+            sym
+              _
+              _
+              trans
+                _
+                _
+                sNeg
+                cong (λv. Sign) (λv. intSgn v) (sym (nzToInt (nzNeg k)) _ he)
+                intSgnNeg
+            h
+      u .π₁
       u .π₂
-    hz. 𝟘-elim (sZeroNotPos
-      trans _ _ _ (sym _ _ (trans _ _ _ (cong (λv. Sign) (λv. intSgn v) hz) intSgnZero)) h)
+    hz. 𝟘-elim
+      sZeroNotPos
+        trans _ _ _ (sym _ _ (trans _ _ _ (cong (λv. Sign) (λv. intSgn v) hz) intSgnZero)) h
     nzOfInt z
 
 intSgnZeroView : (z : Int) → (intSgn z ≡ sZero) → z ≡ intZero
   using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.nzNeg.eq, Rat.frac.nzPos.eq)
 intSgnZeroView =
   λz. λh. ⊎-elim
-    u. (⊎-elim
+    u. ⊎-elim
       w. (nzToInt w ≡ z) → z ≡ intZero
-      k. λhe. 𝟘-elim (sZeroNotPos
-        trans
-          _
-          _
-          _
-          sym _ _ h
-          trans _ _ _ (cong (λv. Sign) (λv. intSgn v) (sym (nzToInt (nzPos k)) _ he)) (intSgnPos k))
-      k. λhe. 𝟘-elim (sZeroNotNeg
-        trans
-          _
-          _
-          _
-          sym _ _ h
-          trans _ _ sNeg (cong (λv. Sign) (λv. intSgn v) (sym (nzToInt (nzNeg k)) _ he)) intSgnNeg)
-      u .π₁)
+      k. λhe. 𝟘-elim
+        sZeroNotPos
+          trans
+            _
+            _
+            _
+            sym _ _ h
+            trans
+              _
+              _
+              _
+              cong (λv. Sign) (λv. intSgn v) (sym (nzToInt (nzPos k)) _ he)
+              intSgnPos k
+      k. λhe. 𝟘-elim
+        sZeroNotNeg
+          trans
+            _
+            _
+            _
+            sym _ _ h
+            trans _ _ sNeg (cong (λv. Sign) (λv. intSgn v) (sym (nzToInt (nzNeg k)) _ he)) intSgnNeg
+      u .π₁
       u .π₂
     hz. hz
     nzOfInt z
@@ -978,10 +995,8 @@ leQTrans =
                 λw. sgnQ w
                 trans _ _ _ (cong (λw. Q) (λw. w + (y + qNeg x)) e0) (qAddZeroL (y + qNeg x))
             in transport NonNegS (sym _ _ eq) (inj₂ h1p)
-        h2p. inj₂ (eqToId
-          _
-          _
-          trans _ _ _ comb (sgnQAddPos _ _ (idToEq _ _ _ h2p) (idToEq _ _ _ h1p)))
+        h2p. inj₂
+          eqToId _ _ (trans _ _ _ comb (sgnQAddPos _ _ (idToEq _ _ _ h2p) (idToEq _ _ _ h1p)))
         l2
       l1
 
@@ -1156,50 +1171,52 @@ leQMulMono =
       in ⊎-elim
         hc0. let c0 : c ≡ qZero
           = sgnQZeroView _ (trans _ _ _ (sym _ _ cEq) (idToEq _ _ _ hc0))
-          in inj₁ (eqToId
-            _
-            _
-            trans
+          in inj₁
+            eqToId
               _
               _
-              _
-              dEq
               trans
                 _
                 _
                 _
-                cong
-                  λv. Sign
-                  λv. sgnQ v
-                  trans
-                    _
-                    _
-                    _
-                    cong (λv. Q) (λv. (y + qNeg x) * v) c0
-                    trans _ _ qZero (qMulComm (y + qNeg x) qZero) qMulZeroL
-                sgnQZero)
+                dEq
+                trans
+                  _
+                  _
+                  _
+                  cong
+                    λv. Sign
+                    λv. sgnQ v
+                    trans
+                      _
+                      _
+                      _
+                      cong (λv. Q) (λv. (y + qNeg x) * v) c0
+                      trans _ _ qZero (qMulComm (y + qNeg x) qZero) qMulZeroL
+                  sgnQZero
         hcp. let hcs : sgnQ c ≡ sPos
           = trans _ _ _ (sym _ _ cEq) (idToEq _ _ _ hcp)
           in ⊎-elim
             hd0. let d0 : y + qNeg x ≡ qZero
               = sgnQZeroView _ (idToEq _ _ _ hd0)
-              in inj₁ (eqToId
-                _
-                _
-                trans
+              in inj₁
+                eqToId
                   _
                   _
-                  _
-                  dEq
                   trans
                     _
                     _
                     _
-                    cong
-                      λv. Sign
-                      λv. sgnQ v
-                      trans _ _ qZero (cong (λv. Q) (λv. v * c) d0) qMulZeroL
-                    sgnQZero)
+                    dEq
+                    trans
+                      _
+                      _
+                      _
+                      cong
+                        λv. Sign
+                        λv. sgnQ v
+                        trans _ _ qZero (cong (λv. Q) (λv. v * c) d0) qMulZeroL
+                      sgnQZero
             hdp. inj₂ (eqToId _ _ (trans _ _ _ dEq (sgnQMulPos (idToEq _ _ _ hdp) hcs)))
             le
         lc

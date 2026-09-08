@@ -51,8 +51,9 @@ qNeZeroOfPos =
   λu. λhp. impIntro
     {u ≡ qZero}
     {⊥}
-    λhz. 𝟘-elim (sZeroNotPos
-      trans _ _ _ (sym _ _ (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) hz) sgnQZeroEq)) hp)
+    λhz. 𝟘-elim
+      sZeroNotPos
+        trans _ _ _ (sym _ _ (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) hz) sgnQZeroEq)) hp
 
 qMulInvPos : {c : Q} → (sgnQ c ≡ sPos) → c * qInv c ≡ qOne
 qMulInvPos = λc. λhp. qMulInvR (qNeZeroOfPos hp)
@@ -88,29 +89,30 @@ leQZeroInv : {c : Q} → (sgnQ c ≡ sPos) → qZero ≤ qInv c
 leQZeroInv =
   λc. λhp. ⊎-elim
     nn. leQZeroOfNonNeg _ nn
-    hn. 𝟘-elim (sZeroNotPos
-      trans
-        _
-        _
-        _
-        sym
+    hn. 𝟘-elim
+      sZeroNotPos
+        trans
           _
           _
-          trans
+          _
+          sym
             _
             _
-            _
-            cong
-              λw. Sign
-              λw. sgnQ w
-              leQAntisym
-                transport
-                  λw. w ≤ qZero
-                  qMulInvPos hp
-                  leQMulNonPos (leQZeroOfNonNeg c (inj₂ (eqToId _ _ hp))) (leQZeroOfNeg hn)
-                leQZeroOne
-            sgnQZeroEq
-        sgnQOneEq)
+            trans
+              _
+              _
+              _
+              cong
+                λw. Sign
+                λw. sgnQ w
+                leQAntisym
+                  transport
+                    λw. w ≤ qZero
+                    qMulInvPos hp
+                    leQMulNonPos (leQZeroOfNonNeg c (inj₂ (eqToId _ _ hp))) (leQZeroOfNeg hn)
+                  leQZeroOne
+              sgnQZeroEq
+          sgnQOneEq
     sgnCases (sgnQ (qInv c))
 
 -- ===== cancellation, and what follows =====

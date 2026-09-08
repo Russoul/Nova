@@ -303,32 +303,33 @@ qrDistribL =
 qrIsCommRing : {R : 𝕌} {r : IsCommRing R} {I : R → Ω} → IsIdeal _ r I → IsCommRing (QRing _ r I)
   using (Algebra.ring.IsCommRing.unfold, Algebra.groupTheory.gop.eq)
 qrIsCommRing =
-  λR. λr. λI. λid. qrAddGroup id,
-    qrMul _ _ _ id,
-      qrOne,
-        (λx. λy. λz. eqToId _ _ (qrMulAssoc _ _ _ id x y z)),
-          (λx. λy. eqToId _ _ (qrMulComm _ _ _ id x y)),
-            (λx. eqToId _ _ (qrMulOne _ _ _ id x)),
-              (λx. λy. eqToId
-                gop (qrAddGroup id) x y
-                gop (qrAddGroup id) y x
-                trans
-                  _
-                  _
-                  _
-                  qrGop _ _ _ id x y
-                  trans (qrAdd id x y) _ _ qrAddComm (sym _ _ (qrGop _ _ _ id y x))),
-                λx. λy. λz. eqToId
-                  qrMul _ _ _ id x (gop (qrAddGroup id) y z)
-                  gop (qrAddGroup id) (qrMul _ _ _ id x y) (qrMul _ _ _ id x z)
-                  trans
-                    _
-                    _
-                    _
-                    cong (λz2. QRing _ r I) (λz2. qrMul _ _ _ id x z2) (qrGop _ _ _ id y z)
-                    trans
-                      qrMul _ _ _ id x (qrAdd id y z)
-                      _
-                      _
-                      qrDistribL
-                      sym _ _ (qrGop _ _ _ id (qrMul _ _ _ id x y) (qrMul _ _ _ id x z))
+  λR. λr. λI. λid. (,)
+    qrAddGroup id
+    qrMul _ _ _ id
+    qrOne
+    λx. λy. λz. eqToId _ _ (qrMulAssoc _ _ _ id x y z)
+    λx. λy. eqToId _ _ (qrMulComm _ _ _ id x y)
+    λx. eqToId _ _ (qrMulOne _ _ _ id x)
+    λx. λy. eqToId
+      gop (qrAddGroup id) x y
+      gop (qrAddGroup id) y x
+      trans
+        _
+        _
+        _
+        qrGop _ _ _ id x y
+        trans (qrAdd id x y) _ _ qrAddComm (sym _ _ (qrGop _ _ _ id y x))
+    λx. λy. λz. eqToId
+      qrMul _ _ _ id x (gop (qrAddGroup id) y z)
+      gop (qrAddGroup id) (qrMul _ _ _ id x y) (qrMul _ _ _ id x z)
+      trans
+        _
+        _
+        _
+        cong (λz2. QRing _ r I) (λz2. qrMul _ _ _ id x z2) (qrGop _ _ _ id y z)
+        trans
+          qrMul _ _ _ id x (qrAdd id y z)
+          _
+          _
+          qrDistribL
+          sym _ _ (qrGop _ _ _ id (qrMul _ _ _ id x y) (qrMul _ _ _ id x z))
