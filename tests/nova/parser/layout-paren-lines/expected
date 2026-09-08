@@ -1,0 +1,3 @@
+QuotElim w (ℕc) q (q@0) (v@sig)
+App (f@sig) (a@sig) ≡⟨ h@sig ⟩ g@sig
+PiC _ (App (N@sig) (a@sig)) (ℕc)

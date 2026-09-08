@@ -528,7 +528,7 @@ eliminate opts taken qiits v var =
                        body  = if usesIndexTy k goal
                                  then "(?\{own} : \{restateSplit imps tbl nms n px k comps tup goal})"
                                  else "?\{own}"
-                       txt   = concat (map (\c => "let \{c.cName} ≔ \{c.cBase} \{if c.cFirst then ".π₁" else ".π₂"} in\n" ++ indentAt col 1)
+                       txt   = concat (map (\c => "let \{c.cName} = \{c.cBase} \{if c.cFirst then ".π₁" else ".π₂"} in\n" ++ indentAt col 1)
                                            (filter cBind comps))
                    in case filter (\b => b `elem` seen) bound of
                         (b :: _) => Left "a component named \{b} would capture the \{b} this goal already mentions — name it something else"

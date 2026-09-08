@@ -19,18 +19,22 @@
 
 import Natural (+)
 
-def Side : ℕ ⊎ ℕ → 𝕌 ≔ λs. ℕ
+Side : ℕ ⊎ ℕ → 𝕌
+Side = λs. ℕ
 
-def swap : (w : ℕ ⊎ ℕ) → ℕ ⊎ ℕ ≔ λw. sum-elim (a. inj₂ a) (b. inj₁ b) w
+swap : (w : ℕ ⊎ ℕ) → ℕ ⊎ ℕ
+swap = λw. sum-elim (a. inj₂ a) (b. inj₁ b) w
 
 -- the GOAL mentions the eliminated variable, so each branch proves it
 -- at that branch's own injection
-def value : (w : ℕ ⊎ ℕ) → Side w using (Side.eq) ≔
-  λw. sum-elim (a. (a : Side (inj₁ a))) (b. (b : Side (inj₂ b))) w
+value : (w : ℕ ⊎ ℕ) → Side w using (Side.eq)
+value = λw. sum-elim (a. (a : Side (inj₁ a))) (b. (b : Side (inj₂ b))) w
 
 -- a hypothesis standing AFTER the variable is refined with it: inside
 -- each branch h is already a fact about that injection
-def onLater : (w : ℕ ⊎ ℕ) (h : Side w) → Side w ≔ λw. λh. sum-elim (a. h) (b. h) w
+onLater : (w : ℕ ⊎ ℕ) (h : Side w) → Side w
+onLater = λw. λh. sum-elim (a. h) (b. h) w
 
 -- with entries on both sides of the variable
-def bothSides : (n : ℕ) (w : ℕ ⊎ ℕ) (h : Side w) → Side w ≔ λn. λw. λh. sum-elim (a. h) (b. h) w
+bothSides : (n : ℕ) (w : ℕ ⊎ ℕ) (h : Side w) → Side w
+bothSides = λn. λw. λh. sum-elim (a. h) (b. h) w

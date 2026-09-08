@@ -19,98 +19,87 @@
 import Core.prop (rClosure, rClosureContains, rClosureRefl, rClosureSymm, rClosureTrans, rClosureLeast, propExt, ↔, iffIntro)
 import Core.equality (transportP, sym, trans)
 
-def classEqOfRel : {A : 𝕌}
-  (r : A → A → Ω)
-  (x y : A)
-  → r x y → class x ≡ class y ∈ A / (u v. r u v) ≔
-  λA. λr. λx. λy. λh. ⋆ h
+classEqOfRel : {A : 𝕌} (r : A → A → Ω) (x y : A) → r x y → class x ≡ class y ∈ A / (u v. r u v)
+classEqOfRel = λA. λr. λx. λy. λh. ⋆ h
 
 -- ⟸ : class equality is an equivalence relation containing r, and r⁺ is
 -- the LEAST such, so r⁺ implies it. No quotient elimination here —
 -- leastness does all the work
-def classEqOfClosure : {A : 𝕌}
+classEqOfClosure : {A : 𝕌}
   (r : A → A → Ω)
   (a b : A)
-  → rClosure r a b → class a ≡ class b ∈ A / (u v. r u v) ≔
+  → rClosure r a b → class a ≡ class b ∈ A / (u v. r u v)
+classEqOfClosure =
   λA. λr. rClosureLeast
     r
-    (λx. λy. class x ≡ class y ∈ A / (u v. r u v))
-    (λx. λy. λh. classEqOfRel r _ _ h)
-    (λx. ⋆)
-    (λx. λy. λz. λh1. λh2. trans _ _ _ h1 h2)
-    (λx. λy. λh. sym _ _ h)
+    λx. λy. class x ≡ class y ∈ A / (u v. r u v)
+    λx. λy. λh. classEqOfRel r _ _ h
+    λx. ⋆
+    λx. λy. λz. λh1. λh2. trans _ _ _ h1 h2
+    λx. λy. λh. sym _ _ h
 
 -- r⁺ a ⋅ respects r, so it factors through the class map. The
 -- well-definedness goal is an Ω-EQUATION between two closure
 -- instances — propositional extensionality, both implications from r⁺'s
 -- own transitivity and symmetry. Nothing about r is assumed
-def clsRelWd : {A : 𝕌} (r : A → A → Ω) (a : A) {x y : A} → r x y → rClosure r a x ≡ rClosure r a y
-  using (Core.prop.rClosure.eq, Core.prop.rClosure.unfold) ≔
+clsRelWd : {A : 𝕌} (r : A → A → Ω) (a : A) {x y : A} → r x y → rClosure r a x ≡ rClosure r a y
+  using (Core.prop.rClosure.eq, Core.prop.rClosure.unfold)
+clsRelWd =
   λA. λr. λa. λx. λy. λh. propExt
-    (λk. rClosureTrans k (rClosureContains _ _ _ h))
-    (λk. rClosureTrans k (rClosureSymm (rClosureContains _ _ _ h)))
+    λk. rClosureTrans k (rClosureContains _ _ _ h)
+    λk. rClosureTrans k (rClosureSymm (rClosureContains _ _ _ h))
 
 -- the descent itself: quot-elim at the CONSTANT MOTIVE Ω. clsRelWd
 -- above discharges its well-definedness obligation
-def clsRel : {A : 𝕌} (r : A → A → Ω) (a : A) → (A / (u v. r u v)) → Ω using (clsRelWd) ≔
-  λA. λr. λa. λq. quot-elim (x. rClosure r a x) q
+clsRel : {A : 𝕌} (r : A → A → Ω) (a : A) → (A / (u v. r u v)) → Ω using (clsRelWd)
+clsRel = λA. λr. λa. λq. quot-elim (x. rClosure r a x) q
 
 -- ⟹ : EFFECTIVITY. clsRel a (class a) ≜ r⁺ a a holds by reflexivity of
 -- the closure, and the class equation transports it to b — el-quot-beta
 -- on both ends, congruence in between
-def effective : {A : 𝕌}
+effective : {A : 𝕌}
   (r : A → A → Ω)
   (a b : A)
   → (class a ≡ class b ∈ A / (u v. r u v)) → rClosure r a b
-  using (Core.prop.rClosure.eq, Core.prop.rClosure.unfold, Core.quotEffective.clsRel.eq) ≔
-  λA. λr. λa. λb. λh. transportP (clsRel r a) h (rClosureRefl r a)
+  using (Core.prop.rClosure.eq, Core.prop.rClosure.unfold, Core.quotEffective.clsRel.eq)
+effective = λA. λr. λa. λb. λh. transportP (clsRel r a) h (rClosureRefl r a)
 
 -- the characterization: quotient equality is exactly r⁺
-def classEqIff : {A : 𝕌}
+classEqIff : {A : 𝕌}
   (r : A → A → Ω)
   (a b : A)
-  → (class a ≡ class b ∈ A / (u v. r u v)) ↔ rClosure r a b ≔
-  λA. λr. λa. λb. iffIntro (effective r a b) (classEqOfClosure r a b)
+  → (class a ≡ class b ∈ A / (u v. r u v)) ↔ rClosure r a b
+classEqIff = λA. λr. λa. λb. iffIntro (effective r a b) (classEqOfClosure r a b)
 
 -- COROLLARY: at an equivalence relation, effectivity on the nose — r
 -- itself is an equivalence containing r, so leastness collapses r⁺ into
 -- it. This is the rule one wanted, with the hypotheses that make it true
-def effectiveAtEquiv : {A : 𝕌}
+effectiveAtEquiv : {A : 𝕌}
   (r : A → A → Ω)
-  → ((x : A)
-    → r
-      x
-      x)
-    → ((x y z : A)
-      → r
-        x
-        y
-        → r
-          y
-          z
-          → r
-            x
-            z)
-      → ((x y : A) → r x y → r y x) → (a b : A) → (class a ≡ class b ∈ A / (u v. r u v)) → r a b ≔
+  → ((x : A) → r x x)
+    → ((x y z : A) → r x y → r y z → r x z)
+      → ((x y : A) → r x y → r y x) → (a b : A) → (class a ≡ class b ∈ A / (u v. r u v)) → r a b
+effectiveAtEquiv =
   λA. λr. λrRefl. λrTrans. λrSymm. λa. λb. λh. rClosureLeast
     _
     r
-    (λx. λy. λk. k)
+    λx. λy. λk. k
     rRefl
     rTrans
     rSymm
     _
     _
-    (effective r _ _ h)
+    effective r _ _ h
 
 -- an instance of the corollary: ℕ by its own equality. The three
 -- equivalence premises are each one ⋆ — reflection makes them
 -- judgemental
-def natEq : ℕ → ℕ → Ω ≔ λx. λy. x ≡ y
+natEq : ℕ → ℕ → Ω
+natEq = λx. λy. x ≡ y
 
-def natEqEffective : {a b : ℕ} → (class a ≡ class b ∈ ℕ / (u v. natEq u v)) → a ≡ b
-  using (hyp.rw, Core.quotEffective.natEq.eq, Core.quotEffective.natEq.unfold) ≔
-  effectiveAtEquiv natEq (λx. ⋆) (λx. λy. λz. λh1. λh2. ⋆) (λx. λy. λh. ⋆)
+natEqEffective : {a b : ℕ} → (class a ≡ class b ∈ ℕ / (u v. natEq u v)) → a ≡ b
+  using (hyp.rw, Core.quotEffective.natEq.eq, Core.quotEffective.natEq.unfold)
+natEqEffective = effectiveAtEquiv natEq (λx. ⋆) (λx. λy. λz. λh1. λh2. ⋆) (λx. λy. λh. ⋆)
 
 -- and the refutation, kept as evidence: at the successor graph — not an
 -- equivalence — the one-hop equation holds by el-quot-eq, the two-hop
@@ -119,13 +108,17 @@ def natEqEffective : {a b : ℕ} → (class a ≡ class b ∈ ℕ / (u v. natEq 
 -- (S Z ≡ S (S Z) ∈ ℕ) and collapse ℕ. (Chaining is not automatic:
 -- sgHop2 goes through sgHop1 as a rewrite candidate, so the hops must
 -- be named — drop sgHop1 and sgHop2 stops elaborating)
-def SG : 𝕌 ≔ ℕ / (n m. S n ≡ m)
+SG : 𝕌
+SG = ℕ / (n m. S n ≡ m)
 
-def sgHop1 : class Z ≡ class (S Z) ∈ SG using (Core.quotEffective.SG.unfold) ≔ ⋆
+sgHop1 : class Z ≡ class (S Z) ∈ SG using (Core.quotEffective.SG.unfold)
+sgHop1 = ⋆
 
-def sgMid : class (S Z) ≡ class 2 ∈ SG using (Core.quotEffective.SG.unfold) ≔ ⋆
+sgMid : class (S Z) ≡ class 2 ∈ SG using (Core.quotEffective.SG.unfold)
+sgMid = ⋆
 
-def sgHop2 : class Z ≡ class 2 ∈ SG using (Core.quotEffective.SG.unfold, sgHop1, sgMid) ≔
-  trans _ _ _ sgHop1 sgMid
+sgHop2 : class Z ≡ class 2 ∈ SG using (Core.quotEffective.SG.unfold, sgHop1, sgMid)
+sgHop2 = trans _ _ _ sgHop1 sgMid
 
-def sgBack : class (S Z) ≡ class Z ∈ SG using (Core.quotEffective.SG.unfold, sgHop1) ≔ ⋆
+sgBack : class (S Z) ≡ class Z ∈ SG using (Core.quotEffective.SG.unfold, sgHop1)
+sgBack = ⋆

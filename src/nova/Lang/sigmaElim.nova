@@ -7,33 +7,34 @@
 -- substituting the pair for it, and the site's own switch closes by
 -- el-sigma-eta.
 --
--- The contrast is Lang/letExpr.nova's idiom, `let x1 ≔ w .π₁ in …`,
+-- The contrast is Lang/letExpr.nova's idiom, `let x1 = w .π₁ in …`,
 -- which NAMES the components but keeps w — and keeps every hypothesis
 -- stated at w stated there. Reach for sigma-elim when a hypothesis
 -- has to move with the variable.
 
 import Natural (+)
 
-def uncurry : (f : ℕ → ℕ → ℕ) (p : ℕ × ℕ) → ℕ ≔ λf. λp. sigma-elim (a b. f a b) p
+uncurry : (f : ℕ → ℕ → ℕ) (p : ℕ × ℕ) → ℕ
+uncurry = λf. λp. sigma-elim (a b. f a b) p
 
 -- from the outside the elimination is its own β: at a written pair
 -- the components are the two arguments, and nothing of the machinery
 -- is left to see
-def uncurryPair : (f : ℕ → ℕ → ℕ) (a b : ℕ) → uncurry f (a, b) ≡ f a b
-  using (Lang.sigmaElim.uncurry.eq) ≔
-  λf. λa. λb. ⋆
+uncurryPair : (f : ℕ → ℕ → ℕ) (a b : ℕ) → uncurry f (a, b) ≡ f a b using (Lang.sigmaElim.uncurry.eq)
+uncurryPair = λf. λa. λb. ⋆
 
-def swap : (p : ℕ × ℕ) → ℕ × ℕ ≔ λp. sigma-elim (a b. b, a) p
+swap : (p : ℕ × ℕ) → ℕ × ℕ
+swap = λp. sigma-elim (a b. b, a) p
 
 -- the GOAL mentions the eliminated variable: the motive is recovered
 -- by substituting the pair, so the body proves the statement about
 -- (a, b) and the site carries it back to p
-def swapInvolutive : (p : ℕ × ℕ) → swap (swap p) ≡ p using (Lang.sigmaElim.swap.eq) ≔
-  λp. sigma-elim (a b. ⋆) p
+swapInvolutive : (p : ℕ × ℕ) → swap (swap p) ≡ p using (Lang.sigmaElim.swap.eq)
+swapInvolutive = λp. sigma-elim (a b. ⋆) p
 
 -- what the let idiom cannot do: h stands AFTER the variable, so the
 -- elimination refines it too — inside, h is an equation between the
 -- components, and rewriting by it closes the goal
-def sumOfSecondZero : (p : ℕ × ℕ) (h : p .π₂ ≡ Z) → p .π₁ + p .π₂ ≡ p .π₁
-  using (hyp.rw, Natural.plusZeroId) ≔
-  λp. λh. sigma-elim (a b. ⋆) p
+sumOfSecondZero : (p : ℕ × ℕ) (h : p .π₂ ≡ Z) → p .π₁ + p .π₂ ≡ p .π₁
+  using (hyp.rw, Natural.plusZeroId)
+sumOfSecondZero = λp. λh. sigma-elim (a b. ⋆) p

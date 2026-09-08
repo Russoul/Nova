@@ -2,4 +2,5 @@
 -- it, so the motive is the one the elaborator RECOVERS and none is
 -- written — the canonical spelling the distiller elides to anyway
 -- (docs/NovaElaboration.txt, In-place elimination).
-def f : (n : ℕ) → ℕ ≔ λn. ?goal
+f : (n : ℕ) → ℕ
+f = λn. ?goal

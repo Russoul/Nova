@@ -834,24 +834,22 @@ record SClause where
 
 public export
 data SItem : Type where
-  ||| def x : T (using (n, …))? ≔ t — always in the empty context.
+  ||| x : T (using (n, …))? ≔ t — always in the empty context.
   ||| The optional using-clause scopes EVERY discharge of the item to
   ||| the named Σ lemmas plus hypotheses
   ||| (docs/SearchlessElaboration.md §5.3)
   SDef : (nrng : Maybe Range) -> String -> STy -> SElem -> Maybe (List String) -> SItem
-  ||| def x : T — a DECLARATION: a def without a definiens, entering Σ
-  ||| as a sig-decl and reported as an open declaration (the name's
+  ||| x : T — a DECLARATION: a signature without a definiens, entering
+  ||| Σ as a sig-decl and reported as an open declaration (the name's
   ||| span is kept for diagnostics)
   SDeclDef : (nrng : Maybe Range) -> String -> STy -> SItem
-  ||| type x ≔ T — always in the empty context
-  STypeDef : String -> STy -> SItem
-  ||| data [x : T]* ( n : Q ; … ) — a QIIT signature literal over an
+  ||| data [x : T]* ⏎ (n : Q)+ — a QIIT signature literal over an
   ||| ambient PARAMETER telescope (Foundation's Γ ⊦ 𝒮 qsig); an ITEM
   ||| MACRO that expands into a batch of ordinary defs, each
   ||| Π-abstracted over the parameters (docs/NovaElaboration.txt,
   ||| QIIT section)
   SData : List (String, STy) -> List SQDecl -> SItem
-  ||| def x : T [eta]? (≔ t)? clause+ — a def with DEFINING EQUATIONS
+  ||| x : T [eta]? (≔ t)? clause+ — a signature with DEFINING EQUATIONS
   ||| (docs/NovaElaboration.txt, "Defining equations"): an ITEM MACRO
   ||| expanding into the definition proper (a synthesized eliminator
   ||| body, the user's witness t, or a declaration), one Π-closed
@@ -886,7 +884,6 @@ covering
 stripPosItem : SItem -> SItem
 stripPosItem (SDef r n ty body mu) = SDef r n (stripPos ty) (stripPos body) mu
 stripPosItem (SDeclDef r n ty) = SDeclDef r n (stripPos ty)
-stripPosItem (STypeDef n ty) = STypeDef n (stripPos ty)
 stripPosItem (SData ps ds) =
   SData (map (\(x, t) => (x, stripPos t)) ps) (map stripQDecl ds)
  where
@@ -901,7 +898,6 @@ export
 itemName : SItem -> String
 itemName (SDef _ n _ _ _) = n
 itemName (SDeclDef _ n _) = n
-itemName (STypeDef n _) = n
 itemName (SData _ ds) = case ds of
   (d :: _) => d.dqname
   [] => "data"
@@ -1029,7 +1025,6 @@ Show SItem where
        Just ns => " using (\{joinBy ", " ns})") ++
     " := \{show body}"
   show (SDeclDef _ x ty) = "def \{x} : \{show ty}"
-  show (STypeDef x ty) = "type \{x} := \{show ty}"
   show (SData ps ds) =
     "data " ++ concatMap (\p => case p of (x, t) => "[\{x} : \{show t}] ") ps
       ++ "(" ++ joinBy " ; " (map show ds) ++ ")"

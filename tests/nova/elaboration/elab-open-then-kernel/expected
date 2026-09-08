@@ -7,4 +7,4 @@ defined outSuccInf
 defined infSucc
 open holes (1):
   [?h] ⊢ ?h : ℕ
-      at: input.nova:13:17: def stuck
+      at: input.nova:14:9: def stuck

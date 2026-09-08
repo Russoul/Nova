@@ -1,3 +1,5 @@
-def cst : {A : 𝕌} (a : A) {B : 𝕌} (b : B) → A ≔ λA. λa. λB. λb. a
+cst : {A : 𝕌} (a : A) {B : 𝕌} (b : B) → A
+cst = λA. λa. λB. λb. a
 
-def use : ℕ → 𝟙 → ℕ ≔ λn. λu. cst n u
+use : ℕ → 𝟙 → ℕ
+use = λn. λu. cst n u

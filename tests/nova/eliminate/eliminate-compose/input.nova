@@ -6,8 +6,10 @@
 -- convoy case, no second motive discipline. The entry is ANONYMOUS,
 -- so it is re-applied as ⋆: proofs are irrelevant, and the ambient
 -- inhabitant discharges it.
-def P : ℕ → 𝕌 ≔ λn. ℕ
+P : ℕ → 𝕌
+P = λn. ℕ
 
-def c : (x : ℕ × ℕ) → P (x .π₁) ≔ λx. (let x1 ≔ x .π₁ in
-                                       let x2 ≔ x .π₂ in
+c : (x : ℕ × ℕ) → P (x .π₁)
+c = λx. (let x1 = x .π₁ in
+                                       let x2 = x .π₂ in
                                        (?g : (P x1)))

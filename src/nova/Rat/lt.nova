@@ -11,130 +11,137 @@ import Core.equality (trans, sym, cong, transport)
 import Core.id (Id, eqToId, idToEq)
 
 infixl 4 <
-def < : Q → Q → 𝕌 ≔ λx. λy. Id _ (sgnQ (y + qNeg x)) sPos
+< : Q → Q → 𝕌
+(<) = λx. λy. Id _ (sgnQ (y + qNeg x)) sPos
 
-def ltQOfSgn : (x y : Q) → (sgnQ (y + qNeg x) ≡ sPos) → x < y
-  using (Core.id.Id.unfold, Rat.lt.<.unfold, Rat.Q.unfold) ≔
-  λx. λy. λh. eqToId _ _ h
+ltQOfSgn : (x y : Q) → (sgnQ (y + qNeg x) ≡ sPos) → x < y
+  using (Core.id.Id.unfold, Rat.lt.<.unfold, Rat.Q.unfold)
+ltQOfSgn = λx. λy. λh. eqToId _ _ h
 
-def sgnOfLtQ : {x y : Q} → x < y → sgnQ (y + qNeg x) ≡ sPos
-  using (Core.id.Id.unfold, Rat.lt.<.unfold, Rat.Q.unfold) ≔
-  λx. λy. λh. idToEq _ _ _ h
+sgnOfLtQ : {x y : Q} → x < y → sgnQ (y + qNeg x) ≡ sPos
+  using (Core.id.Id.unfold, Rat.lt.<.unfold, Rat.Q.unfold)
+sgnOfLtQ = λx. λy. λh. idToEq _ _ _ h
 
 -- strict implies non-strict, on the nose: a positive sign IS a
 -- nonnegative one
-def leQOfLtQ : {x y : Q} → x < y → x ≤ y
+leQOfLtQ : {x y : Q} → x < y → x ≤ y
   using (Core.id.Id.unfold,
     Rat.lt.<.unfold,
     Rat.order.≤.unfold,
     Rat.order.NonNegS.unfold,
-    Rat.Q.unfold) ≔
-  λx. λy. λh. inj₂ h
+    Rat.Q.unfold)
+leQOfLtQ = λx. λy. λh. inj₂ h
 
-def ltQZero : (u : Q) → qZero < u → qZero ≤ u using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold) ≔
-  λu. λh. leQOfLtQ h
+ltQZero : (u : Q) → qZero < u → qZero ≤ u using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
+ltQZero = λu. λh. leQOfLtQ h
 
 -- ===== irreflexivity and asymmetry =====
-def ltQIrrefl : (x : Q) → x < x → 𝟘 ≔
+ltQIrrefl : (x : Q) → x < x → 𝟘
+ltQIrrefl =
   λx. λh. sZeroNotPos
-    (trans
+    trans
       _
       _
       _
-      (sym _ _ (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) (qAddNegR x)) sgnQZero))
-      (sgnOfLtQ h))
+      sym _ _ (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) (qAddNegR x)) sgnQZero)
+      sgnOfLtQ h
 
-def ltQAsym : (x y : Q) → x < y → y < x → 𝟘
+ltQAsym : (x y : Q) → x < y → y < x → 𝟘
   using (Core.id.Id.unfold,
     Rat.lt.<.unfold,
     Rat.order.Sign.unfold,
     Rat.order.sNeg.eq,
     Rat.order.sPos.eq,
     Rat.order.sgnFlip.eq,
-    Rat.Q.unfold) ≔
+    Rat.Q.unfold)
+ltQAsym =
   λx. λy. λh1. λh2. sNegNotPos
-    (trans
+    trans
       _
       _
       _
-      (sym
+      sym
         _
         _
-        (trans
-          (sgnQ (x + qNeg y))
+        trans
+          sgnQ (x + qNeg y)
           _
           _
           sgnQSubFlip
-          (trans _ _ sNeg (cong (λw. Sign) (λw. sgnFlip w) (sgnOfLtQ h1)) ⋆)))
-      (sgnOfLtQ h2))
+          trans _ _ sNeg (cong (λw. Sign) (λw. sgnFlip w) (sgnOfLtQ h1)) ⋆
+      sgnOfLtQ h2
 
 -- ===== transitivity, in all four mixed forms =====
 -- a positive plus a NONNEGATIVE is positive: the zero case collapses
-def sgnQAddPosNonNeg : {a b : Q} → (sgnQ a ≡ sPos) → NonNegS (sgnQ b) → sgnQ (a + b) ≡ sPos
-  using (Rat.order.NonNegS.unfold) ≔
+sgnQAddPosNonNeg : {a b : Q} → (sgnQ a ≡ sPos) → NonNegS (sgnQ b) → sgnQ (a + b) ≡ sPos
+  using (Rat.order.NonNegS.unfold)
+sgnQAddPosNonNeg =
   λa. λb. λha. λhb. ⊎-elim
-    (h0. trans
+    h0. trans
       _
       _
       _
-      (cong
-        (λw. Sign)
-        (λw. sgnQ w)
-        (trans _ _ _ (cong (λw. Q) (λw. a + w) (sgnQZeroView _ (idToEq _ _ _ h0))) (qAddZeroR a)))
-      ha)
-    (hp. sgnQAddPos _ _ ha (idToEq _ _ _ hp))
+      cong
+        λw. Sign
+        λw. sgnQ w
+        trans _ _ _ (cong (λw. Q) (λw. a + w) (sgnQZeroView _ (idToEq _ _ _ h0))) (qAddZeroR a)
+      ha
+    hp. sgnQAddPos _ _ ha (idToEq _ _ _ hp)
     hb
 
-def ltQTrans : (x y z : Q) → x < y → y < z → x < z using (Core.id.Id.unfold, Rat.lt.<.unfold) ≔
+ltQTrans : (x y z : Q) → x < y → y < z → x < z using (Core.id.Id.unfold, Rat.lt.<.unfold)
+ltQTrans =
   λx. λy. λz. λh1. λh2. ltQOfSgn
     _
     _
-    (trans
+    trans
       _
       _
       _
-      (cong (λw. Sign) (λw. sgnQ w) (sym _ _ (qSubSplit x y z)))
-      (sgnQAddPos _ _ (sgnOfLtQ h2) (sgnOfLtQ h1)))
+      cong (λw. Sign) (λw. sgnQ w) (sym _ _ (qSubSplit x y z))
+      sgnQAddPos _ _ (sgnOfLtQ h2) (sgnOfLtQ h1)
 
-def leQLtTrans : (x y z : Q) → x ≤ y → y < z → x < z
+leQLtTrans : (x y z : Q) → x ≤ y → y < z → x < z
   using (Core.id.Id.unfold,
     Rat.lt.<.unfold,
     Rat.order.≤.unfold,
     Rat.order.NonNegS.unfold,
-    Rat.Q.unfold) ≔
+    Rat.Q.unfold)
+leQLtTrans =
   λx. λy. λz. λh1. λh2. ltQOfSgn
     _
     _
-    (trans
+    trans
       {Sign}
       _
       _
       _
-      (cong (λw. Sign) (λw. sgnQ w) (sym _ _ (qSubSplit x y z)))
-      (sgnQAddPosNonNeg (sgnOfLtQ h2) h1))
+      cong (λw. Sign) (λw. sgnQ w) (sym _ _ (qSubSplit x y z))
+      sgnQAddPosNonNeg (sgnOfLtQ h2) h1
 
-def ltQLeTrans : (x y z : Q) → x < y → y ≤ z → x < z
+ltQLeTrans : (x y z : Q) → x < y → y ≤ z → x < z
   using (Core.id.Id.unfold,
     Rat.lt.<.unfold,
     Rat.order.≤.unfold,
     Rat.order.NonNegS.unfold,
-    Rat.Q.unfold) ≔
+    Rat.Q.unfold)
+ltQLeTrans =
   λx. λy. λz. λh1. λh2. ltQOfSgn
     _
     _
-    (trans
+    trans
       {Sign}
       _
       _
       _
-      (cong
-        (λw. Sign)
-        (λw. sgnQ w)
-        (trans _ _ _ (sym _ _ (qSubSplit x y z)) (qAddComm (z + qNeg y) (y + qNeg x))))
-      (sgnQAddPosNonNeg (sgnOfLtQ h1) h2))
+      cong
+        λw. Sign
+        λw. sgnQ w
+        trans _ _ _ (sym _ _ (qSubSplit x y z)) (qAddComm (z + qNeg y) (y + qNeg x))
+      sgnQAddPosNonNeg (sgnOfLtQ h1) h2
 
 -- ===== trichotomy =====
-def ltQTrichotomy : (x y : Q) → x < y ⊎ Id _ x y ⊎ y < x
+ltQTrichotomy : (x y : Q) → x < y ⊎ Id _ x y ⊎ y < x
   using (Core.id.Id.eq,
     Core.id.Id.unfold,
     Rat.lt.<.eq,
@@ -146,34 +153,37 @@ def ltQTrichotomy : (x y : Q) → x < y ⊎ Id _ x y ⊎ y < x
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
-    Rat.qNeg.eq) ≔
+    Rat.qNeg.eq)
+ltQTrichotomy =
   λx. λy. ⊎-elim
-    (nn. ⊎-elim
-      (h0. inj₂ (inj₁ (eqToId _ _ (sym _ _ (qDiffZero (sgnQZeroView _ (idToEq _ _ _ h0)))))))
-      (hp. inj₁ hp)
-      nn)
-    (hneg. inj₂ (inj₂ (ltQOfSgn
+    nn. ⊎-elim
+      h0. inj₂ (inj₁ (eqToId _ _ (sym _ _ (qDiffZero (sgnQZeroView _ (idToEq _ _ _ h0))))))
+      hp. inj₁ hp
+      nn
+    hneg. inj₂ (inj₂ (ltQOfSgn
       _
       _
-      (trans
-        (sgnQ (x + qNeg y))
+      trans
+        sgnQ (x + qNeg y)
         _
         _
         sgnQSubFlip
-        (trans _ _ sPos (cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ hneg)) ⋆)))))
-    (sgnCases (sgnQ (y + qNeg x)))
+        trans _ _ sPos (cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ hneg)) ⋆))
+    sgnCases (sgnQ (y + qNeg x))
 
 -- ===== compatibility with addition =====
-def ltQPlusMono : (x y w : Q) → x < y → x + w < y + w
-  using (Core.id.Id.unfold, Rat.lt.<.unfold, Rat.Q.unfold) ≔
+ltQPlusMono : (x y w : Q) → x < y → x + w < y + w
+  using (Core.id.Id.unfold, Rat.lt.<.unfold, Rat.Q.unfold)
+ltQPlusMono =
   λx. λy. λw. λh. transport
-    (λs. Id _ s sPos)
-    (sym _ _ (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancel x y w)))
+    λs. Id _ s sPos
+    sym _ _ (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancel x y w))
     h
 
-def ltQPlusMonoL : (x y w : Q) → x < y → w + x < w + y
-  using (Core.id.Id.unfold, Rat.lt.<.unfold, Rat.Q.unfold) ≔
+ltQPlusMonoL : (x y w : Q) → x < y → w + x < w + y
+  using (Core.id.Id.unfold, Rat.lt.<.unfold, Rat.Q.unfold)
+ltQPlusMonoL =
   λx. λy. λw. λh. transport
-    (λs. Id _ s sPos)
-    (sym _ _ (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancelL x y w)))
+    λs. Id _ s sPos
+    sym _ _ (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancelL x y w))
     h

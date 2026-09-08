@@ -1,13 +1,19 @@
 -- ⋆ using (…): scoped discharge — the named lemmas (plus hypotheses)
 -- are the site's whole candidate store (SearchlessElaboration.md §5.3)
 infixl 6 +
-def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq) ≔ λn. ⋆
-def plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ using (+.eq) ≔ λn. λm. ⋆
-def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ using (+.eq, plusZeroId) ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
-def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ using (+.eq) ≔
++ : ℕ → ℕ → ℕ
++ = λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq)
+plusZeroId = λn. ⋆
+plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ using (+.eq)
+plusSucId = λn. λm. ⋆
+zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ using (+.eq, plusZeroId)
+zeroPlusId = λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ using (+.eq)
+sucPlus =
   λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
-def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
+plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ
+plusComm =
   λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ)
     (Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n ⟩ n + Z)
     (k ih.
@@ -16,11 +22,14 @@ def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
 
 -- single name: closes only through plusComm (permutative, so it can
 -- only fire by whole-equation match)
-def scopedGood : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ ≔ λa. λb. ⋆ using plusComm
+scopedGood : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ
+scopedGood = λa. λb. ⋆ using plusComm
 -- list form; the .rw citation licenses plusZeroId as a rewrite rule
-def scopedList : (a : ℕ) (b : ℕ) → (a + b) + Z ≡ b + a ∈ ℕ ≔
+scopedList : (a : ℕ) (b : ℕ) → (a + b) + Z ≡ b + a ∈ ℕ
+scopedList =
   λa. λb. ⋆ using (plusComm, plusZeroId.rw)
 -- hypotheses are always in scope for whole-equation matching; the
 -- hyp.rw license lets them act as rewrite rules too
-def scopedHyp : (a : ℕ) (b : ℕ) (c : ℕ) → (a ≡ b ∈ ℕ) → a + c ≡ b + c ∈ ℕ ≔
+scopedHyp : (a : ℕ) (b : ℕ) (c : ℕ) → (a ≡ b ∈ ℕ) → a + c ≡ b + c ∈ ℕ
+scopedHyp =
   λa. λb. λc. λh. ⋆ using hyp.rw

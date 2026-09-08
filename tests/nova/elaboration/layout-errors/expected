@@ -1,0 +1,24 @@
+--- misaligned
+misaligned.nova:6:4: error: an argument line at column 4 — this spine's arguments stand at column 5
+6 |    Z
+  |    ^
+  note: while parsing the construct beginning at 4:1
+--- stray
+stray.nova:7:3: error: column 3 does not continue the item above — indent it past the term it belongs to, or start an item at column 1
+7 |   Z
+  |   ^
+  note: while parsing the construct beginning at 4:1
+--- tab
+tab.nova:3:1: error: a tab in indentation — layout counts columns, and a tab has no agreed width; indent with spaces
+3 | 	Z
+  | ^
+--- column0
+column0.nova:3:1: error: a line indented past column 1 — this one starts at column 1, which ends the enclosing block
+3 | Z
+  | ^
+  note: while parsing the construct beginning at 2:1
+--- clause-head
+clause-head.nova:3:14: error: every clause must be headed by the item's own name ('plus'), not 'minus'
+3 | minus (S m) n = n
+  |              ^
+  note: while parsing the construct beginning at 3:1

@@ -6,9 +6,11 @@
 -- each goal is stated at the constructor it belongs to rather than at
 -- a Π type — then a coherence per equation constructor, then the
 -- eliminee.
-data [a : 𝕌] ( Bag : U
-     ; nil : El Bag
-     ; ins : a → El Bag → El Bag
-     ; swp : (x : a) (y : a) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
+data [a : 𝕌]
+  Bag : U
+  nil : El Bag
+  ins : a → El Bag → El Bag
+  swp : (x : a) (y : a) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag
 
-def sz : (a : 𝕌) → Bag a → ℕ ≔ λa. λm. ?goal
+sz : (a : 𝕌) → Bag a → ℕ
+sz = λa. λm. ?goal

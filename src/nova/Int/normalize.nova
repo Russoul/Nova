@@ -3,21 +3,22 @@
 import Natural (+, plusZeroId, plusSucId, zeroPlusId)
 import Int (Int)
 
-def normPair : ℕ → ℕ → ℕ × ℕ ≔ λa. ℕ-elim (λb. Z, b) (n ih. λb. ℕ-elim (S n, Z) (m ihb. ih m) b) a
+normPair : ℕ → ℕ → ℕ × ℕ
+normPair = λa. ℕ-elim (λb. Z, b) (n ih. λb. ℕ-elim (S n, Z) (m ihb. ih m) b) a
 
 -- the three defining equations of normPair, in folded vocabulary, so
 -- they can fire as rewrite rules without unfolding normPair in goals
-def normPairZero : (b : ℕ) → normPair Z b ≡ (Z, b) using (Int.normalize.normPair.eq) ≔ λb. ⋆
+normPairZero : (b : ℕ) → normPair Z b ≡ (Z, b) using (Int.normalize.normPair.eq)
+normPairZero = λb. ⋆
 
-def normPairSucZero : (n : ℕ) → normPair (S n) Z ≡ (S n, Z) using (Int.normalize.normPair.eq) ≔
-  λn. ⋆
+normPairSucZero : (n : ℕ) → normPair (S n) Z ≡ (S n, Z) using (Int.normalize.normPair.eq)
+normPairSucZero = λn. ⋆
 
-def normPairSucSuc : (n m : ℕ) → normPair (S n) (S m) ≡ normPair n m
-  using (Int.normalize.normPair.eq) ≔
-  λn. λm. ⋆
+normPairSucSuc : (n m : ℕ) → normPair (S n) (S m) ≡ normPair n m using (Int.normalize.normPair.eq)
+normPairSucSuc = λn. λm. ⋆
 
 -- normPair a b is R-related to (a, b)
-def normSound : (a b : ℕ) → normPair a b .π₁ + b ≡ normPair a b .π₂ + a
+normSound : (a b : ℕ) → normPair a b .π₁ + b ≡ normPair a b .π₂ + a
   using (hyp.rw,
     normPairZero,
     normPairZero.rw,
@@ -30,21 +31,20 @@ def normSound : (a b : ℕ) → normPair a b .π₁ + b ≡ normPair a b .π₂ 
     plusZeroId,
     plusZeroId.rw,
     zeroPlusId,
-    zeroPlusId.rw) ≔
-  λa. ℕ-elim (λb. ⋆) (n ih. λb. ℕ-elim ⋆ (m ihb. ⋆) b) a
+    zeroPlusId.rw)
+normSound = λa. ℕ-elim (λb. ⋆) (n ih. λb. ℕ-elim ⋆ (m ihb. ⋆) b) a
 
 -- at the quotient, normalization is invisible
-def normClass : (a b : ℕ) → class (normPair a b) ≡ class (a, b) ∈ Int
-  using (Int.Int.unfold, normSound) ≔
-  λa. λb. ⋆
+normClass : (a b : ℕ) → class (normPair a b) ≡ class (a, b) ∈ Int using (Int.Int.unfold, normSound)
+normClass = λa. λb. ⋆
 
-def intNormalize : Int → Int using (hyp.rw, Int.Int.unfold, normClass, normClass.rw) ≔
-  λz. quot-elim (rep. class (normPair (rep .π₁) (rep .π₂))) z
+intNormalize : Int → Int using (hyp.rw, Int.Int.unfold, normClass, normClass.rw)
+intNormalize = λz. quot-elim (rep. class (normPair (rep .π₁) (rep .π₂))) z
 
-def intNormalizeTest1 : intNormalize (class (S Z, Z)) ≡ class (S Z, Z)
-  using (Int.Int.unfold, Int.normalize.intNormalize.eq, Int.normalize.normPair.eq) ≔
-  ⋆
+intNormalizeTest1 : intNormalize (class (S Z, Z)) ≡ class (S Z, Z)
+  using (Int.Int.unfold, Int.normalize.intNormalize.eq, Int.normalize.normPair.eq)
+intNormalizeTest1 = ⋆
 
-def intNormalizeTest2 : intNormalize (class (S Z, 2)) ≡ class (Z, S Z)
-  using (Int.Int.unfold, Int.normalize.intNormalize.eq, Int.normalize.normPair.eq) ≔
-  ⋆
+intNormalizeTest2 : intNormalize (class (S Z, 2)) ≡ class (Z, S Z)
+  using (Int.Int.unfold, Int.normalize.intNormalize.eq, Int.normalize.normPair.eq)
+intNormalizeTest2 = ⋆

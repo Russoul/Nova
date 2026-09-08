@@ -59,8 +59,24 @@ import Nova.Elaboration.Beta
 -- A minimal Wadler/Oppen pretty-printer: DLine is a soft break (a
 -- space when its innermost group fits the line, a newline + indent
 -- otherwise), DHard always breaks (and forces every enclosing group
--- broken), DNest adds indent to the breaks inside it. Whitespace is
--- transparent to the parser, so layout never affects the round trip.
+-- broken), DNest adds indent to the breaks inside it, and DAlt reads
+-- the enclosing group's MODE — flat text or broken text.
+--
+-- LAYOUT IS PART OF THE PARSE (docs/NovaElaboration.txt, Layout), so
+-- the engine's output must obey two rules the printer below is
+-- written to:
+--   * an ARGUMENT LINE holds one whole argument, bare: a spine that
+--     breaks puts each argument on a line of its own at +2, and the
+--     argument prints there WITHOUT the parentheses it needs in flat
+--     mode (DAlt);
+--   * a construct that starts MID-LINE after a broken sibling must
+--     not break shallower than that line's indent — so every seam
+--     between two breakable siblings is a DLine inside a group that
+--     contains both: an inner break forces the group broken, the seam
+--     breaks, and the sibling starts its own line at the group's
+--     nest, where its own breaks are deeper.
+-- The round trip (verifyUnits) catches any slip: a file that
+-- re-parses differently is refused, never emitted silently.
 
 data Doc
   = DNil
@@ -70,6 +86,7 @@ data Doc
   | DHard
   | DGroup Doc
   | DNest Nat Doc
+  | DAlt Doc Doc     -- flat-mode text, broken-mode text
 
 infixr 6 <->
 
@@ -94,6 +111,8 @@ fitsD rem xs =
     ((i, MFlat, DHard) :: z) => False
     ((i, MBroken, DHard) :: z) => True
     ((i, m, DGroup a) :: z) => fitsD rem ((i, MFlat, a) :: z)
+    ((i, MFlat, DAlt f _) :: z) => fitsD rem ((i, MFlat, f) :: z)
+    ((i, MBroken, DAlt _ b) :: z) => fitsD rem ((i, MBroken, b) :: z)
 
 renderDoc : (width : Nat) -> Doc -> String
 renderDoc w doc = fastConcat (go 0 [(0, MBroken, doc)])
@@ -111,6 +130,8 @@ renderDoc w doc = fastConcat (go 0 [(0, MBroken, doc)])
     if fitsD (cast w - cast col) ((i, MFlat, a) :: z)
       then go col ((i, MFlat, a) :: z)
       else go col ((i, MBroken, a) :: z)
+  go col ((i, MFlat, DAlt f _) :: z) = go col ((i, MFlat, f) :: z)
+  go col ((i, MBroken, DAlt _ b) :: z) = go col ((i, MBroken, b) :: z)
 
 lineWidth : Nat
 lineWidth = 100
@@ -314,15 +335,20 @@ mutual
   peRaw : FixTable -> (tr : Bool) -> SElem -> Doc
   peRaw tbl tr e = case e of
     SPos _ t => peRaw tbl tr t
-    SPair u v => pe tbl LNoComma False u <-> txt "," <-> brk (pe tbl LPair tr v)
+    SPair u v => DGroup (pe tbl LNoComma False u <-> txt "," <-> DNest 2 (DLine <-> pe tbl LPair tr v))
     SLam (x, _) b => txt "λ\{x}. " <-> pe tbl LPair tr b
     -- an ascribed definiens prints in the annotated-let form (the two
-    -- spellings parse to the same AST)
+    -- spellings parse to the same AST). The seams before ≔ and `in`
+    -- are soft breaks: a broken type or definiens puts the next piece
+    -- on a line of its own (both tokens are non-term-initial, so a
+    -- line may lead with them)
     SLet (x, _) (SAnn d ty) b =>
-      txt "let \{x} : " <-> pe tbl LNoComma True ty <-> txt " ≔ " <->
-      pe tbl LPair True d <-> txt " in " <-> pe tbl LPair tr b
+      DGroup (txt "let \{x} : " <-> pe tbl LNoComma True ty <->
+              DNest 2 (DLine <-> txt "= " <-> pe tbl LPair True d) <->
+              DNest 2 (DLine <-> txt "in " <-> pe tbl LPair tr b))
     SLet (x, _) d b =>
-      txt "let \{x} ≔ " <-> pe tbl LPair True d <-> txt " in " <-> pe tbl LPair tr b
+      DGroup (txt "let \{x} = " <-> pe tbl LPair True d <->
+              DNest 2 (DLine <-> txt "in " <-> pe tbl LPair tr b))
     SApp f a => case infixView tbl e of
       Just (op, assoc, p, l, r) =>
         let lctx = case assoc of
@@ -331,14 +357,15 @@ mutual
             rctx = case assoc of
                      AssocL => LOpBin p NoEq
                      AssocR => LOpBin p (EqIf AssocR)
-        in pe tbl lctx False l <-> DGroup (DNest 2 (DLine <-> txt "\{op} " <-> pe tbl rctx tr r))
+        in DGroup (pe tbl lctx False l <-> DNest 2 (DLine <-> txt "\{op} " <-> pe tbl rctx tr r))
       Nothing =>
         -- flatten the spine: one group, every argument at the same
         -- break level (an overlong call breaks one-argument-per-line
-        -- at a uniform indent, never a staircase)
+        -- at a uniform indent, never a staircase). Broken, each
+        -- argument is an ARGUMENT LINE and prints bare
         let (h, args) = spineView tbl e in
         DGroup (pe tbl LApp False h <->
-                DNest 2 (concatDoc (map (\arg => DLine <-> pe tbl LAtom False arg) args)))
+                DNest 2 (concatDoc (map (\arg => DLine <-> argDoc tbl arg) args)))
     SProj1 t => pe tbl LProj False t <-> txt " .π₁"
     SProj2 t => pe tbl LProj False t <-> txt " .π₂"
     SSuc t => case numeralView e of
@@ -352,73 +379,90 @@ mutual
     SNuC f => txt "ν " <-> pp tbl PAtom f
     SNatElim mot z (n2, _) (ih, _) s t =>
       DGroup (txt "ℕ-elim" <-> motDoc tbl mot <->
-              DNest 2 (DLine <-> pe tbl LAtom False z <->
-                       DLine <-> txt "(\{n2} \{ih}. " <-> pe tbl LPair True s <-> txt ")" <->
-                       DLine <-> pe tbl LAtom False t))
+              DNest 2 (DLine <-> argDoc tbl z <->
+                       DLine <-> absDoc tbl [n2, ih] s <->
+                       DLine <-> argDoc tbl t))
     SSumElim mot (a, _) l (b, _) r t =>
       DGroup (txt "⊎-elim" <-> motDoc tbl mot <->
-              DNest 2 (DLine <-> txt "(\{a}. " <-> pe tbl LPair True l <-> txt ")" <->
-                       DLine <-> txt "(\{b}. " <-> pe tbl LPair True r <-> txt ")" <->
-                       DLine <-> pe tbl LAtom False t))
+              DNest 2 (DLine <-> absDoc tbl [a] l <->
+                       DLine <-> absDoc tbl [b] r <->
+                       DLine <-> argDoc tbl t))
     SQuotElim mot (a, _) f q =>
       DGroup (txt "quot-elim" <-> motDoc tbl mot <->
-              DNest 2 (DLine <-> txt "(\{a}. " <-> pe tbl LPair True f <-> txt ")" <->
-                       DLine <-> pe tbl LAtom False q))
+              DNest 2 (DLine <-> absDoc tbl [a] f <->
+                       DLine <-> argDoc tbl q))
     SEqElim p x w =>
       DGroup (txt "≡-elim" <->
-              DNest 2 (DLine <-> pe tbl LAtom False p <->
-                       DLine <-> pe tbl LAtom False x <->
-                       DLine <-> pe tbl LAtom False w))
+              DNest 2 (DLine <-> argDoc tbl p <->
+                       DLine <-> argDoc tbl x <->
+                       DLine <-> argDoc tbl w))
     SUnsquash (x, _) b w =>
       DGroup (txt "unsquash" <->
-              DNest 2 (DLine <-> txt "(\{x}. " <-> pe tbl LPair True b <-> txt ")" <->
-                       DLine <-> pe tbl LAtom False w))
+              DNest 2 (DLine <-> absDoc tbl [x] b <->
+                       DLine <-> argDoc tbl w))
     SSumSplit (a, _) l (b, _) r w =>
       DGroup (txt "sum-elim" <->
-              DNest 2 (DLine <-> txt "(\{a}. " <-> pe tbl LPair True l <-> txt ")" <->
-                       DLine <-> txt "(\{b}. " <-> pe tbl LPair True r <-> txt ")" <->
-                       DLine <-> pe tbl LAtom False w))
+              DNest 2 (DLine <-> absDoc tbl [a] l <->
+                       DLine <-> absDoc tbl [b] r <->
+                       DLine <-> argDoc tbl w))
     SSigmaElim (x, _) (y, _) b w =>
       DGroup (txt "sigma-elim" <->
-              DNest 2 (DLine <-> txt "(\{x} \{y}. " <-> pe tbl LPair True b <-> txt ")" <->
-                       DLine <-> pe tbl LAtom False w))
+              DNest 2 (DLine <-> absDoc tbl [x, y] b <->
+                       DLine <-> argDoc tbl w))
     SCorec (x, _) a f u =>
-      txt "corec (\{x} : " <-> pe tbl LNoComma True a <-> txt ". " <->
-      pe tbl LPair True f <-> txt ") " <-> pe tbl LAtom False u
+      DGroup (txt "corec" <->
+              DNest 2 (DLine <->
+                       DAlt (txt "(\{x} : " <-> pe tbl LNoComma True a <-> txt ". " <->
+                             pe tbl LPair True f <-> txt ")")
+                            (txt "\{x} : " <-> pe tbl LNoComma True a <-> txt ". " <->
+                             pe tbl LPair True f) <->
+                       DLine <-> argDoc tbl u))
     SCoind (x, _) (y, _) r pw (mx, _) (my, _) (mh, _) q =>
-      DGroup (txt "coind (\{x} \{y}. " <-> pe tbl LPair True r <-> txt ")" <->
-              DNest 2 (DLine <-> pe tbl LAtom False pw <->
-                       DLine <-> txt "(\{mx} \{my} \{mh}. " <-> pe tbl LPair True q <-> txt ")"))
-    SSquashElim s (x, _) b =>
-      txt "squash-elim " <-> pe tbl LAtom False s <-> txt " (\{x}. " <->
-      pe tbl LPair True b <-> txt ")"
+      DGroup (txt "coind" <->
+              DNest 2 (DLine <-> absDoc tbl [x, y] r <->
+                       DLine <-> argDoc tbl pw <->
+                       DLine <-> absDoc tbl [mx, my, mh] q))
+    SSquashElim sc (x, _) b =>
+      DGroup (txt "squash-elim" <->
+              DNest 2 (DLine <-> argDoc tbl sc <->
+                       DLine <-> absDoc tbl [x] b))
     SStarWit w => txt "⋆ " <-> pe tbl LAtom False w
     SStarUsing _ ns => txt "⋆ using (" <-> usingNames ns <-> txt ")"
+    -- links sit at +2, the column the head's own argument lines would
+    -- take: deeper, a link line would be read INSIDE the head's last
+    -- argument (an argument line is a maximal term, chain included).
+    -- A link's midpoint follows its justification on the line only
+    -- when the whole link fits — a broken justification would leave
+    -- the midpoint starting deep, its own arguments shallower than
+    -- its line (the seam rule)
     SChain h links =>
       DGroup (pe tbl LSumC False h <->
-              concatDoc (map (\(j, m) => DNest 4 (DLine <-> txt "≡⟨ " <-> pe tbl LPair True j <->
-                                                  txt " ⟩ " <-> pe tbl LSumC False m)) links))
+              concatDoc (map (\(j, m) =>
+                DNest 2 (DLine <-> DGroup (txt "≡⟨ " <-> pe tbl LPair True j <-> txt " ⟩" <->
+                                           DNest 2 (DLine <-> pe tbl LSumC False m)))) links))
     SEqC _ l r mty =>
-      pe tbl LSumC False l <-> txt " ≡ " <-> eqSide tbl mty r <->
-      (case mty of
-         Just ty => txt " ∈ " <-> pe tbl LNoComma False ty
-         Nothing => DNil)
-    SSumC a b => pe tbl LProdC False a <-> txt " ⊎ " <-> pe tbl LSumC tr b
+      DGroup (pe tbl LSumC False l <->
+              DNest 2 (DLine <-> txt "≡ " <-> eqSide tbl mty r <->
+                       (case mty of
+                          Just ty => DLine <-> txt "∈ " <-> pe tbl LNoComma False ty
+                          Nothing => DNil)))
+    SSumC a b => DGroup (pe tbl LProdC False a <-> DNest 2 (DLine <-> txt "⊎ " <-> pe tbl LSumC tr b))
     SImpPiC x a b => piCRun tbl tr [(True, x, a)] b
     -- the non-dependent arrow breaks BEFORE its `→` when the line does
     -- not fit — a long chain of them is how a lemma statement reads,
     -- and it must not run off the page
     SPiC x a b =>
       if x == wildcard
-        then pe tbl LSumC False a <->
-             DGroup (DNest 2 (DLine <-> txt "→ " <-> pe tbl LNoComma True b))
+        then DGroup (pe tbl LSumC False a <->
+                     DNest 2 (DLine <-> txt "→ " <-> pe tbl LNoComma True b))
         else piCRun tbl tr [(False, x, a)] b
     SSigmaC x a b =>
       if x == wildcard
-        then pe tbl LOp0 False a <-> txt " × " <-> pe tbl LProdC tr b
+        then DGroup (pe tbl LOp0 False a <-> DNest 2 (DLine <-> txt "× " <-> pe tbl LProdC tr b))
         else sigmaCRun tbl tr [(False, x, a)] b
     SQuotC a (x, _) (y, _) r =>
-      pe tbl LSumC False a <-> txt " / (\{x} \{y}. " <-> pe tbl LNoComma True r <-> txt ")"
+      DGroup (pe tbl LSumC False a <->
+              DNest 2 (DLine <-> txt "/ (\{x} \{y}. " <-> pe tbl LNoComma True r <-> txt ")"))
     SVar _ x _ => txt x
     SSig _ x => txt (sigRef tbl x)
     SUnitI => txt "()"
@@ -430,7 +474,8 @@ mutual
     SNatC => txt "ℕ"
     SUnivC => txt "𝕌"
     SPropC => txt "Ω"
-    SAnn t ty => dparen (pe tbl LPair True t <-> txt " : " <-> pe tbl LNoComma True ty)
+    SAnn t ty =>
+      dparen (DGroup (pe tbl LPair True t <-> DNest 2 (DLine <-> txt ": " <-> pe tbl LNoComma True ty)))
     SImpArg t => txt "{" <-> pe tbl LPair True t <-> txt "}"
     SNoIns t => pe tbl LApp False t <-> txt " {}"
     SBlank _ => txt "_"
@@ -502,11 +547,31 @@ mutual
   eqSide tbl Nothing (SStar _) = txt "(⋆)"
   eqSide tbl _ r = pe tbl LSumC False r
 
-  ||| A written motive group, trailing space included; nothing when
-  ||| elided.
+  ||| An ARGUMENT of a spine or a keyword form: parenthesized as its
+  ||| level demands on the head's line, BARE on an argument line (an
+  ||| argument line holds what a parenthesis holds — docs/
+  ||| NovaElaboration.txt, Layout, rule 3). Bare means trailing: the
+  ||| line's extent closes it.
+  argDoc : FixTable -> SElem -> Doc
+  argDoc tbl arg = DAlt (pe tbl LAtom False arg) (peRaw tbl True arg)
+
+  ||| A binder ABSTRACTION slot `(x₁ … xₙ. body)`: parenthesized on the
+  ||| head's line, bare on an argument line — the dot glued to the last
+  ||| name, as the bare form's grammar asks.
+  absDoc : FixTable -> List String -> SElem -> Doc
+  absDoc tbl xs body =
+    let names = joinBy " " xs
+        b = pe tbl LPair True body in
+    DAlt (txt "(\{names}. " <-> b <-> txt ")") (txt "\{names}. " <-> b)
+
+  ||| A written motive group: on the keyword's line, parenthesized,
+  ||| when the form is flat; the form's FIRST argument line when it
+  ||| breaks. Nothing when elided.
   motDoc : FixTable -> Maybe (SName, STy) -> Doc
   motDoc tbl Nothing = DNil
-  motDoc tbl (Just ((z, _), mot)) = txt " (\{z}. " <-> pe tbl LNoComma True mot <-> txt ")"
+  motDoc tbl (Just ((z, _), mot)) =
+    let m = pe tbl LNoComma True mot in
+    DAlt (txt " (\{z}. " <-> m <-> txt ")") (DNest 2 (DLine <-> txt "\{z}. " <-> m))
 
   classP : SPoly -> PCls
   classP f = case f of
@@ -606,10 +671,19 @@ renderClause tbl iname (MkSClause pats _ rhs mn _ _) =
               (True, [p1, p2]) => "\{renderPat p1} \{iname} \{renderPat p2}"
               (True, _) => joinBy " " ("(\{iname})" :: map renderPatAtom pats)
               (False, _) => joinBy " " (iname :: map renderPatAtom pats)
-  in txt "| \{lhs} ≔ " <-> pe tbl LPair True rhs <->
+  -- a clause is a COLUMN-0 line (docs/NovaElaboration.txt, Layout);
+  -- a right-hand side that does not fit moves under the `=` at +2
+  in txt "\{lhs} =" <-> DGroup (DNest 2 (DLine <-> pe tbl LPair True rhs)) <->
      (case mn of
         Nothing => DNil
         Just n => txt " [\{n}]")
+
+||| The DEFINIENS clause `n = t` — the zero-pattern clause that is a
+||| plain definition alone and the witness beside pattern clauses.
+renderDefClause : FixTable -> String -> SElem -> Doc
+renderDefClause tbl n body =
+  let hd = if isOpName n then "(\{n})" else n in
+  txt "\{hd} =" <-> DGroup (DNest 2 (DLine <-> pe tbl LPair True body))
 
 -- ===== Items, fixities, imports, modules =====
 
@@ -630,6 +704,7 @@ flatW DLine = 1
 flatW DHard = 100000
 flatW (DGroup d) = flatW d
 flatW (DNest _ d) = flatW d
+flatW (DAlt f _) = flatW f
 
 ||| Lay out `header ≔ body` with the SEAM decided first: if the whole
 ||| item fits one line, render flat; otherwise the body moves under
@@ -647,59 +722,47 @@ seam hdr bod =
 -- The printer inspects term shapes, a child's included, so it is
 -- written against BARE syntax: the two entry points below strip the
 -- item's spans once, and nothing under them looks through a wrapper.
+-- Items are KEYWORD-FREE signatures (docs/NovaElaboration.txt, Surface
+-- syntax): `n : T` on its line(s), then the definiens as the clause
+-- `n = t` on a column-0 line of its own; pattern clauses likewise; a
+-- data literal's entries form a block at +2.
 renderItemBare : FixTable -> SItem -> Doc
 renderItemBare tbl (SDef _ n ty body mu) =
   -- unreachable through renderItemStr (kept total for other callers)
-  txt "def \{n} : " <-> pe tbl LNoComma False ty <-> renderUsing mu <->
-  txt " ≔" <-> DGroup (DNest 2 (DLine <-> pe tbl LPair True body))
-renderItemBare tbl (SDeclDef _ n ty) = txt "def \{n} : " <-> pe tbl LNoComma False ty
-renderItemBare tbl (STypeDef n ty) = txt "type \{n} ≔ " <-> pe tbl LNoComma True ty
+  txt "\{n} : " <-> pe tbl LNoComma False ty <-> renderUsing mu <->
+  DHard <-> renderDefClause tbl n body
+renderItemBare tbl (SDeclDef _ n ty) = txt "\{n} : " <-> pe tbl LNoComma False ty
 renderItemBare tbl (SData params ds) =
-  txt "data " <->
-  concatD (map (\(x, t) => txt "[\{x} : " <-> pe tbl LNoComma True t <-> txt "] ") params) <->
-  (case ds of
-     [d] => txt "( " <-> renderQDecl tbl d <-> txt " )"
-     _ => txt "( " <->
-          concatD (intersperse (DNest 5 DHard <-> txt "; ") (map (renderQDecl tbl) ds)) <->
-          txt " )")
+  txt "data" <->
+  concatD (map (\(x, t) => txt " [\{x} : " <-> pe tbl LNoComma True t <-> txt "]") params) <->
+  concatD (map (\d => DNest 2 (DHard <-> renderQDecl tbl d)) ds)
 renderItemBare tbl (SClausalDef _ n ty eta _ wit cls) =
-  txt "def \{n} : " <-> pe tbl LNoComma False ty <->
+  txt "\{n} : " <-> pe tbl LNoComma False ty <->
   (case eta of
      Nothing => DNil
      Just e => txt " [\{e}]") <->
   (case wit of
      Nothing => DNil
-     Just w => txt " ≔ " <-> pe tbl LPair True w) <->
-  concatD (map (\c => DNest 2 (DHard <-> renderClause tbl n c)) cls)
+     Just w => DHard <-> renderDefClause tbl n w) <->
+  concatD (map (\c => DHard <-> renderClause tbl n c) cls)
 
 renderItem : FixTable -> SItem -> Doc
 renderItem tbl item = renderItemBare tbl (stripPosItem item)
 
 renderItemStrBare : FixTable -> SItem -> String
 renderItemStrBare tbl (SDef _ n ty body mu) =
-  let tyPart = txt "def \{n} : " <-> pe tbl LNoComma False ty
+  let tyPart = txt "\{n} : " <-> pe tbl LNoComma False ty
       usePart = renderUsing mu
-      bod = pe tbl LPair True body
-  in if flatW tyPart + flatW usePart + 3 + flatW bod <= lineWidth
-       -- everything on one line
-       then renderDoc lineWidth (tyPart <-> usePart <-> txt " ≔ " <-> bod)
-     else if flatW tyPart + flatW usePart + 2 <= lineWidth
-       -- header on one line, body below
-       then renderDoc lineWidth (tyPart <-> usePart <-> txt " ≔") ++ "\n" ++
-            renderDoc lineWidth (DNest 2 (txt "  " <-> bod))
-     else case mu of
-       -- the using clause gets its own line (breaking names at
-       -- commas if still long); the type lays out against the width
-       -- ALONE, so its telescope seams fire only for its own length
-       Just ns =>
-         renderDoc lineWidth tyPart ++ "\n" ++
-         renderDoc lineWidth (DNest 2 (txt "  using (" <-> usingNames ns <-> txt ") ≔")) ++ "\n" ++
-         renderDoc lineWidth (DNest 2 (txt "  " <-> bod))
-       Nothing =>
-         renderDoc lineWidth (tyPart <-> txt " ≔") ++ "\n" ++
-         renderDoc lineWidth (DNest 2 (txt "  " <-> bod))
-renderItemStrBare tbl (STypeDef n ty) =
-  seam (txt "type \{n} ≔") (pe tbl LNoComma True ty)
+      -- the signature lays out against the width ALONE (the type's
+      -- telescope seams fire only for its own length), the using
+      -- clause getting a line of its own when the two do not fit
+      header = if flatW tyPart + flatW usePart <= lineWidth
+                 then renderDoc lineWidth (tyPart <-> usePart)
+                 else case mu of
+                   Just ns => renderDoc lineWidth tyPart ++ "\n" ++
+                              renderDoc lineWidth (DNest 2 (txt "  using (" <-> usingNames ns <-> txt ")"))
+                   Nothing => renderDoc lineWidth tyPart
+  in header ++ "\n" ++ renderDoc lineWidth (renderDefClause tbl n body)
 renderItemStrBare tbl item = renderDoc lineWidth (renderItemBare tbl item)
 
 renderItemStr : FixTable -> SItem -> String
@@ -933,7 +996,6 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
   esItem : SItem -> SItem
   esItem (SDef r x ty body mu) = SDef r x (esT ty) (esE body) mu
   esItem (SDeclDef r x ty) = SDeclDef r x (esT ty)
-  esItem (STypeDef x ty) = STypeDef x (esT ty)
   esItem (SData params ds) = SData (map (\(x, t) => (x, esT t)) params) (map esQDecl ds)
   esItem (SClausalDef r x ty eta er wit cls) =
     SClausalDef r x (esT ty) eta er (map esE wit) (map ({ crhs $= esE }) cls)

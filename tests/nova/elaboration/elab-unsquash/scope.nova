@@ -1,3 +1,4 @@
 -- the eliminated variable is not in the body's context: naming it is
 -- a resolution error, reported where it is eliminated
-def gone : (w : ∥ℕ∥) → w ≡ w ∈ ∥ℕ∥ ≔ λw. unsquash (x. (⋆ : w ≡ w ∈ ∥ℕ∥)) w
+gone : (w : ∥ℕ∥) → w ≡ w ∈ ∥ℕ∥
+gone = λw. unsquash (x. (⋆ : w ≡ w ∈ ∥ℕ∥)) w

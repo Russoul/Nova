@@ -2,13 +2,19 @@
 -- discharge of the item — ⋆s, switches, exposure — to the named
 -- lemmas plus hypotheses; the restriction shows as an obligation
 infixl 6 +
-def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq) ≔ λn. ⋆
-def plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ using (+.eq) ≔ λn. λm. ⋆
-def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ using (+.eq, plusZeroId) ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
-def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ using (+.eq) ≔
++ : ℕ → ℕ → ℕ
++ = λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq)
+plusZeroId = λn. ⋆
+plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ using (+.eq)
+plusSucId = λn. λm. ⋆
+zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ using (+.eq, plusZeroId)
+zeroPlusId = λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ using (+.eq)
+sucPlus =
   λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
-def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
+plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ
+plusComm =
   λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ)
     (Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n ⟩ n + Z)
     (k ih.
@@ -16,8 +22,10 @@ def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
     m
 
 -- the whole item discharges against plusComm + hypotheses only
-def scopedItem : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ using (plusComm) ≔
+scopedItem : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ using (plusComm)
+scopedItem =
   λa. λb. ⋆
 -- restriction: plusComm exists but is not named
-def scopedItemBad : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ using (plusZeroId) ≔
+scopedItemBad : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ using (plusZeroId)
+scopedItemBad =
   λa. λb. ⋆

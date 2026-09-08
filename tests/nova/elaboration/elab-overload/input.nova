@@ -3,8 +3,13 @@
 -- obligation-free fit; the mention form qualifies explicitly
 import natp (+)
 import unitp (+)
-def useN : ℕ ≔ 1 + 2
-def useU : 𝟙 ≔ () + ()
-def nested : ℕ ≔ (1 + 1) + (2 + 2)
-def viaMention : ℕ ≔ (natp.+) 1 2
-def checkedBare : ℕ → ℕ → ℕ ≔ (+)
+useN : ℕ
+useN = 1 + 2
+useU : 𝟙
+useU = () + ()
+nested : ℕ
+nested = (1 + 1) + (2 + 2)
+viaMention : ℕ
+viaMention = (natp.+) 1 2
+checkedBare : ℕ → ℕ → ℕ
+checkedBare = (+)

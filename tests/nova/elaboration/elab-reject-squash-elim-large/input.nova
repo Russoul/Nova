@@ -1,3 +1,4 @@
 -- el-squash-e-prf reaches only further propositions: eliminating a
 -- squash into a LARGE type (unique choice / description) is rejected
-def choice : ∥ℕ∥ → ℕ ≔ λh. squash-elim h (n. n)
+choice : ∥ℕ∥ → ℕ
+choice = λh. squash-elim h (n. n)

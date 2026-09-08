@@ -4,10 +4,10 @@
 -- NEUTRAL-SUBTERM rule (docs/NovaKernel.txt §6) plus the
 -- unknown-type congruence descent (docs/NovaElaboration.txt, step 3
 -- of the ↓ loop). This golden pins the shape.
-def plus : ℕ → ℕ → ℕ
-  | plus Z n ≔ n
-  | plus (S m) n ≔ S (plus m n)
+plus : ℕ → ℕ → ℕ
+plus Z n = n
+plus (S m) n = S (plus m n)
 
-def mul : ℕ → ℕ → ℕ
-  | mul Z n ≔ Z
-  | mul (S m) n ≔ plus n (mul m n)
+mul : ℕ → ℕ → ℕ
+mul Z n = Z
+mul (S m) n = plus n (mul m n)

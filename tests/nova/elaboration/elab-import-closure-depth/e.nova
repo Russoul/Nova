@@ -1,3 +1,4 @@
 import base
 
-def esym : (n : ℕ) (m : ℕ) → (n ≡ m ∈ ℕ) → m ≡ n ∈ ℕ ≔ λn. λm. λh. ⋆
+esym : (n : ℕ) (m : ℕ) → (n ≡ m ∈ ℕ) → m ≡ n ∈ ℕ
+esym = λn. λm. λh. ⋆

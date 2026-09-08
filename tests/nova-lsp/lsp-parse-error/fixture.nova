@@ -1,3 +1,6 @@
-def ok : ℕ ≔ Z
-def broken : ℕ ≔ S S ((
-def after : ℕ ≔ Z
+ok : ℕ
+ok = Z
+broken : ℕ
+broken = S S ((
+after : ℕ
+after = Z

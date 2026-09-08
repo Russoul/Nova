@@ -2,8 +2,11 @@
 -- back to a DECLARATION of its signature, and the run continues —
 -- so `later`'s goal is still reached and `uses` still resolves the
 -- broken name.
-def broken : ℕ ≔ noSuchName
+broken : ℕ
+broken = noSuchName
 
-def later : ℕ → ℕ ≔ λn. ?goal
+later : ℕ → ℕ
+later = λn. ?goal
 
-def uses : ℕ ≔ broken
+uses : ℕ
+uses = broken

@@ -1,1 +1,2 @@
-def bad : ℕ ≔ undefinedThing
+bad : ℕ
+bad = undefinedThing

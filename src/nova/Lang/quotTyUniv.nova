@@ -3,6 +3,8 @@
 -- through undecoded), so a variable of the code's moves to the
 -- decoded quotient with no coercion.
 
-def qdecode : (v : ℕ / (x y. ∥ℕ∥)) → ℕ / (x y. ∥ℕ∥) ≔ λv. v
+qdecode : (v : ℕ / (x y. ∥ℕ∥)) → ℕ / (x y. ∥ℕ∥)
+qdecode = λv. v
 
-def qcode : 𝕌 ≔ ℕ / (x y. ∥ℕ∥)
+qcode : 𝕌
+qcode = ℕ / (x y. ∥ℕ∥)

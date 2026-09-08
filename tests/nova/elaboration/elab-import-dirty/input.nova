@@ -1,2 +1,3 @@
 import dirty (plus)
-def two : ℕ ≔ plus (S Z) (S Z)
+two : ℕ
+two = plus (S Z) (S Z)

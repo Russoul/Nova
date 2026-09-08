@@ -83,19 +83,42 @@ as a TYPE names its level the same way (there is no separate type
 grammar; see TYPE POSITIONS below). The grammar below is
 self-contained.
 
-# A file is a sequence of items. `def` introduces a term definition,
-# `type` a type definition — both elaborate to Foundation's ONE
-# definition entry form, `type` as the A = 𝕍 instance; `data` is an ITEM MACRO that expands into a batch
-# of them (QIIT section below), and a def with CLAUSES is likewise an
-# item macro (Defining equations section below). Every item is declared in the EMPTY context:
+# A file is a sequence of ITEMS, one per column-0 line (the file is a
+# LAYOUT BLOCK — see Layout below; an item's continuation lines are
+# indented). Items are KEYWORD-FREE, as in Agda: a column-0 line that
+# reads `n : …` is a SIGNATURE, and a column-0 line that is neither a
+# signature nor headed by one of the item keywords (data, import,
+# infixl, infixr) is a CLAUSE `lhs = rhs` of the signature directly
+# above it. Two tokens of lookahead decide: a signature's second token
+# is `:`, and no pattern spelling begins with `:`. A DEFINITION is a
+# signature followed by the clause with ZERO patterns, `n = t`, on a
+# column-0 line of its own:
+#
+#   hd : {a : 𝕌} → stream a → a using (Codata.stream.stream.unfold)
+#   hd = λa. λt. out t .π₁
+#
+# — the k = 0 instance of the one clause production. A signature with
+# no clause is a DECLARATION; one with PATTERN clauses is a signature
+# with DEFINING EQUATIONS, an item macro (Defining equations section
+# below), and a zero-pattern clause beside them is that item's WITNESS
+# (existence supplied by hand). Every item elaborates to Foundation's
+# ONE definition entry form; `data` is an ITEM MACRO that expands into
+# a batch of them (QIIT section below). Every item is declared in the
+# EMPTY context:
 # parameters are ordinary Π-binders in the item's type (the iterated
 # binder syntax below keeps that pleasant), and a reference to an
 # item is a bare name. Foundation's Σ entries keep their general
 # declaration contexts; the elaborator simply only produces closed
 # ones — so the normal-substitution syntax x[t˲] has no surface form.
-file  ::= import* (item | fixity)*
+# (Two former item keywords are gone: `def`, which every signature
+# carried, and `type`, which named a type WITHOUT a code — the LARGE
+# case, which nothing wrote; a small type is `x : 𝕌` with `x = T`,
+# or `x : Ω` likewise. Both words are ordinary identifiers now.)
+file  ::= import* (item | fixity)*            # one per column-0 line
 imp   ::= import M | import M (n (, n)*)
-item  ::= def  n : t{≥1} uses? ≔ t{≥0}
+item  ::= n : t{≥1} uses? ⏎ n = t{≥0}        # a DEFINITION: the
+                                              #   signature, then its
+                                              #   zero-pattern clause
                                               # uses ::= using n
                                               #        | using (n (, n)*)
                                               #   — the item's DISCHARGE
@@ -110,31 +133,40 @@ item  ::= def  n : t{≥1} uses? ≔ t{≥0}
                                               #   sees hypotheses only.
                                               #   See Conversion and
                                               #   discharge below.
-        | def  n : t{≥1}                      # a DECLARATION — a def
-                                              #   without a definiens
-                                              #   (sig-decl at ε);
-                                              #   see e-decl in Items
-        | type x ≔ t{≥1}
-        | data ([x : t{≥1}])* ( n : Q (; n : Q)* )
-                                              # a QIIT signature literal —
+        | n : t{≥1}                           # a DECLARATION — a
+                                              #   signature without a
+                                              #   definiens (sig-decl
+                                              #   at ε); see e-decl in
+                                              #   Items
+        | data ([x : t{≥1}])* ⏎ entry+        # a QIIT signature literal —
                                               #   an ITEM MACRO over an
                                               #   ambient PARAMETER
-                                              #   telescope, see the QIIT
-                                              #   section below
-        | def  n : t{≥1} ([n])? (≔ t{≥0})? clause+
-                                              # a def with DEFINING
+                                              #   telescope; its entries
+                                              #   form a LAYOUT BLOCK,
+                                              #   one per line at one
+                                              #   column > 0 (see the
+                                              #   QIIT section below)
+        | n : t{≥1} ([n])? (⏎ n = t{≥0})? clause+
+                                              # a signature with DEFINING
                                               #   EQUATIONS — an ITEM
                                               #   MACRO; the optional [n]
                                               #   names the uniqueness
                                               #   lemma, the optional
-                                              #   definiens is the WITNESS
-                                              #   form. See the Defining
-                                              #   equations section below
-clause ::= | lhs ≔ t{≥0} ([n])?               # each clause OPENS with the
-                                              #   marker |, RESERVED for
-                                              #   this role; the optional
+                                              #   zero-pattern clause is
+                                              #   the WITNESS form. See the
+                                              #   Defining equations
+                                              #   section below
+entry  ::= n : Q                              # an entry's continuation
+                                              #   lines stand deeper than
+                                              #   the entry column
+clause ::= lhs = t{≥0} ([n])?                 # a column-0 line directly
+                                              #   after its signature
+                                              #   (comment lines between
+                                              #   are fine); the optional
                                               #   [n] names the clause's
-                                              #   equation lemma
+                                              #   equation lemma (a
+                                              #   zero-pattern clause
+                                              #   takes none)
 lhs    ::= n pat* | pat op pat                # the head is the item's own
                                               #   name (infix use needs a
                                               #   fixity, as anywhere);
@@ -172,7 +204,8 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 
 # M is a dotted module name (Data.Natural); see Modules below.
 # n is an identifier x or an operator token op — OPERATORS ARE NAMES:
-# `def + : ℕ → ℕ → ℕ ≔ plus` defines the Σ-name "+", a fixity line
+# `+ : ℕ → ℕ → ℕ` with the clause `(+) = plus` defines the Σ-name "+"
+# (the bare `+ = plus` reads too — a clause head is a name), a fixity line
 # gives it precedence/associativity for infix use, and `a + b` is
 # nothing but application of that name. There is no notation-to-name
 # mapping and hence no resugaring gap: the obligation printer prints
@@ -180,9 +213,12 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # operator-shaped names lay out infix, fully parenthesized).
 # Operator tokens are maximal runs of the operator alphabet
 #   + - * < > = & ! ? % ^ ~ @ # ⊕ ⊗ ⊙ ⊞ ⊟ ∙ ∘ · ≤ ≥ ∸ ⧺ ⊥ ⊤ ∧ ∨ ⊃ ¬ ↔
-# (the reserved theory tokens → × ≡ ∈ ≔ / . , : are excluded — and so
-# is |, the clause marker of the clausal def item — and the
+# (the reserved theory tokens → × ≡ ∈ / . , : are excluded — and so
+# is |, since `||` is ∥'s ASCII spelling — and the
 # lexer eats "--" as a comment, so no operator contains it). The
+# DEFINIENS token `=` is the exact run "=": `==` (≡'s ASCII spelling),
+# `<=`, `=>` and every longer run stay operator names, and "=" itself
+# is excluded as a name, like "->" and "==". The
 # mention form (op) — e.g. (+) — is the operator as an ordinary
 # reference, usable anywhere an atom is; local binders are never
 # operator-shaped. A FIXITY-FREE operator token is itself an ordinary
@@ -208,7 +244,7 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # printer always emits the Unicode form — so an ASCII-written file
 # normalizes to Unicode, and the round-trip contract is unaffected.
 #
-#   →  ->        λ  \         ×  \x        ≔  :=       ≡  ==
+#   →  ->        λ  \         ×  \x        ≡  ==
 #   ∈  \in      ∥  ||        ⊎  \/       ⋆  \star   ν  \nu
 #   𝕏  \X       ≡⟨ \<       ⟩  \>       .π₁ .1      .π₂ .2
 #   𝕌  Set       Ω  Prop      ℕ  Nat       𝟘  Void     𝟙  Unit
@@ -219,7 +255,8 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 # maximal run of the operator alphabet, so every fallback carrying a
 # non-alphabet character (\ : | . or a letter) is excluded for free.
 # Two are pure alphabet runs and are therefore RESERVED explicitly:
-# `->` and `==` are rejected as operator names. Seven fallbacks are
+# `->` and `==` are rejected as operator names (so is `=`, the
+# definiens token). Seven fallbacks are
 # valid IDENTIFIERS — the constants Set Prop Nat Void Unit and the
 # injections inj1 inj2 — so they join the reserved-word list beside
 # S/Z/class/let/in/using/out; an identifier merely BEGINNING with one
@@ -339,6 +376,10 @@ fixity ::= infixl d op | infixr d op          # d a digit 0-9
 #      the expected ν-type, so it is mandatory syntax, like a motive.
 t{5} ::= x | ?x | () | Z | ⋆ | ∥t{≥1}∥ | 𝟘 | 𝟙 | ℕ | (t{≥0}) | (t{≥0} : t{≥1})
 t{3} ::= t{≥3} t{≥4} | t{≥3} .π₁ | t{≥3} .π₂ | t{2½}         (left-assoc)
+                                      # an argument may also stand on
+                                      #   an ARGUMENT LINE of its own,
+                                      #   where it is a t{≥0} — see
+                                      #   Layout below (the ⟪·⟫ forms)
                                       # a KEYWORD-HEADED form (t{2½}
                                       #   below) is a spine HEAD, so a
                                       #   projection or a further
@@ -397,10 +438,10 @@ t{2} ::= λx. t{≥0}                    # the body extends MAXIMALLY:
                                       #   a λ that is a NON-FINAL pair
                                       #   component must be
                                       #   parenthesised
-       | let x ≔ t{≥0} in t{≥0}                               # let-expression;
+       | let x = t{≥0} in t{≥0}                               # let-expression;
                                                               #   body maximal,
                                                               #   like λ's
-       | let x : t{≥1} ≔ t{≥0} in t{≥0}                       #   (annotated
+       | let x : t{≥1} = t{≥0} in t{≥0}                       #   (annotated
                                                               #   definiens) —
                                                               #   see e-let
 t{1} ::= ((x:t{≥0}))+ → t{≥1} | ((x:t{≥0}))+ × t{≥1}
@@ -451,6 +492,250 @@ F{0} ::= F{≥1}
 # `A / (_ _. R)`, `_` in any binder. NOT ×: the bare and wildcard
 # spellings are different operators at different levels (see TYPE
 # POSITIONS above).
+
+//// Layout ////
+
+# The surface language is INDENTATION-SIGNIFICANT, in the Idris/Agda
+# family, with one deliberate deviation. Layout is a PARSING concern
+# only: it decides which spellings parse and which parentheses are
+# needed, never what an accepted file means. Three rules:
+#
+#   1. THE OFFSIDE RULE. The file is a block at column 0; an item's
+#      lines past the first are indented (column > 0), and a term's
+#      continuation lines are indented past the block that encloses
+#      it. Nothing inserts semicolons or braces.
+#   2. AN INDENTED LINE THAT BEGINS A TERM IS AN ARGUMENT (the
+#      deviation). A line indented deeper than the line above it,
+#      whose first token can begin a term, does not continue the term
+#      above — it is ONE MORE ARGUMENT of the innermost application
+#      spine open at the end of that line, and it is a WHOLE term:
+#      everything up to the next line at or left of its own column.
+#      Sibling argument lines share a column.
+#   3. A LINE MAY HOLD WHAT A PARENTHESIS MAY HOLD. Whatever the
+#      grammar admits inside `( … )` at an argument slot — a maximal
+#      term, a pair, a binder abstraction `x ih. t`, corec's carrier
+#      binder `x : A. t`, an ascription `t : T` — may stand BARE on
+#      an argument line; the line's extent replaces the parentheses.
+#
+# So
+#
+#     ℕ-elim
+#       x. x + Z ≡ x
+#       ⋆
+#       x ih. ⋆
+#
+# is  ℕ-elim (x. x + Z ≡ x) ⋆ (x ih. ⋆)  — three argument lines, two
+# of them abstractions, no parentheses — and
+#
+#     f x
+#      g y
+#
+# is  (f x) (g y). Same-line juxtaposition is untouched: `f x y` is
+# still `App (App f x) y`, and a same-line abstraction keeps its
+# parentheses (`ℕ-elim z (k ih. s) n`).
+
+# INDENT of a line: the column of its first token. A line with no
+# token (blank, or comment only) has no indent and is invisible to
+# layout; a trailing comment is invisible too. Columns count code
+# points; a TAB in leading whitespace is a lexical error (a tab has
+# no agreed width).
+
+# TERM-INITIAL tokens — those that may begin a term, i.e. begin a
+# t{≥0} production or a spine step: an identifier that is not a
+# non-term keyword (below); a hole ?x; a numeral; ( { ∥; the
+# constants Z ⋆ 𝟘 𝟙 ℕ 𝕌 Ω; the keyword heads λ let S inj₁ inj₂ class
+# out ν corec coind 𝟘-elim ℕ-elim ⊎-elim quot-elim sigma-elim sum-elim
+# unsquash ≡-elim squash-elim; and an OPERATOR TOKEN WITHOUT A FIXITY
+# IN SCOPE (a nullary or prefix operator name — ⊥, ¬ p — is an atom,
+# exactly as in juxtaposition). NON-TERM-INITIAL tokens are those that
+# can only CONTINUE a construct: an infix operator with a fixity in
+# scope, → × ⊎ / ≡ ∈ , ≡⟨ ⟩ ) } ] : = .π₁ .π₂ [, and the non-term
+# keywords in using data import infixl infixr El U. Every layout
+# decision is made at a NEWLINE, from the indent of the next non-blank
+# line and the term-initiality of its first token; layout consults
+# nothing else — not types, not names, not fixity beyond that test.
+
+# CONTEXTS. Two columns are threaded through the parser:
+#   * the BLOCK column b — the column of the items of the innermost
+#     enclosing block: 0 for the file, an argument block's column, a
+#     data literal's entry column;
+#   * the REFERENCE column r of the innermost OPEN SPINE — the INDENT
+#     OF THE LINE ON WHICH THE SPINE'S HEAD SITS (not the head's own
+#     column: `λn. λm. ℕ-elim` keeps its arguments at +2 of the line).
+#     Every spine that starts on one line has the same r, so
+#     "innermost" is simply the spine the parser is in when the line
+#     ends.
+# A spine is OPEN while the parser may still add an argument to it —
+# after a complete head or a complete argument — and is CLOSED by a
+# closing bracket, by a non-term-initial token, or by layout.
+
+# REQUIRED POSITIONS. Where the grammar DEMANDS a term next — after a
+# binder's `.`, after = → × ⊎ / ≡ ∈ , an infix operator, `in`, ( {
+# ≡⟨, `:` — a newline is whitespace: the term starts wherever the next
+# term-initial token stands, provided that token is indented past b.
+# So a pair may break after its comma, a definiens may start on the
+# line after its `=`, a type may start on the line after `:`, and a lemma
+# statement may lead each line with →. (Binder groups likewise: a
+# telescope may continue on a deeper line, `(x : A)` ⏎ `(y : B) → C`,
+# since a group is never a spine's argument.)
+
+# OPTIONAL POSITIONS — an open spine at a newline. Let the next line
+# have indent c and first token k:
+#
+#   k non-term-initial, c > b     the line CONTINUES the enclosing
+#                                 construct: the spine is closed and
+#                                 k is handed to whatever is parsing
+#                                 above it (an infix chain, a calc
+#                                 chain, an arrow, `using`, `=`, …).
+#                                 c may be LESS than the previous
+#                                 line's indent: `→` at column 4
+#                                 continuing a domain at column 6 is
+#                                 the corpus's own lemma layout.
+#   k term-initial, no argument block open for this spine yet:
+#     c > r                       OPEN an argument block at column c;
+#                                 the line is the spine's next
+#                                 argument, parsed as a BLOCK ARGUMENT
+#                                 (below), with b := c inside it.
+#     c ≤ r                       the spine is closed; the newline is
+#                                 re-examined by the enclosing
+#                                 construct (an enclosing block sees
+#                                 an item boundary if c equals its
+#                                 column, else an error).
+#   k term-initial, an argument block at column c₀ is open:
+#     c = c₀                      the next argument of THIS spine.
+#     c > c₀                      handled INSIDE the current argument:
+#                                 its own spines have r = c₀, so this
+#                                 is their rule 2 — an argument of the
+#                                 argument.
+#     r < c < c₀                  ERROR: a misaligned argument line.
+#     c ≤ r                       the block and the spine are closed;
+#                                 re-examined by the enclosing
+#                                 construct as above.
+#   k any, c ≤ b                  the block and every spine inside it
+#                                 are closed; the line is the next
+#                                 item of the enclosing block if c is
+#                                 its column, else an error.
+#
+# THE FILE is the block at column 0: an item's continuation lines have
+# column > 0, and a column-0 line always begins the next item. (A
+# parse error inside an item is thereby CONTAINED — the next column-0
+# line is where the file resumes.)
+
+# BLOCK ARGUMENT — what an argument line holds (rule 3):
+#
+#   blockArg ::= t{≥0}                       # a maximal term: pairs,
+#                                            #   λ, let, operators,
+#                                            #   → × ⊎ /, ≡, chains
+#              | t{≥0} : t{≥1}               # an ascription
+#              | x⁺. t{≥0}                   # a binder abstraction —
+#                                            #   a motive, a case, an
+#                                            #   ℕ-elim step, a coind
+#                                            #   invariant or closure
+#              | x : t{≥0}. t{≥0}            # corec's carrier binder
+#
+# — exactly the content of the parenthesized form the grammar admits
+# at that slot. Which of the four is legal, and how an abstraction's
+# names bind, is the SLOT's business (ℕ-elim's step reads `n ih. t`,
+# its motive `n. t`, a plain application argument no abstraction at
+# all), so a block argument is read by the same slot-directed rule
+# the parenthesized argument is, with the layout extent standing in
+# for the closing parenthesis. The binder dot of a BARE abstraction
+# is glued to its last name and followed by whitespace (`x ih. t`),
+# which is what tells `x. t` from a projection `x .π₁`. The level
+# distinctions inside parentheses (motive at t{≥1}, case at t{≥0})
+# exist only so a trailing comma belongs to the encloser; on a block
+# line there is no encloser to claim it, so every block argument body
+# is t{≥0}.
+
+# THE GRAMMAR, restated where layout changes it. ⟪ φ ⟫ is "φ in
+# parentheses, or φ as a block argument":
+#
+#   ⟪ φ ⟫  ::=  ( φ )   |   φ occupying an argument line
+#
+#   t{3}  ::= t{≥3} t{≥4}                    # juxtaposition, same line
+#           | t{≥3} ⟪ t{≥0} ⟫                # an argument line (the
+#                                            #   ( t{≥0} ) case is a t{5})
+#   t{2½} ::= ℕ-elim ⟪n. t⟫? a ⟪n ih. t⟫ a   # a ::= t{≥4} | ⟪t{≥0}⟫
+#           | ⊎-elim ⟪z. t⟫? ⟪a. t⟫ ⟪b. t⟫ a
+#           | quot-elim ⟪z. t⟫? ⟪a. t⟫ a
+#           | sigma-elim ⟪x y. t⟫ a
+#           | sum-elim ⟪a. t⟫ ⟪b. t⟫ a
+#           | unsquash ⟪x. t⟫ a
+#           | ≡-elim a a a
+#           | corec ⟪x : t. t⟫ a
+#           | coind ⟪x y. t⟫ a ⟪x y h. t⟫
+#           | squash-elim a ⟪x. t⟫
+#           | ν F | out a | class a | S a | inj₁ a | inj₂ a | 𝟘-elim a
+#           | ⋆ a | ⋆ uses
+#
+# Slot arities are unchanged, so a block line past a keyword form's
+# last slot is a spine continuation, exactly as a further juxtaposed
+# atom is: `(out t) u`. The remaining forms take their layout from the
+# general rules alone: `let x = e in b` keeps its `in` (an `in`-less
+# form was considered and withdrawn — its body would stand at the
+# indent of the let's line, which on an item's header line is column
+# 0, an item boundary), and may break before `in`, which is
+# non-term-initial.
+
+# ERRORS are structural, and name the two columns they saw: "an
+# argument line at column 4 — this spine's arguments stand at column
+# 5"; "column 3 does not continue the item above — indent it past the
+# term it belongs to, or start an item at column 1". (A message counts
+# columns from 1, as the diagnostic's location does; the rules above
+# count from 0, the file block's column.) A misaligned line is never a
+# lenient continuation.
+
+# WORKED EXAMPLES.
+#
+# 1. The corpus's ℕ-elim idiom, with and without the now-optional
+#    parentheses (the printer emits the second):
+#
+#   plusComm : (n m : ℕ) → m + n ≡ n + m
+#   plusComm = λn. λm. ℕ-elim
+#     (Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n ⟩ n + Z)
+#     (k ih. S k + n ≡⟨ sucPlus k n ⟩ S (k + n) ≡⟨ ih ⟩ S (n + k) ≡⟨ plusSucId n k ⟩ n + S k)
+#     m
+#
+#   plusComm : (n m : ℕ) → m + n ≡ n + m
+#   plusComm = λn. λm. ℕ-elim
+#     Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n ⟩ n + Z
+#     k ih. S k + n ≡⟨ sucPlus k n ⟩ S (k + n) ≡⟨ ih ⟩ S (n + k) ≡⟨ plusSucId n k ⟩ n + S k
+#     m
+#
+#    The clause line has indent 0, so r = 0 for the ℕ-elim spine;
+#    column 2 > 0 opens the block; the three lines are the three
+#    slots; the next item closes everything.
+#
+# 2. A calc chain across lines is untouched — every continuation line
+#    begins with ≡⟨, non-term-initial — and so is a lemma statement
+#    led by arrows: its parenthesized domains are term-initial but
+#    stand in REQUIRED positions (after `:`, then after each `→`):
+#
+#   plusEta :
+#         (g : ℕ → ℕ → ℕ)
+#       → (hz : (n : ℕ) → g Z n ≡ n)
+#       → (m n : ℕ) → g m n ≡ plus m n
+#   plusEta = λg. λhz. λhs. λm. ℕ-elim (λn. ⋆) (k ih. λn. ⋆) m
+#
+# 3. Nested blocks — an argument's own arguments go deeper:
+#
+#   quot-elim
+#     p. quot-elim
+#       q. class (ratAdd p q)
+#       v
+#     u
+#
+# 4. What layout rejects that whitespace-blindness accepted:
+#
+#   foo : T
+#   foo =
+#     f
+#       a
+#     g            -- ERROR: column 2 is neither an argument of `f a`
+#                  --   (needs > 2) nor a new item (needs 0)
+#
+#    Before, this was `f a g`; the remedy is `f a g` on one line, or
+#    `g` at column 4.
 
 //////// Name resolution (front end, before elaboration) ////////
 
@@ -715,10 +1000,10 @@ componentwise at F × G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 Γ ⊢ e ⇒ A ⇝ ê
 Γ ▷ x:A ▷ h:(☐₀ ≡ ê[↑] ∈ A[↑]) ⊢ b ⇒ B ⇝ b̂
 -------------------------------------------------- (e-let)    # (let a b)
-Γ ⊢ let x ≔ e in b ⇒ B[id, ê, ⋆] ⇝ let ê b̂
+Γ ⊢ let x = e in b ⇒ B[id, ê, ⋆] ⇝ let ê b̂
 # The DEFINIENS is inferred — a checking-only definiens (λ, pair, ...)
 # takes the annotated form, which is parse-level sugar for ascription:
-#     let x : T ≔ e in b   ≜   let x ≔ (e : T) in b
+#     let x : T = e in b   ≜   let x = (e : T) in b
 # The BODY is elaborated under x AND the unfolding hypothesis h. h's
 # type is the equality prop itself, so E's HYPOTHESIS source reflects
 # ☐₁ ≐ ê[↑ ∘ ↑] into discharge automatically: the definition is
@@ -1347,7 +1632,7 @@ whnf(C) = (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ R[id, a, b] ⇝ ê
 Γ ⊢ e ⇒ A ⇝ ê
 Γ ▷ x:A ▷ h:(☐₀ ≡ ê[↑] ∈ A[↑]) ⊢ b ⇐ C[↑ ∘ ↑] ⇝ b̂
 --------------------------------------------------------- (e-let-check)
-Γ ⊢ let x ≔ e in b ⇐ C ⇝ let ê b̂
+Γ ⊢ let x = e in b ⇐ C ⇝ let ê b̂
 # let PROPAGATES the ambient mode to its body — this direct checking
 # rule (rather than e-let + e-switch) is what lets a checking-only
 # body form (a λ, a pair, a ⋆) sit under a let without ascription.
@@ -1587,9 +1872,9 @@ whnf(C) = (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ R[id, a, b] ⇝ ê
 ε ⊢ T ⇝ A type
 ε ⊢ t ⇐ A ⇝ t̂
 ------------------------------------------------------------- (e-def)
-def x : T ≔ t          extends Σ with (ε ⊦ x ≔ t̂ : A)
+x : T ⏎ x = t          extends Σ with (ε ⊦ x ≔ t̂ : A)
 # Both premises run under the item's DISCHARGE SCOPE (THE SCOPE,
-# Elaboration state): `def x : T using (n₁, …) ≔ t` resolves the
+# Elaboration state): `x : T using (n₁, …)` resolves the
 # names like any signature reference (aliases first) and scopes every
 # ↓ of the item to them + hypotheses; without the clause the item
 # scopes to hypotheses alone. Name-resolution failures are structural
@@ -1599,13 +1884,9 @@ def x : T ≔ t          extends Σ with (ε ⊦ x ≔ t̂ : A)
 # declarations discharge nothing and take none.
 
 ε ⊢ T ⇝ A type
-------------------------------------------------------------- (e-typedef)
-type x ≔ T             extends Σ with (ε ⊦ x ≔ A : 𝕍)
-
-ε ⊢ T ⇝ A type
 ------------------------------------------------------------- (e-decl)
-def x : T              extends Σ with (ε ⊦ x : A)
-# A DECLARATION — a def without a definiens (Foundation: sig-decl at
+x : T                  extends Σ with (ε ⊦ x : A)
+# A DECLARATION — a signature without a definiens (Foundation: sig-decl at
 # ε). A declaration enters Σ as a sig-decl, is reported as an OPEN
 # DECLARATION, and blocks acceptance; references type by
 # el-sig-decl and are stuck. One addition: a declared
@@ -1619,12 +1900,15 @@ def x : T              extends Σ with (ε ⊦ x : A)
 
 # Parameters are Π-binders in T; partial application of an item is
 # therefore first-class, which the telescoped form never was (x[e˲]
-# demanded the full substitution back to Γ). The price is confined to
-# TYPE items: a parameterized family must live in 𝕌 (a def returning
-# 𝕌-codes, like vect) — a family whose result is genuinely large has
-# no code and, in the empty-context discipline, no spelling. None is
-# needed today; if one ever is, telescoped type items (and the
-# substitution syntax, for them alone) are the designed escape hatch.
+# demanded the full substitution back to Γ). The price: a type is
+# named through its CODE — `x : 𝕌` with `x = T`, a parameterized family a def
+# returning 𝕌-codes, like vect — and a type whose result is genuinely
+# LARGE has no code and, in the empty-context discipline, no spelling.
+# (A `type x ≔ T` item once named exactly those; nothing wrote one,
+# and it was retired with the keyword-free item syntax. The e-typedef
+# rule — extend Σ with (ε ⊦ x ≔ A : 𝕍) — remains the designed escape
+# hatch, with telescoped type items and the substitution syntax, for
+# them alone, if a large family is ever needed.)
 
 # Duplicate entry names are a structural error. An entry elaborated
 # under assumptions still enters Σ and the rest of the run builds on
@@ -1703,21 +1987,23 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
 ·ᴰᵗ, ⟦·⟧ are Foundation's meta-operations; δ the telescope variables):
 
   * SORT 𝕤 : 𝔎, 𝒮 small —
-        def n : Π(⌊𝔎⌋ᵗ). 𝕌 ≔ λ…. 𝒮.𝕤 δ            # code-qiit
+        n : Π(⌊𝔎⌋ᵗ). 𝕌 ;  n = λ…. 𝒮.𝕤 δ         # code-qiit
     (a code-valued family; users write n ī in type position — the
     code is the type. If 𝒮 is LARGE: a
-    nullary sort becomes  type n ≔ 𝒮.𝕤 ·  and an INDEXED large sort is
-    a structural error — a large family has no spelling in the
-    closed-item discipline; see the e-typedef note. The escape hatch is
-    the same one designed there.)
+    nullary sort becomes a TYPE entry, (ε ⊦ n ≔ 𝒮.𝕤 · : 𝕍) — the
+    e-typedef form, emitted directly into Σ, which has no surface
+    spelling — and an INDEXED large sort is a structural error — a
+    large family has no spelling in the closed-item discipline; see
+    the e-typedef note. The escape hatch is the same one designed
+    there.)
 
   * POINT constructor 𝕔 : 𝔄 —
-        def n : ⌊𝔄⌋ ≔ λ…. 𝒮.𝕔 δ                    # el-qiit-intro,
+        n : ⌊𝔄⌋ ;  n = λ…. 𝒮.𝕔 δ                 # el-qiit-intro,
     the saturated former η-expanded once; partial application is
     thereby first-class at zero cost.
 
   * EQUATION constructor 𝕔 : 𝔄 ending in El (l ≡ r) —
-        def n : Π(⌊𝔄⌋ᵗ). (⌊l⌋ ≡ ⌊r⌋ ∈ ⌊El 𝕦⌋) ≔ λ…. ⋆
+        n : Π(⌊𝔄⌋ᵗ). (⌊l⌋ ≡ ⌊r⌋ ∈ ⌊El 𝕦⌋) ;  n = λ…. ⋆
     — the ⋆ is licensed by el-qiit-path (kernel: a refl-eq
     certificate whose single step is a path license, qpath). On every
     LATER item and run this def is an ACCEPTED LEMMA, so the imposed
@@ -1727,7 +2013,7 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
 
   * ELIMINATORS, two defs per sort 𝕤 (surface names cannot contain
     '-'). The CODE-VALUED one, named nElim:
-        def nElim :
+        nElim :
              (C₁ : Π(⌊𝔎₁⌋ᵗ). 𝒮.𝕤₁ δ → 𝕌) → …               # motives,
                                                             # one per sort
           →  (m𝕔 : ⌊𝔄ᴰ⟨𝒮.𝕔 δ⟩⌋) → …                         # methods, one
@@ -1735,7 +2021,7 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
           →  (h𝕔 : Π(𝔄ᴰᵗ). (⟦l⟧ ≡ ⟦r⟧ ∈ C… )) → …           # COHERENCES,
                                                             # one per eq ctor
           →  Π(⌊𝔎⌋ᵗ) → (w : 𝒮.𝕤 δ) → C_𝕤 δ w
-          ≔ λ…. 𝒮.𝕤-elim ℰ δ w        # ℰ = the bound motive/method
+          = λ…. 𝒮.𝕤-elim ℰ δ w        # ℰ = the bound motive/method
                                        # variables, as Foundation's C̄ ; m̄
 
     COHERENCES ARE HYPOTHESES: extensionality lets the eprob premises
@@ -1762,11 +2048,11 @@ The EXPANSION, for each entry of the accepted 𝒮 (⌊·⌋, ⌊·⌋ᵗ, ·ᴰ
     facts about a QIIT are proven now that equality has no 𝕌-code
     (e.g. plusQzr in Qiit/nat.nova: NElimP at the motive
     (λn. (plusQ n z ≡ n ∈ N))):
-        def nElimP :
+        nElimP :
              (C₁ : Π(⌊𝔎₁⌋ᵗ). 𝒮.𝕤₁ δ → Ω) → …               # motives
           →  (m𝕔 : ⌊𝔄ᴰ⟨𝒮.𝕔 δ⟩⌋) → …                         # methods
           →  Π(⌊𝔎⌋ᵗ) → (w : 𝒮.𝕤 δ) → C_𝕤 δ w
-          ≔ λ…. 𝒮.𝕤-elim ℰ δ w
+          = λ…. 𝒮.𝕤-elim ℰ δ w
 
 Motives in the generated eliminators are 𝕌- respectively Ω-valued —
 the closed-item discipline again; the CORE former supports arbitrary
@@ -1788,13 +2074,13 @@ the carrier code a stands bare)
 
 expands to (𝒮 the elaborated signature, positions 0..3):
 
-  def Bag  : 𝕌 ≔ 𝒮.0 ·
-  def nil  : Bag ≔ 𝒮.1 ·
-  def ins  : a → Bag → Bag ≔ λx. λm. 𝒮.2 (x, m)
-  def swp  : (x : a) (y : a) (m : Bag)
+  Bag  : 𝕌 ;  Bag = 𝒮.0 ·
+  nil  : Bag ;  nil = 𝒮.1 ·
+  ins  : a → Bag → Bag ;  ins = λx. λm. 𝒮.2 (x, m)
+  swp  : (x : a) (y : a) (m : Bag)
                → ins x (ins y m) ≡ ins y (ins x m) ∈ Bag
-           ≔ λx. λy. λm. ⋆                       # qpath-licensed
-  def BagElim :
+           = λx. λy. λm. ⋆                       # qpath-licensed
+  BagElim :
         (C : Bag → 𝕌)
       → (mnil : C nil)
       → (mins : (x : a) (m : Bag) → C m → C (ins x m))
@@ -1803,7 +2089,7 @@ expands to (𝒮 the elaborated signature, positions 0..3):
                     ≡ mins y (ins x m) (mins x m mᴰ)
                     ∈ C (ins x (ins y m)))
       → (w : Bag) → C w
-      ≔ λC. λmnil. λmins. λhswp. λw. 𝒮.0-elim ℰ · w
+      = λC. λmnil. λmins. λhswp. λw. 𝒮.0-elim ℰ · w
                           # ℰ = (C ; mnil, mins) from the binders;
                           # the coherence discharges from hswp (E's
                           # hypothesis source) and replays as qcoh
@@ -1815,11 +2101,11 @@ obligations, discharge or the report is QIIT-aware.
 
 //////////// Defining equations: the clausal def item /////////////
 
-A def with CLAUSES is an ITEM MACRO, data's sibling. The item
+A signature with CLAUSES is an ITEM MACRO, data's sibling. The item
 
-  def plus : ℕ → ℕ → ℕ
-    | plus Z n     ≔ n
-    | plus (S m) n ≔ S (plus m n)
+  plus : ℕ → ℕ → ℕ
+  plus Z n     = n
+  plus (S m) n = S (plus m n)
 
 asserts that its equations DETERMINE the definiendum — that the space
 of solutions
@@ -1834,34 +2120,34 @@ nothing to Σ; nothing about obligations, discharge, modules or the
 report is clause-aware; no Foundation rule and no kernel capability
 is added.
 
-  def plus  : ℕ → ℕ → ℕ                                    # EXISTENCE
-            ≔ λm. ℕ-elim (x. ℕ → ℕ) (λn. n) (k ih. λn. S (ih n)) m
-  def plusZ : (n : ℕ) → plus Z n ≡ n ∈ ℕ                   # the CLAUSES,
-            ≔ λn. ⋆                                        #   Π-closed
-  def plusS : (m : ℕ) (n : ℕ) → plus (S m) n ≡ S (plus m n) ∈ ℕ
-            ≔ λm. λn. ⋆
-  def plusEta :                                            # UNIQUENESS
+  plus  : ℕ → ℕ → ℕ                                        # EXISTENCE
+  plus  = λm. ℕ-elim (x. ℕ → ℕ) (λn. n) (k ih. λn. S (ih n)) m
+  plusZ : (n : ℕ) → plus Z n ≡ n ∈ ℕ                       # the CLAUSES,
+  plusZ = λn. ⋆                                            #   Π-closed
+  plusS : (m : ℕ) (n : ℕ) → plus (S m) n ≡ S (plus m n) ∈ ℕ
+  plusS = λm. λn. ⋆
+  plusEta :                                                # UNIQUENESS
         (g : ℕ → ℕ → ℕ)
       → (hz : (n : ℕ) → g Z n ≡ n ∈ ℕ)
       → (hs : (m : ℕ) (n : ℕ) → g (S m) n ≡ S (g m n) ∈ ℕ)
       → (m : ℕ) (n : ℕ) → g m n ≡ plus m n ∈ ℕ
-      ≔ λg. λhz. λhs. λm.
+  plusEta = λg. λhz. λhs. λm.
           ℕ-elim (x. (n : ℕ) → g x n ≡ plus x n ∈ ℕ)
                  (λn. ⋆) (k ih. λn. ⋆) m
 
-In general, for  def f : (x₁ : A₁) → … → (xₖ : Aₖ) → B  with clauses
-f p̄ᵢ ≔ tᵢ, the batch is
+In general, for  f : (x₁ : A₁) → … → (xₖ : Aₖ) → B  with clauses
+f p̄ᵢ = tᵢ, the batch is
 
-  def f    : (x₁ : A₁) → … → (xₖ : Aₖ) → B ≔ ρ
-  def nᵢ   : Π(Γᵢ). f p̄ᵢ ≡ tᵢ ∈ B[p̄ᵢ] ≔ λ…. ⋆
-             # Γᵢ the PATTERN TELESCOPE: the columns in order, the
-             # split column contributing its constructor's argument
-             # (nothing at Z); recursive occurrences in tᵢ stay
-             # REFERENCES to f
-  def nEta : (g : (x₁ : A₁) → … → (xₖ : Aₖ) → B)
-           → (h₁ : Π(Γ₁). g p̄₁ ≡ t₁[g/f] ∈ B[p̄₁]) → …
-           → (x₁ : A₁) → … → (xₖ : Aₖ)
-           → g x₁ … xₖ ≡ f x₁ … xₖ ∈ B
+  f    : (x₁ : A₁) → … → (xₖ : Aₖ) → B ;  f = ρ
+  nᵢ   : Π(Γᵢ). f p̄ᵢ ≡ tᵢ ∈ B[p̄ᵢ] ;  nᵢ = λ…. ⋆
+         # Γᵢ the PATTERN TELESCOPE: the columns in order, the
+         # split column contributing its constructor's argument
+         # (nothing at Z); recursive occurrences in tᵢ stay
+         # REFERENCES to f
+  nEta : (g : (x₁ : A₁) → … → (xₖ : Aₖ) → B)
+       → (h₁ : Π(Γ₁). g p̄₁ ≡ t₁[g/f] ∈ B[p̄₁]) → …
+       → (x₁ : A₁) → … → (xₖ : Aₖ)
+       → g x₁ … xₖ ≡ f x₁ … xₖ ∈ B
 
 Read the batch as the definition's INTERFACE: the equations are the
 definition, ρ is an implementation detail. On every later item and
@@ -1886,11 +2172,17 @@ pointwise, exhibit that g satisfies the clauses.
 # sit at a Π-type, which ≡ embeds like any other). Any other LHS
 # spelling is a structural error — missing structure, not a failed
 # equation (the dividing line of Judgement forms). The clause
-# separator is ≔, as at def: a clause IS a definiens, given
-# pointwise (`=` remains an ordinary operator token). The marker |
-# is RESERVED — withdrawn from the operator alphabet — because a
-# clause may directly follow the witness form's definiens, where an
-# infix reading would capture it.
+# separator is `=`, the definiens token: a clause IS a definiens,
+# given pointwise, and a definition IS the clause with zero patterns
+# (`=` is thereby reserved — it is no operator name). A clause is a
+# COLUMN-0 LINE (Layout above): it follows its signature directly
+# (comment lines between are fine), and its head must be that
+# signature's name — a clause for anything else, or with no signature
+# above it, is a structural error naming both. Nothing marks a clause
+# but its column: a column-0 line that is not a signature (`n : …`)
+# and not headed by an item keyword is one. Among an item's clauses AT
+# MOST ONE spells no pattern: alone it is the definition, beside
+# pattern clauses it is the WITNESS (below); it takes no [name].
 
 # NAMES. The expansion mints Σ names; the reproducibility invariant
 # demands they be a pure function of the source. For an
@@ -1904,9 +2196,9 @@ pointwise, exhibit that g satisfies the clauses.
 # override, a structural error otherwise —
 #
 #   infixl 6 +
-#   def + : ℕ → ℕ → ℕ [plusEta]
-#     | Z + n   ≔ n [plusZ]
-#     | S m + n ≔ S (m + n) [plusS]
+#   + : ℕ → ℕ → ℕ [plusEta]
+#   Z + n   = n [plusZ]
+#   S m + n = S (m + n) [plusS]
 #
 # Generated names enter Σ like any other entry (duplicates are the
 # usual structural error).
@@ -1983,7 +2275,8 @@ pointwise, exhibit that g satisfies the clauses.
 # OUTSIDE THE FRAGMENT (deeper patterns, another split type, several
 # split columns, a missing or duplicated constructor, non-structural
 # recursion) the item DEGRADES; it never walls:
-#   * WITH a witness — def f : T ≔ t | clauses — the splitter is
+#   * WITH a witness — the zero-pattern clause f = t beside the
+#     pattern clauses — the splitter is
 #     skipped: f is an ordinary def with definiens t, and the clause
 #     lemmas are emitted with bodies λ…. ⋆. Each ⋆ that does not
 #     discharge is an ordinary obligation, sited at the clausal item
@@ -2000,7 +2293,7 @@ pointwise, exhibit that g satisfies the clauses.
 #     the lemma store as declared equations (the abstract-interface
 #     idiom of e-decl), so everything downstream elaborates against
 #     the interface; acceptance is blocked by the declarations, and the
-#     remedy is a witness (≔ t) or clauses reshaped into the
+#     remedy is a witness (a clause f = t) or clauses reshaped into the
 #     fragment.
 # Three tiers, one semantics: in the fragment the elaborator proves
 # everything; witness-tier the user supplies existence and proves
@@ -2116,13 +2409,15 @@ Report conventions:
 
 Discharging an obligation: prepend, before the item that surfaced it,
 
-  def plus_zero : (n : ℕ) → plus n Z ≡ n ∈ ℕ ≔ λn. <proof>
+  plus_zero : (n : ℕ) → plus n Z ≡ n ∈ ℕ
+  plus_zero = λn. <proof>
 
 — an ordinary def whose type is the obligation's statement as an
 equality type (generalized over its context by Π-binders) — and NAME
 it at the surfacing item:
 
-  def vappend_nil : ... using (plus_zero) ≔ ...
+  vappend_nil : ... using (plus_zero)
+  vappend_nil = ...
 
 On rerun, the reflected equation is in the site's scope and step 6
 discharges silently. The proof itself is whatever the theory
@@ -2283,7 +2578,7 @@ run's verdict counts the failures.
 The failed item's STATE IS DISCARDED — nothing a broken item built
 reaches Σ, so it cannot contribute a definition, and the salvaged
 holes are display material only. What replaces it is a DECLARATION of
-its own signature (`def x : T` with no definiens, the sig-decl item),
+its own signature (`x : T` with no definiens, the sig-decl item),
 so that later items' references to it still resolve. That declaration
 is reported as open and blocks acceptance exactly as a written one
 does — and it stands where a written one stands, at the NAME, so it
@@ -2527,8 +2822,8 @@ the variable outright, refining every later entry with it, is
 variable, and its later entries with it, which is what a hole's
 context can afford to leave alone.)
 
-  let x1 ≔ x .π₁ in
-  let x2 ≔ x .π₂ in
+  let x1 = x .π₁ in
+  let x2 = x .π₂ in
   (?a : A[(x1, x2)/x])
 
 THE ASCRIPTION IS THE ELIMINATION. Without it the let body is checked
@@ -2543,10 +2838,10 @@ restates a goal at an abbreviation the same way.
 FULLY ITERATED is the same emission run depth-first, keeping the
 intermediate names so that every let stays a ONE-STEP projection:
 
-  let x1 ≔ x .π₁ in
-  let x11 ≔ x1 .π₁ in
-  let x12 ≔ x1 .π₂ in
-  let x2 ≔ x .π₂ in
+  let x1 = x .π₁ in
+  let x11 = x1 .π₁ in
+  let x12 = x1 .π₂ in
+  let x2 = x .π₂ in
   (?a : A[((x11, x12), x2)/x])
 
 Iteration follows the head exposure the projection rule itself uses,

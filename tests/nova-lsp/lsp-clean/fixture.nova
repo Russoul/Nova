@@ -1,1 +1,2 @@
-def id : ℕ → ℕ ≔ λx. x
+id : ℕ → ℕ
+id = λx. x

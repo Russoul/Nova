@@ -1,1 +1,1 @@
-type Int := QuotC (SigmaC _ (ℕc) (ℕc)) p q (Squash (EqC (App (App (plus@sig) (P1 (p@1))) (P2 (q@0))) (App (App (plus@sig) (P2 (p@1))) (P1 (q@0))) (ℕc)))
+def Int : 𝕌 := QuotC (SigmaC _ (ℕc) (ℕc)) p q (Squash (EqC (App (App (plus@sig) (P1 (p@1))) (P2 (q@0))) (App (App (plus@sig) (P2 (p@1))) (P1 (q@0))) (ℕc)))

@@ -2,7 +2,7 @@ module Nova.LSP.Definitions
 
 -- Go-to-definition and document symbols, both built entirely from
 -- `loadProgram`'s already-parsed `List ModUnit` — no elaboration
--- needed. `SDef`/`STypeDef`/`SQDecl` carry their own name directly in
+-- needed. `SDef`/`SQDecl` carry their own name directly in
 -- the surface AST, and Nova's Σ-naming scheme (qualify by module,
 -- alias opened imports — see `Nova.Elaboration.resolveSigName`/
 -- `emitCoreDef`) is simple enough to replicate statically here.
@@ -53,7 +53,6 @@ itemRange = fromMaybe emptyRange
 itemNames : SItem -> List String
 itemNames (SDef _ x _ _ _) = [x]
 itemNames (SDeclDef _ x _) = [x]
-itemNames (STypeDef x _) = [x]
 itemNames (SData _ decls) = map dqname decls
 itemNames (SClausalDef _ x _ eta _ _ cls) = clausalNames x eta cls
 
@@ -166,6 +165,5 @@ documentSymbols lns = concatMap toSymbols
     case item of
       SDef _ x _ _ _  => [mkSymbol lns x Function r]
       SDeclDef _ x _ => [mkSymbol lns x Function r]
-      STypeDef x _  => [mkSymbol lns x Class r]
       SData _ decls => map (\d => mkSymbol lns d.dqname (declSymbolKind d.dqres) r) decls
       SClausalDef _ x _ eta _ _ cls => map (\n => mkSymbol lns n Function r) (clausalNames x eta cls)

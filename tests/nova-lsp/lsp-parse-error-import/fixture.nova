@@ -1,2 +1,3 @@
 import broken
-def ok : ℕ ≔ Z
+ok : ℕ
+ok = Z

@@ -21,145 +21,95 @@ import Algebra.ring (IsCommRing)
 import Algebra.groupTheory (gop, ge, ginv, gAssoc, gUnitL, gUnitR, gInvL, gInvR, gCancelInner, gCancelInnerInv, gCancelOuter, gCancelOuterInv, gInvUniq, gInvInv, gInvUnit, gOpInv, gCancelL, gCancelR, gEqOfOpInvUnit)
 import Core.equality (sym, trans, cong)
 
-def raddGroup : {R : 𝕌} (r : IsCommRing R) → IsGroup R using (Algebra.ring.IsCommRing.unfold) ≔
-  λR. λr. r .π₁
+raddGroup : {R : 𝕌} (r : IsCommRing R) → IsGroup R using (Algebra.ring.IsCommRing.unfold)
+raddGroup = λR. λr. r .π₁
 
-def rmul : (R : 𝕌) (r : IsCommRing R) → R → R → R using (Algebra.ring.IsCommRing.unfold) ≔
-  λR. λr. r .π₂ .π₁
+rmul : (R : 𝕌) (r : IsCommRing R) → R → R → R using (Algebra.ring.IsCommRing.unfold)
+rmul = λR. λr. r .π₂ .π₁
 
-def rone : {R : 𝕌} (r : IsCommRing R) → R using (Algebra.ring.IsCommRing.unfold) ≔
-  λR. λr. r .π₂ .π₂ .π₁
+rone : {R : 𝕌} (r : IsCommRing R) → R using (Algebra.ring.IsCommRing.unfold)
+rone = λR. λr. r .π₂ .π₂ .π₁
 
 -- ===== the five laws IsCommRing carries, as ≡-equations =====
-def rMulAssoc : {R : 𝕌}
+rMulAssoc : {R : 𝕌}
   {r : IsCommRing R}
   {x y z : R}
   → rmul _ r (rmul _ r x y) z ≡ rmul _ r x (rmul _ r y z)
-  using (Algebra.ring.IsCommRing.unfold, rmul.eq) ≔
-  λR. λr. λx. λy. λz. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₁ x y z)
+  using (Algebra.ring.IsCommRing.unfold, rmul.eq)
+rMulAssoc = λR. λr. λx. λy. λz. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₁ x y z)
 
-def rMulComm : (R : 𝕌) (r : IsCommRing R) (x y : R) → rmul _ r x y ≡ rmul _ r y x
-  using (Algebra.ring.IsCommRing.unfold, rmul.eq) ≔
-  λR. λr. λx. λy. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₂ .π₁ x y)
+rMulComm : (R : 𝕌) (r : IsCommRing R) (x y : R) → rmul _ r x y ≡ rmul _ r y x
+  using (Algebra.ring.IsCommRing.unfold, rmul.eq)
+rMulComm = λR. λr. λx. λy. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₂ .π₁ x y)
 
-def rMulOne : {R : 𝕌} {r : IsCommRing R} {x : R} → rmul _ r x (rone r) ≡ x
-  using (Algebra.ring.IsCommRing.unfold, rmul.eq, rone.eq) ≔
-  λR. λr. λx. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ x)
+rMulOne : {R : 𝕌} {r : IsCommRing R} {x : R} → rmul _ r x (rone r) ≡ x
+  using (Algebra.ring.IsCommRing.unfold, rmul.eq, rone.eq)
+rMulOne = λR. λr. λx. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ x)
 
-def rAddComm : (R : 𝕌) (r : IsCommRing R) (x y : R) → gop (raddGroup r) x y ≡ gop (raddGroup r) y x
-  using (Algebra.ring.IsCommRing.unfold, Algebra.groupTheory.gop.eq, raddGroup.eq) ≔
-  λR. λr. λx. λy. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ x y)
+rAddComm : (R : 𝕌) (r : IsCommRing R) (x y : R) → gop (raddGroup r) x y ≡ gop (raddGroup r) y x
+  using (Algebra.ring.IsCommRing.unfold, Algebra.groupTheory.gop.eq, raddGroup.eq)
+rAddComm = λR. λr. λx. λy. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₁ x y)
 
-def rDistribL : (R : 𝕌)
+rDistribL : (R : 𝕌)
   (r : IsCommRing R)
   (x y z : R)
   → rmul _ r x (gop (raddGroup r) y z) ≡ gop (raddGroup r) (rmul _ r x y) (rmul _ r x z)
-  using (Algebra.ring.IsCommRing.unfold, Algebra.groupTheory.gop.eq, raddGroup.eq, rmul.eq) ≔
-  λR. λr. λx. λy. λz. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ x y z)
+  using (Algebra.ring.IsCommRing.unfold, Algebra.groupTheory.gop.eq, raddGroup.eq, rmul.eq)
+rDistribL = λR. λr. λx. λy. λz. idToEq _ _ _ (r .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ .π₂ x y z)
 
 -- ===== the derived interaction laws =====
-def rDistribR : (R : 𝕌)
+rDistribR : (R : 𝕌)
   (r : IsCommRing R)
   (x y z : R)
-  → rmul _ r (gop (raddGroup r) y z) x ≡ gop (raddGroup r) (rmul _ r y x) (rmul _ r z x) ≔
+  → rmul _ r (gop (raddGroup r) y z) x ≡ gop (raddGroup r) (rmul _ r y x) (rmul _ r z x)
+rDistribR =
   λR. λr. λx. λy. λz. rmul _ r (gop (raddGroup r) y z) x
-      ≡⟨ rMulComm _ r (gop (raddGroup r) y z) x ⟩ rmul _ r x (gop (raddGroup r) y z)
-      ≡⟨ rDistribL _ r x y z ⟩ gop (raddGroup r) (rmul _ r x y) (rmul _ r x z)
-      ≡⟨ cong
-        (λw. R)
-        (λw. gop (raddGroup r) w (rmul _ r x z))
-        (rMulComm _ r x y) ⟩ gop (raddGroup r) (rmul _ r y x) (rmul _ r x z)
-      ≡⟨ cong
-        (λw. R)
-        (λw. gop (raddGroup r) (rmul _ r y x) w)
-        (rMulComm _ r x z) ⟩ gop (raddGroup r) (rmul _ r y x) (rmul _ r z x)
+    ≡⟨ rMulComm _ r (gop (raddGroup r) y z) x ⟩ rmul _ r x (gop (raddGroup r) y z)
+    ≡⟨ rDistribL _ r x y z ⟩ gop (raddGroup r) (rmul _ r x y) (rmul _ r x z)
+    ≡⟨ cong (λw. R) (λw. gop (raddGroup r) w (rmul _ r x z)) (rMulComm _ r x y) ⟩
+      gop (raddGroup r) (rmul _ r y x) (rmul _ r x z)
+    ≡⟨ cong (λw. R) (λw. gop (raddGroup r) (rmul _ r y x) w) (rMulComm _ r x z) ⟩
+      gop (raddGroup r) (rmul _ r y x) (rmul _ r z x)
 
 -- x · 0 = 0, by cancellation from x·0 = x·(0+0) = x·0 + x·0
-def rMulZero : (R : 𝕌)
-  (r : IsCommRing R)
-  (x : R)
-  → rmul _ r x (ge (raddGroup r)) ≡ ge (raddGroup r) ≔
+rMulZero : (R : 𝕌) (r : IsCommRing R) (x : R) → rmul _ r x (ge (raddGroup r)) ≡ ge (raddGroup r)
+rMulZero =
   λR. λr. λx. gCancelL
-    (raddGroup r)
-    (rmul _ r x (ge (raddGroup r)))
-    (gop (raddGroup r) (rmul _ r x (ge (raddGroup r))) (rmul _ r x (ge (raddGroup r)))
-        ≡⟨ sym
-          _
-          _
-          (rDistribL
-            _
-            r
-            x
-            (ge (raddGroup r))
-            (ge
-              (raddGroup r))) ⟩ rmul _ r x (gop (raddGroup r) (ge (raddGroup r)) (ge (raddGroup r)))
-        ≡⟨ cong
-          (λw. R)
-          (λw. rmul _ r x w)
-          (gUnitL (raddGroup r) (ge (raddGroup r))) ⟩ rmul _ r x (ge (raddGroup r))
-        ≡⟨ sym
-          _
-          _
-          (gUnitR
-            (raddGroup r)
-            (rmul
-              _
-              r
-              x
-              (ge
-                (raddGroup
-                  r)))) ⟩ gop (raddGroup r) (rmul _ r x (ge (raddGroup r))) (ge (raddGroup r)))
+    raddGroup r
+    rmul _ r x (ge (raddGroup r))
+    gop (raddGroup r) (rmul _ r x (ge (raddGroup r))) (rmul _ r x (ge (raddGroup r)))
+      ≡⟨ sym _ _ (rDistribL _ r x (ge (raddGroup r)) (ge (raddGroup r))) ⟩
+        rmul _ r x (gop (raddGroup r) (ge (raddGroup r)) (ge (raddGroup r)))
+      ≡⟨ cong (λw. R) (λw. rmul _ r x w) (gUnitL (raddGroup r) (ge (raddGroup r))) ⟩
+        rmul _ r x (ge (raddGroup r))
+      ≡⟨ sym _ _ (gUnitR (raddGroup r) (rmul _ r x (ge (raddGroup r)))) ⟩
+        gop (raddGroup r) (rmul _ r x (ge (raddGroup r))) (ge (raddGroup r))
 
 -- x · (−y) = −(x · y), by uniqueness of inverses
-def rMulNeg : (R : 𝕌)
+rMulNeg : (R : 𝕌)
   (r : IsCommRing R)
   (x y : R)
-  → rmul _ r x (ginv (raddGroup r) y) ≡ ginv (raddGroup r) (rmul _ r x y) ≔
+  → rmul _ r x (ginv (raddGroup r) y) ≡ ginv (raddGroup r) (rmul _ r x y)
+rMulNeg =
   λR. λr. λx. λy. sym
     _
     _
-    (gInvUniq
-      (gop (raddGroup r) (rmul _ r x y) (rmul _ r x (ginv (raddGroup r) y))
-          ≡⟨ sym
-            _
-            _
-            (rDistribL
-              _
-              r
-              x
-              y
-              (ginv (raddGroup r) y)) ⟩ rmul _ r x (gop (raddGroup r) y (ginv (raddGroup r) y))
-          ≡⟨ cong (λw. R) (λw. rmul _ r x w) (gInvR (raddGroup r) y) ⟩ rmul _ r x (ge (raddGroup r))
-          ≡⟨ rMulZero _ r x ⟩ ge (raddGroup r)))
+    gInvUniq
+      gop (raddGroup r) (rmul _ r x y) (rmul _ r x (ginv (raddGroup r) y))
+        ≡⟨ sym _ _ (rDistribL _ r x y (ginv (raddGroup r) y)) ⟩
+          rmul _ r x (gop (raddGroup r) y (ginv (raddGroup r) y))
+        ≡⟨ cong (λw. R) (λw. rmul _ r x w) (gInvR (raddGroup r) y) ⟩ rmul _ r x (ge (raddGroup r))
+        ≡⟨ rMulZero _ r x ⟩ ge (raddGroup r)
 
 -- x·y − x·y' = x·(y − y'): the shape every ideal argument is in
-def rMulSub : (R : 𝕌)
+rMulSub : (R : 𝕌)
   (r : IsCommRing R)
   (x y y' : R)
-  → gop
-    (raddGroup r)
-    (rmul _ r x y)
-    (ginv
-      (raddGroup r)
-      (rmul _ r x y')) ≡ rmul _ r x (gop (raddGroup r) y (ginv (raddGroup r) y')) ≔
+  → gop (raddGroup r) (rmul _ r x y) (ginv (raddGroup r) (rmul _ r x y'))
+    ≡ rmul _ r x (gop (raddGroup r) y (ginv (raddGroup r) y'))
+rMulSub =
   λR. λr. λx. λy. λy'. gop (raddGroup r) (rmul _ r x y) (ginv (raddGroup r) (rmul _ r x y'))
-      ≡⟨ cong
-        (λw. R)
-        (λw. gop (raddGroup r) (rmul _ r x y) w)
-        (sym
-          _
-          _
-          (rMulNeg
-            _
-            r
-            x
-            y')) ⟩ gop (raddGroup r) (rmul _ r x y) (rmul _ r x (ginv (raddGroup r) y'))
-      ≡⟨ sym
-        _
-        _
-        (rDistribL
-          _
-          r
-          x
-          y
-          (ginv (raddGroup r) y')) ⟩ rmul _ r x (gop (raddGroup r) y (ginv (raddGroup r) y'))
+    ≡⟨ cong (λw. R) (λw. gop (raddGroup r) (rmul _ r x y) w) (sym _ _ (rMulNeg _ r x y')) ⟩
+      gop (raddGroup r) (rmul _ r x y) (rmul _ r x (ginv (raddGroup r) y'))
+    ≡⟨ sym _ _ (rDistribL _ r x y (ginv (raddGroup r) y')) ⟩
+      rmul _ r x (gop (raddGroup r) y (ginv (raddGroup r) y'))

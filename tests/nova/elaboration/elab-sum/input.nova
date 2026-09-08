@@ -1,10 +1,14 @@
 -- β on both injections and the propositional η/uniqueness instance,
 -- by case analysis at an equality motive
-def swap : (a : 𝕌) (b : 𝕌) → (a ⊎ b) → (b ⊎ a) ≔
+swap : (a : 𝕌) (b : 𝕌) → (a ⊎ b) → (b ⊎ a)
+swap =
   λa. λb. λt. ⊎-elim (w. (b ⊎ a)) (x. inj₂ x) (y. inj₁ y) t
-def swapBeta1 : (a : 𝕌) (b : 𝕌) (x : a) → swap a b (inj₁ x) ≡ inj₂ x ∈ (b ⊎ a) using (swap.eq) ≔
+swapBeta1 : (a : 𝕌) (b : 𝕌) (x : a) → swap a b (inj₁ x) ≡ inj₂ x ∈ (b ⊎ a) using (swap.eq)
+swapBeta1 =
   λa. λb. λx. ⋆
-def swapBeta2 : (a : 𝕌) (b : 𝕌) (y : b) → swap a b (inj₂ y) ≡ inj₁ y ∈ (b ⊎ a) using (swap.eq) ≔
+swapBeta2 : (a : 𝕌) (b : 𝕌) (y : b) → swap a b (inj₂ y) ≡ inj₁ y ∈ (b ⊎ a) using (swap.eq)
+swapBeta2 =
   λa. λb. λy. ⋆
-def swapInvol : (a : 𝕌) (b : 𝕌) (t : (a ⊎ b)) → swap b a (swap a b t) ≡ t ∈ (a ⊎ b) using (swap.eq) ≔
+swapInvol : (a : 𝕌) (b : 𝕌) (t : (a ⊎ b)) → swap b a (swap a b t) ≡ t ∈ (a ⊎ b) using (swap.eq)
+swapInvol =
   λa. λb. λt. ⊎-elim (w. swap b a (swap a b w) ≡ w ∈ (a ⊎ b)) (x. ⋆) (y. ⋆) t

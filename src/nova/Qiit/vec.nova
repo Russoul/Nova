@@ -3,40 +3,45 @@
 -- dependent elimination at an indexed motive — and the functions at
 -- the same generality.
 
-data [a : 𝕌] ( V : ℕ → U
-     ; vnil : El (V Z)
-     ; vcons : (n : ℕ) → a → El (V n) → El (V (S n)) )
+data [a : 𝕌]
+  V : ℕ → U
+  vnil : El (V Z)
+  vcons : (n : ℕ) → a → El (V n) → El (V (S n))
 
 -- the GENERIC FOLD: one dependent elimination for every carrier and
 -- every result code
-def vfold : (a : 𝕌) {b : 𝕌} (z : b) (c : a → b → b) (n : ℕ) → V a n → b
-  using (Qiit.vec.V.eq, Qiit.vec.V.unfold) ≔
-  λa. λb. λz. λc. λn. λv. VElim a (λm. λw. b) z (λm. λx. λxs. λih. c x ih) n v
+vfold : (a : 𝕌) {b : 𝕌} (z : b) (c : a → b → b) (n : ℕ) → V a n → b
+  using (Qiit.vec.V.eq, Qiit.vec.V.unfold)
+vfold = λa. λb. λz. λc. λn. λv. VElim a (λm. λw. b) z (λm. λx. λxs. λih. c x ih) n v
 
 -- generic length and an instance-level sum, both folds
-def vlen : (a : 𝕌) (n : ℕ) → V a n → ℕ ≔ λa. λn. λv. vfold _ Z (λx. λih. S ih) _ v
+vlen : (a : 𝕌) (n : ℕ) → V a n → ℕ
+vlen = λa. λn. λv. vfold _ Z (λx. λih. S ih) _ v
 
-def plusV : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim y (n ih. S ih) x
+plusV : ℕ → ℕ → ℕ
+plusV = λx. λy. ℕ-elim y (n ih. S ih) x
 
-def vsum : (n : ℕ) → V ℕ n → ℕ ≔ λn. λv. vfold _ Z (λx. λih. plusV x ih) _ v
+vsum : (n : ℕ) → V ℕ n → ℕ
+vsum = λn. λv. vfold _ Z (λx. λih. plusV x ih) _ v
 
-def single : V ℕ (S Z) using (Qiit.vec.V.eq, Qiit.vec.V.unfold) ≔ vcons ℕ Z 3 (vnil ℕ)
+single : V ℕ (S Z) using (Qiit.vec.V.eq, Qiit.vec.V.unfold)
+single = vcons ℕ Z 3 (vnil ℕ)
 
-def vsumSingle : vsum _ single ≡ 3
+vsumSingle : vsum _ single ≡ 3
   using (Qiit.vec.VElim.eq,
     Qiit.vec.plusV.eq,
     Qiit.vec.single.eq,
     Qiit.vec.vcons.eq,
     Qiit.vec.vfold.eq,
     Qiit.vec.vnil.eq,
-    Qiit.vec.vsum.eq) ≔
-  ⋆
+    Qiit.vec.vsum.eq)
+vsumSingle = ⋆
 
-def vlenSingle : vlen _ _ single ≡ S Z
+vlenSingle : vlen _ _ single ≡ S Z
   using (Qiit.vec.VElim.eq,
     Qiit.vec.single.eq,
     Qiit.vec.vcons.eq,
     Qiit.vec.vfold.eq,
     Qiit.vec.vlen.eq,
-    Qiit.vec.vnil.eq) ≔
-  ⋆
+    Qiit.vec.vnil.eq)
+vlenSingle = ⋆

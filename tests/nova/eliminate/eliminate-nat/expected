@@ -2,11 +2,12 @@
 -- it, so the motive is the one the elaborator RECOVERS and none is
 -- written — the canonical spelling the distiller elides to anyway
 -- (docs/NovaElaboration.txt, In-place elimination).
-def f : (n : ℕ) → ℕ ≔ λn. (ℕ-elim ?goalZ (n ih. ?goalS) n)
+f : (n : ℕ) → ℕ
+f = λn. (ℕ-elim ?goalZ (n ih. ?goalS) n)
 --- re-elaborated:
 defined f [+2 declarations]
 open holes (2):
   [?goalZ] (n : ℕ) ⊢ ?goalZ : ℕ
-      at: out/input.nova:5:35: def f
+      at: out/input.nova:6:17: def f
   [?goalS] (n : ℕ) (n : ℕ) (ih : ℕ) ⊢ ?goalS : ℕ
-      at: out/input.nova:5:49: def f
+      at: out/input.nova:6:31: def f

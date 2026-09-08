@@ -5,6 +5,6 @@
 -- the label the operator WROTE (`?step`, not `?dblS.step`): the
 -- qualification is machine-made, and one written hole reading as one
 -- name across its three derived obligations is the faithful account.
-def dbl : ℕ → ℕ
-  | dbl Z ≔ Z
-  | dbl (S n) ≔ ?step
+dbl : ℕ → ℕ
+dbl Z = Z
+dbl (S n) = ?step

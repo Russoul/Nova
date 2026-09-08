@@ -1,26 +1,26 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (2):
-  [L1:5-L1:8] (warning)   [bad] ⊢ ? : ℕ
-      at: DIR/fixture.nova:1:5: def bad
-  [L1:15-L1:29] (error) def bad: unknown name 'undefinedThing'
+  [L1:1-L1:4] (warning)   [bad] ⊢ ? : ℕ
+      at: DIR/fixture.nova:1:1: def bad
+  [L2:7-L2:21] (error) def bad: unknown name 'undefinedThing'
 ELABTIME: reported
 TOKENS (6):
-  L1:1+3 keyword
-  L1:5+3 variable
-  L1:9+1 keyword
-  L1:11+1 keyword
-  L1:13+1 keyword
-  L1:15+14 variable
+  L1:1+3 variable
+  L1:5+1 keyword
+  L1:7+1 keyword
+  L2:1+3 variable
+  L2:5+1 keyword
+  L2:7+14 variable
 SYMBOLS (1):
-  bad (kind 12) [L1:1-L1:29]
+  bad (kind 12) [L1:1-L2:21]
 DEFINITION(undefinedThing): null
 HOVER(undefinedThing): null
 CODE ACTIONS(undefinedThing) (0):
 DIAGNOSTICS FOR FIXTURE (2):
-  [L1:5-L1:8] (warning)   [bad] ⊢ ? : ℕ
-      at: DIR/fixture.nova:1:5: def bad
-  [L1:15-L1:29] (error) def bad: unknown name 'undefinedThing'
+  [L1:1-L1:4] (warning)   [bad] ⊢ ? : ℕ
+      at: DIR/fixture.nova:1:1: def bad
+  [L2:7-L2:21] (error) def bad: unknown name 'undefinedThing'
 ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0

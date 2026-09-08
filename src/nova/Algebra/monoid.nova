@@ -13,7 +13,8 @@
 
 import Core.id (Id)
 
-def IsMonoid : 𝕌 → 𝕌 ≔
+IsMonoid : 𝕌 → 𝕌
+IsMonoid =
   λM. (op : M → M → M)
     (e : M)
     (assoc : (x y z : M) → Id _ (op (op x y) z) (op x (op y z)))

@@ -4,7 +4,9 @@
 -- and a nested pair offers the fully-iterated split as well, with the
 -- edit computed on RESOLVE, for the one picked, and stamped with the
 -- document version it was computed against
-def P : ℕ → 𝕌 ≔ λn. ℕ
+P : ℕ → 𝕌
+P = λn. ℕ
 
-def m : (n : ℕ) → (h : P n) → (x : (ℕ × ℕ) × ℕ) → (s : ℕ ⊎ ℕ) → P n ≔
+m : (n : ℕ) → (h : P n) → (x : (ℕ × ℕ) × ℕ) → (s : ℕ ⊎ ℕ) → P n
+m =
   λn. λh. λx. λs. ?goal

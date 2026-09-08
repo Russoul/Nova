@@ -6,6 +6,6 @@
 -- once per generated item — the eliminator body, the clause's equation
 -- lemma, the uniqueness lemma — each at its own context. All three
 -- show: reading them is fine, it is rewriting that needs one answer.
-def dbl : ℕ → ℕ
-  | dbl Z ≔ Z
-  | dbl (S n) ≔ ?st
+dbl : ℕ → ℕ
+dbl Z = Z
+dbl (S n) = ?st

@@ -8,17 +8,23 @@ round-trip OK: ASTs identical, kernel Σ α-identical.
 -- an ordinary element position (THE TERM GRAMMAR MERGE)
 
 infixl 4 ≤
-def P : 𝕌 × 𝕌 ≔ ℕ, 𝟙
+P : 𝕌 × 𝕌
+P = ℕ, 𝟙
 
 -- both written parenthesized; the spine reads them back bare
-def f : P .π₁ → P .π₁ ≔ λx. x
+f : P .π₁ → P .π₁
+f = λx. x
 
-def Vec : {a : 𝕌} → ℕ → 𝕌 ≔ λa. λn. ℕ
+Vec : {a : 𝕌} → ℕ → 𝕌
+Vec = λa. λn. ℕ
 
-def g : Vec {ℕ} 3 → ℕ using (Vec.eq) ≔ λx. x
+g : Vec {ℕ} 3 → ℕ using (Vec.eq)
+g = λx. x
 
 -- an operator application needs no parentheses either: with the type
 -- and term grammars merged there is no level between them to lose
-def ≤ : ℕ → ℕ → 𝕌 ≔ λa. λb. ℕ
+≤ : ℕ → ℕ → 𝕌
+(≤) = λa. λb. ℕ
 
-def h : Z ≤ Z → ℕ using (≤.eq) ≔ λx. x
+h : Z ≤ Z → ℕ using (≤.eq)
+h = λx. x

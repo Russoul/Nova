@@ -25,19 +25,19 @@ import Rat.frac (NZ, nzPos, nzNeg, nzToInt, Rat, mkRat, num, den, ratEta, ratZer
 import Rat (Q, qcls, qZero, qOne, *, qMulInv, NZQ, qOfNzq, nzqInv, clsEqOfRel, dInt)
 import Core.equality (trans, sym, cong)
 
-def normProdZero : {a b : ℕ} → normPair a b .π₁ * normPair a b .π₂ ≡ Z
-  using (Int.normalize.normPair.eq, Natural.multZeroId, zeroMult) ≔
-  λa. ℕ-elim (λb. ⋆) (k ih. λb. ℕ-elim ⋆ (j ihb. ih j) b) a
+normProdZero : {a b : ℕ} → normPair a b .π₁ * normPair a b .π₂ ≡ Z
+  using (Int.normalize.normPair.eq, Natural.multZeroId, zeroMult)
+normProdZero = λa. ℕ-elim (λb. ⋆) (k ih. λb. ℕ-elim ⋆ (j ihb. ih j) b) a
 
-def intCanonProdZero : (z : Int) → intCanon z .π₁ * intCanon z .π₂ ≡ Z
-  using (Int.eq.intCanon.eq, Int.Int.unfold, Int.normalize.normPair.eq, normProdZero) ≔
-  λz. quot-elim (p. normProdZero) z
+intCanonProdZero : (z : Int) → intCanon z .π₁ * intCanon z .π₂ ≡ Z
+  using (Int.eq.intCanon.eq, Int.Int.unfold, Int.normalize.normPair.eq, normProdZero)
+intCanonProdZero = λz. quot-elim (p. normProdZero) z
 
 -- ===== a non-zero integer is the image of an NZ =====
 -- on a pair with one component Z, non-zeroness leaves exactly the two
 -- productive cases; the (Z,Z) case contradicts the hypothesis and the
 -- (S,S) case contradicts canonicity
-def nzOfPair : (a b : ℕ)
+nzOfPair : (a b : ℕ)
   (hab : a * b ≡ Z)
   (hnz : ¬ (class (a, b) ≡ intZero))
   → ∥(e : NZ) × nzToInt e ≡ class (a, b)∥
@@ -53,24 +53,25 @@ def nzOfPair : (a b : ℕ)
     Rat.frac.nzPos.eq,
     Rat.frac.nzToInt.eq,
     sucPlus,
-    zeroMult) ≔
+    zeroMult)
+nzOfPair =
   λa. ℕ-elim
-    (λb. ℕ-elim (λhab. λhnz. absurdP _ (impApply hnz ⋆)) (j ihb. λhab. λhnz. ⋆ (nzNeg j, ⋆)) b)
-    (k ih. λb. ℕ-elim
-      (λhab. λhnz. ⋆ (nzPos k, ⋆))
-      (j ihb. λhab. λhnz. 𝟘-elim (zNotS
-        (trans _ _ _ (sym _ _ hab) (trans _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))))
-      b)
+    λb. ℕ-elim (λhab. λhnz. absurdP _ (impApply hnz ⋆)) (j ihb. λhab. λhnz. ⋆ (nzNeg j, ⋆)) b
+    k ih. λb. ℕ-elim
+      λhab. λhnz. ⋆ (nzPos k, ⋆)
+      j ihb. λhab. λhnz. 𝟘-elim (zNotS
+        trans _ _ _ (sym _ _ hab) (trans _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))
+      b
     a
 
 -- ¬ introduction/elimination stated AT ¬, so callers never have to
 -- convert between ¬ p and p ⊃ ⊥ (the engine handles that conversion
 -- badly once the terms get large)
-def notIntro : (p : Ω) → (p → ⊥) → ¬ p using (Core.prop.¬.unfold, Core.prop.⊃.unfold) ≔ λp. λf. ⋆ f
+notIntro : (p : Ω) → (p → ⊥) → ¬ p using (Core.prop.¬.unfold, Core.prop.⊃.unfold)
+notIntro = λp. λf. ⋆ f
 
-def notApply : (p : Ω) → ¬ p → p → ⊥
-  using (Core.prop.¬.unfold, Core.prop.⊃.unfold, Core.prop.⊥.unfold) ≔
-  λp. λh. λe. squash-elim h (g. g e)
+notApply : (p : Ω) → ¬ p → p → ⊥ using (Core.prop.¬.unfold, Core.prop.⊃.unfold, Core.prop.⊥.unfold)
+notApply = λp. λh. λe. squash-elim h (g. g e)
 
 -- The view, with the representative kept ABSTRACT — and taken as a
 -- PAIR, not as two projections. Both matter: inside this lemma every
@@ -81,37 +82,31 @@ def notApply : (p : Ω) → ¬ p → p → ⊥
 -- intCanon z .π₂)` makes the checker route through the quotient
 -- relation and the kernel then refuses the step (the eliminee is not
 -- ⇒ᴺ-inferable).
-def intNZViewAt : {z : Int}
+intNZViewAt : {z : Int}
   (p : ℕ × ℕ)
   (hz : class p ≡ z)
   (hab : p .π₁ * p .π₂ ≡ Z)
   (hnz : ¬ (z ≡ intZero))
   → ∥(e : NZ) × nzToInt e ≡ z∥
-  using (classPairEta, Int.Int.unfold) ≔
-  λz. λp. λhz. λhab. λhnz. squash-elim (nzOfPair
-    _
-    _
-    hab
-    (notIntro
-      (class (p .π₁, p .π₂) ≡ intZero)
-      (λe. notApply
-        _
-        hnz
-        (trans
-          _
-          _
-          _
-          (sym _ _ (trans _ _ _ (classPairEta p) hz))
-          e)))) (w. ⋆ (w .π₁, trans _ _ _ (w .π₂) (trans _ _ _ (classPairEta p) hz)))
+  using (classPairEta, Int.Int.unfold)
+intNZViewAt =
+  λz. λp. λhz. λhab. λhnz. squash-elim
+    nzOfPair
+      _
+      _
+      hab
+      notIntro
+        class (p .π₁, p .π₂) ≡ intZero
+        λe. notApply _ hnz (trans _ _ _ (sym _ _ (trans _ _ _ (classPairEta p) hz)) e)
+    w. ⋆ (w .π₁, trans _ _ _ (w .π₂) (trans _ _ _ (classPairEta p) hz))
 
-def intNZView : (z : Int) (hnz : ¬ (z ≡ intZero)) → ∥(e : NZ) × nzToInt e ≡ z∥
-  using (intCanonProdZero) ≔
-  λz. λhnz. intNZViewAt _ (intCanonClass z) (intCanonProdZero z) hnz
+intNZView : (z : Int) (hnz : ¬ (z ≡ intZero)) → ∥(e : NZ) × nzToInt e ≡ z∥ using (intCanonProdZero)
+intNZView = λz. λhnz. intNZViewAt _ (intCanonClass z) (intCanonProdZero z) hnz
 
 -- ===== transferring non-zeroness to the numerator =====
 -- the easy direction of effectivity (el-quot-eq): a zero numerator
 -- makes the class zero
-def ratZeroOfNumZero : (p : Rat) (h : num p ≡ intZero) → class p ≡ qZero
+ratZeroOfNumZero : (p : Rat) (h : num p ≡ intZero) → class p ≡ qZero
   using (intMulOneR,
     intMulZeroL,
     Int.Int.eq,
@@ -133,23 +128,24 @@ def ratZeroOfNumZero : (p : Rat) (h : num p ≡ intZero) → class p ≡ qZero
     Rat.RatR.eq,
     Rat.dInt.eq,
     Rat.qZero.eq,
-    Rat.qcls.eq) ≔
+    Rat.qcls.eq)
+ratZeroOfNumZero =
   λp. λh. clsEqOfRel
     _
     ratZero
-    (trans
+    trans
       _
       _
-      (num ratZero * dInt p)
-      (trans (num p * dInt ratZero) _ _ (intMulOneR (num p)) h)
-      (sym _ _ (intMulZeroL (dInt p))))
+      num ratZero * dInt p
+      trans (num p * dInt ratZero) _ _ (intMulOneR (num p)) h
+      sym _ _ (intMulZeroL (dInt p))
 
-def numNonZero : {p : Rat} (h : ¬ (class p ≡ qZero)) → ¬ (num p ≡ intZero)
-  using (Core.prop.¬.unfold, Core.prop.⊃.unfold, Rat.Q.unfold) ≔
-  λp. λh. notIntro _ (λe. notApply _ h (ratZeroOfNumZero _ e))
+numNonZero : {p : Rat} (h : ¬ (class p ≡ qZero)) → ¬ (num p ≡ intZero)
+  using (Core.prop.¬.unfold, Core.prop.⊃.unfold, Rat.Q.unfold)
+numNonZero = λp. λh. notIntro _ (λe. notApply _ h (ratZeroOfNumZero _ e))
 
 -- ===== every non-zero rational is qOfNzq of something =====
-def qNonZeroIsNzq : {u : Q} (h : ¬ (u ≡ qZero)) → ∥(x : NZQ) × qOfNzq x ≡ u∥
+qNonZeroIsNzq : {u : Q} (h : ¬ (u ≡ qZero)) → ∥(x : NZQ) × qOfNzq x ≡ u∥
   using (Int.Int.unfold,
     Core.prop.¬.unfold,
     Core.prop.⊃.unfold,
@@ -163,26 +159,24 @@ def qNonZeroIsNzq : {u : Q} (h : ¬ (u ≡ qZero)) → ∥(x : NZQ) × qOfNzq x 
     Rat.Q.unfold,
     Rat.nzqToRat.eq,
     Rat.qOfNzq.eq,
-    Rat.qcls.eq) ≔
+    Rat.qcls.eq)
+qNonZeroIsNzq =
   λu. quot-elim
-    (p. λh. squash-elim (intNZView
-      _
-      (numNonZero
-        h)) (w. ⋆ ((w .π₁,
-      den
-        p),
-      trans
-        (class (mkRat (nzToInt (w .π₁)) (den p)))
-        (class (mkRat (num p) (den p)))
-        _
-        (cong (λv. Q) (λx. class (mkRat x (den p))) {nzToInt (w .π₁)} {p .π₁} (w .π₂))
-        (cong (λv. Q) (λt. class t) {mkRat (num p) (den p)} {p} ratEta))))
+    p. λh. squash-elim
+      intNZView _ (numNonZero h)
+      w. ⋆ ((w .π₁, den p),
+        trans
+          class (mkRat (nzToInt (w .π₁)) (den p))
+          class (mkRat (num p) (den p))
+          _
+          cong (λv. Q) (λx. class (mkRat x (den p))) {nzToInt (w .π₁)} {p .π₁} (w .π₂)
+          cong (λv. Q) (λt. class t) {mkRat (num p) (den p)} {p} ratEta)
     u
 
 -- ===== the theorem =====
-def qInvExists : {u : Q} (h : ¬ (u ≡ qZero)) → ∥(v : Q) × u * v ≡ qOne∥ ≔
-  λu. λh. squash-elim (qNonZeroIsNzq
-    h) (w. ⋆ (qOfNzq
-    (nzqInv
-      (w .π₁)),
-    trans _ _ _ (sym _ _ (cong (λv. Q) (λx. x * qOfNzq (nzqInv (w .π₁))) (w .π₂))) qMulInv))
+qInvExists : {u : Q} (h : ¬ (u ≡ qZero)) → ∥(v : Q) × u * v ≡ qOne∥
+qInvExists =
+  λu. λh. squash-elim
+    qNonZeroIsNzq h
+    w. ⋆ (qOfNzq (nzqInv (w .π₁)),
+      trans _ _ _ (sym _ _ (cong (λv. Q) (λx. x * qOfNzq (nzqInv (w .π₁))) (w .π₂))) qMulInv)

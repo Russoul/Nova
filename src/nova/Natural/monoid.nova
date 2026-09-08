@@ -7,20 +7,20 @@ import Natural (+, *, plusAssoc, zeroPlusId, plusZeroId, multAssoc, sucPlus)
 import Core.id (eqToId)
 import Algebra.monoid (IsMonoid)
 
-def natAddMonoid : IsMonoid ℕ using (Algebra.monoid.IsMonoid.unfold) ≔
+natAddMonoid : IsMonoid ℕ using (Algebra.monoid.IsMonoid.unfold)
+natAddMonoid =
   (+),
     Z,
-      (λx. λy. λz. eqToId
-        _
-        _
-        (plusAssoc x y z)), (λx. eqToId _ _ (zeroPlusId x)), λx. eqToId _ _ (plusZeroId x)
+      (λx. λy. λz. eqToId _ _ (plusAssoc x y z)),
+        (λx. eqToId _ _ (zeroPlusId x)), λx. eqToId _ _ (plusZeroId x)
 
 -- The unit laws for * at S Z. On the right the whole statement is a
 -- δβ-computation (n * S Z unwinds through * and + to n); on the left
 -- the elimination is stuck on n, so it is an induction.
-def multOneR : (n : ℕ) → n * S Z ≡ n using (Natural.*.eq, Natural.+.eq) ≔ λn. ⋆
+multOneR : (n : ℕ) → n * S Z ≡ n using (Natural.*.eq, Natural.+.eq)
+multOneR = λn. ⋆
 
-def oneMultL : (n : ℕ) → S Z * n ≡ n
+oneMultL : (n : ℕ) → S Z * n ≡ n
   using (*.eq,
     hyp.rw,
     Natural.multZeroId,
@@ -28,14 +28,13 @@ def oneMultL : (n : ℕ) → S Z * n ≡ n
     sucPlus,
     sucPlus.rw,
     zeroPlusId,
-    zeroPlusId.rw) ≔
-  λn. ℕ-elim ⋆ (k ih. ⋆) n
+    zeroPlusId.rw)
+oneMultL = λn. ℕ-elim ⋆ (k ih. ⋆) n
 
 -- (ℕ, *, 1) is a monoid.
-def natMulMonoid : IsMonoid ℕ using (Algebra.monoid.IsMonoid.unfold) ≔
+natMulMonoid : IsMonoid ℕ using (Algebra.monoid.IsMonoid.unfold)
+natMulMonoid =
   (*),
     S Z,
-      (λx. λy. λz. eqToId
-        _
-        _
-        (multAssoc x y z)), (λx. eqToId _ _ (oneMultL x)), λx. eqToId _ _ (multOneR x)
+      (λx. λy. λz. eqToId _ _ (multAssoc x y z)),
+        (λx. eqToId _ _ (oneMultL x)), λx. eqToId _ _ (multOneR x)

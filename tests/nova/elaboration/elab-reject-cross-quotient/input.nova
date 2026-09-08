@@ -1,5 +1,7 @@
 -- TRUE at the total-relation quotient
-def q1eq : class Z ≡ class (S Z) ∈ ℕ / (n m. ∥𝟙∥) ≔ ⋆
+q1eq : class Z ≡ class (S Z) ∈ ℕ / (n m. ∥𝟙∥)
+q1eq = ⋆
 -- FALSE at the discrete quotient — same syntactic classes; the
 -- type-blind match is NAMED so the kernel gate gets exercised
-def q2bad : class Z ≡ class (S Z) ∈ ℕ / (n m. ∥n ≡ m ∈ ℕ∥) using (q1eq) ≔ ⋆
+q2bad : class Z ≡ class (S Z) ∈ ℕ / (n m. ∥n ≡ m ∈ ℕ∥) using (q1eq)
+q2bad = ⋆

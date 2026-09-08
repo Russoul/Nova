@@ -4,9 +4,13 @@
 -- of the two positions; all four parse in both.
 
 -- the ⊎ code reaches the SIDES
-def sumSideTy : 𝟙 ⊎ 𝟙 ≡ 𝟙 ⊎ 𝟙 ∈ 𝕌 ≔ ⋆
-def sumSideEl : Ω ≔ 𝟙 ⊎ 𝟙 ≡ 𝟙 ⊎ 𝟙 ∈ 𝕌
+sumSideTy : 𝟙 ⊎ 𝟙 ≡ 𝟙 ⊎ 𝟙 ∈ 𝕌
+sumSideTy = ⋆
+sumSideEl : Ω
+sumSideEl = 𝟙 ⊎ 𝟙 ≡ 𝟙 ⊎ 𝟙 ∈ 𝕌
 
 -- an arrow reaches the ∈-TYPE
-def arrowInTy : (λx. x) ≡ (λx. x) ∈ 𝟙 → 𝟙 ≔ ⋆
-def arrowInEl : Ω ≔ (λx. x) ≡ (λx. x) ∈ 𝟙 → 𝟙
+arrowInTy : (λx. x) ≡ (λx. x) ∈ 𝟙 → 𝟙
+arrowInTy = ⋆
+arrowInEl : Ω
+arrowInEl = (λx. x) ≡ (λx. x) ∈ 𝟙 → 𝟙

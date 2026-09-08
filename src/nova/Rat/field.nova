@@ -16,33 +16,20 @@ import Algebra.monoid (IsMonoid)
 import Algebra.group (IsGroup)
 import Algebra.field (IsField)
 
-def ratAddGroup : IsGroup Q using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold) ≔
+ratAddGroup : IsGroup Q using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold)
+ratAddGroup =
   ((+),
     qZero,
-      (λx. λy. λz. eqToId
-        _
-        _
-        (qAddAssoc
-          x
-          y
-          z)),
-        (λx. eqToId
-          _
-          _
-          (qAddZeroL
-            x)),
-          λx. eqToId
-            _
-            _
-            (qAddZeroR x)), qNeg, (λx. eqToId _ _ (qAddNegL x)), λx. eqToId _ _ (qAddNegR x)
+      (λx. λy. λz. eqToId _ _ (qAddAssoc x y z)),
+        (λx. eqToId _ _ (qAddZeroL x)), λx. eqToId _ _ (qAddZeroR x)),
+    qNeg, (λx. eqToId _ _ (qAddNegL x)), λx. eqToId _ _ (qAddNegR x)
 
-def ratMulMonoid : IsMonoid Q using (Algebra.monoid.IsMonoid.unfold) ≔
+ratMulMonoid : IsMonoid Q using (Algebra.monoid.IsMonoid.unfold)
+ratMulMonoid =
   (*),
     qOne,
-      (λx. λy. λz. eqToId
-        _
-        _
-        (qMulAssoc x y z)), (λx. eqToId _ _ (qMulOneL x)), λx. eqToId _ _ (qMulOneR x)
+      (λx. λy. λz. eqToId _ _ (qMulAssoc x y z)),
+        (λx. eqToId _ _ (qMulOneL x)), λx. eqToId _ _ (qMulOneR x)
 
 -- Nontriviality at the DATA level: an element of 𝟘 from Id Q 1 0.
 -- a ⊥-proof could never produce one — the route is the effectivity chain
@@ -51,7 +38,7 @@ def ratMulMonoid : IsMonoid Q using (Algebra.monoid.IsMonoid.unfold) ≔
 -- relation (which δβ-computes to class (S Z , Z) ≡ class (Z , Z)),
 -- intEffective turns THAT into its ℕ relation (which computes to
 -- S Z ≡ Z), and zNotS transports () across it into 𝟘.
-def qOneNotZeroD : Id _ qOne qZero → 𝟘
+qOneNotZeroD : Id _ qOne qZero → 𝟘
   using (Core.id.Id.unfold,
     Int.Int.eq,
     Int.IntR.eq,
@@ -77,19 +64,17 @@ def qOneNotZeroD : Id _ qOne qZero → 𝟘
     Rat.dInt.eq,
     Rat.qOne.eq,
     Rat.qZero.eq,
-    Rat.qcls.eq) ≔
-  λp. let h ≔ idToEq
-    _
-    _
-    _
-    p in let r ≔ qEffective ratOne ratZero h in let e ≔ intEffective r in zNotS (sym _ _ e)
+    Rat.qcls.eq)
+qOneNotZeroD =
+  λp. let h = idToEq _ _ _ p
+    in let r = qEffective ratOne ratZero h in let e = intEffective r in zNotS (sym _ _ e)
 
 -- ℚ is a field. The inverse component is UNSQUASHED: qInv is an
 -- honest operation (rationalAlgInv), so the witness is (qInv x, law).
 -- Its nonzero hypothesis arrives as an Id-refutation k; the Ω-side
 -- negation qMulInvR needs is one bridge away — an Ω-equality would
 -- give an Id (eqToId), k would give 𝟘, and ⋆ witnesses ⊥ from it.
-def ratField : IsField Q
+ratField : IsField Q
   using (Algebra.field.IsField.unfold,
     Core.id.Id.eq,
     Core.prop.⊥.unfold,
@@ -101,35 +86,14 @@ def ratField : IsField Q
     Rat.+.eq,
     Rat.*.eq,
     Rat.qOne.eq,
-    Rat.qZero.eq) ≔
+    Rat.qZero.eq)
+ratField =
   ratAddGroup,
     ratMulMonoid,
-      (λx. λy. eqToId
-        _
-        _
-        (qAddComm
-          x
-          y)),
-        (λx. λy. eqToId
-          _
-          _
-          (qMulComm
-            x
-            y)),
-          (λx. λy. λz. eqToId
-            _
-            _
-            (qDistribL
-              x
-              y
-              z)),
-            (λx. λy. λz. eqToId
-              _
-              _
-              (qDistribR
-                x
-                y
-                z)),
+      (λx. λy. eqToId _ _ (qAddComm x y)),
+        (λx. λy. eqToId _ _ (qMulComm x y)),
+          (λx. λy. λz. eqToId _ _ (qDistribL x y z)),
+            (λx. λy. λz. eqToId _ _ (qDistribR x y z)),
               qOneNotZeroD,
-                λx. λk. qInv
-                  x, eqToId _ _ (qMulInvR (notIntro (x ≡ qZero) (λe. ⋆ (k (eqToId _ qZero e)))))
+                λx. λk. qInv x,
+                  eqToId _ _ (qMulInvR (notIntro (x ≡ qZero) (λe. ⋆ (k (eqToId _ qZero e)))))

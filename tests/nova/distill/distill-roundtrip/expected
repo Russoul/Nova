@@ -6,65 +6,87 @@ round-trip OK: ASTs identical, kernel Σ α-identical.
 -- data items, mention form, wildcard binders, annotated let, pairs
 
 infixl 6 +
-def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim x (n ih. S ih) y
++ : ℕ → ℕ → ℕ
+(+) = λx. λy. ℕ-elim x (n ih. S ih) y
 
-def plusZeroId : (n : ℕ) → n + Z ≡ n using (+.eq) ≔ λn. ⋆
+plusZeroId : (n : ℕ) → n + Z ≡ n using (+.eq)
+plusZeroId = λn. ⋆
 
-def plusSucId : (n m : ℕ) → n + S m ≡ S (n + m) using (+.eq) ≔ λn. λm. ⋆
+plusSucId : (n m : ℕ) → n + S m ≡ S (n + m) using (+.eq)
+plusSucId = λn. λm. ⋆
 
-def zeroPlusId : (n : ℕ) → Z + n ≡ n using (+.eq, plusZeroId) ≔ λn. ℕ-elim ⋆ (k ih. ⋆) n
+zeroPlusId : (n : ℕ) → Z + n ≡ n using (+.eq, plusZeroId)
+zeroPlusId = λn. ℕ-elim ⋆ (k ih. ⋆) n
 
-def sucPlus : (n m : ℕ) → S n + m ≡ S (n + m) using (+.eq) ≔ λn. λm. ℕ-elim ⋆ (k ih. ⋆) m
+sucPlus : (n m : ℕ) → S n + m ≡ S (n + m) using (+.eq)
+sucPlus = λn. λm. ℕ-elim ⋆ (k ih. ⋆) m
 
-def plusComm : (n m : ℕ) → m + n ≡ n + m ≔
+plusComm : (n m : ℕ) → m + n ≡ n + m
+plusComm =
   λn. λm. ℕ-elim
-    (Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n ⟩ n + Z)
-    (k ih. S k + n ≡⟨ sucPlus k n ⟩ S (k + n) ≡⟨ ih ⟩ S (n + k) ≡⟨ plusSucId n k ⟩ n + S k)
+    Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n ⟩ n + Z
+    k ih. S k + n ≡⟨ sucPlus k n ⟩ S (k + n) ≡⟨ ih ⟩ S (n + k) ≡⟨ plusSucId n k ⟩ n + S k
     m
 
-def swapLeft : (a b c : ℕ) → a + (b + c) ≡ b + (a + c) using (plusComm) ≔
+swapLeft : (a b c : ℕ) → a + (b + c) ≡ b + (a + c) using (plusComm)
+swapLeft =
   λa. λb. λc. ℕ-elim
-    (a + (b + Z) ≡⟨ plusZeroId b ⟩ a + b ≡⟨ plusComm b a ⟩ b + a ≡⟨ plusZeroId a ⟩ b + (a + Z))
-    (k ih. ⋆ using (+.eq))
+    a + (b + Z) ≡⟨ plusZeroId b ⟩ a + b ≡⟨ plusComm b a ⟩ b + a ≡⟨ plusZeroId a ⟩ b + (a + Z)
+    k ih. ⋆ using (+.eq)
     c
 
-def double : ℕ → ℕ
-  | double n ≔ n + n
+double : ℕ → ℕ
+double n = n + n
 
 infixl 6 ⊞
-def ⊞ : ℕ → ℕ → ℕ [oplusEta]
-  | Z ⊞ n ≔ n [oplusZ]
-  | S m ⊞ n ≔ S (m ⊞ n) [oplusS]
+⊞ : ℕ → ℕ → ℕ [oplusEta]
+Z ⊞ n = n [oplusZ]
+S m ⊞ n = S (m ⊞ n) [oplusS]
 
-data ( Bag : U
-     ; nil : El Bag
-     ; ins : (x : ℕ) (m : El Bag) → El Bag
-     ; swp : (x : ℕ) (y : ℕ) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag )
+data
+  Bag : U
+  nil : El Bag
+  ins : (x : ℕ) (m : El Bag) → El Bag
+  swp : (x : ℕ) (y : ℕ) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag
 
-def size : Bag → ℕ using (Bag.eq) ≔ λm. BagElim (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
+size : Bag → ℕ using (Bag.eq)
+size = λm. BagElim (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
 
-def pairFn : (ℕ → ℕ) × ℕ ≔ (λx. x), Z
+pairFn : (ℕ → ℕ) × ℕ
+pairFn = (λx. x), Z
 
-def letTest : ℕ ≔ let k : ℕ ≔ S Z in k + k
+letTest : ℕ
+letTest = let k : ℕ = S Z in k + k
 
-def mention : ℕ → ℕ ≔ (+) Z
+mention : ℕ → ℕ
+mention = (+) Z
 
-def asc : ℕ ≔ (Z : ℕ)
+asc : ℕ
+asc = (Z : ℕ)
 
-def qq : ℕ / (a b. ∥𝟙∥) ≔ class Z
+qq : ℕ / (a b. ∥𝟙∥)
+qq = class Z
 
-def two : ℕ ≔ 2
+two : ℕ
+two = 2
 
-def five : ℕ ≔ 5
+five : ℕ
+five = 5
 
-def addPair : (a b : ℕ) → ℕ ≔ λa. λb. a + b
+addPair : (a b : ℕ) → ℕ
+addPair = λa. λb. a + b
 
-def addPair' : (a b : ℕ) → a + b ≡ addPair a b using (addPair.eq) ≔ λa. λb. ⋆
+addPair' : (a b : ℕ) → a + b ≡ addPair a b using (addPair.eq)
+addPair' = λa. λb. ⋆
 
-def swapPair : (p : ℕ × ℕ) → ℕ × ℕ ≔ λp. sigma-elim (a b. b, a) p
+swapPair : (p : ℕ × ℕ) → ℕ × ℕ
+swapPair = λp. sigma-elim (a b. b, a) p
 
-def onWholeVar : (p : ℕ × ℕ) (q r s : ℕ) → p ≡ p ≔ λp. λq. λr. λs. sigma-elim (a b. ⋆) p
+onWholeVar : (p : ℕ × ℕ) (q r s : ℕ) → p ≡ p
+onWholeVar = λp. λq. λr. λs. sigma-elim (a b. ⋆) p
 
-def pinVar : (x h : ℕ) (w : x ≡ Z) → ℕ ≔ λx. λh. λw. ≡-elim h x w
+pinVar : (x h : ℕ) (w : x ≡ Z) → ℕ
+pinVar = λx. λh. λw. ≡-elim h x w
 
-def pinLong : (x h n m : ℕ) (w : x ≡ Z) → x + x ≡ Z + Z ≔ λx. λh. λn. λm. λw. ≡-elim ⋆ x w
+pinLong : (x h n m : ℕ) (w : x ≡ Z) → x + x ≡ Z + Z
+pinLong = λx. λh. λn. λm. λw. ≡-elim ⋆ x w

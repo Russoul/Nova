@@ -4576,7 +4576,7 @@ mutual
                "\{site}: internal: sum-elim's scrutinee index escapes Γ"
       _ => throwAt (headRange w <|> site.srange)
              ("\{site}: sum-elim eliminates a VARIABLE of a ⊎ type — this scrutinee is"
-               ++ " not one (name it first: `let w ≔ …`, or use ⊎-elim, which takes any)")
+               ++ " not one (name it first: `let w = …`, or use ⊎-elim, which takes any)")
    where
     ||| The entries standing after the variable, refined at one
     ||| injection — a lift per entry crossed, then β-contracted.
@@ -4727,7 +4727,7 @@ mutual
       (SVar _ _ _, _) =>
         throwAt (headRange sw <|> site.srange)
           ("\{site}: ≡-elim eliminates a HYPOTHESIS — this equation is not one"
-            ++ " (name it first: `let w ≔ …`)")
+            ++ " (name it first: `let w = …`)")
       _ => throwAt (headRange sx <|> site.srange)
              ("\{site}: ≡-elim eliminates a VARIABLE — this scrutinee is not one")
    where
@@ -4989,7 +4989,7 @@ mutual
                "\{site}: internal: sigma-elim's scrutinee index escapes Γ"
       _ => throwAt (headRange w <|> site.srange)
              ("\{site}: sigma-elim eliminates a VARIABLE of a × type — this scrutinee is not one"
-               ++ " (name it first: `let w ≔ …` , or project with .π₁ / .π₂)")
+               ++ " (name it first: `let w = …` , or project with .π₁ / .π₂)")
    where
     ||| The entries standing after the variable, each refined at the
     ||| pair — one lift of the pairing substitution per entry crossed,
@@ -6757,20 +6757,6 @@ elabItemGo irng (SDeclDef nrng x ty) = do
   registerImps q ty
   suffix <- opensSuffix census
   pure "declared \{x}\{suffix}"
-elabItemGo irng (STypeDef x ty) = do
-  census <- openCensus
-  st <- getSt
-  let q = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
-  case sigLookup q st.sig of
-    Just _ => throwAt irng "type \{x}: duplicate signature name"
-    Nothing => pure ()
-  (ty', tySk) <- elabTy [<] [<] (MkSite "type \{x}" irng) ty
-  kernelAccept "type \{x}"
-    (\ksig => kCheckTyDefItem ksig kernelFuel (MkKTyDefArt q [] ty' tySk))
-  modifySt $ { sig $= (:< SigDef [<] q ty' TopTy) }
-  addVis (x, q)
-  suffix <- opensSuffix census
-  pure "defined type \{x}\{suffix}"
 elabItemGo irng (SData params decls) = do
   census <- openCensus
   let site = MkSite ("data " ++ (case decls of
@@ -7161,7 +7147,7 @@ prettyTelescope imps tbl impDs ctx env = go 0 (toList ctx) (toList env)
       -- the prefix the BOUND name extends — the same env the
       -- equation entry itself would have printed under
       Just rhs =>
-        entry d "\{n} : \{prettyTyN imps tbl pfx ty} ≔ \{prettyElemN imps tbl (pfx :< n) rhs}"
+        entry d "\{n} : \{prettyTyN imps tbl pfx ty} = \{prettyElemN imps tbl (pfx :< n) rhs}"
           :: go' (S (S d)) (pfx :< n :< h) tys ns
       Nothing =>
         entry d "\{n} : \{prettyTyN imps tbl pfx ty}" :: go' (S d) (pfx :< n) (hyp :: tys) (h :: ns)
@@ -7620,7 +7606,7 @@ binderInfos tbl st =
   -- blanks ascribe in the language's own def shape — domain, then
   -- the value the oracle recovered — with the binding source as a
   -- comment line
-  [ (r, "_ : \{prettyTyN st.impls tbl env (displayTy st ty)} ≔ \{prettyElemN st.impls tbl env (displayElem st v)}"
+  [ (r, "_ : \{prettyTyN st.impls tbl env (displayTy st ty)} = \{prettyElemN st.impls tbl env (displayElem st v)}"
         ++ "\n-- " ++ (case msrc of
               Nothing => "solved from the expected type"
               Just sv => "solved from the type of \{prettyElemN st.impls tbl env (displayElem st sv)}"))

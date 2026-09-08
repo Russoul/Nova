@@ -71,7 +71,6 @@ unitResolver u =
   let own = mapMaybe (\(_, it) => case it of
               SDef _ x _ _ _ => Just (x, qualify u.mname x)
               SDeclDef _ x _ => Just (x, qualify u.mname x)
-              STypeDef x _ => Just (x, qualify u.mname x)
               _ => Nothing) u.mitems
       opened = concatMap (\i => map (\o => (o, "\{i.mname}.\{o}")) i.opens) u.mimports
   in \x => case lookup x own of
@@ -291,7 +290,6 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
                 Just poss => impTy poss (xfT ty)
                 Nothing => xfT ty
     in SDeclDef r x ty'
-  xfItem ownQ (STypeDef x ty) = STypeDef x (xfT ty)
   xfItem ownQ (SData params ds) =
     SData (map (\(x, t) => (x, xfT t)) params) (map xfQDecl ds)
   xfItem ownQ (SClausalDef r x ty eta er wit cls) =
@@ -569,7 +567,6 @@ sitesOfUnit resolve q u = concatMap (\(_, it) => goItem it) u.mitems
   goItem : SItem -> List (Maybe Range, List SElem)
   goItem (SDef _ _ ty body _) = goT ty ++ goE body
   goItem (SDeclDef _ _ ty) = goT ty
-  goItem (STypeDef _ ty) = goT ty
   goItem (SData params ds) = concatMap (goT . snd) params
   goItem (SClausalDef _ _ ty _ _ wit cls) =
     goT ty ++ concatMap goE wit ++ concatMap (\c => goE c.crhs) cls

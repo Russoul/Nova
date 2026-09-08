@@ -1,3 +1,4 @@
 import base
 
-def adef : ℕ ≔ base.bzero
+adef : ℕ
+adef = base.bzero

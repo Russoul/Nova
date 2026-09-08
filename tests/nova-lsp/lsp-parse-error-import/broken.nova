@@ -1,2 +1,4 @@
-def dep : ℕ ≔ Z
-def bad : ℕ ≔ S S ((
+dep : ℕ
+dep = Z
+bad : ℕ
+bad = S S ((

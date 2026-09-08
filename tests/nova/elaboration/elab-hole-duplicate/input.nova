@@ -1,3 +1,4 @@
 -- two holes of one item may not share a name: the Σ entry is minted
 -- under it, and the report tells them apart by it
-def bad : ℕ × ℕ ≔ (?x, ?x)
+bad : ℕ × ℕ
+bad = (?x, ?x)

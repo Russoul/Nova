@@ -1,3 +1,4 @@
 -- ⋆ ⟨witness⟩ is a checking-only form: its type is not determined by
 -- its syntax, so an inference position is a structural error
-def bad : ℕ ≔ (⋆ Z) Z
+bad : ℕ
+bad = (⋆ Z) Z

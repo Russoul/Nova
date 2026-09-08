@@ -2,6 +2,9 @@ import nat (plus, zeroPlusId)
 
 -- opened names bare, unopened ones qualified; the imported lemma
 -- store discharges the local ⋆
-def two : ℕ ≔ plus (S Z) (S Z)
-def useQualified : (n : ℕ) → nat.plus n Z ≡ n ∈ ℕ ≔ λn. nat.plusZeroId n
-def needsLemma : (n : ℕ) → plus Z n ≡ n ∈ ℕ using (zeroPlusId, zeroPlusId.rw) ≔ λn. ⋆
+two : ℕ
+two = plus (S Z) (S Z)
+useQualified : (n : ℕ) → nat.plus n Z ≡ n ∈ ℕ
+useQualified = λn. nat.plusZeroId n
+needsLemma : (n : ℕ) → plus Z n ≡ n ∈ ℕ using (zeroPlusId, zeroPlusId.rw)
+needsLemma = λn. ⋆

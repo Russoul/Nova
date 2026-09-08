@@ -3,17 +3,22 @@
 -- and nothing about the folded spelling says so. Classification runs
 -- on the EXPOSED context whether or not the item CITED the unfold;
 -- printing computes the citations — `cited` reads ∥ℕ∥, `bare` sq n.
-def sq : ℕ → Ω ≔ λn. ∥ℕ∥
+sq : ℕ → Ω
+sq = λn. ∥ℕ∥
 
-def alias : 𝕌 ≔ ℕ ⊎ ℕ
+alias : 𝕌
+alias = ℕ ⊎ ℕ
 
 -- the elaborator follows the same unfolding only where the item CITES
 -- it, so this one goes through
-def cited : (n : ℕ) → sq n → sq n using (sq.unfold) ≔ λn. λh. ?g1
+cited : (n : ℕ) → sq n → sq n using (sq.unfold)
+cited = λn. λh. ?g1
 
 -- and this one does not: the trial refuses it, and names the citation
 -- that would let it through
-def bare : (n : ℕ) → sq n → sq n ≔ λn. λh. ?g2
+bare : (n : ℕ) → sq n → sq n
+bare = λn. λh. ?g2
 
 -- a sum behind a definition, likewise
-def v : alias → ℕ using (alias.unfold) ≔ λx. ?g3
+v : alias → ℕ using (alias.unfold)
+v = λx. ?g3
