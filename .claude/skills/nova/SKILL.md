@@ -44,7 +44,7 @@ the source. A hole nothing pins stays open and is reported. Reusing a
 hole name refers to the same hole (same context or under more
 binders); `_`-leading identifiers are reserved.
 
-DECLARATIONS: `def x : T` with no `≔` declares x abstractly — a named
+DECLARATIONS: `x : T` with no clause `x = …` declares x abstractly — a named
 rigid hole in Σ. References are stuck; a declared EQUATION registers
 as a lemma (the abstract-interface idiom: declare a carrier and its
 laws, program against them). Reported under open holes; acceptance
@@ -52,7 +52,7 @@ stays blocked until the definiens is supplied.
 
 ## How discharge works (the key mental model)
 
-Every accepted `def` whose type is an equation (possibly under Π-binders)
+Every accepted item whose type is an equation (possibly under Π-binders)
 enters the lemma store E and becomes a discharge candidate for
 EVERYTHING BELOW it. The engine applies candidates in three ways:
 
@@ -91,7 +91,7 @@ Consequences:
 
 1. Read obligation [1]. State it verbatim as a def: binders become
    Π-arguments, the equation becomes the ≡-type.
-2. Try `≔ λx. … ⋆` first — β + already-stored lemmas may close it
+2. Try `x = λx. … ⋆` first — β + already-stored lemmas may close it
    (⋆ is the proof of EVERY proposition, equations included; there is
    no Refl).
 3. Otherwise prove by induction with an eliminator and an ≡-typed
@@ -99,8 +99,8 @@ Consequences:
    types don't parse bare in binder-body positions):
 
    ```
-   def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ ≔
-     λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+   zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ
+   zeroPlusId = λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
    ```
 
    In the step case, `ih` is in scope and in E — `⋆` usually closes.
@@ -108,21 +108,43 @@ Consequences:
    goals (Ω-valued motives, NO coherence arguments):
 
    ```
-   def plusQzr : (a : El N) → plusQ a z ≡ a ∈ El N ≔
-     λa. NElimP (λn. (plusQ n z ≡ n ∈ El N)) ⋆ (λn. λih. ⋆) a
+   plusQzr : (a : El N) → plusQ a z ≡ a ∈ El N
+   plusQzr = λa. NElimP (λn. (plusQ n z ≡ n ∈ El N)) ⋆ (λn. λih. ⋆) a
    ```
 4. Re-run. Repeat for the next obligation. Prefer general lemmas over
    instance-specific ones (they discharge whole families of goals).
 
 ## Surface syntax (grounded in src/nova/)
 
-Items (always top-level, closed):
+Items (always top-level, closed; a column-0 line, keyword-free):
 ```
-def x : T ≔ t                     -- definition
-type X ≔ T                        -- type definition
+x : T                             -- signature; then its definiens as a clause:
+x = t                             --   (no `def`; `=`, not `≔`)
+x : T                             -- declaration
+X : 𝕌                             -- a named type is a named CODE
+X = T
 import M                          -- M.x qualified;  import M (a, b) opens a, b
-infixl 6 +                        -- fixity; operators ARE names: def + : ℕ → ℕ → ℕ ≔ …
-data [a : 𝕌] ( … )                -- QIIT signature (see below)
+infixl 6 +                        -- fixity; operators ARE names: + : ℕ → ℕ → ℕ then (+) = …
+data [a : 𝕌]                      -- QIIT signature: entries as an indented block
+  Bag : U                         --   (see below)
+  nil : El Bag
+```
+LAYOUT is significant (docs/NovaElaboration.txt, Layout): an item's
+continuation lines are indented; a line indented deeper than the line
+above whose first token begins a term is ONE MORE ARGUMENT of the spine
+above it, parenthesis-free — so an eliminator lays out as
+```
+ℕ-elim
+  k. Z + k ≡ k ∈ ℕ                -- motive (a bare binder abstraction)
+  ⋆
+  k ih. ⋆
+  n
+```
+Clauses are column-0 lines directly under their signature (no `|`):
+```
+plus : ℕ → ℕ → ℕ
+plus Z n = n
+plus (S m) n = S (plus m n)
 ```
 
 Types: `𝟘 𝟙 ℕ 𝕌 Ω`, `(x : T) → U` and `T → U`, `(x : T) × U`,
@@ -169,7 +191,7 @@ CONTEXT; naming w inside a branch is an error);
 VARIABLE of a × type, and `t` is written where `w` is GONE — `x` and
 `y` stand in its slot and every later hypothesis, plus the goal, reads
 at `(x, y)`. No motive: it is recovered by substituting the pair. Use
-it instead of `let x1 ≔ w .π₁ in …` when a hypothesis stated AT `w`
+it instead of `let x1 = w .π₁ in …` when a hypothesis stated AT `w`
 must become usable at its components — the lets keep `w`, this
 removes it. Naming `w` inside the body is an error);
 `out t` (the coinductive observation — infers, like the projections)
@@ -226,8 +248,8 @@ data [a : 𝕌] [r : El a → El a → Ω]
   then the scrutinee. Example:
 
   ```
-  def size : (a : 𝕌) → El (Bag a) → ℕ ≔
-    λa. λm. BagElim a (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
+  size : (a : 𝕌) → El (Bag a) → ℕ
+  size = λa. λm. BagElim a (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
   ```
 
 - β holds on the nose; closed computations discharge by `⋆`.

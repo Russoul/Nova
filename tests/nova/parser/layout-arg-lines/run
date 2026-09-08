@@ -1,0 +1,13 @@
+#!/bin/sh
+"$1" run surface-elem "ℕ-elim
+  x. x
+  Z
+  k ih. S ih
+  S Z"
+"$1" run surface-elem "f
+  a b
+  λx. x
+  Z, S Z
+  g
+    Z
+  S Z"

@@ -17,31 +17,13 @@ import Algebra.monoid (IsMonoid)
 import Algebra.group (IsGroup)
 import Algebra.ring (IsCommRing)
 
-def intCommRing : IsCommRing Int using (Int.group.intAddGroup.eq, Algebra.ring.IsCommRing.unfold) ≔
+intCommRing : IsCommRing Int using (Int.group.intAddGroup.eq, Algebra.ring.IsCommRing.unfold)
+intCommRing =
   intAddGroup,
     (*),
       intOne,
-        (λx. λy. λz. eqToId
-          _
-          _
-          (intMulAssoc
-            x
-            y
-            z)),
-          (λx. λy. eqToId
-            _
-            _
-            (intMulComm
-              x
-              y)),
-            (λx. eqToId
-              _
-              _
-              (intMulOneR
-                x)),
-              (λx. λy. eqToId
-                (x + y)
-                (y + x)
-                (intAddComm
-                  x
-                  y)), λx. λy. λz. eqToId (x * (y + z)) (x * y + x * z) (intMulDistribL x y z)
+        (λx. λy. λz. eqToId _ _ (intMulAssoc x y z)),
+          (λx. λy. eqToId _ _ (intMulComm x y)),
+            (λx. eqToId _ _ (intMulOneR x)),
+              (λx. λy. eqToId (x + y) (y + x) (intAddComm x y)),
+                λx. λy. λz. eqToId (x * (y + z)) (x * y + x * z) (intMulDistribL x y z)

@@ -15,51 +15,53 @@ import Int (Int, IntR)
 import Core.equality (trans)
 import Core.quotEffective (effectiveAtEquiv)
 
-def cancelStep : {a b c d e f : ℕ}
+cancelStep : {a b c d e f : ℕ}
   → (a + d ≡ b + c) → (c + f ≡ d + e) → a + f + (c + d) ≡ b + e + (c + d)
-  using (Natural.plusAssoc) ≔
+  using (Natural.plusAssoc)
+cancelStep =
   λa. λb. λc. λd. λe. λf. λh1. λh2. trans
     _
     _
     _
     swapMid
-    (trans
+    trans
       _
       _
       _
-      (plusCongL (c + f) h1)
-      (trans
+      plusCongL (c + f) h1
+      trans
         _
         _
         _
-        (plusCongR (b + c) h2)
-        (trans (b + c + (d + e)) _ _ swapMid (plusCongR (b + e) (plusComm c d)))))
+        plusCongR (b + c) h2
+        trans (b + c + (d + e)) _ _ swapMid (plusCongR (b + e) (plusComm c d))
 
-def cancelTrans : {a b : ℕ} (c d : ℕ) {e f : ℕ} → (a + d ≡ b + c) → (c + f ≡ d + e) → a + f ≡ b + e
-  using (Natural.plusAssoc) ≔
-  λa. λb. λc. λd. λe. λf. λh1. λh2. plusCancel _ _ _ (cancelStep h1 h2)
+cancelTrans : {a b : ℕ} (c d : ℕ) {e f : ℕ} → (a + d ≡ b + c) → (c + f ≡ d + e) → a + f ≡ b + e
+  using (Natural.plusAssoc)
+cancelTrans = λa. λb. λc. λd. λe. λf. λh1. λh2. plusCancel _ _ _ (cancelStep h1 h2)
 
 -- IntR is an equivalence. Reflexivity and symmetry are commutativity, so
 -- one ⋆ each; transitivity is cancelTrans at the four components
-def intRRefl : {p : ℕ × ℕ} → IntR p p using (Int.IntR.unfold, plusComm) ≔ λp. ⋆
+intRRefl : {p : ℕ × ℕ} → IntR p p using (Int.IntR.unfold, plusComm)
+intRRefl = λp. ⋆
 
-def intRSymm : {p q : ℕ × ℕ} → IntR p q → IntR q p using (Int.IntR.eq, Int.IntR.unfold, plusComm) ≔
+intRSymm : {p q : ℕ × ℕ} → IntR p q → IntR q p using (Int.IntR.eq, Int.IntR.unfold, plusComm)
+intRSymm =
   λp. λq. λh. q .π₁ + p .π₂
-      ≡⟨ plusComm (p .π₂) (q .π₁) ⟩ p .π₂ + q .π₁
-      ≡⟨ h ⟩ p .π₁ + q .π₂
-      ≡⟨ plusComm (q .π₂) (p .π₁) ⟩ q .π₂ + p .π₁
+    ≡⟨ plusComm (p .π₂) (q .π₁) ⟩ p .π₂ + q .π₁
+    ≡⟨ h ⟩ p .π₁ + q .π₂
+    ≡⟨ plusComm (q .π₂) (p .π₁) ⟩ q .π₂ + p .π₁
 
-def intRTrans : {p q s : ℕ × ℕ} → IntR p q → IntR q s → IntR p s
-  using (Int.IntR.eq, Int.IntR.unfold) ≔
-  λp. λq. λs. λh1. λh2. cancelTrans _ _ h1 h2
+intRTrans : {p q s : ℕ × ℕ} → IntR p q → IntR q s → IntR p s using (Int.IntR.eq, Int.IntR.unfold)
+intRTrans = λp. λq. λs. λh1. λh2. cancelTrans _ _ h1 h2
 
 -- EFFECTIVITY for Int, on the nose
-def intEffective : {p q : ℕ × ℕ} → (class p ≡ class q ∈ Int) → IntR p q
-  using (Int.Int.unfold, Int.IntR.unfold) ≔
-  effectiveAtEquiv IntR (intRRefl {}) (intRTrans {}) (intRSymm {})
+intEffective : {p q : ℕ × ℕ} → (class p ≡ class q ∈ Int) → IntR p q
+  using (Int.Int.unfold, Int.IntR.unfold)
+intEffective = effectiveAtEquiv IntR (intRRefl {}) (intRTrans {}) (intRSymm {})
 
 -- what it is for: the classes of (Z,Z) and (S Z, S Z) are equal
 -- (Int.nova's zeroEq), so their representatives are IntR-related —
 -- read back off the class equation, with no representative in sight
-def zeroRel : IntR (Z, Z) (S Z, S Z) using (Int.Int.unfold, Int.IntR.unfold, Int.zeroEq) ≔
-  intEffective ⋆
+zeroRel : IntR (Z, Z) (S Z, S Z) using (Int.Int.unfold, Int.IntR.unfold, Int.zeroEq)
+zeroRel = intEffective ⋆

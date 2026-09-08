@@ -22,30 +22,35 @@ import Int (Int, intZero, intOne, intNeg)
 import Int.add (+, intAddComm)
 import Core.equality (trans, cong)
 
-def NZ : 𝕌 ≔ ℕ ⊎ ℕ
+NZ : 𝕌
+NZ = ℕ ⊎ ℕ
 
 -- +(n+1)
-def nzPos : ℕ → NZ using (Rat.frac.NZ.unfold) ≔ λn. inj₁ n
+nzPos : ℕ → NZ using (Rat.frac.NZ.unfold)
+nzPos = λn. inj₁ n
 
 -- -(n+1)
-def nzNeg : ℕ → NZ using (Rat.frac.NZ.unfold) ≔ λn. inj₂ n
+nzNeg : ℕ → NZ using (Rat.frac.NZ.unfold)
+nzNeg = λn. inj₂ n
 
-def nzOne : NZ using (Rat.frac.NZ.unfold) ≔ nzPos Z
+nzOne : NZ using (Rat.frac.NZ.unfold)
+nzOne = nzPos Z
 
-def nzToInt : NZ → Int using (Int.Int.unfold, Rat.frac.NZ.unfold) ≔
-  λd. ⊎-elim (n. class (S n, Z)) (n. class (Z, S n)) d
+nzToInt : NZ → Int using (Int.Int.unfold, Rat.frac.NZ.unfold)
+nzToInt = λd. ⊎-elim (n. class (S n, Z)) (n. class (Z, S n)) d
 
 -- the magnitudes multiply: (m+1)(k+1) = m*k + m + k + 1, so the stored
 -- (magnitude − 1) of the product is m*k + m + k; the sign is the usual
 -- product of signs. Closure of NZ under multiplication is therefore
 -- definitional — there is no side condition to discharge.
-def nzMul : NZ → NZ → NZ using (Rat.frac.NZ.unfold) ≔
+nzMul : NZ → NZ → NZ using (Rat.frac.NZ.unfold)
+nzMul =
   λx. λy. ⊎-elim
-    (m. ⊎-elim (k. nzPos (m * k + m + k)) (k. nzNeg (m * k + m + k)) y)
-    (m. ⊎-elim (k. nzNeg (m * k + m + k)) (k. nzPos (m * k + m + k)) y)
+    m. ⊎-elim (k. nzPos (m * k + m + k)) (k. nzNeg (m * k + m + k)) y
+    m. ⊎-elim (k. nzNeg (m * k + m + k)) (k. nzPos (m * k + m + k)) y
     x
 
-def nzMulOneL : {y : NZ} → nzMul nzOne y ≡ y
+nzMulOneL : {y : NZ} → nzMul nzOne y ≡ y
   using (nzMul.eq,
     nzNeg.eq,
     nzOne.eq,
@@ -55,10 +60,10 @@ def nzMulOneL : {y : NZ} → nzMul nzOne y ≡ y
     zeroMult,
     zeroMult.rw,
     zeroPlusId,
-    zeroPlusId.rw) ≔
-  λy. ⊎-elim (k. ⋆) (k. ⋆) y
+    zeroPlusId.rw)
+nzMulOneL = λy. ⊎-elim (k. ⋆) (k. ⋆) y
 
-def nzMulOneR : {x : NZ} → nzMul x nzOne ≡ x
+nzMulOneR : {x : NZ} → nzMul x nzOne ≡ x
   using (multZeroId.rw,
     nzMul.eq,
     nzNeg.eq,
@@ -67,8 +72,8 @@ def nzMulOneR : {x : NZ} → nzMul x nzOne ≡ x
     plusZeroId.rw,
     Rat.frac.NZ.unfold,
     zeroPlusId,
-    zeroPlusId.rw) ≔
-  λx. ⊎-elim (m. ⋆) (m. ⋆) x
+    zeroPlusId.rw)
+nzMulOneR = λx. ⊎-elim (m. ⋆) (m. ⋆) x
 
 -- ===== nat lemmas, in the orientation the engine can use =====
 --
@@ -77,12 +82,14 @@ def nzMulOneR : {x : NZ} → nzMul x nzOne ≡ x
 -- the size-INCREASING direction — never fire as rewrite rules. Their
 -- flips do; each is proved by ⋆, the original firing by
 -- whole-equation match on the flipped goal.
-def distribBack : (n m k : ℕ) → n * m + n * k ≡ n * (m + k) using (multDistrib) ≔ λn. λm. λk. ⋆
+distribBack : (n m k : ℕ) → n * m + n * k ≡ n * (m + k) using (multDistrib)
+distribBack = λn. λm. λk. ⋆
 
-def sucMultBack : (n m : ℕ) → m + n * m ≡ S n * m using (sucMult) ≔ λn. λm. ⋆
+sucMultBack : (n m : ℕ) → m + n * m ≡ S n * m using (sucMult)
+sucMultBack = λn. λm. ⋆
 
-def oneMult : (m : ℕ) → S Z * m ≡ m using (multComm) ≔
-  λm. S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m + Z ≡⟨ plusZeroId m ⟩ m
+oneMult : (m : ℕ) → S Z * m ≡ m using (multComm)
+oneMult = λm. S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m + Z ≡⟨ plusZeroId m ⟩ m
 
 -- ===== scaling an integer by a non-zero integer =====
 --
@@ -90,9 +97,9 @@ def oneMult : (m : ℕ) → S Z * m ≡ m using (multComm) ≔
 -- general intMul owes a quotient well-definedness proof in BOTH
 -- arguments (the (a₁−a₂)(b₁−b₂) cross-sum identity). But one factor is
 -- always a DENOMINATOR — an NZ, i.e. a SIGN and a NAT — so it suffices
--- to scale by a nat and negate: n · (a, b) ≔ (n*a, n*b), whose
+-- to scale by a nat and negate: n · (a, b) = (n*a, n*b), whose
 -- well-definedness is one application of distributivity.
-def intAddZeroL : (z : Int) → intZero + z ≡ z
+intAddZeroL : (z : Int) → intZero + z ≡ z
   using (hyp.rw,
     Int.Int.eq,
     Int.Int.unfold,
@@ -101,10 +108,10 @@ def intAddZeroL : (z : Int) → intZero + z ≡ z
     plusComm,
     plusComm.rw,
     zeroPlusId,
-    zeroPlusId.rw) ≔
-  λz. quot-elim (p. ⋆) z
+    zeroPlusId.rw)
+intAddZeroL = λz. quot-elim (p. ⋆) z
 
-def intAddZeroR : (z : Int) → z + intZero ≡ z
+intAddZeroR : (z : Int) → z + intZero ≡ z
   using (hyp.rw,
     Int.Int.eq,
     Int.Int.unfold,
@@ -115,17 +122,17 @@ def intAddZeroR : (z : Int) → z + intZero ≡ z
     plusZeroId,
     plusZeroId.rw,
     zeroPlusId,
-    zeroPlusId.rw) ≔
-  λz. quot-elim (p. ⋆) z
+    zeroPlusId.rw)
+intAddZeroR = λz. quot-elim (p. ⋆) z
 
-def intScaleN : ℕ → Int → Int using (distribBack, distribBack.rw, hyp.rw, Int.Int.unfold) ≔
-  λn. λz. quot-elim (p. class (n * p .π₁, n * p .π₂)) z
+intScaleN : ℕ → Int → Int using (distribBack, distribBack.rw, hyp.rw, Int.Int.unfold)
+intScaleN = λn. λz. quot-elim (p. class (n * p .π₁, n * p .π₂)) z
 
-def intScaleNZero : (n : ℕ) → intScaleN n intZero ≡ intZero
-  using (Int.Int.unfold, Int.intZero.eq, Rat.frac.intScaleN.eq) ≔
-  λn. ⋆
+intScaleNZero : (n : ℕ) → intScaleN n intZero ≡ intZero
+  using (Int.Int.unfold, Int.intZero.eq, Rat.frac.intScaleN.eq)
+intScaleNZero = λn. ⋆
 
-def intScaleNOne : (z : Int) → intScaleN (S Z) z ≡ z
+intScaleNOne : (z : Int) → intScaleN (S Z) z ≡ z
   using (hyp.rw,
     intScaleN.eq,
     Int.Int.eq,
@@ -133,36 +140,36 @@ def intScaleNOne : (z : Int) → intScaleN (S Z) z ≡ z
     oneMult,
     oneMult.rw,
     plusComm,
-    plusComm.rw) ≔
-  λz. quot-elim (p. ⋆) z
+    plusComm.rw)
+intScaleNOne = λz. quot-elim (p. ⋆) z
 
 -- scaling by n+1 really is n+1 iterated additions — the definition by
 -- representatives agrees with the recursive one
-def intScaleNSuc : (n : ℕ) (z : Int) → intScaleN (S n) z ≡ z + intScaleN n z
+intScaleNSuc : (n : ℕ) (z : Int) → intScaleN (S n) z ≡ z + intScaleN n z
   using (hyp.rw,
     intScaleN.eq,
     Int.Int.eq,
     Int.Int.unfold,
     Int.add.+.eq,
     sucMultBack,
-    sucMultBack.rw) ≔
-  λn. λz. quot-elim (p. ⋆) z
+    sucMultBack.rw)
+intScaleNSuc = λn. λz. quot-elim (p. ⋆) z
 
-def intScale : NZ → Int → Int using (Int.Int.unfold, Rat.frac.NZ.unfold) ≔
-  λd. λz. ⊎-elim (n. intScaleN (S n) z) (n. intNeg (intScaleN (S n) z)) d
+intScale : NZ → Int → Int using (Int.Int.unfold, Rat.frac.NZ.unfold)
+intScale = λd. λz. ⊎-elim (n. intScaleN (S n) z) (n. intNeg (intScaleN (S n) z)) d
 
-def intScaleOne : {z : Int} → intScale nzOne z ≡ z
-  using (intScale.eq, intScaleNOne, Int.Int.unfold, nzOne.eq, nzPos.eq) ≔
-  λz. ⋆
+intScaleOne : {z : Int} → intScale nzOne z ≡ z
+  using (intScale.eq, intScaleNOne, Int.Int.unfold, nzOne.eq, nzPos.eq)
+intScaleOne = λz. ⋆
 
-def intScaleZero : (d : NZ) → intScale d intZero ≡ intZero
+intScaleZero : (d : NZ) → intScale d intZero ≡ intZero
   using (Int.Int.unfold,
     Int.intNeg.eq,
     Int.intZero.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.intScale.eq,
-    Rat.frac.intScaleN.eq) ≔
-  λd. ⊎-elim (n. ⋆) (n. ⋆) d
+    Rat.frac.intScaleN.eq)
+intScaleZero = λd. ⊎-elim (n. ⋆) (n. ⋆) d
 
 -- Adding a scaled zero. Both arguments of intAdd are quot-elim
 -- SCRUTINEE positions, and a rewrite may not land in one unless the
@@ -173,7 +180,7 @@ def intScaleZero : (d : NZ) → intScale d intZero ≡ intZero
 -- summand is kept a VARIABLE so there is nothing to rewrite in it.
 -- Callers compose with trans rather than ask the engine to rewrite
 -- these in place.
-def intAddScaleZeroL : {d : NZ} {y : Int} → intScale d intZero + y ≡ y
+intAddScaleZeroL : {d : NZ} {y : Int} → intScale d intZero + y ≡ y
   using (intAddZeroL,
     Int.Int.eq,
     Int.Int.unfold,
@@ -184,15 +191,15 @@ def intAddScaleZeroL : {d : NZ} {y : Int} → intScale d intZero + y ≡ y
     Natural.+.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.intScale.eq,
-    Rat.frac.intScaleN.eq) ≔
-  λd. λy. ⊎-elim (n. intAddZeroL y) (n. intAddZeroL y) d
+    Rat.frac.intScaleN.eq)
+intAddScaleZeroL = λd. λy. ⊎-elim (n. intAddZeroL y) (n. intAddZeroL y) d
 
-def intAddScaleZeroR : {d : NZ} {y : Int} → y + intScale d intZero ≡ y
-  using (intAddZeroR, Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.intScaleZero) ≔
-  λd. λy. ⊎-elim (n. intAddZeroR y) (n. intAddZeroR y) d
+intAddScaleZeroR : {d : NZ} {y : Int} → y + intScale d intZero ≡ y
+  using (intAddZeroR, Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.intScaleZero)
+intAddScaleZeroR = λd. λy. ⊎-elim (n. intAddZeroR y) (n. intAddZeroR y) d
 
 -- scaling by d agrees with multiplying by d's image in Int
-def intScaleToInt : {d : NZ} → intScale d (class (S Z, Z)) ≡ nzToInt d
+intScaleToInt : {d : NZ} → intScale d (class (S Z, Z)) ≡ nzToInt d
   using (Int.Int.unfold,
     Int.intNeg.eq,
     Natural.*.eq,
@@ -200,37 +207,46 @@ def intScaleToInt : {d : NZ} → intScale d (class (S Z, Z)) ≡ nzToInt d
     Rat.frac.NZ.unfold,
     Rat.frac.intScale.eq,
     Rat.frac.intScaleN.eq,
-    Rat.frac.nzToInt.eq) ≔
-  λd. ⊎-elim (n. ⋆) (n. ⋆) d
+    Rat.frac.nzToInt.eq)
+intScaleToInt = λd. ⊎-elim (n. ⋆) (n. ⋆) d
 
 -- ===== the rationals =====
-def Rat : 𝕌 ≔ Int × NZ
+Rat : 𝕌
+Rat = Int × NZ
 
-def mkRat : Int → NZ → Rat using (Rat.frac.Rat.unfold) ≔ λn. λd. n, d
+mkRat : Int → NZ → Rat using (Rat.frac.Rat.unfold)
+mkRat = λn. λd. n, d
 
-def num : Rat → Int using (Int.Int.unfold, Rat.frac.Rat.unfold) ≔ λq. q .π₁
+num : Rat → Int using (Int.Int.unfold, Rat.frac.Rat.unfold)
+num = λq. q .π₁
 
-def den : Rat → NZ using (Rat.frac.NZ.unfold, Rat.frac.Rat.unfold) ≔ λq. q .π₂
+den : Rat → NZ using (Rat.frac.NZ.unfold, Rat.frac.Rat.unfold)
+den = λq. q .π₂
 
-def denInt : Rat → Int using (Int.Int.unfold, Rat.frac.Rat.unfold) ≔ λq. nzToInt (q .π₂)
+denInt : Rat → Int using (Int.Int.unfold, Rat.frac.Rat.unfold)
+denInt = λq. nzToInt (q .π₂)
 
-def ratOfInt : Int → Rat using (Rat.frac.Rat.unfold) ≔ λz. mkRat z nzOne
+ratOfInt : Int → Rat using (Rat.frac.Rat.unfold)
+ratOfInt = λz. mkRat z nzOne
 
-def ratZero : Rat using (Rat.frac.Rat.unfold) ≔ ratOfInt intZero
+ratZero : Rat using (Rat.frac.Rat.unfold)
+ratZero = ratOfInt intZero
 
-def ratOne : Rat using (Rat.frac.Rat.unfold) ≔ ratOfInt intOne
+ratOne : Rat using (Rat.frac.Rat.unfold)
+ratOne = ratOfInt intOne
 
--- n₁/d₁ + n₂/d₂ ≔ (n₁·d₂ + n₂·d₁) / (d₁·d₂). Rat is a plain Σ-code —
+-- n₁/d₁ + n₂/d₂ = (n₁·d₂ + n₂·d₁) / (d₁·d₂). Rat is a plain Σ-code —
 -- pair construction, nothing to discharge. (Once Rat is quotiented by
 -- cross-multiplication, ratAdd will owe a descent proof; that is the
 -- next step, not this one.)
-def ratAdd : Rat → Rat → Rat using (Rat.frac.Rat.unfold) ≔
-  λp. λq. mkRat (intScale (den q) (num p) + intScale (den p) (num q)) (nzMul (den p) (den q))
+ratAdd : Rat → Rat → Rat using (Rat.frac.Rat.unfold)
+ratAdd = λp. λq. mkRat (intScale (den q) (num p) + intScale (den p) (num q)) (nzMul (den p) (den q))
 
 -- ½ + ½ = 4/4, unreduced, as the raw representation demands
-def half : Rat using (Rat.frac.Rat.unfold) ≔ mkRat intOne (nzPos (S Z))
+half : Rat using (Rat.frac.Rat.unfold)
+half = mkRat intOne (nzPos (S Z))
 
-def ratAddTest : ratAdd half half ≡ mkRat (class (4, Z)) (nzPos 3)
+ratAddTest : ratAdd half half ≡ mkRat (class (4, Z)) (nzPos 3)
   using (Int.Int.unfold,
     Int.intOne.eq,
     Int.add.+.eq,
@@ -245,20 +261,23 @@ def ratAddTest : ratAdd half half ≡ mkRat (class (4, Z)) (nzPos 3)
     Rat.frac.num.eq,
     Rat.frac.nzMul.eq,
     Rat.frac.nzPos.eq,
-    Rat.frac.ratAdd.eq) ≔
-  ⋆
+    Rat.frac.ratAdd.eq)
+ratAddTest = ⋆
 
 -- ⅓ + (−⅓) = 0/(−9): numerator cancels, denominator keeps its sign
-def third : Rat using (Rat.frac.Rat.unfold) ≔ mkRat intOne (nzPos 2)
+third : Rat using (Rat.frac.Rat.unfold)
+third = mkRat intOne (nzPos 2)
 
-def negThird : Rat using (Rat.frac.Rat.unfold) ≔ mkRat intOne (nzNeg 2)
+negThird : Rat using (Rat.frac.Rat.unfold)
+negThird = mkRat intOne (nzNeg 2)
 
 -- the numerator's cancellation, at the root where the quotient join is
 -- available (under the test's pair it is a component position, which
 -- the strict engine reaches only by whole-equation match)
-def threeCancel : class (3, 3) ≡ intZero using (Int.Int.unfold, Int.intZero.eq) ≔ ⋆
+threeCancel : class (3, 3) ≡ intZero using (Int.Int.unfold, Int.intZero.eq)
+threeCancel = ⋆
 
-def ratAddTest2 : ratAdd third negThird ≡ mkRat intZero (nzNeg 8)
+ratAddTest2 : ratAdd third negThird ≡ mkRat intZero (nzNeg 8)
   using (Int.Int.unfold,
     Int.intNeg.eq,
     Int.intOne.eq,
@@ -277,35 +296,35 @@ def ratAddTest2 : ratAdd third negThird ≡ mkRat intZero (nzNeg 8)
     Rat.frac.nzPos.eq,
     Rat.frac.ratAdd.eq,
     Rat.frac.third.eq,
-    threeCancel) ≔
-  trans _ _ _ ⋆ (cong (λu. Rat) (λx. mkRat x (nzNeg 8)) threeCancel)
+    threeCancel)
+ratAddTest2 = trans _ _ _ ⋆ (cong (λu. Rat) (λx. mkRat x (nzNeg 8)) threeCancel)
 
 -- ===== 0/1 is a unit =====
 -- componentwise first: the numerator collapses by the scaled-zero
 -- unit followed by intScaleOne, the denominator by nzMulOne
-def ratAddZeroLNum : {q : Rat} → intScale (den q) intZero + intScale nzOne (num q) ≡ num q
-  using (intScaleNOne) ≔
-  λq. trans _ (intScale nzOne (num q)) _ intAddScaleZeroL intScaleOne
+ratAddZeroLNum : {q : Rat} → intScale (den q) intZero + intScale nzOne (num q) ≡ num q
+  using (intScaleNOne)
+ratAddZeroLNum = λq. trans _ (intScale nzOne (num q)) _ intAddScaleZeroL intScaleOne
 
-def ratAddZeroRNum : {q : Rat} → intScale nzOne (num q) + intScale (den q) intZero ≡ num q
-  using (intScaleNOne) ≔
-  λq. trans _ (intScale nzOne (num q)) _ intAddScaleZeroR intScaleOne
+ratAddZeroRNum : {q : Rat} → intScale nzOne (num q) + intScale (den q) intZero ≡ num q
+  using (intScaleNOne)
+ratAddZeroRNum = λq. trans _ (intScale nzOne (num q)) _ intAddScaleZeroR intScaleOne
 
 -- Σ-η, as a step of its own: el-sigma-eta is judgemental in the
 -- theory but the kernel's normal forms do not contract (t.π₁ , t.π₂),
 -- so the last hop has to be named
-def ratEta : {q : Rat} → mkRat (num q) (den q) ≡ q
+ratEta : {q : Rat} → mkRat (num q) (den q) ≡ q
   using (den.eq,
     Int.Int.unfold,
     mkRat.eq,
     num.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
-    sigma.eta) ≔
-  λq. ⋆
+    sigma.eta)
+ratEta = λq. ⋆
 
 -- and then the pair, one component at a time
-def ratAddZeroL : {q : Rat} → ratAdd ratZero q ≡ q
+ratAddZeroL : {q : Rat} → ratAdd ratZero q ≡ q
   using (Int.Int.unfold,
     Int.intNeg.eq,
     Int.intZero.eq,
@@ -326,25 +345,26 @@ def ratAddZeroL : {q : Rat} → ratAdd ratZero q ≡ q
     Rat.frac.nzPos.eq,
     Rat.frac.ratAdd.eq,
     Rat.frac.ratOfInt.eq,
-    Rat.frac.ratZero.eq) ≔
+    Rat.frac.ratZero.eq)
+ratAddZeroL =
   λq. trans
     _
     _
     _
-    (trans
-      (ratAdd ratZero q)
+    trans
+      ratAdd ratZero q
       _
-      (q .π₁, q .π₂)
-      (cong
-        (λw. Rat)
-        (λx. mkRat x (nzMul nzOne (den q)))
+      q .π₁, q .π₂
+      cong
+        λw. Rat
+        λx. mkRat x (nzMul nzOne (den q))
         {intScale (den q) intZero + intScale nzOne (num q)}
         {num q}
-        ratAddZeroLNum)
-      (cong (λw. Rat) (λd. mkRat (num q) d) {nzMul nzOne (den q)} {den q} nzMulOneL))
+        ratAddZeroLNum
+      cong (λw. Rat) (λd. mkRat (num q) d) {nzMul nzOne (den q)} {den q} nzMulOneL
     ratEta
 
-def ratAddZeroR : {q : Rat} → ratAdd q ratZero ≡ q
+ratAddZeroR : {q : Rat} → ratAdd q ratZero ≡ q
   using (Int.Int.unfold,
     Int.intNeg.eq,
     Int.intZero.eq,
@@ -365,52 +385,56 @@ def ratAddZeroR : {q : Rat} → ratAdd q ratZero ≡ q
     Rat.frac.nzPos.eq,
     Rat.frac.ratAdd.eq,
     Rat.frac.ratOfInt.eq,
-    Rat.frac.ratZero.eq) ≔
+    Rat.frac.ratZero.eq)
+ratAddZeroR =
   λq. trans
     _
     _
     _
-    (trans
-      (ratAdd q ratZero)
+    trans
+      ratAdd q ratZero
       _
-      (q .π₁, q .π₂)
-      (cong
-        (λw. Rat)
-        (λx. mkRat x (nzMul (den q) nzOne))
+      q .π₁, q .π₂
+      cong
+        λw. Rat
+        λx. mkRat x (nzMul (den q) nzOne)
         {intScale nzOne (num q) + intScale (den q) intZero}
         {num q}
-        ratAddZeroRNum)
-      (cong (λw. Rat) (λd. mkRat (num q) d) {nzMul (den q) nzOne} {den q} nzMulOneR))
+        ratAddZeroRNum
+      cong (λw. Rat) (λd. mkRat (num q) d) {nzMul (den q) nzOne} {den q} nzMulOneR
     ratEta
 
 -- ===== commutativity =====
 -- (x + m) + k ≡ (x + k) + m: the addends the cross-sum needs swapped
-def plusSwapRight : {x m k : ℕ} → x + m + k ≡ x + k + m
-  using (hyp.rw, plusAssoc, plusAssoc.rw, plusComm, plusComm.rw, swapLeft, swapLeft.rw) ≔
-  λx. λm. λk. ⋆
+plusSwapRight : {x m k : ℕ} → x + m + k ≡ x + k + m
+  using (hyp.rw, plusAssoc, plusAssoc.rw, plusComm, plusComm.rw, swapLeft, swapLeft.rw)
+plusSwapRight = λx. λm. λk. ⋆
 
 -- the magnitude arithmetic of nzMul is symmetric: multComm on the
 -- product, then the swap above on the two summands
-def mulPlusComm : {m k : ℕ} → m * k + m + k ≡ k * m + k + m using (plusAssoc) ≔
-  λm. λk. trans _ _ _ (cong (λu. ℕ) (λw. w + m + k) (multComm k m)) plusSwapRight
+mulPlusComm : {m k : ℕ} → m * k + m + k ≡ k * m + k + m using (plusAssoc)
+mulPlusComm = λm. λk. trans _ _ _ (cong (λu. ℕ) (λw. w + m + k) (multComm k m)) plusSwapRight
 
-def nzMulComm : {x y : NZ} → nzMul x y ≡ nzMul y x
-  using (plusAssoc, Rat.frac.NZ.unfold, Rat.frac.nzMul.eq, Rat.frac.nzNeg.eq, Rat.frac.nzPos.eq) ≔
+nzMulComm : {x y : NZ} → nzMul x y ≡ nzMul y x
+  using (plusAssoc, Rat.frac.NZ.unfold, Rat.frac.nzMul.eq, Rat.frac.nzNeg.eq, Rat.frac.nzPos.eq)
+nzMulComm =
   λx. λy. ⊎-elim
-    (m. ⊎-elim (w. nzMul (nzPos m) w ≡ nzMul w (nzPos m))
-      (k. cong (λu. NZ) nzPos {m * k + m + k} {k * m + k + m} mulPlusComm)
-      (k. cong (λu. NZ) nzNeg {m * k + m + k} {k * m + k + m} mulPlusComm)
-      y)
-    (m. ⊎-elim (w. nzMul (nzNeg m) w ≡ nzMul w (nzNeg m))
-      (k. cong (λu. NZ) nzNeg {m * k + m + k} {k * m + k + m} mulPlusComm)
-      (k. cong (λu. NZ) nzPos {m * k + m + k} {k * m + k + m} mulPlusComm)
-      y)
+    m. ⊎-elim
+      w. nzMul (nzPos m) w ≡ nzMul w (nzPos m)
+      k. cong (λu. NZ) nzPos {m * k + m + k} {k * m + k + m} mulPlusComm
+      k. cong (λu. NZ) nzNeg {m * k + m + k} {k * m + k + m} mulPlusComm
+      y
+    m. ⊎-elim
+      w. nzMul (nzNeg m) w ≡ nzMul w (nzNeg m)
+      k. cong (λu. NZ) nzNeg {m * k + m + k} {k * m + k + m} mulPlusComm
+      k. cong (λu. NZ) nzPos {m * k + m + k} {k * m + k + m} mulPlusComm
+      y
     x
 
 -- p + q ≡ q + p: intAddComm on the numerator, nzMulComm on the
 -- denominator (the middle term of the trans spelled out — the
 -- elaborator has nothing else to pin it against)
-def ratAddComm : (p q : Rat) → ratAdd p q ≡ ratAdd q p
+ratAddComm : (p q : Rat) → ratAdd p q ≡ ratAdd q p
   using (Int.Int.unfold,
     Int.add.+.eq,
     Rat.frac.NZ.unfold,
@@ -420,27 +444,29 @@ def ratAddComm : (p q : Rat) → ratAdd p q ≡ ratAdd q p
     Rat.frac.mkRat.eq,
     Rat.frac.num.eq,
     Rat.frac.nzMul.eq,
-    Rat.frac.ratAdd.eq) ≔
+    Rat.frac.ratAdd.eq)
+ratAddComm =
   λp. λq. trans
     _
-    (mkRat (intScale (den p) (num q) + intScale (den q) (num p)) (nzMul (den p) (den q)))
+    mkRat (intScale (den p) (num q) + intScale (den q) (num p)) (nzMul (den p) (den q))
     _
-    (cong
-      (λu. Rat)
-      (λx. mkRat x (nzMul (den p) (den q)))
-      (intAddComm (intScale (den q) (num p)) (intScale (den p) (num q))))
-    (cong
-      (λu. Rat)
-      (λd. mkRat (intScale (den p) (num q) + intScale (den q) (num p)) d)
+    cong
+      λu. Rat
+      λx. mkRat x (nzMul (den p) (den q))
+      intAddComm (intScale (den q) (num p)) (intScale (den p) (num q))
+    cong
+      λu. Rat
+      λd. mkRat (intScale (den p) (num q) + intScale (den q) (num p)) d
       {nzMul (den p) (den q)}
       {nzMul (den q) (den p)}
-      nzMulComm)
+      nzMulComm
 
 -- ===== negation =====
 -- negate the numerator, keep the denominator
-def ratNeg : Rat → Rat using (Rat.frac.Rat.unfold) ≔ λp. mkRat (intNeg (num p)) (den p)
+ratNeg : Rat → Rat using (Rat.frac.Rat.unfold)
+ratNeg = λp. mkRat (intNeg (num p)) (den p)
 
-def ratNegHalf : ratNeg half ≡ mkRat (class (Z, S Z)) (nzPos (S Z))
+ratNegHalf : ratNeg half ≡ mkRat (class (Z, S Z)) (nzPos (S Z))
   using (Int.Int.unfold,
     Int.intNeg.eq,
     Int.intOne.eq,
@@ -450,5 +476,5 @@ def ratNegHalf : ratNeg half ≡ mkRat (class (Z, S Z)) (nzPos (S Z))
     Rat.frac.mkRat.eq,
     Rat.frac.num.eq,
     Rat.frac.nzPos.eq,
-    Rat.frac.ratNeg.eq) ≔
-  ⋆
+    Rat.frac.ratNeg.eq)
+ratNegHalf = ⋆

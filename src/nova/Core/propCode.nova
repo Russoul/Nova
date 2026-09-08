@@ -31,22 +31,25 @@ import Natural.eq (zNotS)
 import Core.id (Id, idToEq, eqToId)
 import Core.equality (transportP, sym)
 
-def prfC : Ω → 𝕌 ≔ λr. Id (ℕ / (x y. r)) (class Z) (class (S Z))
+prfC : Ω → 𝕌
+prfC = λr. Id (ℕ / (x y. r)) (class Z) (class (S Z))
 
-def prfIntro : {r : Ω} → r → prfC r using (prfC.eq) ≔ λr. λh. eqToId (class Z) (class (S Z)) (⋆ h)
+prfIntro : {r : Ω} → r → prfC r using (prfC.eq)
+prfIntro = λr. λh. eqToId (class Z) (class (S Z)) (⋆ h)
 
 -- assuming r, everything implies r, so all the fibres agree
-def impConst : (r p q : Ω) → r → p ⊃ r ≡ q ⊃ r ≔
-  λr. λp. λq. λh. propExt (λu. impIntro {q} {r} (λv. h)) (λu. impIntro {p} {r} (λv. h))
+impConst : (r p q : Ω) → r → p ⊃ r ≡ q ⊃ r
+impConst = λr. λp. λq. λh. propExt (λu. impIntro {q} {r} (λv. h)) (λu. impIntro {p} {r} (λv. h))
 
 -- effectivity, along  n ↦ ¬(n ≡ Z) ⊃ r
-def effMap : (r : Ω) → (ℕ / (x y. r)) → Ω using (impConst) ≔ λr. λv. quot-elim (n. ¬ (n ≡ Z) ⊃ r) v
+effMap : (r : Ω) → (ℕ / (x y. r)) → Ω using (impConst)
+effMap = λr. λv. quot-elim (n. ¬ (n ≡ Z) ⊃ r) v
 
-def effZero : {r : Ω} → effMap r (class Z) using (effMap.eq, Core.prop.¬.eq) ≔
-  λr. impIntro {¬ (Z ≡ Z)} {r} (λh. absurdP r (impApply h ⋆))
+effZero : {r : Ω} → effMap r (class Z) using (effMap.eq, Core.prop.¬.eq)
+effZero = λr. impIntro {¬ (Z ≡ Z)} {r} (λh. absurdP r (impApply h ⋆))
 
-def notSZ : ¬ (S Z ≡ Z) using (Core.prop.¬.eq) ≔
-  impIntro {S Z ≡ Z} {⊥} (λh. 𝟘-elim (zNotS (sym _ _ h)))
+notSZ : ¬ (S Z ≡ Z) using (Core.prop.¬.eq)
+notSZ = impIntro {S Z ≡ Z} {⊥} (λh. 𝟘-elim (zNotS (sym _ _ h)))
 
-def prfElim : (r : Ω) → prfC r → r using (effMap.eq, prfC.eq) ≔
-  λr. λw. impApply (transportP (λv. effMap _ v) (idToEq _ _ _ w) effZero) notSZ
+prfElim : (r : Ω) → prfC r → r using (effMap.eq, prfC.eq)
+prfElim = λr. λw. impApply (transportP (λv. effMap _ v) (idToEq _ _ _ w) effZero) notSZ

@@ -2,4 +2,5 @@
 -- qualification remedy
 import natp (+)
 import natp2 (+)
-def amb : ℕ ≔ 1 + 2
+amb : ℕ
+amb = 1 + 2

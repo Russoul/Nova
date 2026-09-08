@@ -4,6 +4,9 @@
 -- naming both operators instead.
 infixr 4 ⊕
 infixl 4 ⊙
-def ⊕ : ℕ → ℕ → ℕ ≔ λx. λy. x
-def ⊙ : ℕ → ℕ → ℕ ≔ λx. λy. y
-def clash : ℕ ≔ 1 ⊕ 2 ⊙ 3
+⊕ : ℕ → ℕ → ℕ
+⊕ = λx. λy. x
+⊙ : ℕ → ℕ → ℕ
+⊙ = λx. λy. y
+clash : ℕ
+clash = 1 ⊕ 2 ⊙ 3

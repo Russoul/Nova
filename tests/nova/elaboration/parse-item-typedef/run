@@ -1,2 +1,3 @@
 #!/bin/sh
-"$1" run surface-item "type Int ≔ (ℕ × ℕ) / (p q. ∥plus (p .π₁) (q .π₂) ≡ plus (p .π₂) (q .π₁) ∈ ℕ∥)"
+"$1" run surface-item "Int : 𝕌
+Int = (ℕ × ℕ) / (p q. ∥plus (p .π₁) (q .π₂) ≡ plus (p .π₂) (q .π₁) ∈ ℕ∥)"

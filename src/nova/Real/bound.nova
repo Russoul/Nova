@@ -20,7 +20,7 @@ import Real (qInvNat, rBound, RSeq, Regular)
 import Real.neg (seqOf, regOf, regBnd)
 import Core.equality (trans, sym, cong, transport)
 
-def leQInvOne : (k : ℕ) → qInvNat k ≤ qOfNat (S Z)
+leQInvOne : (k : ℕ) → qInvNat k ≤ qOfNat (S Z)
   using (Core.id.Id.eq,
     Int.order.intOfNat.eq,
     Int.intOne.eq,
@@ -40,10 +40,11 @@ def leQInvOne : (k : ℕ) → qInvNat k ≤ qOfNat (S Z)
     Rat.+.eq,
     Rat.qNeg.eq,
     Rat.qcls.eq,
-    Real.qInvNat.eq) ≔
+    Real.qInvNat.eq)
+leQInvOne =
   λk. leQFracOfNat (transport (λw. S Z ≤ w) (sym _ _ (oneMult (S k))) (leSucMono (leZero k)))
 
-def leQBoundTwo : (n : ℕ) → rBound n Z ≤ qOfNat 2
+leQBoundTwo : (n : ℕ) → rBound n Z ≤ qOfNat 2
   using (Core.id.Id.eq,
     Natural.+.eq,
     Rat.nat.qOfNat.eq,
@@ -56,56 +57,61 @@ def leQBoundTwo : (n : ℕ) → rBound n Z ≤ qOfNat 2
     Rat.+.eq,
     Rat.qNeg.eq,
     Real.qInvNat.eq,
-    Real.rBound.eq) ≔
+    Real.rBound.eq)
+leQBoundTwo =
   λn. transport
-    (λw. rBound n Z ≤ w)
+    λw. rBound n Z ≤ w
     {qOfNat (S Z) + qOfNat (S Z)}
     {qOfNat 2}
-    (qOfNatAdd (S Z) (S Z))
-    (leQAdd _ _ _ _ (leQInvOne n) (leQInvOne Z))
+    qOfNatAdd (S Z) (S Z)
+    leQAdd _ _ _ _ (leQInvOne n) (leQInvOne Z)
 
 -- ===== a + (b − a) ≡ b =====
-def qAddSubCancelL : (a b : Q) → a + (b + qNeg a) ≡ b using (Rat.Q.unfold) ≔
+qAddSubCancelL : (a b : Q) → a + (b + qNeg a) ≡ b using (Rat.Q.unfold)
+qAddSubCancelL =
   λa. λb. a + (b + qNeg a)
-      ≡⟨ cong (λw. Q) (λw. a + w) (qAddComm b (qNeg a)) ⟩ a + (qNeg a + b)
-      ≡⟨ sym _ _ (qAddAssoc a (qNeg a) b) ⟩ a + qNeg a + b
-      ≡⟨ cong (λw. Q) (λw. w + b) (qAddNegR a) ⟩ qZero + b
-      ≡⟨ qAddZeroL b ⟩ b
+    ≡⟨ cong (λw. Q) (λw. a + w) (qAddComm b (qNeg a)) ⟩ a + (qNeg a + b)
+    ≡⟨ sym _ _ (qAddAssoc a (qNeg a) b) ⟩ a + qNeg a + b
+    ≡⟨ cong (λw. Q) (λw. w + b) (qAddNegR a) ⟩ qZero + b
+    ≡⟨ qAddZeroL b ⟩ b
 
 -- ===== the bound =====
-def seqBound : RSeq → ℕ ≔ λp. S (S (qNatBound (seqOf p Z)))
+seqBound : RSeq → ℕ
+seqBound = λp. S (S (qNatBound (seqOf p Z)))
 
-def bndSeqBound : (p : RSeq) (n : ℕ) → Bnd (qOfNat (seqBound p)) (seqOf p n)
+bndSeqBound : (p : RSeq) (n : ℕ) → Bnd (qOfNat (seqBound p)) (seqOf p n)
   using (Natural.+.eq,
     Rat.bound.Bnd.unfold,
     Rat.ceil.qNatBound.eq,
     Real.RSeq.unfold,
     Real.Regular.unfold,
     Real.bound.seqBound.eq,
-    Real.neg.seqOf.eq) ≔
+    Real.neg.seqOf.eq)
+bndSeqBound =
   λp. λn. bndWeaken
     _
     _
     _
-    (transport
-      (λw. qOfNat (qNatBound (seqOf p Z)) + rBound n Z ≤ w)
+    transport
+      λw. qOfNat (qNatBound (seqOf p Z)) + rBound n Z ≤ w
       {qOfNat (qNatBound (seqOf p Z)) + qOfNat 2}
       {qOfNat (seqBound p)}
-      (qOfNatAdd (qNatBound (seqOf p Z)) 2)
-      (leQAdd _ _ _ _ (leQRefl (qOfNat (qNatBound (seqOf p Z)))) (leQBoundTwo n)))
-    (bndEq
+      qOfNatAdd (qNatBound (seqOf p Z)) 2
+      leQAdd _ _ _ _ (leQRefl (qOfNat (qNatBound (seqOf p Z)))) (leQBoundTwo n)
+    bndEq
       _
       _
-      (qAddSubCancelL (seqOf p Z) (seqOf p n))
-      (bndAdd (bndNatBound (seqOf p Z)) (regBnd _ (regOf p) n Z)))
+      qAddSubCancelL (seqOf p Z) (seqOf p n)
+      bndAdd (bndNatBound (seqOf p Z)) (regBnd _ (regOf p) n Z)
 
 -- the bound is a successor, and in fact at least 2 — which is what
 -- lets the product's sampling index be written without a predecessor
-def seqBoundPos : {p : RSeq} → qZero ≤ qOfNat (seqBound p)
+seqBoundPos : {p : RSeq} → qZero ≤ qOfNat (seqBound p)
   using (Rat.nat.qOfNatZero,
     Rat.order.≤.unfold,
     Rat.order.NonNegS.unfold,
     Rat.Q.unfold,
     Real.RSeq.unfold,
-    Real.Regular.unfold) ≔
+    Real.Regular.unfold)
+seqBoundPos =
   λp. transport (λw. w ≤ qOfNat (seqBound p)) {qOfNat Z} {qZero} ⋆ (leQOfNat (leZero (seqBound p)))

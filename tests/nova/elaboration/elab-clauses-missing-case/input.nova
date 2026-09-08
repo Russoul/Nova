@@ -1,2 +1,2 @@
-def pred : ℕ → ℕ
-  | pred (S m) ≔ m
+pred : ℕ → ℕ
+pred (S m) = m

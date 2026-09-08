@@ -1,5 +1,5 @@
 error: input is not accepted; distill only transforms accepted programs:
 open obligations (1):
   [1] ⊢ Z ≐ S Z : ℕ
-      at: input.nova:3:25: def bad: checking ⋆
+      at: input.nova:4:7: def bad: checking ⋆
 module  has open obligations

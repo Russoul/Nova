@@ -1,3 +1,4 @@
 -- (ℕ / r) decodes to the quotient of the decoded domain; the
 -- Ω-valued relation passes through undecoded
-def qdecode : (v : (ℕ / (x y. ∥ℕ∥))) → ℕ / (x y. ∥ℕ∥) ≔ λv. v
+qdecode : (v : (ℕ / (x y. ∥ℕ∥))) → ℕ / (x y. ∥ℕ∥)
+qdecode = λv. v

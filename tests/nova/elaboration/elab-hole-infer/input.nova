@@ -3,6 +3,8 @@
 -- to mint: a let definiens fixes no former, so the hole is rejected
 -- and the remedy names the ascription lever. Same for `out`, whose
 -- ν carries a POLYNOMIAL — which has no hole form at all.
-def viaLet : ℕ ≔ let x ≔ ?e in x
+viaLet : ℕ
+viaLet = let x = ?e in x
 
-def viaOut : ℕ ≔ out ?s
+viaOut : ℕ
+viaOut = out ?s

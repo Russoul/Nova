@@ -4,13 +4,19 @@
 -- becomes a derived type hole (`?h/role`). Nothing is solved: the
 -- conversions that follow surface as obligations saying what each
 -- component would have to be.
-def proj  : ℕ ≔ ?p .π₁
-def proj2 : ℕ ≔ ?q .π₂
-def sums  : ℕ ≔ ⊎-elim (z. ℕ) (a. Z) (b. Z) ?s
-def app   : ℕ ≔ ?f Z
-def quotE : ℕ ≔ quot-elim (z. ℕ) (a. Z) ?c
+proj  : ℕ
+proj = ?p .π₁
+proj2 : ℕ
+proj2 = ?q .π₂
+sums  : ℕ
+sums = ⊎-elim (z. ℕ) (a. Z) (b. Z) ?s
+app   : ℕ
+app = ?f Z
+quotE : ℕ
+quotE = quot-elim (z. ℕ) (a. Z) ?c
 
 -- the motivating case: the scrutinee fixes ∥-∥, so the BODY's hole
 -- still gets its real goal, under a hypothetical inhabitant of the
 -- (open) squashee
-def squashE : (n : ℕ) → ∥ℕ∥ ≔ λn. squash-elim ?e (w. ?body)
+squashE : (n : ℕ) → ∥ℕ∥
+squashE = λn. squash-elim ?e (w. ?body)

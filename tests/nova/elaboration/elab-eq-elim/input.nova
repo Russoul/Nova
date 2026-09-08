@@ -3,37 +3,47 @@
 -- hypothesis w pinning it are BOTH gone, and everything between and
 -- after them — the goal included — is specialised at the equation's
 -- other side.
-def P : ℕ → 𝕌 ≔ λn. ℕ
+P : ℕ → 𝕌
+P = λn. ℕ
 
 -- both orientations, read off w's type
-def pin : (x : ℕ) (w : x ≡ Z) → P x using (P.eq) ≔ λx. λw. ≡-elim (Z : P Z) x w
-def pinFlipped : (x : ℕ) (w : Z ≡ x) → P x using (P.eq) ≔ λx. λw. ≡-elim (Z : P Z) x w
+pin : (x : ℕ) (w : x ≡ Z) → P x using (P.eq)
+pin = λx. λw. ≡-elim (Z : P Z) x w
+pinFlipped : (x : ℕ) (w : Z ≡ x) → P x using (P.eq)
+pinFlipped = λx. λw. ≡-elim (Z : P Z) x w
 
 -- a hypothesis BETWEEN the two, and one AFTER them, both specialised
-def between : (x : ℕ) (h : P x) (w : x ≡ Z) → P x ≔ λx. λh. λw. ≡-elim h x w
-def after : (x : ℕ) (w : x ≡ Z) (h : P x) → P x ≔ λx. λw. λh. ≡-elim h x w
+between : (x : ℕ) (h : P x) (w : x ≡ Z) → P x
+between = λx. λh. λw. ≡-elim h x w
+after : (x : ℕ) (w : x ≡ Z) (h : P x) → P x
+after = λx. λw. λh. ≡-elim h x w
 
 -- t is any term standing outside x's own entry
-def atTerm : (n : ℕ) (x : ℕ) (h : P x) (w : x ≡ S n) → P x
-  ≔ λn. λx. λh. λw. ≡-elim h x w
+atTerm : (n : ℕ) (x : ℕ) (h : P x) (w : x ≡ S n) → P x
+atTerm = λn. λx. λh. λw. ≡-elim h x w
 
 -- inference position
-def infer : (x : ℕ) (h : ℕ) (w : x ≡ Z) → ℕ ≔ λx. λh. λw. S (≡-elim h x w)
+infer : (x : ℕ) (h : ℕ) (w : x ≡ Z) → ℕ
+infer = λx. λh. λw. S (≡-elim h x w)
 
 -- a HOLE: its goal is stated in the elimination context — x and w are
 -- gone, and h reads at Z
-def hole : (x : ℕ) (h : P x) (w : x ≡ Z) → P x ≔ λx. λh. λw. ≡-elim ?g x w
+hole : (x : ℕ) (h : P x) (w : x ≡ Z) → P x
+hole = λx. λh. λw. ≡-elim ?g x w
 
 -- the eliminated variable's type need not be 𝕌-SMALL: the reflexivity
 -- proof is minted at the site, at whatever type the variable had, so
 -- an `x : 𝕌` eliminates like any other
-def large : (x : 𝕌) (h : x) (w : x ≡ ℕ) → ℕ ≔ λx. λh. λw. ≡-elim h x w
+large : (x : 𝕌) (h : x) (w : x ≡ ℕ) → ℕ
+large = λx. λh. λw. ≡-elim h x w
 
 -- the goal, and a hypothesis after w, may name the eliminated PROOF:
 -- [refl/w] puts the minted reference where w stood, and the site
 -- converts back through the irrelevance equation
-def proofInGoal : (x : ℕ) (w : x ≡ Z) → w ≡ w ∈ (x ≡ Z) ≔ λx. λw. ≡-elim ⋆ x w
-def proofInHyp : (x : ℕ) (w : x ≡ Z) (h : w ≡ w ∈ (x ≡ Z)) → ℕ ≔ λx. λw. λh. ≡-elim Z x w
+proofInGoal : (x : ℕ) (w : x ≡ Z) → w ≡ w ∈ (x ≡ Z)
+proofInGoal = λx. λw. ≡-elim ⋆ x w
+proofInHyp : (x : ℕ) (w : x ≡ Z) (h : w ≡ w ∈ (x ≡ Z)) → ℕ
+proofInHyp = λx. λw. λh. ≡-elim Z x w
 
 -- THE SLIDE: the equation's other side may name entries standing
 -- AFTER the eliminated variable. A context is a telescope, so the
@@ -41,14 +51,18 @@ def proofInHyp : (x : ℕ) (w : x ≡ Z) (h : w ≡ w ∈ (x ≡ Z)) → ℕ ≔
 -- crossed entry not mentioning it — until the other side stands in
 -- its prefix. The values are pinned, since the permutation is exactly
 -- the kind of thing that elaborates while meaning something else.
-def slid : (u : ℕ) (v : ℕ) (h : ℕ) (w : u ≡ S v) → ℕ ≔ λu. λv. λh. λw. ≡-elim h u w
-def slidPins : slid 3 2 7 ⋆ ≡ 7 using (slid.eq) ≔ ⋆
+slid : (u : ℕ) (v : ℕ) (h : ℕ) (w : u ≡ S v) → ℕ
+slid = λu. λv. λh. λw. ≡-elim h u w
+slidPins : slid 3 2 7 ⋆ ≡ 7 using (slid.eq)
+slidPins = ⋆
 
-def slidFar : (p : ℕ) (u : ℕ) (m : ℕ) (v : ℕ) (h : ℕ) (w : u ≡ S v) →
+slidFar : (p : ℕ) (u : ℕ) (m : ℕ) (v : ℕ) (h : ℕ) (w : u ≡ S v) →
   ℕ × (ℕ × (ℕ × ℕ))
-  ≔ λp. λu. λm. λv. λh. λw. ≡-elim (p, (m, (v, h))) u w
-def slidFarPins : slidFar 1 5 2 4 8 ⋆ ≡ (1, (2, (4, 8))) ∈ ℕ × (ℕ × (ℕ × ℕ))
-  using (slidFar.eq) ≔ ⋆
+slidFar = λp. λu. λm. λv. λh. λw. ≡-elim (p, (m, (v, h))) u w
+slidFarPins : slidFar 1 5 2 4 8 ⋆ ≡ (1, (2, (4, 8))) ∈ ℕ × (ℕ × (ℕ × ℕ))
+  using (slidFar.eq)
+slidFarPins = ⋆
 
 -- and the goal is refined at the other side all the same
-def slidGoal : (u : ℕ) (v : ℕ) (w : u ≡ S v) → u ≡ S v ∈ ℕ ≔ λu. λv. λw. ≡-elim ⋆ u w
+slidGoal : (u : ℕ) (v : ℕ) (w : u ≡ S v) → u ≡ S v ∈ ℕ
+slidGoal = λu. λv. λw. ≡-elim ⋆ u w

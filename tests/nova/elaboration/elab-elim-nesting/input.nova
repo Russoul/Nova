@@ -9,25 +9,30 @@
 -- picked up.
 
 -- inner body is the OUTER binder `a`, so f (m,n) (u,v) must be m
-def f : (p : ℕ × ℕ) (q : ℕ × ℕ) → ℕ
-  ≔ λp. λq. sigma-elim (a b. sigma-elim (c d. a) q) p
-def fPins : f (1, 0) (0, 0) ≡ 1 using (f.eq) ≔ ⋆
+f : (p : ℕ × ℕ) (q : ℕ × ℕ) → ℕ
+f = λp. λq. sigma-elim (a b. sigma-elim (c d. a) q) p
+fPins : f (1, 0) (0, 0) ≡ 1 using (f.eq)
+fPins = ⋆
 
 -- a sum-elim nested in a sigma-elim's body, reaching the outer binders
-def g : (p : ℕ × ℕ) (w : ℕ ⊎ ℕ) → ℕ
-  ≔ λp. λw. sigma-elim (a b. sum-elim (u. a) (v. b) w) p
-def gPinsL : g (1, 2) (inj₁ 0) ≡ 1 using (g.eq) ≔ ⋆
-def gPinsR : g (1, 2) (inj₂ 0) ≡ 2 using (g.eq) ≔ ⋆
+g : (p : ℕ × ℕ) (w : ℕ ⊎ ℕ) → ℕ
+g = λp. λw. sigma-elim (a b. sum-elim (u. a) (v. b) w) p
+gPinsL : g (1, 2) (inj₁ 0) ≡ 1 using (g.eq)
+gPinsL = ⋆
+gPinsR : g (1, 2) (inj₂ 0) ≡ 2 using (g.eq)
+gPinsR = ⋆
 
 -- a sigma-elim nested in a sum-elim's branch, reaching the branch binder
-def h : (w : ℕ ⊎ ℕ) (p : ℕ × ℕ) → ℕ
-  ≔ λw. λp. sum-elim (u. sigma-elim (a b. u) p) (v. v) w
-def hPins : h (inj₁ 7) (0, 0) ≡ 7 using (h.eq) ≔ ⋆
+h : (w : ℕ ⊎ ℕ) (p : ℕ × ℕ) → ℕ
+h = λw. λp. sum-elim (u. sigma-elim (a b. u) p) (v. v) w
+hPins : h (inj₁ 7) (0, 0) ≡ 7 using (h.eq)
+hPins = ⋆
 
 -- an ≡-elim nested inside a sigma-elim's body
-def k : (p : ℕ × ℕ) (x : ℕ) (w : x ≡ Z) → ℕ
-  ≔ λp. λx. λw. sigma-elim (a b. ≡-elim a x w) p
-def kPins : k (5, 0) Z ⋆ ≡ 5 using (k.eq) ≔ ⋆
+k : (p : ℕ × ℕ) (x : ℕ) (w : x ≡ Z) → ℕ
+k = λp. λx. λw. sigma-elim (a b. ≡-elim a x w) p
+kPins : k (5, 0) Z ⋆ ≡ 5 using (k.eq)
+kPins = ⋆
 
 -- AND THE POSITION'S OWN TYPE. A goal component may stand under a
 -- binder the replay descends through — the SECOND component of a Σ is
@@ -37,15 +42,18 @@ def kPins : k (5, 0) Z ⋆ ≡ 5 using (k.eq) ≔ ⋆
 -- and the step is refused against a type that was never the
 -- position's. Both spellings below are the same equation; only the
 -- side of the × differs.
-def st : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
-def underSnd : {a : 𝕌} (v : st a) (u : st a)
+st : 𝕌 → 𝕌
+st = λa. ν (K a × 𝕏)
+underSnd : {a : 𝕌} (v : st a) (u : st a)
   (e : u ≡ corec (p : a × st a. p .π₁, out (p .π₂)) (out v) ∈ st a)
   → ∥𝟙 × (out u .π₂ ≡ corec (p : a × st a. p .π₁, out (p .π₂)) (out (out v .π₂)) ∈ st a)∥
-  using (st.unfold) ≔
+  using (st.unfold)
+underSnd =
   λa. λv. λu. λe. ≡-elim (⋆ ((), ⋆)) u e
 
-def underFst : {a : 𝕌} (v : st a) (u : st a)
+underFst : {a : 𝕌} (v : st a) (u : st a)
   (e : u ≡ corec (p : a × st a. p .π₁, out (p .π₂)) (out v) ∈ st a)
   → ∥(out u .π₂ ≡ corec (p : a × st a. p .π₁, out (p .π₂)) (out (out v .π₂)) ∈ st a) × 𝟙∥
-  using (st.unfold) ≔
+  using (st.unfold)
+underFst =
   λa. λv. λu. λe. ≡-elim (⋆ (⋆, ())) u e

@@ -2,7 +2,8 @@
 -- Basic quotient-type facts. Relations are Ω-valued (docs/NovaFoundation.txt),
 -- so the total relation is the squash ∥𝟙∥.
 
-def collapse : class Z ≡ class (S Z) ∈ ℕ / (n m. ∥𝟙∥) ≔ ⋆
+collapse : class Z ≡ class (S Z) ∈ ℕ / (n m. ∥𝟙∥)
+collapse = ⋆
 
-def collapseElim : (q : ℕ / (n m. ∥𝟙∥)) → quot-elim (x. ℕ) (a. Z) (class Z : ℕ / (n m. ∥𝟙∥)) ≡ Z ≔
-  λq. ⋆
+collapseElim : (q : ℕ / (n m. ∥𝟙∥)) → quot-elim (x. ℕ) (a. Z) (class Z : ℕ / (n m. ∥𝟙∥)) ≡ Z
+collapseElim = λq. ⋆

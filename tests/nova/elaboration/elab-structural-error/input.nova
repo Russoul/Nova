@@ -1,1 +1,2 @@
-def bad : ℕ ≔ λx. x
+bad : ℕ
+bad = λx. x

@@ -1,3 +1,5 @@
-def plus : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+plus : ℕ → ℕ → ℕ
+plus = λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
 infixl 6 +
-def + : ℕ → ℕ → ℕ ≔ plus
++ : ℕ → ℕ → ℕ
++ = plus

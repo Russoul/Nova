@@ -12,11 +12,23 @@ module Nova.Elaboration.Parser
 -- Comments (`--` line, `{- -}` block) are handled by the lexer; this
 -- module normalizes Comment tokens into whitespace before parsing so
 -- .nova files may be freely commented.
+--
+-- LAYOUT (docs/NovaElaboration.txt, Layout): the surface is
+-- indentation-significant. Every line break is seen by exactly one of
+-- the whitespace combinators below — `ws` reports it, `sp`/`space`
+-- demand that the new line stand past the enclosing block column b,
+-- and a spine's `argPos` decides whether the new line is one more
+-- ARGUMENT (a term-initial line indented past the spine's reference
+-- column r — the indent of the line its head sits on). The two
+-- columns live in the grammar state (Nova.Kernel.Parser.PState):
+-- `block` is set by `inBlock` for the extent of a block argument or a
+-- data literal, `indent` follows the most recently crossed line break.
 
 import Data.List
 import Data.Maybe
 import Data.String
 import Data.SnocList
+import Data.Vect
 
 import Me.Russoul.Text.Lexer.Token
 import Me.Russoul.Text.Lexer
@@ -31,8 +43,133 @@ import Nova.Elaboration.Surface
 
 %default covering
 
+%hide Me.Russoul.Text.Parser.OverToken.space
+
+-- ===== Layout primitives =====
+
+||| The start of the next token; Nothing at the end of the input.
+peekPos : Rule (Maybe Position)
+peekPos = (Just <$> position) <|> pure Nothing
+
+indentNow : Rule Int
+indentNow = (.indent) <$> get
+
+blockNow : Rule Int
+blockNow = (.block) <$> get
+
+||| Run a grammar with the block column set to `c` — the extent of a
+||| block argument or of a data literal's entries. Restored after
+||| (and, on failure, by backtracking: the state is functional).
+inBlock : Int -> Rule a -> Rule a
+inBlock c p = do
+  b <- blockNow
+  update { block := c }
+  x <- p
+  update { block := b }
+  pure x
+
+||| Consume optional whitespace, reporting a crossed LINE BREAK: Just c
+||| when the next token is the first on a later line, at column c (the
+||| state's indent becomes c); Nothing when it stands on the same line
+||| as the previous token, or when nothing follows at all. Whitespace
+||| is one fused token spanning from the previous token's end to the
+||| next token's start (Me.Russoul.Text.Lexer.mergeWhitespace), so the
+||| comparison of the two positions is the whole test.
+ws : Rule (Maybe Int)
+ws = do
+  Just p0 <- peekPos
+    | Nothing => pure Nothing
+  Just () <- optional (ignore (is "whitespace" isSpace))
+    | Nothing => pure Nothing
+  Just p1 <- peekPos
+    | Nothing => pure Nothing
+  if p1.line > p0.line
+    then do update { indent := p1.column }; pure (Just p1.column)
+    else pure Nothing
+
+||| Columns in layout messages count from 1, as the diagnostic's own
+||| location does (the grammar's columns count from 0).
+col : Int -> String
+col c = show (c + 1)
+
+||| The message a line that leaves its block carries — a DIAGNOSIS
+||| (leading "!", Nova.Kernel.Parser.splitDiagnoses) when it becomes
+||| the error: at a required position it says exactly what went wrong,
+||| while at an optional position its failure is how every construct
+||| ends at the next item or block line.
+offside : Int -> Int -> String
+offside b c = "!a line indented past column \{col b} — this one starts at column \{col c}, which ends the enclosing block"
+
+||| Optional whitespace at a REQUIRED or CONTINUATION position: a line
+||| break is fine as long as the new line stands past the enclosing
+||| block column.
 sp : Rule ()
-sp = optSpace
+sp = do
+  mc <- ws
+  case mc of
+    Nothing => pure ()
+    Just c => do
+      b <- blockNow
+      guard (offside b c) (c > b)
+
+||| Mandatory whitespace, with the same line-break discipline.
+space : Rule ()
+space = do
+  Just p0 <- peekPos
+    | Nothing => fail "whitespace"
+  ignore (is "whitespace" isSpace)
+  Just p1 <- peekPos
+    | Nothing => pure ()
+  when (p1.line > p0.line) $ do
+    update { indent := p1.column }
+    b <- blockNow
+    guard (offside b p1.column) (p1.column > b)
+
+||| The layout CURSOR of a spine: the reference column r (the indent of
+||| the head's line) and, once opened, its argument block's column.
+record Lay where
+  constructor MkLay
+  lr : Int
+  lblk : Maybe Int
+
+||| Where a spine's next argument stands, if anywhere.
+data ArgPos
+  = NoArg            -- the line ended and the next line is not this spine's
+  | SameLine         -- juxtaposition, as ever
+  | BlockLine        -- an ARGUMENT LINE, at the cursor's block column
+  | Misaligned Int   -- a line between r and the open block's column
+
+||| Consume the whitespace before a possible next argument and classify
+||| its position (docs/NovaElaboration.txt, Layout — OPTIONAL
+||| POSITIONS). The cursor comes back with its block column set when a
+||| block opens. `NoArg` and `Misaligned` leave the decision to the
+||| caller, whose branch failing restores the whitespace.
+argPos : Lay -> Rule (Lay, ArgPos)
+argPos lay = do
+  mc <- ws
+  case mc of
+    Nothing => pure (lay, SameLine)
+    Just c => do
+      b <- blockNow
+      if c <= b then pure (lay, NoArg) else
+        case lay.lblk of
+          Nothing =>
+            if c > lay.lr then pure ({ lblk := Just c } lay, BlockLine) else pure (lay, NoArg)
+          Just c0 =>
+            if c == c0 then pure (lay, BlockLine)
+            else if c > c0 then pure (lay, NoArg)
+            else if c > lay.lr then pure (lay, Misaligned c)
+            else pure (lay, NoArg)
+
+||| A one-character range at the next token, for a layout verdict's
+||| caret.
+nextRange : Rule (Maybe Range)
+nextRange = do
+  mp <- peekPos
+  pure (map (\p => MkRange p (MkPosition p.line (p.column + 1))) mp)
+
+misalignedMsg : Int -> Int -> String
+misalignedMsg c c0 = "!an argument line at column \{col c} — this spine's arguments stand at column \{col c0}"
 
 -- Every fixed-syntax literal match doubles as a semantic-token
 -- classification at its exact span (mirrors tools/render-specs.py's
@@ -90,6 +227,21 @@ kwc c = do
   (r, ()) <- bounds (char_ c)
   emit r Keyword
 
+||| The DEFINIENS token `=` of a clause and of a let: exactly one `=`,
+||| not the head of a longer operator run (`==` is ≡'s ASCII spelling,
+||| `=>` and `<=` are operator names). Reserved as a NAME in
+||| parseOpName below, so no fixity can ever make it infix.
+kwEq : Rule ()
+kwEq = do
+  (r, ()) <- bounds (char_ '=')
+  next <- optional (nextIs "next" (\tok => case tok of
+            Symbol ch => opChar ch
+            _ => False))
+  case next of
+    Just _ => fail "'=' (this one runs on into an operator)"
+    Nothing => pure ()
+  emit r Keyword
+
 ||| A token with an ASCII FALLBACK spelling (docs/NovaElaboration.txt,
 ||| "ASCII fallbacks"). Both spellings parse to the same AST; the
 ||| Unicode form is tried first and is the only one the distill printer
@@ -138,8 +290,8 @@ parseName = do
                            else Nothing
               _ => Nothing)
     let name = pack (c :: cs)
-    -- S/Z/Refl/class are also reserved: unlike def/type/El/import/
-    -- infixl/infixr they're syntactically valid identifiers, so without
+    -- S/Z/Refl/class are also reserved: unlike El/import/infixl/
+    -- infixr they're syntactically valid identifiers, so without
     -- this a shadowing binder would parse fine and only misbehave at a
     -- REFERENCE site — loudly for S/class (they consume a following atom,
     -- so the parse fails deep and confusingly) or silently for Z/Refl
@@ -164,8 +316,11 @@ parseName = do
     -- only where the text after it happens to look like the keyword's
     -- own syntax — and neither is a reference form a hand-written
     -- proof reaches for as a variable name
+    -- (`def` and `type` were item keywords once; items are keyword-free
+    -- now — docs/NovaElaboration.txt, Surface syntax — and both are
+    -- ordinary identifiers)
     guard "an identifier ('\{name}' is a reserved keyword)"
-                             (name /= "def" && name /= "type" && name /= "El" &&
+                             (name /= "El" &&
                               name /= "import" && name /= "infixl" && name /= "infixr" &&
                               name /= "S" && name /= "Z" && name /= "class" &&
                               name /= "data" && name /= "let" && name /= "in" &&
@@ -255,8 +410,8 @@ parseOpName = do
     -- non-opChar and so could never be lexed as an operator name; these
     -- two are pure opChar runs, so the exclusion is explicit — without
     -- it `def -> : …` would shadow the arrow token itself.
-    guard "an operator name (-> and == spell reserved tokens)"
-          (name /= "->" && name /= "==")
+    guard "an operator name (->, == and = spell reserved tokens)"
+          (name /= "->" && name /= "==" && name /= "=")
     pure name
 
 ||| A possibly-qualified operator (+ or M.+): the mention form's and
@@ -647,7 +802,7 @@ mutual
         (do kw2 "λ" "\\"; sp; x <- parseNameR; sp; kwc '.'; sp
             e <- parseSElem tbl (env :< fst x)
             pure (SLam x e))
-        -- let x ≔ e in b / let x : T ≔ e in b — the annotated form is
+        -- let x = e in b / let x : T = e in b — the annotated form is
         -- sugar for an ascribed definiens (the definiens elaborates in
         -- inference mode); the body extends maximally, like λ's.
         -- The body's indices are counted against the CORE context,
@@ -657,7 +812,7 @@ mutual
         -- resolvable) holding index 0
     <|> (do kw "let"; space; x <- parseNameR; sp
             manno <- optional (do kwc ':'; sp; t <- parseSTy tbl env; sp; pure t)
-            kw2 "≔" ":="; sp
+            kwEq; sp
             e <- parseSElem tbl env; sp
             kw "in"; sp
             b <- parseSElem tbl (env :< fst x :< wildcard)
@@ -667,185 +822,344 @@ mutual
         -- parentheses: `out t .π₂` is `(out t) .π₂`. λ and let stay
         -- above the spine — their bodies extend maximally, so a
         -- trailing `.π₂` is read INSIDE the body, where it belongs.
-    <|> (do e <- parseSElemKeyword tbl env
-            parseSpine tbl env e)
+        -- The form hands its layout cursor on, so an argument block
+        -- it opened continues as the spine's
+    <|> (do (lay, e) <- parseSElemKeyword tbl env
+            parseSpine tbl env lay e)
     <|> parseSElemApp tbl env
 
-  -- t{2½}: the keyword-headed forms — eliminators and the one-argument
-  -- introductions. Each takes its own arguments at the atom level, so
-  -- the form ends exactly where the keyword's own syntax does and the
-  -- spine continuation above may pick up from there.
-  parseSElemKeyword : FixTable -> NameEnv -> Rule SElem
-  parseSElemKeyword tbl env = do
-    (r, x) <- bounds (parseSElemKeywordRaw tbl env)
-    pure (atPos r x)
+  -- ===== Argument slots (docs/NovaElaboration.txt, Layout — ⟪·⟫) =====
+  --
+  -- A keyword form's argument is read by a SLOT reader: on the head's
+  -- line an atom or a parenthesized group, exactly as before; on an
+  -- ARGUMENT LINE the bare content of that group — the layout extent
+  -- standing in for the closing parenthesis. Each reader threads the
+  -- form's layout cursor, so the slots share one argument block and
+  -- the spine continuation past the form's last slot picks it up.
 
-  parseSElemKeywordRaw : FixTable -> NameEnv -> Rule SElem
-  parseSElemKeywordRaw tbl env =
-        (do kw2 "𝟘-elim" "Void-elim"; space; e <- parseSElemAtom tbl env; pure (SZeroElim e))
-    <|> (do kw2 "ℕ-elim" "Nat-elim"; space
-            -- the motive group is safely optional here: z is an ATOM,
-            -- and no valid element atom has the (name. …) shape
-            mmot <- optional (do
-              kwc '('; sp; n <- parseNameR; sp; kwc '.'; sp
-              mot <- parseSTy tbl (env :< fst n); sp; kwc ')'; sp
-              pure (n, mot))
-            z <- parseSElemAtom tbl env; sp
-            kwc '('; sp; n2 <- parseNameR; space; ih <- parseNameR
-            sp; kwc '.'; sp; s <- parseSElem tbl (env :< fst n2 :< fst ih); sp; kwc ')'; sp
-            t <- parseSElemAtom tbl env
-            pure (SNatElim mmot z n2 ih s t))
-    <|> (do kw "S"; space; e <- parseSElemAtom tbl env; pure (SSuc e))
-    <|> (do kw2 "inj₁" "inj1"; space; e <- parseSElemAtom tbl env; pure (SInj1 e))
-    <|> (do kw2 "inj₂" "inj2"; space; e <- parseSElemAtom tbl env; pure (SInj2 e))
-        -- ⊎-elim with an explicit motive, then the motive-less form
-        -- (checking-only): a case group (x. ELEM) whose body is a
-        -- bare name also parses as a motive group (z. TYPE), so the
-        -- three-group spelling is tried first and the two-group
-        -- spelling is the fallback
-    <|> (do kw2 "⊎-elim" "\\/-elim"; space
-            kwc '('; sp; z <- parseNameR; sp; kwc '.'; sp
-            mot <- parseSTy tbl (env :< fst z); sp; kwc ')'; sp
-            kwc '('; sp; a <- parseNameR; sp; kwc '.'; sp
-            l <- parseSElem tbl (env :< fst a); sp; kwc ')'; sp
-            kwc '('; sp; b <- parseNameR; sp; kwc '.'; sp
-            r <- parseSElem tbl (env :< fst b); sp; kwc ')'; sp
-            t <- parseSElemAtom tbl env
-            pure (SSumElim (Just (z, mot)) a l b r t))
-    <|> (do kw2 "⊎-elim" "\\/-elim"; space
-            kwc '('; sp; a <- parseNameR; sp; kwc '.'; sp
-            l <- parseSElem tbl (env :< fst a); sp; kwc ')'; sp
-            kwc '('; sp; b <- parseNameR; sp; kwc '.'; sp
-            r <- parseSElem tbl (env :< fst b); sp; kwc ')'; sp
-            t <- parseSElemAtom tbl env
-            pure (SSumElim Nothing a l b r t))
-    <|> (do kw "class"; space; e <- parseSElemAtom tbl env; pure (SClass e))
-    <|> (do kw2 "ν" "\\nu"; space; f <- parseSPolyAtom tbl env; pure (SNuC f))
-    <|> (do kw "out"; space; e <- parseSElemAtom tbl env; pure (SOut e))
-    <|> (do kw "corec"; space
-            kwc '('; sp; x <- parseNameR; sp; kwc ':'; sp
-            a <- parseSElemNoComma tbl env; sp; kwc '.'; sp
-            f <- parseSElem tbl (env :< fst x); sp; kwc ')'; sp
-            u <- parseSElemAtom tbl env
-            pure (SCorec x a f u))
-    <|> (do kw "coind"; space
-            kwc '('; sp; x <- parseNameR; space; y <- parseNameR; sp; kwc '.'; sp
-            r <- parseSElem tbl (env :< fst x :< fst y); sp; kwc ')'; sp
-            pw <- parseSElemAtom tbl env; sp
-            kwc '('; sp; mx <- parseNameR; space; my <- parseNameR; space; mh <- parseNameR
-            sp; kwc '.'; sp
-            q <- parseSElem tbl (env :< fst mx :< fst my :< fst mh); sp; kwc ')'
-            pure (SCoind x y r pw mx my mh q))
-        -- quot-elim likewise: with-motive first, motive-less fallback
-    <|> (do kw "quot-elim"; space
-            kwc '('; sp; z <- parseNameR; sp; kwc '.'; sp
-            mot <- parseSTy tbl (env :< fst z); sp; kwc ')'; sp
-            kwc '('; sp; a <- parseNameR; sp; kwc '.'; sp
-            f <- parseSElem tbl (env :< fst a); sp; kwc ')'; sp
-            q <- parseSElemAtom tbl env
-            pure (SQuotElim (Just (z, mot)) a f q))
-    <|> (do kw "quot-elim"; space
-            kwc '('; sp; a <- parseNameR; sp; kwc '.'; sp
-            f <- parseSElem tbl (env :< fst a); sp; kwc ')'; sp
-            q <- parseSElemAtom tbl env
-            pure (SQuotElim Nothing a f q))
-        -- ≡-elim p x w — the EQUALITY variable elimination. Methods
-        -- first, scrutinees last, as everywhere in the family; the
-        -- proof sits at atom level, like ℕ-elim's binder-less z. The
-        -- reindexing is sigma-elim's, doubled
-        -- (docs/NovaElaboration.txt, e-eqelim)
-    <|> (do kw2 "≡-elim" "eq-elim"; space; commit
-            p <- parseSElemAtom tbl env; sp
-            x <- parseSElemAtom tbl env; sp
-            w <- parseSElemAtom tbl env
-            case (unPos x, unPos w) of
-              (SVar _ xn i, SVar wr wn j) =>
-                -- j >= i is the elaborator's error to report (at the
-                -- equation's own span), and the remap would be
-                -- meaningless: leave the proof as parsed
-                if j >= i then pure (SEqElim p x w)
-                else case eqElimProof i j p of
-                  Just p' => pure (SEqElim p' x w)
+  ||| A plain block argument — what an argument line of an ordinary
+  ||| spine holds: a maximal term, optionally ascribed.
+  blockArg : FixTable -> NameEnv -> Rule SElem
+  blockArg tbl env = do
+    e <- parseSElem tbl env
+    (do sp; kwc ':'; sp; ty <- parseSTy tbl env; pure (SAnn e ty))
+      <|> pure e
+
+  ||| An atom-level slot (a scrutinee, ℕ-elim's z, a proof): an atom on
+  ||| the line, a block argument on an argument line.
+  slotAtom : FixTable -> NameEnv -> Lay -> Rule (Lay, SElem)
+  slotAtom tbl env lay = do
+    (lay', ap) <- argPos lay
+    case ap of
+      SameLine => do e <- parseSElemAtom tbl env; pure (lay', e)
+      BlockLine => do
+        let Just c = lay'.lblk | Nothing => fail "an argument"
+        e <- inBlock c (blockArg tbl env)
+        pure (lay', e)
+      Misaligned c => do
+        let Just c0 = lay.lblk | Nothing => fail "an argument"
+        rng <- nextRange
+        maybe (fatal (misalignedMsg c c0)) (\r => fatalLoc r (misalignedMsg c c0)) rng
+      NoArg => fail "an argument"
+
+  ||| A polynomial slot (ν's): an atom on the line, a full polynomial
+  ||| on an argument line.
+  slotPoly : FixTable -> NameEnv -> Lay -> Rule (Lay, SPoly)
+  slotPoly tbl env lay = do
+    (lay', ap) <- argPos lay
+    case ap of
+      SameLine => do f <- parseSPolyAtom tbl env; pure (lay', f)
+      BlockLine => do
+        let Just c = lay'.lblk | Nothing => fail "a polynomial"
+        f <- inBlock c (parseSPoly tbl env)
+        pure (lay', f)
+      Misaligned c => do
+        let Just c0 = lay.lblk | Nothing => fail "a polynomial"
+        rng <- nextRange
+        maybe (fatal (misalignedMsg c c0)) (\r => fatalLoc r (misalignedMsg c c0)) rng
+      NoArg => fail "a polynomial"
+
+  ||| The names of a BARE abstraction `x₁ … xₙ. t`: whitespace-separated,
+  ||| the binder dot GLUED to the last name and followed by whitespace —
+  ||| which is what tells `x. t` from a projection `x .π₁` or a dotted
+  ||| name `M.x` (docs/NovaElaboration.txt, Layout — BLOCK ARGUMENT).
+  bareNames : (n : Nat) -> Rule (List SName)
+  bareNames Z = pure []
+  bareNames (S Z) = do x <- parseNameR; kwc '.'; space; pure [x]
+  bareNames (S k) = do x <- parseNameR; space; xs <- bareNames k; pure (x :: xs)
+
+  ||| The names of a PARENTHESIZED abstraction, opening paren and dot
+  ||| included: `(x₁ … xₙ. `.
+  parenNames : (n : Nat) -> Rule (List SName)
+  parenNames n = do
+    kwc '('; sp
+    xs <- go n
+    sp; kwc '.'; sp
+    pure xs
+   where
+    go : Nat -> Rule (List SName)
+    go Z = pure []
+    go (S Z) = do x <- parseNameR; pure [x]
+    go (S k) = do x <- parseNameR; space; xs <- go k; pure (x :: xs)
+
+  ||| An abstraction slot of `n` binders: `(x₁ … xₙ. body)` on the line
+  ||| (the body at the slot's own level), or bare on an argument line
+  ||| (the body a full t{≥0} — there is no encloser to claim a comma).
+  slotAbsN : FixTable -> NameEnv -> (n : Nat) ->
+             (bodyParen : NameEnv -> Rule SElem) -> Lay -> Rule (Lay, List SName, SElem)
+  slotAbsN tbl env n bodyParen lay = do
+    (lay', ap) <- argPos lay
+    case ap of
+      SameLine => do
+        xs <- parenNames n
+        body <- bodyParen (env <>< map fst xs)
+        sp; kwc ')'
+        pure (lay', xs, body)
+      -- on an argument line the PARENTHESIZED group is legal too (⟪φ⟫
+      -- is `(φ)` anywhere, or bare φ on an argument line), and it is
+      -- tried first: a bare group can never begin with `(`
+      BlockLine => do
+        let Just c = lay'.lblk | Nothing => fail "a binder group"
+        (xs, body) <- inBlock c (
+              (do xs <- parenNames n
+                  body <- bodyParen (env <>< map fst xs)
+                  sp; kwc ')'
+                  pure (xs, body))
+          <|> (do xs <- bareNames n
+                  body <- parseSElem tbl (env <>< map fst xs)
+                  pure (xs, body)))
+        pure (lay', xs, body)
+      Misaligned c => do
+        let Just c0 = lay.lblk | Nothing => fail "a binder group"
+        rng <- nextRange
+        maybe (fatal (misalignedMsg c c0)) (\r => fatalLoc r (misalignedMsg c c0)) rng
+      NoArg => fail "a binder group"
+
+  slotAbs1 : FixTable -> NameEnv -> (NameEnv -> Rule SElem) -> Lay -> Rule (Lay, SName, SElem)
+  slotAbs1 tbl env bodyParen lay = do
+    (lay', xs, body) <- slotAbsN tbl env 1 bodyParen lay
+    case xs of
+      [x] => pure (lay', x, body)
+      _ => fail "a one-binder group"
+
+  slotAbs2 : FixTable -> NameEnv -> (NameEnv -> Rule SElem) -> Lay -> Rule (Lay, SName, SName, SElem)
+  slotAbs2 tbl env bodyParen lay = do
+    (lay', xs, body) <- slotAbsN tbl env 2 bodyParen lay
+    case xs of
+      [x, y] => pure (lay', x, y, body)
+      _ => fail "a two-binder group"
+
+  slotAbs3 : FixTable -> NameEnv -> (NameEnv -> Rule SElem) -> Lay -> Rule (Lay, SName, SName, SName, SElem)
+  slotAbs3 tbl env bodyParen lay = do
+    (lay', xs, body) <- slotAbsN tbl env 3 bodyParen lay
+    case xs of
+      [x, y, z] => pure (lay', x, y, z, body)
+      _ => fail "a three-binder group"
+
+  ||| corec's CARRIER binder `(x : a. f)`: the carrier code, then the
+  ||| coalgebra body over x.
+  slotCarrier : FixTable -> NameEnv -> Lay -> Rule (Lay, SName, SElem, SElem)
+  slotCarrier tbl env lay = do
+    (lay', ap) <- argPos lay
+    case ap of
+      SameLine => do
+        kwc '('; sp; x <- parseNameR; sp; kwc ':'; sp
+        a <- parseSElemNoComma tbl env; sp; kwc '.'; sp
+        f <- parseSElem tbl (env :< fst x); sp; kwc ')'
+        pure (lay', x, a, f)
+      BlockLine => do
+        let Just c = lay'.lblk | Nothing => fail "a carrier binder"
+        (x, a, f) <- inBlock c (
+              (do kwc '('; sp; x <- parseNameR; sp; kwc ':'; sp
+                  a <- parseSElemNoComma tbl env; sp; kwc '.'; sp
+                  f <- parseSElem tbl (env :< fst x); sp; kwc ')'
+                  pure (x, a, f))
+          <|> (do x <- parseNameR; sp; kwc ':'; sp
+                  a <- parseSElemNoComma tbl env; kwc '.'; space
+                  f <- parseSElem tbl (env :< fst x)
+                  pure (x, a, f)))
+        pure (lay', x, a, f)
+      Misaligned c => do
+        let Just c0 = lay.lblk | Nothing => fail "a carrier binder"
+        rng <- nextRange
+        maybe (fatal (misalignedMsg c c0)) (\r => fatalLoc r (misalignedMsg c c0)) rng
+      NoArg => fail "a carrier binder"
+
+  ||| The motive slot of ℕ-elim: safely OPTIONAL, because z is an atom
+  ||| and no atom (nor any block-argument term) has the `name. …`
+  ||| shape.
+  optMotive : FixTable -> NameEnv -> Lay -> Rule (Lay, Maybe (SName, STy))
+  optMotive tbl env lay = do
+    m <- optional (slotAbs1 tbl env (\e => parseSTy tbl e) lay)
+    pure (case m of
+            Just (lay', n, mot) => (lay', Just (n, mot))
+            Nothing => (lay, Nothing))
+
+  -- t{2½}: the keyword-headed forms — eliminators and the one-argument
+  -- introductions. Each takes its own arguments through the slot
+  -- readers, so the form ends exactly where the keyword's own syntax
+  -- does and the spine continuation above may pick up from there —
+  -- argument block included.
+  parseSElemKeyword : FixTable -> NameEnv -> Rule (Lay, SElem)
+  parseSElemKeyword tbl env = do
+    (r, (lay, x)) <- bounds (parseSElemKeywordRaw tbl env)
+    pure (lay, atPos r x)
+
+  parseSElemKeywordRaw : FixTable -> NameEnv -> Rule (Lay, SElem)
+  parseSElemKeywordRaw tbl env = do
+    -- the reference column: the indent of the line the keyword sits on
+    r0 <- indentNow
+    let lay0 = MkLay r0 Nothing
+    forms lay0
+   where
+    tyBody : NameEnv -> Rule SElem
+    tyBody e = parseSTy tbl e
+
+    elBody : NameEnv -> Rule SElem
+    elBody e = parseSElem tbl e
+
+    forms : Lay -> Rule (Lay, SElem)
+    forms lay0 =
+          (do kw2 "𝟘-elim" "Void-elim"; (l1, e) <- slotAtom tbl env lay0; pure (l1, SZeroElim e))
+      <|> (do kw2 "ℕ-elim" "Nat-elim"
+              (l1, mmot) <- optMotive tbl env lay0
+              (l2, z) <- slotAtom tbl env l1
+              (l3, n2, ih, s) <- slotAbs2 tbl env elBody l2
+              (l4, t) <- slotAtom tbl env l3
+              pure (l4, SNatElim mmot z n2 ih s t))
+      <|> (do kw "S"; (l1, e) <- slotAtom tbl env lay0; pure (l1, SSuc e))
+      <|> (do kw2 "inj₁" "inj1"; (l1, e) <- slotAtom tbl env lay0; pure (l1, SInj1 e))
+      <|> (do kw2 "inj₂" "inj2"; (l1, e) <- slotAtom tbl env lay0; pure (l1, SInj2 e))
+          -- ⊎-elim with an explicit motive, then the motive-less form
+          -- (checking-only): a case group (x. ELEM) whose body is a
+          -- bare name also parses as a motive group (z. TYPE), so the
+          -- three-group spelling is tried first and the two-group
+          -- spelling is the fallback
+      <|> (do kw2 "⊎-elim" "\\/-elim"
+              (l1, z, mot) <- slotAbs1 tbl env tyBody lay0
+              (l2, a, l) <- slotAbs1 tbl env elBody l1
+              (l3, b, r) <- slotAbs1 tbl env elBody l2
+              (l4, t) <- slotAtom tbl env l3
+              pure (l4, SSumElim (Just (z, mot)) a l b r t))
+      <|> (do kw2 "⊎-elim" "\\/-elim"
+              (l1, a, l) <- slotAbs1 tbl env elBody lay0
+              (l2, b, r) <- slotAbs1 tbl env elBody l1
+              (l3, t) <- slotAtom tbl env l2
+              pure (l3, SSumElim Nothing a l b r t))
+      <|> (do kw "class"; (l1, e) <- slotAtom tbl env lay0; pure (l1, SClass e))
+      <|> (do kw2 "ν" "\\nu"; (l1, f) <- slotPoly tbl env lay0; pure (l1, SNuC f))
+      <|> (do kw "out"; (l1, e) <- slotAtom tbl env lay0; pure (l1, SOut e))
+      <|> (do kw "corec"
+              (l1, x, a, f) <- slotCarrier tbl env lay0
+              (l2, u) <- slotAtom tbl env l1
+              pure (l2, SCorec x a f u))
+      <|> (do kw "coind"
+              (l1, x, y, r) <- slotAbs2 tbl env elBody lay0
+              (l2, pw) <- slotAtom tbl env l1
+              (l3, mx, my, mh, q) <- slotAbs3 tbl env elBody l2
+              pure (l3, SCoind x y r pw mx my mh q))
+          -- quot-elim likewise: with-motive first, motive-less fallback
+      <|> (do kw "quot-elim"
+              (l1, z, mot) <- slotAbs1 tbl env tyBody lay0
+              (l2, a, f) <- slotAbs1 tbl env elBody l1
+              (l3, q) <- slotAtom tbl env l2
+              pure (l3, SQuotElim (Just (z, mot)) a f q))
+      <|> (do kw "quot-elim"
+              (l1, a, f) <- slotAbs1 tbl env elBody lay0
+              (l2, q) <- slotAtom tbl env l1
+              pure (l2, SQuotElim Nothing a f q))
+          -- ≡-elim p x w — the EQUALITY variable elimination. Methods
+          -- first, scrutinees last, as everywhere in the family; the
+          -- proof sits at atom level, like ℕ-elim's binder-less z. The
+          -- reindexing is sigma-elim's, doubled
+          -- (docs/NovaElaboration.txt, e-eqelim)
+      <|> (do kw2 "≡-elim" "eq-elim"; commit
+              (l1, p) <- slotAtom tbl env lay0
+              (l2, x) <- slotAtom tbl env l1
+              (l3, w) <- slotAtom tbl env l2
+              case (unPos x, unPos w) of
+                (SVar _ xn i, SVar wr wn j) =>
+                  -- j >= i is the elaborator's error to report (at the
+                  -- equation's own span), and the remap would be
+                  -- meaningless: leave the proof as parsed
+                  if j >= i then pure (l3, SEqElim p x w)
+                  else case eqElimProof i j p of
+                    Just p' => pure (l3, SEqElim p' x w)
+                    Nothing =>
+                      let msg = "a ≡-elim proof free of '\{xn}' and '\{wn}' — the variables this eliminates, so the proof's context has no such entry" in
+                      maybe (fail msg) (\r => failLoc r msg) (posOf x <|> posOf w <|> wr)
+                -- not both variables: the elaborator says so, at their
+                -- own spans. The proof keeps its parse indices; nothing
+                -- ever reads them
+                _ => pure (l3, SEqElim p x w))
+          -- unsquash (x. t) w — the ∥∥ VARIABLE elimination. Method
+          -- first, scrutinee last, as everywhere in the family; the body
+          -- is reindexed against its own context once w is read
+          -- (docs/NovaElaboration.txt, e-unsquash)
+      <|> (do kw "unsquash"; commit
+              (l1, x, b) <- slotAbs1 tbl env elBody lay0
+              (l2, w) <- slotAtom tbl env l1
+              case unPos w of
+                SVar wrng nm i => case unsquashBody i b of
+                  Just b' => pure (l2, SUnsquash x b' w)
                   Nothing =>
-                    let msg = "a ≡-elim proof free of '\{xn}' and '\{wn}' — the variables this eliminates, so the proof's context has no such entry" in
-                    maybe (fail msg) (\r => failLoc r msg) (posOf x <|> posOf w <|> wr)
-              -- not both variables: the elaborator says so, at their
-              -- own spans. The proof keeps its parse indices; nothing
-              -- ever reads them
-              _ => pure (SEqElim p x w))
-        -- unsquash (x. t) w — the ∥∥ VARIABLE elimination. Method
-        -- first, scrutinee last, as everywhere in the family; the body
-        -- is reindexed against its own context once w is read
-        -- (docs/NovaElaboration.txt, e-unsquash)
-    <|> (do kw "unsquash"; space; commit
-            kwc '('; sp; x <- parseNameR; sp; kwc '.'; sp
-            b <- parseSElem tbl (env :< fst x); sp; kwc ')'; sp
-            w <- parseSElemAtom tbl env
-            case unPos w of
-              SVar wrng nm i => case unsquashBody i b of
-                Just b' => pure (SUnsquash x b' w)
-                Nothing =>
-                  let msg = "an unsquash body free of '\{nm}' — the variable this eliminates, so the body's context has no such entry (it has the witness \{fst x} instead)" in
-                  maybe (fail msg) (\r => failLoc r msg) (posOf w <|> wrng)
-              _ => pure (SUnsquash x b w))
-        -- sum-elim (a. l) (b. r) w — the ⊎ VARIABLE elimination.
-        -- Methods first, scrutinee last, as everywhere in the family;
-        -- each branch is reindexed against ITS OWN elimination
-        -- context once w is read (docs/NovaElaboration.txt, e-sumsplit)
-    <|> (do kw "sum-elim"; space; commit
-            kwc '('; sp; a <- parseNameR; sp; kwc '.'; sp
-            l <- parseSElem tbl (env :< fst a); sp; kwc ')'; sp
-            kwc '('; sp; b <- parseNameR; sp; kwc '.'; sp
-            r <- parseSElem tbl (env :< fst b); sp; kwc ')'; sp
-            w <- parseSElemAtom tbl env
-            case unPos w of
-              SVar wrng nm i =>
-                case (sumSplitBranch i l, sumSplitBranch i r) of
-                  (Just l', Just r') => pure (SSumSplit a l' b r' w)
-                  _ =>
-                    let msg = "a sum-elim branch free of '\{nm}' — the variable this eliminates, so a branch's context has no such entry (it has \{fst a} or \{fst b} there instead)" in
-                    maybe (fail msg) (\rr => failLoc rr msg) (posOf w <|> wrng)
-              -- not a variable: the elaborator says so, at its own
-              -- span. The branches keep their parse indices; nothing
-              -- ever reads them
-              _ => pure (SSumSplit a l b r w))
-        -- sigma-elim (x y. t) w — the Σ VARIABLE elimination. The
-        -- body is parsed against the site's binders with x and y
-        -- pushed innermost (the scrutinee is only read after it), and
-        -- REINDEXED against the elimination context once w's index is
-        -- known: a name resolution, so it belongs here and not in the
-        -- elaborator (docs/NovaElaboration.txt, e-sigmaelim)
-    <|> (do kw "sigma-elim"; space; commit
-            kwc '('; sp; x <- parseNameR; space; y <- parseNameR; sp; kwc '.'; sp
-            b <- parseSElem tbl (env :< fst x :< fst y); sp; kwc ')'; sp
-            w <- parseSElemAtom tbl env
-            case unPos w of
-              SVar wrng nm i => case sigmaElimBody i b of
-                Just b' => pure (SSigmaElim x y b' w)
-                Nothing =>
-                  let msg = "a sigma-elim body free of '\{nm}' — the variable this eliminates, so the body's context has no such entry (its components are \{fst x} and \{fst y})" in
-                  maybe (fail msg) (\r => failLoc r msg) (posOf w <|> wrng)
-              -- not a variable: the elaborator says so, at the
-              -- scrutinee's own span. The body keeps its parse
-              -- indices; nothing ever reads them
-              _ => pure (SSigmaElim x y b w))
-    <|> (do kw "squash-elim"; space
-            e <- parseSElemAtom tbl env; sp
-            kwc '('; sp; x <- parseNameR; sp; kwc '.'; sp
-            body <- parseSElem tbl (env :< fst x); sp; kwc ')'
-            pure (SSquashElim e x body))
-    <|> (do (r, _) <- bounds (kw2 "⋆" "\\star")
-            -- `using` is a CONTEXTUAL keyword: recognized only here,
-            -- immediately after ⋆ (a witness genuinely named `using`
-            -- is written parenthesized: ⋆ (using))
-            u <- optional (do space; kw "using"; space; parseUsingNames)
-            case u of
-              Just ns => pure (SStarUsing r ns)
-              Nothing => do
-                w <- optional (do space; parseSElemAtom tbl env)
-                pure (case w of
-                        Nothing => SStar r
-                        Just e  => SStarWit e))
+                    let msg = "an unsquash body free of '\{nm}' — the variable this eliminates, so the body's context has no such entry (it has the witness \{fst x} instead)" in
+                    maybe (fail msg) (\r => failLoc r msg) (posOf w <|> wrng)
+                _ => pure (l2, SUnsquash x b w))
+          -- sum-elim (a. l) (b. r) w — the ⊎ VARIABLE elimination.
+          -- Methods first, scrutinee last, as everywhere in the family;
+          -- each branch is reindexed against ITS OWN elimination
+          -- context once w is read (docs/NovaElaboration.txt, e-sumsplit)
+      <|> (do kw "sum-elim"; commit
+              (l1, a, l) <- slotAbs1 tbl env elBody lay0
+              (l2, b, r) <- slotAbs1 tbl env elBody l1
+              (l3, w) <- slotAtom tbl env l2
+              case unPos w of
+                SVar wrng nm i =>
+                  case (sumSplitBranch i l, sumSplitBranch i r) of
+                    (Just l', Just r') => pure (l3, SSumSplit a l' b r' w)
+                    _ =>
+                      let msg = "a sum-elim branch free of '\{nm}' — the variable this eliminates, so a branch's context has no such entry (it has \{fst a} or \{fst b} there instead)" in
+                      maybe (fail msg) (\rr => failLoc rr msg) (posOf w <|> wrng)
+                -- not a variable: the elaborator says so, at its own
+                -- span. The branches keep their parse indices; nothing
+                -- ever reads them
+                _ => pure (l3, SSumSplit a l b r w))
+          -- sigma-elim (x y. t) w — the Σ VARIABLE elimination. The
+          -- body is parsed against the site's binders with x and y
+          -- pushed innermost (the scrutinee is only read after it), and
+          -- REINDEXED against the elimination context once w's index is
+          -- known: a name resolution, so it belongs here and not in the
+          -- elaborator (docs/NovaElaboration.txt, e-sigmaelim)
+      <|> (do kw "sigma-elim"; commit
+              (l1, x, y, b) <- slotAbs2 tbl env elBody lay0
+              (l2, w) <- slotAtom tbl env l1
+              case unPos w of
+                SVar wrng nm i => case sigmaElimBody i b of
+                  Just b' => pure (l2, SSigmaElim x y b' w)
+                  Nothing =>
+                    let msg = "a sigma-elim body free of '\{nm}' — the variable this eliminates, so the body's context has no such entry (its components are \{fst x} and \{fst y})" in
+                    maybe (fail msg) (\r => failLoc r msg) (posOf w <|> wrng)
+                -- not a variable: the elaborator says so, at the
+                -- scrutinee's own span. The body keeps its parse
+                -- indices; nothing ever reads them
+                _ => pure (l2, SSigmaElim x y b w))
+      <|> (do kw "squash-elim"
+              (l1, e) <- slotAtom tbl env lay0
+              (l2, x, body) <- slotAbs1 tbl env elBody l1
+              pure (l2, SSquashElim e x body))
+      <|> (do (r, _) <- bounds (kw2 "⋆" "\\star")
+              -- `using` is a CONTEXTUAL keyword: recognized only here,
+              -- immediately after ⋆ (a witness genuinely named `using`
+              -- is written parenthesized: ⋆ (using))
+              u <- optional (do space; kw "using"; space; parseUsingNames)
+              case u of
+                Just ns => pure (lay0, SStarUsing r ns)
+                Nothing => do
+                  w <- optional (slotAtom tbl env lay0)
+                  pure (case w of
+                          Nothing => (lay0, SStar r)
+                          Just (l1, e) => (l1, SStarWit e)))
 
   -- t{3}: application / projection chains
   parseSElemApp : FixTable -> NameEnv -> Rule SElem
@@ -855,33 +1169,71 @@ mutual
 
   parseSElemAppRaw : FixTable -> NameEnv -> Rule SElem
   parseSElemAppRaw tbl env = do
+    -- the reference column: the indent of the line the head sits on
+    r0 <- indentNow
     e <- parseSElemAtom tbl env
-    parseSpine tbl env e
+    parseSpine tbl env (MkLay r0 Nothing) e
 
   ||| The postfix continuation of a spine, over an already-parsed head:
   ||| arguments, implicit overrides and projections, left-associative.
   ||| Shared by the two kinds of head — an ATOM (t{5}, the ordinary
   ||| case) and a KEYWORD-HEADED form (t{2½}: `out t`, `S n`, an
   ||| eliminator), so `out t .π₂` needs no parentheses.
-  parseSpine : FixTable -> NameEnv -> SElem -> Rule SElem
-  parseSpine tbl env e =
-        (do (r, _) <- bounds (do sp; kw2 ".π₁" ".1"); parseSpine tbl env (grew e r (SProj1 e)))
-    <|> (do (r, _) <- bounds (do sp; kw2 ".π₂" ".2"); parseSpine tbl env (grew e r (SProj2 e)))
-    -- {t} — an implicit-position override argument — and {} — the
-    -- NO-INSERT marker, suppressing trailing-implicit insertion
-    -- (docs/NovaPerfectSurface.txt, Phases 3b/3d); NB `{-` opens a
-    -- comment at the lexer, so an override starting with an
-    -- operator needs a space: { -x } — the Haskell convention
-    <|> (do (r, mt) <- bounds (do
-              sp; kwc '{'; sp
-              (do kwc '}'; pure Nothing)
-                <|> (do t <- parseSElem tbl env; sp; kwc '}'; pure (Just t)))
-            case mt of
-              Nothing => parseSpine tbl env (grew e r (SNoIns e))
-              Just t => parseSpine tbl env (grew e r (SApp e (SImpArg t))))
-    <|> (do (r, e') <- bounds (do sp; parseSElemAtom tbl env)
-            parseSpine tbl env (grew e r (SApp e e')))
+  |||
+  ||| LAYOUT: the next argument may also stand on an ARGUMENT LINE —
+  ||| a term-initial line indented past the spine's reference column,
+  ||| or at the column of the block already open (docs/
+  ||| NovaElaboration.txt, Layout — rule 2). There it is a whole
+  ||| block argument; a line the argument reading rejects (an
+  ||| operator, an arrow, a chain link, `using`, …) closes the spine
+  ||| and is handed to the enclosing construct by backtracking.
+  parseSpine : FixTable -> NameEnv -> Lay -> SElem -> Rule SElem
+  parseSpine tbl env lay e =
+        (do (lay', ap) <- argPos lay
+            case ap of
+              NoArg => fail "an argument"
+              SameLine => step lay' False
+              BlockLine => step lay' True
+              -- a term-initial line between r and the block's column
+              -- is a VERDICT, not a rejection — but only once it has
+              -- READ as an argument; a continuation token (→, ≡⟨, an
+              -- operator) between the two columns is the enclosing
+              -- construct's, as anywhere
+              Misaligned c => do
+                let Just c0 = lay.lblk | Nothing => fail "an argument"
+                rng <- nextRange
+                _ <- inBlock c (blockArg tbl env)
+                maybe (fatal (misalignedMsg c c0)) (\r => fatalLoc r (misalignedMsg c c0)) rng)
     <|> pure e
+   where
+    ||| One spine step, on the head's line or on an argument line (the
+    ||| projection and override steps read the same either way; a
+    ||| plain argument is an atom on the line, a block argument on an
+    ||| argument line).
+    step : Lay -> (onLine : Bool) -> Rule SElem
+    step lay' onLine =
+          (do (r, _) <- bounds (kw2 ".π₁" ".1"); parseSpine tbl env lay' (grew e r (SProj1 e)))
+      <|> (do (r, _) <- bounds (kw2 ".π₂" ".2"); parseSpine tbl env lay' (grew e r (SProj2 e)))
+      -- {t} — an implicit-position override argument — and {} — the
+      -- NO-INSERT marker, suppressing trailing-implicit insertion
+      -- (docs/NovaPerfectSurface.txt, Phases 3b/3d); NB `{-` opens a
+      -- comment at the lexer, so an override starting with an
+      -- operator needs a space: { -x } — the Haskell convention
+      <|> (do (r, mt) <- bounds (do
+                kwc '{'; sp
+                (do kwc '}'; pure Nothing)
+                  <|> (do t <- parseSElem tbl env; sp; kwc '}'; pure (Just t)))
+              case mt of
+                Nothing => parseSpine tbl env lay' (grew e r (SNoIns e))
+                Just t => parseSpine tbl env lay' (grew e r (SApp e (SImpArg t))))
+      <|> (if onLine
+             then do
+               let Just c = lay'.lblk | Nothing => fail "an argument"
+               (r, e') <- bounds (inBlock c (blockArg tbl env))
+               parseSpine tbl env lay' (grew e r (SApp e e'))
+             else do
+               (r, e') <- bounds (parseSElemAtom tbl env)
+               parseSpine tbl env lay' (grew e r (SApp e e')))
 
   -- t{5}: atoms, including ascription
   parseSElemAtom : FixTable -> NameEnv -> Rule SElem
@@ -1101,30 +1453,48 @@ sqDecl tbl penv entries = do
   (bs, res) <- sqTele tbl entries penv
   pure (MkSQDecl n nr bs res)
 
+||| data [x : T]* ⏎ entry+ — the entries form a LAYOUT BLOCK on the
+||| lines after the header, one per line at one column, an entry's own
+||| continuation lines deeper still (docs/NovaElaboration.txt, Layout).
 parseSData : FixTable -> Rule SItem
 parseSData tbl = do
-  kw "data"; sp
+  kw "data"
   commit
   (penv, params) <- parseParams [<]
-  kwc '('; sp
-  ds <- go penv [<]
-  sp; kwc ')'
+  b <- blockNow
+  mc <- ws
+  let Just c = mc
+    | Nothing => fatal "!a data literal's entries begin on the line after its header, indented"
+  fatalGuard (offside b c) (c > b)
+  ds <- inBlock c (do
+    d <- sqDecl tbl penv [<]
+    rest <- go c penv ([<] :< d.dqname)
+    pure (d :: rest))
   pure (SData params ds)
  where
   ||| Zero or more [x : T] PARAMETER groups — the literal's ambient
-  ||| telescope, each scoping over the ones after it.
+  ||| telescope, each scoping over the ones after it. The whitespace
+  ||| BEFORE a group belongs to the group's branch, so the line break
+  ||| before the first entry is left for the block to read.
   parseParams : NameEnv -> Rule (NameEnv, List (String, STy))
   parseParams env =
-        (do kwc '['; sp; x <- parseName; sp; kwc ':'; sp
-            t <- parseSTy tbl env; sp; kwc ']'; sp
+        (do sp; kwc '['; sp; x <- parseName; sp; kwc ':'; sp
+            t <- parseSTy tbl env; sp; kwc ']'
             (env', rest) <- parseParams (env :< x)
             pure (env', (x, t) :: rest))
     <|> pure (env, [])
-  go : NameEnv -> NameEnv -> Rule (List SQDecl)
-  go penv entries = do
-    d <- sqDecl tbl penv entries
-    rest <- optional (do sp; kwc ';'; sp; go penv (entries :< d.dqname))
-    pure (d :: fromMaybe [] rest)
+  ||| The entries after the first: each on a line of its own at the
+  ||| block's column. A line left of it ends the literal (and the
+  ||| item); a line right of it is a stray continuation the entry
+  ||| before did not read, which the file loop reports.
+  go : Int -> NameEnv -> NameEnv -> Rule (List SQDecl)
+  go c penv entries =
+        (do mc <- ws
+            guard "an entry at column \{col c}" (mc == Just c)
+            d <- sqDecl tbl penv entries
+            rest <- go c penv (entries :< d.dqname)
+            pure (d :: rest))
+    <|> pure []
 
 -- ===== Defining equations (the clausal def item) =====
 --
@@ -1221,15 +1591,26 @@ parseClauseLhs iname =
         (do h <- parseHead; ignore (many (do sp; parsePatAtom)); pure h)
     <|> (do ignore parsePat; sp; parseOpName)
 
-||| clause ::= | lhs ≔ t ([n])? — the RHS is parsed in the LHS's
-||| binder telescope; the optional [n] names the clause's equation
-||| lemma.
+||| A column-0 line that begins an ITEM rather than a clause: a
+||| signature (`n :`) or a keyword item. Read to be REJECTED: the clause
+||| run ends there, and backtracking hands the line to the file loop.
+itemStart : Rule ()
+itemStart =
+      (do ignore (parseName <|> parseOpName); sp; kwc ':')
+  <|> kw "data" <|> kw "import" <|> kw "infixl" <|> kw "infixr"
+
+||| clause ::= lhs = t ([n])? — a COLUMN-0 line directly under its
+||| signature (docs/NovaElaboration.txt, Layout); nothing marks it but
+||| its column and its not being an item. The RHS is parsed in the
+||| LHS's binder telescope; the optional [n] names the clause's
+||| equation lemma.
 parseSClauseRaw : FixTable -> String -> Rule SClause
 parseSClauseRaw tbl iname = do
-  kwc '|'; sp
+  isItem <- (do itemStart; pure True) <|> pure False
+  guard "a clause (this line begins an item)" (not isItem)
   commit
   pats <- parseClauseLhs iname
-  sp; kw2 "≔" ":="; sp
+  sp; kwEq; sp
   let vars = patVarsOf pats
   rhs <- parseSElem tbl ([<] <>< map fst vars)
   mn <- optional (do sp; kwc '['; sp; (nr, n) <- bounds parseName; sp; kwc ']'; pure (n, nr))
@@ -1240,51 +1621,66 @@ parseSClauseRaw tbl iname = do
 export
 parseSClause : FixTable -> String -> Rule SClause
 parseSClause tbl iname = do
+  -- the line break to column 0 is read BEFORE the span is taken, so
+  -- the clause's range starts at its own first token
+  mc <- ws
+  guard "a clause at column 1" (mc == Just 0)
   (r, c) <- bounds (parseSClauseRaw tbl iname)
   pure ({ crange := r } c)
 
--- COMMITS: after an item's leading keyword the parse can be nothing
--- else, so commit — a failure deep inside the item then propagates
--- with its REAL position instead of backtracking to the item
--- boundary, where the file loop would end and report a useless
--- "Expected end of input" at the next `def`. The commit inside the
--- optional ≔-body keeps `def x : T ≔ <garbage>` a hard error at the
--- garbage rather than mis-reading the item as a declaration. The
--- commit after a clause's `|` likewise keeps a malformed clause a
--- hard error while letting the clause loop end cleanly at the next
--- item.
+-- COMMITS: once a column-0 line has read as `n :` the item can be
+-- nothing but a signature, so commit — a failure deep inside then
+-- propagates with its REAL position instead of backtracking to the
+-- item boundary, where the file loop would end and report a useless
+-- "Expected end of input" at the next line. The commit inside a
+-- clause (after the line has been told from an item) likewise keeps
+-- a malformed clause — the definiens included — a hard error while
+-- letting the clause run end cleanly at the next item.
+--
+-- The whitespace BEFORE each optional piece sits inside the piece's
+-- branch: a line break to the next item (column 0, ≤ the file block)
+-- fails `sp`, and the branch's failure restores the whitespace for
+-- the file loop to read.
 export
 parseSItem : FixTable -> Rule SItem
 parseSItem tbl =
-      (do kw "def"; space; commit
-          (r, x) <- bounds (parseName <|> parseOpName); sp
-          kwc ':'; sp
-          ty <- parseSTy tbl [<]; sp
+      parseSData tbl
+  <|> (do (r, x) <- bounds (parseName <|> parseOpName); sp
+          kwc ':'; commit; sp
+          ty <- parseSTy tbl [<]
           -- item-level using (SearchlessElaboration.md §5.3): scopes
           -- EVERY discharge of the item — ⋆s, switches, WD premises —
           -- to the named lemmas plus hypotheses
-          muses <- optional (do kw "using"; sp; ns <- parseUsingNames; sp; pure ns)
-          metaEta <- optional (do kwc '['; sp; (nr, n) <- bounds parseName; sp; kwc ']'; sp; pure (n, nr))
-          mbody <- optional (do kw2 "≔" ":="; sp; commit; parseSElem tbl [<])
-          cls <- many (do sp; parseSClause tbl x)
-          case (metaEta, mbody, cls) of
-            (Nothing, Just body, []) => pure (SDef r x ty body muses)
-            -- a def without a definiens: a DECLARATION
-            (Nothing, Nothing, []) =>
+          muses <- optional (do sp; kw "using"; sp; parseUsingNames)
+          metaEta <- optional (do sp; kwc '['; sp; (nr, n) <- bounds parseName; sp; kwc ']'; pure (n, nr))
+          cls <- many (parseSClause tbl x)
+          -- A signature's definiens is a CLAUSE (docs/NovaElaboration.txt,
+          -- Surface syntax): `x = t` is the clause with ZERO patterns.
+          -- Alone, it is a plain definition; beside pattern clauses it is
+          -- the WITNESS of the clausal item (existence supplied by hand);
+          -- no clause at all is a declaration.
+          let (wits, eqs) = partition (\c => null c.cpats) cls
+          case (wits, eqs) of
+            ([], []) =>
+              case (metaEta, muses) of
+                (Just _, _) => fail "!a uniqueness-name override must be followed by clauses"
+                (Nothing, Just _) => fail "!a declaration discharges nothing — a using-clause is for definitions with a definiens"
+                (Nothing, Nothing) => pure (SDeclDef r x ty)
+            ([c], []) =>
+              case (metaEta, c.cname) of
+                (Just _, _) => fail "!a uniqueness-name override must be followed by clauses"
+                (_, Just _) => fail "!a definition's clause names no lemma — the [name] override belongs to a pattern clause"
+                (Nothing, Nothing) => pure (SDef r x ty c.crhs muses)
+            (_ :: _ :: _, _) => fail "!at most one clause of an item may spell no pattern — that clause is its definiens (or, beside pattern clauses, its witness)"
+            (mw, (e :: es)) =>
               case muses of
-                Nothing => pure (SDeclDef r x ty)
-                Just _ => fail "!a declaration discharges nothing — a using-clause is for defs with a definiens"
-            (_, _, (c :: cs)) =>
-              case muses of
-                Nothing => pure (SClausalDef r x ty (map fst metaEta) (metaEta >>= snd) mbody (c :: cs))
-                Just _ => fail "!a using-clause on a clausal def is not supported yet"
-            (Just _, _, []) => fail "!a uniqueness-name override must be followed by clauses")
-  <|> (do kw "type"; space; commit
-          x <- parseName; sp
-          kw2 "≔" ":="; sp
-          ty <- parseSTy tbl [<]
-          pure (STypeDef x ty))
-  <|> parseSData tbl
+                Just _ => fail "!a using-clause on a clausal definition is not supported yet"
+                Nothing =>
+                  case mw of
+                    [w] => case w.cname of
+                      Just _ => fail "!the witness clause names no lemma — the [name] override belongs to a pattern clause"
+                      Nothing => pure (SClausalDef r x ty (map fst metaEta) (metaEta >>= snd) (Just w.crhs) (e :: es))
+                    _ => pure (SClausalDef r x ty (map fst metaEta) (metaEta >>= snd) Nothing (e :: es)))
 
 export
 parseSImport : Rule SImport
@@ -1318,40 +1714,70 @@ parseFixity = do
     if ch >= '0' && ch <= '9' then Just (cast (ord ch - ord '0')) else Nothing
   digitTok _ = Nothing
 
-||| A file: imports, then fixity declarations and items interleaved.
+||| The whitespace between two items of the file block: a line break to
+||| column 0, or nothing at all (the end of the input, or garbage on
+||| the same line — which the next item's parse then reports). An
+||| indented line here is an error: nothing above it could read it as
+||| a continuation, and nothing below it can. A plain failure, not a
+||| verdict, so that a DEEPER failure — the construct inside the item
+||| that refused the line for its own reason — wins the report when
+||| there is one.
+itemSep : Rule ()
+itemSep = do
+  mc <- ws
+  case mc of
+    Nothing => pure ()
+    Just 0 => pure ()
+    Just c => fail "!column \{col c} does not continue the item above — indent it past the term it belongs to, or start an item at column 1"
+
+||| The file's first token must open an item, at column 0.
+atColumn0 : Rule ()
+atColumn0 = do
+  mp <- peekPos
+  case mp of
+    Nothing => pure ()
+    Just p => do
+      rng <- nextRange
+      let msg = "!a file's first item starts at column 1 — this line starts at column \{col p.column}"
+      when (p.column /= 0) (maybe (fatal msg) (\r => fatalLoc r msg) rng)
+
+||| A file: imports, then fixity declarations and items interleaved,
+||| one per column-0 line (the file is the block at column 0 —
+||| docs/NovaElaboration.txt, Layout).
 ||| The initial table holds the fixities of OPENED imported operators;
 ||| declared fixities extend it as parsing proceeds and are returned
 ||| for export.
-||| Each item is paired with its source range (the whole `def`/`type`/
-||| `data` item, not sub-expression precision) — enough for LSP
-||| diagnostics to anchor at the right item without threading Range
-||| through STy/SElem themselves.
+||| Each item is paired with its source range (the whole item, not
+||| sub-expression precision) — enough for LSP diagnostics to anchor
+||| at the right item without threading Range through STy/SElem
+||| themselves.
 export
 parseSFile : FixTable -> Rule (List SImport, FixTable, List (Maybe Range, SItem), List SBodyEntry)
 parseSFile tbl0 = do
-  sp
-  imports <- many (do i <- parseSImport; sp; pure i)
+  atColumn0
+  imports <- many (do i <- parseSImport; itemSep; pure i)
   (decls, items, body) <- go tbl0
   pure (imports, decls, items, body)
  where
   go : FixTable -> Rule (FixTable, List (Maybe Range, SItem), List SBodyEntry)
   go tbl =
-        (do (r, f) <- bounds parseFixity; sp
+        (do (r, f) <- bounds parseFixity; itemSep
             (decls, items, body) <- go (f :: tbl)
             pure (f :: decls, items, Left (r, f) :: body))
-    <|> (do (r, i) <- bounds (parseSItem tbl); sp
+    <|> (do (r, i) <- bounds (parseSItem tbl); itemSep
             (decls, items, body) <- go tbl
             pure (decls, (r, i) :: items, Right (r, i) :: body))
     <|> pure ([], [], [])
 
 ||| Pass 1 of the loader's two-stage parse: just the import header
 ||| (the dependencies' fixity tables are needed before the body can be
-||| parsed).
+||| parsed). Layout-blind on purpose: a layout fault in the body is
+||| pass 2's to report.
 export
 parseSHeader : Rule (List SImport)
 parseSHeader = do
-  sp
-  imports <- many (do i <- parseSImport; sp; pure i)
+  optSpace
+  imports <- many (do i <- parseSImport; optSpace; pure i)
   ignore (many (terminal "any token at all" anyTok))
   pure imports
  where
@@ -1396,7 +1822,7 @@ clipCommentRange lines (MkRange start _) =
 ||| The span a parsing error points at — a real token range when the
 ||| failure is at a token, a one-column-wide range at the consumed
 ||| position otherwise (an LSP diagnostic needs SOME width).
-parseErrRange : ParsingError Token (SnocList (Range, TokenKind)) -> Range
+parseErrRange : ParsingError Token st -> Range
 parseErrRange err =
   case err.range of
     Left r  => r
@@ -1411,12 +1837,29 @@ record ParseFail where
   pfmsg : String
   pfnotes : List String
 
+||| A TAB in a line's indentation: a lexical error under layout (a tab
+||| has no agreed width — docs/NovaElaboration.txt, Layout). Reported
+||| at the tab.
+tabInIndent : List String -> Maybe Range
+tabInIndent ls = go 0 ls
+ where
+  go : Int -> List String -> Maybe Range
+  go _ [] = Nothing
+  go i (l :: rest) =
+    let lead = takeWhile (\c => c == ' ' || c == '\t') (unpack l) in
+    case findIndex (== '\t') lead of
+      Just k => Just (MkRange (MkPosition i (cast (finToNat k))) (MkPosition i (cast (finToNat k) + 1)))
+      Nothing => go (i + 1) rest
+
 export
 runSurfaceParser : Rule a -> String -> Either ParseFail (SnocList (Range, TokenKind), a)
 runSurfaceParser rule input =
   let (commentRanges, toks) = tokenise (unpack input)
       srcLines = lines input in
-  case parseWith [<] (rule <* eof) (normaliseTokens toks) of
-    Left err  => Left (MkParseFail (Just (parseErrRange err)) (parseErrMessage err) (parseErrNotes err))
-    Right (kinds, _, x, _) =>
-      Right (kinds <>< map (\r => (clipCommentRange srcLines r, Comment)) (toList commentRanges), x)
+  case tabInIndent srcLines of
+    Just r => Left (MkParseFail (Just r) "a tab in indentation — layout counts columns, and a tab has no agreed width; indent with spaces" [])
+    Nothing =>
+      case parseWith initPState (rule <* eof) (normaliseTokens toks) of
+        Left err  => Left (MkParseFail (Just (parseErrRange err)) (parseErrMessage err) (parseErrNotes err))
+        Right (st, _, x, _) =>
+          Right (st.kinds <>< map (\r => (clipCommentRange srcLines r, Comment)) (toList commentRanges), x)

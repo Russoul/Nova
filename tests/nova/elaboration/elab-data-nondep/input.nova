@@ -3,13 +3,16 @@
 -- groups and arrows between groups; external and prop domains may
 -- stand bare mid-telescope too.
 data [a : 𝕌] [r : a → a → Ω]
-     ( Q : U
-     ; cls : a → El Q
-     ; qeq : (x : a) (y : a) → (r x y) → cls x ≡ cls y ∈ El Q )
+  Q : U
+  cls : a → El Q
+  qeq : (x : a) (y : a) → (r x y) → cls x ≡ cls y ∈ El Q
 
-data ( V : ℕ → U
-     ; vnil : El (V Z)
-     ; vcons : (n : ℕ) → El (V n) → El (V (S n)) )
+data
+  V : ℕ → U
+  vnil : El (V Z)
+  vcons : (n : ℕ) → El (V n) → El (V (S n))
 
-def two : (V (S (S Z))) using (V.eq) ≔ vcons (S Z) (vcons Z vnil)
-def q1 : (x : ℕ) → (Q ℕ (λv. λw. ∥𝟙∥)) using (Q.eq) ≔ λx. cls ℕ (λv. λw. ∥𝟙∥) x
+two : (V (S (S Z))) using (V.eq)
+two = vcons (S Z) (vcons Z vnil)
+q1 : (x : ℕ) → (Q ℕ (λv. λw. ∥𝟙∥)) using (Q.eq)
+q1 = λx. cls ℕ (λv. λw. ∥𝟙∥) x

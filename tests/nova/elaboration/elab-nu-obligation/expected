@@ -4,4 +4,4 @@ defined ones
 defined bad [+1 obligation]
 open obligations (1):
   [1] (x : ν (K ℕ × 𝕏)) (y : ν (K ℕ × 𝕏)) (h : ∥(x ≡ corec (z : 𝟙. Z, z) () ∈ ν (K ℕ × 𝕏)) × (y ≡ corec (z : 𝟙. S Z, z) () ∈ ν (K ℕ × 𝕏))∥) (w : (x ≡ corec (z : 𝟙. Z, z) () ∈ ν (K ℕ × 𝕏)) × (y ≡ corec (z : 𝟙. S Z, z) () ∈ ν (K ℕ × 𝕏))) ⊢ (out x) .π₁ ≐ (out y) .π₁ : ℕ
-      at: input.nova:10:39: def bad: checking ⋆
+      at: input.nova:14:39: def bad: checking ⋆

@@ -1,2 +1,3 @@
 import nat (nonexistent)
-def x : ℕ ≔ Z
+x : ℕ
+x = Z

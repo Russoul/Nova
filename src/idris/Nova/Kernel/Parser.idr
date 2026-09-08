@@ -24,16 +24,36 @@ import Nova.Kernel.Syntax
 public export
 data TokenKind = Keyword | Identifier | Operator | Number | Comment
 
+||| The grammar's state: the semantic-token accumulator, plus the two
+||| LAYOUT columns of docs/NovaElaboration.txt (Layout). The kernel
+||| grammar below is whitespace-blind and never reads the columns; the
+||| surface grammar (Nova.Elaboration.Parser) threads them through its
+||| whitespace combinators.
+public export
+record PState where
+  constructor MkPState
+  kinds : SnocList (Range, TokenKind)
+  ||| the INDENT of the line holding the most recently consumed token
+  ||| — the reference column r of every spine that starts on it
+  indent : Int
+  ||| the innermost enclosing BLOCK column b: 0 for the file, an
+  ||| argument block's column, a data literal's entry column
+  block : Int
+
 public export
 Rule : Type -> Type
-Rule = Grammar (SnocList (Range, TokenKind)) Token
+Rule = Grammar PState Token
+
+export
+initPState : PState
+initPState = MkPState [<] 0 0
 
 ||| Record a classified span in the accumulator. A no-op location-wise
 ||| when the wrapped grammar consumed nothing (bounds returns Nothing).
 export
 emit : Maybe Range -> TokenKind -> Rule ()
 emit Nothing _ = pure ()
-emit (Just r) k = update (:< (r, k))
+emit (Just r) k = update { kinds $= (:< (r, k)) }
 
 -- Optional whitespace between tokens
 sp : Rule ()
@@ -459,6 +479,6 @@ export
 runParser : Rule a -> String -> Either String a
 runParser rule input =
   let (_, toks) = tokenise (unpack input) in
-  case parseWith [<] (rule <* eof) toks of
+  case parseWith initPState (rule <* eof) toks of
     Left err  => Left (parseErrMessage err)
     Right (_, _, x, _) => Right x

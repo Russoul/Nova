@@ -1,13 +1,19 @@
 -- NOVA_SCOPED=1: an item WITHOUT a using clause discharges with
 -- hypotheses and computation only — store use must be named
 infixl 6 +
-def + : ℕ → ℕ → ℕ ≔ λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-def plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq) ≔ λn. ⋆
-def plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ using (+.eq) ≔ λn. λm. ⋆
-def zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ using (+.eq, plusZeroId) ≔ λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
-def sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ using (+.eq) ≔
++ : ℕ → ℕ → ℕ
++ = λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq)
+plusZeroId = λn. ⋆
+plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ using (+.eq)
+plusSucId = λn. λm. ⋆
+zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ using (+.eq, plusZeroId)
+zeroPlusId = λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ using (+.eq)
+sucPlus =
   λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
-def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
+plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ
+plusComm =
   λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ)
     (Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n ⟩ n + Z)
     (k ih.
@@ -15,10 +21,14 @@ def plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ ≔
     m
 
 -- licensed computation + hypotheses still silent: no store needed
-def byComputation : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq) ≔ λn. ⋆
-def byHypothesis : (a : ℕ) (b : ℕ) (c : ℕ) → (a ≡ b ∈ ℕ) → a + c ≡ b + c ∈ ℕ using (hyp.rw) ≔
+byComputation : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq)
+byComputation = λn. ⋆
+byHypothesis : (a : ℕ) (b : ℕ) (c : ℕ) → (a ≡ b ∈ ℕ) → a + c ≡ b + c ∈ ℕ using (hyp.rw)
+byHypothesis =
   λa. λb. λc. λh. ⋆
 -- store use unnamed: an obligation, with the hint naming the remedy
-def needsStore : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ ≔ λa. λb. ⋆
+needsStore : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ
+needsStore = λa. λb. ⋆
 -- the same site, named: silent
-def named : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ using (plusComm) ≔ λa. λb. ⋆
+named : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ using (plusComm)
+named = λa. λb. ⋆

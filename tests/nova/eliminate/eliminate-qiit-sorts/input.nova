@@ -4,13 +4,16 @@
 -- land at them are stated there. An INDEXED sort is not offered — its
 -- motive must abstract the indices too, which scrutinee abstraction
 -- alone does not do.
-data ( Con : U
-     ; Ty : El Con → U
-     ; nil : El Con
-     ; ext : (gamma : El Con) → El (Ty gamma) → El Con
-     ; unit : (gamma : El Con) → El (Ty gamma)
-     ; arr : (gamma : El Con) → El (Ty gamma) → El (Ty gamma) → El (Ty gamma) )
+data
+  Con : U
+  Ty : El Con → U
+  nil : El Con
+  ext : (gamma : El Con) → El (Ty gamma) → El Con
+  unit : (gamma : El Con) → El (Ty gamma)
+  arr : (gamma : El Con) → El (Ty gamma) → El (Ty gamma) → El (Ty gamma)
 
-def d : Con → ℕ ≔ λc. ?goal
+d : Con → ℕ
+d = λc. ?goal
 
-def e : (g : Con) → Ty g → ℕ ≔ λg. λt. ?indexed
+e : (g : Con) → Ty g → ℕ
+e = λg. λt. ?indexed

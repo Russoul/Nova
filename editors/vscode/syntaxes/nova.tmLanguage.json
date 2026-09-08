@@ -24,7 +24,7 @@
     "keyword": {
       "comment": "The reserved words of Nova.Elaboration.Parser. The lookarounds rather than \\b keep `Z'` and `data'`, which are ordinary identifiers, from matching.",
       "name": "keyword.other.nova",
-      "match": "(?<![A-Za-z0-9_'])(def|type|data|class|import|infixl|infixr|let|in|using|El)(?![A-Za-z0-9_'])"
+      "match": "(?<![A-Za-z0-9_'])(data|class|import|infixl|infixr|let|in|using|El)(?![A-Za-z0-9_'])"
     },
     "constant": {
       "comment": "Reserved constants and constructors, both spellings. The Unicode forms are not identifier characters, so they need no lookarounds.",

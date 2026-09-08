@@ -1,4 +1,5 @@
 -- El-(×) decodes one layer; nf then recurses into the FIRST component
 -- (no binder crossed) but leaves the second (Γ▷A⊦B, under a binder)
 -- exactly as whnf produced it
-type SigmaCode ≔ (𝟘 × 𝟙)
+SigmaCode : 𝕌
+SigmaCode = (𝟘 × 𝟙)

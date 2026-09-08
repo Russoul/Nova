@@ -1,5 +1,11 @@
 -- Two structurally DIFFERENT signatures: an element of one is not an
 -- element of the other (structural identity distinguishes them).
-data ( A : U ; mkA : El A )
-data ( B : U ; mkB : El B ; extB : (b : El B) → El B )
-def bad : B using (A.eq, B.unfold) ≔ (mkA : A)
+data
+  A : U
+  mkA : El A
+data
+  B : U
+  mkB : El B
+  extB : (b : El B) → El B
+bad : B using (A.eq, B.unfold)
+bad = (mkA : A)

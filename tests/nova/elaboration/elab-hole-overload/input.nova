@@ -4,4 +4,5 @@
 -- The reported error is the real one — both '+' still fit.
 import natp (+)
 import natp2 (+)
-def amb : ℕ ≔ 1 + ?x
+amb : ℕ
+amb = 1 + ?x

@@ -1,6 +1,6 @@
 -- ℝ AS A METRIC SPACE, with the distance valued in ℝ itself:
 --
---   d u v ≔ |u − v|
+--   d u v = |u − v|
 --
 -- symmetric, vanishing exactly on the diagonal, and satisfying the
 -- triangle inequality. Every proof is one rewrite of Real/group.nova's
@@ -22,7 +22,7 @@ import Real.order (RLeP, rleOf, ≤, leRAntisym, leRTrans, leQSubZero)
 import Real.group (-, realSubSelf, realSubVia, realNegSub, realSubZeroInv)
 import Core.equality (trans, sym, cong, transport, transportP)
 
-def leRAbsSelf : {u : Real} → u ≤ realAbs u
+leRAbsSelf : {u : Real} → u ≤ realAbs u
   using (Core.id.Id.eq,
     Rat.abs.qAbs.eq,
     Rat.bound.Bnd.unfold,
@@ -50,20 +50,21 @@ def leRAbsSelf : {u : Real} → u ≤ realAbs u
     Real.neg.seqOf.eq,
     Real.order.≤.eq,
     Real.order.≤.unfold,
-    Real.order.RLeP.eq) ≔
+    Real.order.RLeP.eq)
+leRAbsSelf =
   λu. quot-elim
-    (x. rleOf
+    x. rleOf
       x
-      (rAbs x)
-      (λn. leQTrans
-        (seqOf x n + qNeg (qAbs (seqOf x n)))
+      rAbs x
+      λn. leQTrans
+        seqOf x n + qNeg (qAbs (seqOf x n))
         _
         _
-        (leQSubZero (bndAbs (seqOf x n) .π₂))
-        (leQZeroBound n n)))
+        leQSubZero (bndAbs (seqOf x n) .π₂)
+        leQZeroBound n n
     u
 
-def leRNegAbsSelf : {u : Real} → realNeg (realAbs u) ≤ u
+leRNegAbsSelf : {u : Real} → realNeg (realAbs u) ≤ u
   using (Core.id.Id.eq,
     Rat.abs.qAbs.eq,
     Rat.bound.Bnd.unfold,
@@ -96,30 +97,33 @@ def leRNegAbsSelf : {u : Real} → realNeg (realAbs u) ≤ u
     Real.neg.seqOf.eq,
     Real.order.≤.eq,
     Real.order.≤.unfold,
-    Real.order.RLeP.eq) ≔
+    Real.order.RLeP.eq)
+leRNegAbsSelf =
   λu. quot-elim
-    (x. rleOf
-      (rNeg (rAbs x))
+    x. rleOf
+      rNeg (rAbs x)
       x
-      (λn. leQTrans
-        (qNeg (qAbs (seqOf x n)) + qNeg (seqOf x n))
+      λn. leQTrans
+        qNeg (qAbs (seqOf x n)) + qNeg (seqOf x n)
         _
         _
-        (leQSubZero (bndAbs (seqOf x n) .π₁))
-        (leQZeroBound n n)))
+        leQSubZero (bndAbs (seqOf x n) .π₁)
+        leQZeroBound n n
     u
 
 -- ...so a vanishing absolute value names zero
-def realAbsZeroInv : (u : Real) → (realAbs u ≡ realZero) → u ≡ realZero ≔
+realAbsZeroInv : (u : Real) → (realAbs u ≡ realZero) → u ≡ realZero
+realAbsZeroInv =
   λu. λh. leRAntisym
-    (transportP (λw. u ≤ w) h leRAbsSelf)
-    (transportP
-      (λw. w ≤ u)
-      (trans _ _ _ (cong (λw. Real) (λw. realNeg w) h) realNegZero)
-      leRNegAbsSelf)
+    transportP (λw. u ≤ w) h leRAbsSelf
+    transportP
+      λw. w ≤ u
+      trans _ _ _ (cong (λw. Real) (λw. realNeg w) h) realNegZero
+      leRNegAbsSelf
 
 -- ===== the distance =====
-def realDist : Real → Real → Real using (Real.Real.unfold) ≔ λu. λv. realAbs (u - v)
+realDist : Real → Real → Real using (Real.Real.unfold)
+realDist = λu. λv. realAbs (u - v)
 
 -- THE BRIDGE. d on classes IS the representative-level |p − q|, and
 -- naming it once is what keeps its users cheap.
@@ -131,23 +135,24 @@ def realDist : Real → Real → Real using (Real.Real.unfold) ≔ λu. λv. rea
 -- licensed join has to redo that at every use. Here each layer is one
 -- named lemma — realNegCls, realAddCls, realAbsCls — so the deep walk
 -- happens once, at a statement small enough to be cheap.
-def realDistCls : (p q : RSeq) → realDist (class p) (class q) ≡ class (rAbs (rAdd p (rNeg q)))
+realDistCls : (p q : RSeq) → realDist (class p) (class q) ≡ class (rAbs (rAdd p (rNeg q)))
   using (Real.metric.realDist.eq,
     Real.group.-.eq,
     Real.Real.unfold,
     Real.RSeq.unfold,
-    Real.Regular.unfold) ≔
+    Real.Regular.unfold)
+realDistCls =
   λp. λq. trans
-    (realAbs (class p + realNeg (class q)))
+    realAbs (class p + realNeg (class q))
     _
     _
-    (cong (λw. Real) (λw. realAbs (class p + w)) {realNeg (class q)} {class (rNeg q)} realNegCls)
-    (trans
+    cong (λw. Real) (λw. realAbs (class p + w)) {realNeg (class q)} {class (rNeg q)} realNegCls
+    trans
       _
       _
-      (class (rAbs (rAdd p (rNeg q))))
-      (cong (λw. Real) (λw. realAbs w) (realAddCls p (rNeg q)))
-      realAbsCls)
+      class (rAbs (rAdd p (rNeg q)))
+      cong (λw. Real) (λw. realAbs w) (realAddCls p (rNeg q))
+      realAbsCls
 
 -- THE SECOND BRIDGE, for the element side. rleOf's argument type
 -- mentions seqOf of the whole |p − q| construction, so supplying it
@@ -155,17 +160,11 @@ def realDistCls : (p q : RSeq) → realDist (class p) (class q) ≡ class (rAbs 
 -- negSeq → seqOf at every use. Here that walk happens once, with p, q
 -- and the bound ABSTRACT (D-3), and callers hand over a statement in
 -- which no construction appears at all.
-def rleOfAbsSub : {p : RSeq}
+rleOfAbsSub : {p : RSeq}
   (q : RSeq)
   {b : Q}
-  → ((j : ℕ)
-    → qAbs
-      (seqOf
-        p
-        (dbl
-          j)
-        + qNeg
-          (seqOf q (dbl j))) ≤ b + rBound j j) → RLeP (rAbs (rAdd p (rNeg q))) ((λk. b), constReg)
+  → ((j : ℕ) → qAbs (seqOf p (dbl j) + qNeg (seqOf q (dbl j))) ≤ b + rBound j j)
+    → RLeP (rAbs (rAdd p (rNeg q))) ((λk. b), constReg)
   using (Real.RSeq.unfold,
     Real.Regular.unfold,
     Real.abs.rAbs.eq,
@@ -175,26 +174,29 @@ def rleOfAbsSub : {p : RSeq}
     Real.neg.rNeg.eq,
     Real.neg.negSeq.eq,
     Real.neg.seqOf.eq,
-    Real.order.RLeP.eq) ≔
+    Real.order.RLeP.eq)
+rleOfAbsSub =
   λp. λq. λb. λf. rleOf
     _
     _
-    (λj. leQSubShift (qAbs (seqOf p (dbl j) + qNeg (seqOf q (dbl j)))) b (f j))
+    λj. leQSubShift (qAbs (seqOf p (dbl j) + qNeg (seqOf q (dbl j)))) b (f j)
 
-def realDistSelf : (u : Real) → realDist u u ≡ realZero
-  using (Real.Real.unfold, Real.abs.realAbs.eq, Real.group.-.eq, Real.metric.realDist.eq) ≔
+realDistSelf : (u : Real) → realDist u u ≡ realZero
+  using (Real.Real.unfold, Real.abs.realAbs.eq, Real.group.-.eq, Real.metric.realDist.eq)
+realDistSelf =
   λu. trans _ _ _ (cong (λw. Real) (λw. realAbs w) {u - u} {realZero} realSubSelf) realAbsZero
 
-def realDistSym : (u v : Real) → realDist u v ≡ realDist v u
-  using (Real.Real.unfold, Real.abs.realAbs.eq, Real.group.-.eq, Real.metric.realDist.eq) ≔
+realDistSym : (u v : Real) → realDist u v ≡ realDist v u
+  using (Real.Real.unfold, Real.abs.realAbs.eq, Real.group.-.eq, Real.metric.realDist.eq)
+realDistSym =
   λu. λv. trans
     _
-    (realAbs (realNeg (u - v)))
+    realAbs (realNeg (u - v))
     _
-    (sym _ _ (realAbsNeg (u - v)))
-    (cong (λw. Real) (λw. realAbs w) {realNeg (u - v)} {v - u} realNegSub)
+    sym _ _ (realAbsNeg (u - v))
+    cong (λw. Real) (λw. realAbs w) {realNeg (u - v)} {v - u} realNegSub
 
-def leRZeroDist : (u v : Real) → realZero ≤ realDist u v
+leRZeroDist : (u v : Real) → realZero ≤ realDist u v
   using (Real.Real.unfold,
     Real.realOfQ.unfold,
     Real.realZero.eq,
@@ -207,16 +209,16 @@ def leRZeroDist : (u v : Real) → realZero ≤ realDist u v
     Real.metric.realDist.eq,
     Real.metric.realDist.unfold,
     Real.order.≤.eq,
-    Real.order.≤.unfold) ≔
-  λu. λv. leRZeroAbs (u - v)
+    Real.order.≤.unfold)
+leRZeroDist = λu. λv. leRZeroAbs (u - v)
 
 -- identity of indiscernibles, via realAbsZeroInv and the group law
-def realDistZeroInv : (u v : Real) → (realDist u v ≡ realZero) → u ≡ v
-  using (Real.Real.unfold, Real.abs.realAbs.eq, Real.group.-.eq, Real.metric.realDist.eq) ≔
-  λu. λv. λh. realSubZeroInv (realAbsZeroInv (u - v) h)
+realDistZeroInv : (u v : Real) → (realDist u v ≡ realZero) → u ≡ v
+  using (Real.Real.unfold, Real.abs.realAbs.eq, Real.group.-.eq, Real.metric.realDist.eq)
+realDistZeroInv = λu. λv. λh. realSubZeroInv (realAbsZeroInv (u - v) h)
 
 -- the triangle inequality: |·| adds along the three-term split
-def realDistTriangle : (u v w : Real) → realDist u w ≤ realDist u v + realDist v w
+realDistTriangle : (u v w : Real) → realDist u w ≤ realDist u v + realDist v w
   using (Real.Real.unfold,
     Real.abs.realAbs.eq,
     Real.abs.realAbs.unfold,
@@ -226,10 +228,11 @@ def realDistTriangle : (u v w : Real) → realDist u w ≤ realDist u v + realDi
     Real.group.-.unfold,
     Real.metric.realDist.eq,
     Real.metric.realDist.unfold,
-    Real.order.≤.unfold) ≔
+    Real.order.≤.unfold)
+realDistTriangle =
   λu. λv. λw. transportP
-    (λt. t ≤ realAbs (u - v) + realAbs (v - w))
+    λt. t ≤ realAbs (u - v) + realAbs (v - w)
     {realAbs (u - v + (v - w))}
     {realDist u w}
-    (cong (λt. Real) (λt. realAbs t) {u - v + (v - w)} {u - w} realSubVia)
+    cong (λt. Real) (λt. realAbs t) {u - v + (v - w)} {u - w} realSubVia
     leRAbsTriangle

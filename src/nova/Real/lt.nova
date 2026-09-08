@@ -29,27 +29,30 @@ import Core.prop (⊥)
 import Core.equality (trans, sym, cong, transport, transportP)
 
 infixl 4 <
-def < : Real → Real → Ω ≔ λu. λv. ∥(k : ℕ) × u + realOfQ (qInvNat k) ≤ v∥
+< : Real → Real → Ω
+(<) = λu. λv. ∥(k : ℕ) × u + realOfQ (qInvNat k) ≤ v∥
 
-def ltROf : (u v : Real) (k : ℕ) → u + realOfQ (qInvNat k) ≤ v → u < v using (Real.lt.<.unfold) ≔
-  λu. λv. λk. λh. ⋆ (k, h)
+ltROf : (u v : Real) (k : ℕ) → u + realOfQ (qInvNat k) ≤ v → u < v using (Real.lt.<.unfold)
+ltROf = λu. λv. λk. λh. ⋆ (k, h)
 
 -- ===== ℝ group algebra the proofs need =====
-def realAddNegCancel : (u q : Real) → u + q + realNeg u ≡ q using (Real.Real.unfold) ≔
+realAddNegCancel : (u q : Real) → u + q + realNeg u ≡ q using (Real.Real.unfold)
+realAddNegCancel =
   λu. λq. u + q + realNeg u
-      ≡⟨ cong (λw. Real) (λw. w + realNeg u) (realAddComm u q) ⟩ q + u + realNeg u
-      ≡⟨ realAddAssoc q u (realNeg u) ⟩ q + (u + realNeg u)
-      ≡⟨ cong (λw. Real) (λw. q + w) (realAddNegR u) ⟩ q + realZero
-      ≡⟨ realAddZeroR q ⟩ q
+    ≡⟨ cong (λw. Real) (λw. w + realNeg u) (realAddComm u q) ⟩ q + u + realNeg u
+    ≡⟨ realAddAssoc q u (realNeg u) ⟩ q + (u + realNeg u)
+    ≡⟨ cong (λw. Real) (λw. q + w) (realAddNegR u) ⟩ q + realZero
+    ≡⟨ realAddZeroR q ⟩ q
 
-def realAddSwapR : (u q w : Real) → u + q + w ≡ u + w + q using (Real.Real.unfold) ≔
+realAddSwapR : (u q w : Real) → u + q + w ≡ u + w + q using (Real.Real.unfold)
+realAddSwapR =
   λu. λq. λw. u + q + w
-      ≡⟨ realAddAssoc u q w ⟩ u + (q + w)
-      ≡⟨ cong (λv. Real) (λv. u + v) (realAddComm q w) ⟩ u + (w + q)
-      ≡⟨ sym _ _ (realAddAssoc u w q) ⟩ u + w + q
+    ≡⟨ realAddAssoc u q w ⟩ u + (q + w)
+    ≡⟨ cong (λv. Real) (λv. u + v) (realAddComm q w) ⟩ u + (w + q)
+    ≡⟨ sym _ _ (realAddAssoc u w q) ⟩ u + w + q
 
 -- 0 ≤ 1/(k+1), lifted
-def leRZeroInv : (k : ℕ) → realZero ≤ realOfQ (qInvNat k)
+leRZeroInv : (k : ℕ) → realZero ≤ realOfQ (qInvNat k)
   using (Rat.qZero.eq,
     Real.qInvNat.eq,
     Real.realOfQ.eq,
@@ -58,45 +61,50 @@ def leRZeroInv : (k : ℕ) → realZero ≤ realOfQ (qInvNat k)
     Real.realZero.unfold,
     Real.order.≤.eq,
     Real.order.≤.unfold,
-    Real.order.RLeP.unfold) ≔
-  λk. leROfQ _ _ (leQZeroInvNat k)
+    Real.order.RLeP.unfold)
+leRZeroInv = λk. leROfQ _ _ (leQZeroInvNat k)
 
 -- u ≤ u + 1/(k+1)
-def leRSelfInv : (u : Real) (k : ℕ) → u ≤ u + realOfQ (qInvNat k) using (Real.order.≤.unfold) ≔
+leRSelfInv : (u : Real) (k : ℕ) → u ≤ u + realOfQ (qInvNat k) using (Real.order.≤.unfold)
+leRSelfInv =
   λu. λk. transportP
-    (λw. w ≤ u + realOfQ (qInvNat k))
-    (Real.add.realAddZeroL u)
-    (transportP
+    λw. w ≤ u + realOfQ (qInvNat k)
+    Real.add.realAddZeroL u
+    transportP
       {Real}
-      (λw. realZero + u ≤ w)
+      λw. realZero + u ≤ w
       {realOfQ (qInvNat k) + u}
-      (realAddComm (realOfQ (qInvNat k)) u)
-      (leRAddMono (leRZeroInv k)))
+      realAddComm (realOfQ (qInvNat k)) u
+      leRAddMono (leRZeroInv k)
 
 -- ===== the order laws =====
-def leROfLtR : (u v : Real) → u < v → u ≤ v using (Real.lt.<.unfold, Real.order.≤.unfold) ≔
-  λu. λv. λh. squash-elim h (w. leRTrans _ _ _ (leRSelfInv u (w .π₁)) (w .π₂))
+leROfLtR : (u v : Real) → u < v → u ≤ v using (Real.lt.<.unfold, Real.order.≤.unfold)
+leROfLtR = λu. λv. λh. squash-elim h (w. leRTrans _ _ _ (leRSelfInv u (w .π₁)) (w .π₂))
 
-def ltRTrans : (u v t : Real) → u < v → v < t → u < t using (Real.lt.<.unfold) ≔
+ltRTrans : (u v t : Real) → u < v → v < t → u < t using (Real.lt.<.unfold)
+ltRTrans =
   λu. λv. λt. λh1. λh2. squash-elim h1 (w. ltROf _ _ _ (leRTrans _ _ _ (w .π₂) (leROfLtR _ _ h2)))
 
-def leRLtTrans : (u v t : Real) → u ≤ v → v < t → u < t using (Real.lt.<.unfold) ≔
-  λu. λv. λt. λh1. λh2. squash-elim h2 (w. ltROf
-    _
-    _
-    _
-    (leRTrans
-      (u + realOfQ (qInvNat (w .π₁)))
-      (v + realOfQ (qInvNat (w .π₁)))
+leRLtTrans : (u v t : Real) → u ≤ v → v < t → u < t using (Real.lt.<.unfold)
+leRLtTrans =
+  λu. λv. λt. λh1. λh2. squash-elim
+    h2
+    w. ltROf
       _
-      (leRAddMono h1)
-      (w .π₂)))
+      _
+      _
+      leRTrans
+        u + realOfQ (qInvNat (w .π₁))
+        v + realOfQ (qInvNat (w .π₁))
+        _
+        leRAddMono h1
+        w .π₂
 
-def ltRLeTrans : (u v t : Real) → u < v → v ≤ t → u < t using (Real.lt.<.unfold) ≔
-  λu. λv. λt. λh1. λh2. squash-elim h1 (w. ltROf _ _ _ (leRTrans _ _ _ (w .π₂) h2))
+ltRLeTrans : (u v t : Real) → u < v → v ≤ t → u < t using (Real.lt.<.unfold)
+ltRLeTrans = λu. λv. λt. λh1. λh2. squash-elim h1 (w. ltROf _ _ _ (leRTrans _ _ _ (w .π₂) h2))
 
 -- irreflexivity: strip u from both sides, then read the result off in ℚ
-def ltRIrrefl : (u : Real) → u < u → ⊥
+ltRIrrefl : (u : Real) → u < u → ⊥
   using (Core.prop.⊥.unfold,
     Rat.qZero.eq,
     Real.Real.unfold,
@@ -104,50 +112,49 @@ def ltRIrrefl : (u : Real) → u < u → ⊥
     Real.realZero.eq,
     Real.add.+.unfold,
     Real.lt.<.unfold,
-    Real.order.≤.unfold) ≔
-  λu. λh. squash-elim h (w. ⋆ (qInvNatNotZero
-    _
-    (leQAntisym
-      (leQOfLeR
-        qZero
-        (transportP
-          (λt. t ≤ realZero)
-          (realAddNegCancel u (realOfQ (qInvNat (w .π₁))))
-          (transportP
-            {Real}
-            (λt. u + realOfQ (qInvNat (w .π₁)) + realNeg u ≤ t)
-            {u + realNeg u}
-            (realAddNegR u)
-            (leRAddMono (w .π₂)))))
-      (leQZeroInvNat (w .π₁)))))
+    Real.order.≤.unfold)
+ltRIrrefl =
+  λu. λh. squash-elim
+    h
+    w. ⋆ (qInvNatNotZero
+      _
+      leQAntisym
+        leQOfLeR
+          qZero
+          transportP
+            λt. t ≤ realZero
+            realAddNegCancel u (realOfQ (qInvNat (w .π₁)))
+            transportP
+              {Real}
+              λt. u + realOfQ (qInvNat (w .π₁)) + realNeg u ≤ t
+              {u + realNeg u}
+              realAddNegR u
+              leRAddMono (w .π₂)
+        leQZeroInvNat (w .π₁))
 
 -- ===== ℚ ↪ ℝ preserves and reflects the strict order =====
 -- p < q in ℚ: the Archimedean witness supplies the index, and the
 -- squash it comes in is absorbed by LtR's own
-def ltROfQ : {p q : Q} → p < q → realOfQ p < realOfQ q
-  using (Rat.arch.ArchWit.unfold, Real.lt.<.unfold) ≔
-  λp. λq. λh. squash-elim (qArch
-    _
-    (sgnOfLtQ
-      h)) (w. ltROf
-    _
-    _
-    _
-    (transportP
-      (λt. t ≤ realOfQ q)
-      (sym _ _ (realAddOfQ p (qInvNat (w .π₁))))
-      (leROfQ
-        _
-        _
-        (transport
-          (λt. t ≤ q)
-          (qAddComm (qInvNat (w .π₁)) p)
-          (transport
-            (λt. qInvNat (w .π₁) + p ≤ t)
-            (qPlusNegCancelR q p)
-            (leQPlusMono p (w .π₂)))))))
+ltROfQ : {p q : Q} → p < q → realOfQ p < realOfQ q using (Rat.arch.ArchWit.unfold, Real.lt.<.unfold)
+ltROfQ =
+  λp. λq. λh. squash-elim
+    qArch _ (sgnOfLtQ h)
+    w. ltROf
+      _
+      _
+      _
+      transportP
+        λt. t ≤ realOfQ q
+        sym _ _ (realAddOfQ p (qInvNat (w .π₁)))
+        leROfQ
+          _
+          _
+          transport
+            λt. t ≤ q
+            qAddComm (qInvNat (w .π₁)) p
+            transport (λt. qInvNat (w .π₁) + p ≤ t) (qPlusNegCancelR q p) (leQPlusMono p (w .π₂))
 
-def ltRZeroOne : realZero < realOne
+ltRZeroOne : realZero < realOne
   using (Rat.bound.qNegZeroQ.rw,
     Rat.order.Sign.unfold,
     Rat.qAddZeroR.rw,
@@ -156,18 +163,21 @@ def ltRZeroOne : realZero < realOne
     Real.realZero.eq,
     Real.lt.<.eq,
     Real.lt.<.unfold,
-    Real.order.sgnQOnePos) ≔
-  ltROfQ (ltQOfSgn qZero qOne ⋆)
+    Real.order.sgnQOnePos)
+ltRZeroOne = ltROfQ (ltQOfSgn qZero qOne ⋆)
 
 -- ===== compatibility with addition =====
-def ltRAddMono : (u v t : Real) → u < v → u + t < v + t using (Real.lt.<.unfold) ≔
-  λu. λv. λt. λh. squash-elim h (w. ltROf
-    _
-    _
-    _
-    (transportP
-      {Real}
-      (λs. s ≤ v + t)
-      {u + realOfQ (qInvNat (w .π₁)) + t}
-      (realAddSwapR u (realOfQ (qInvNat (w .π₁))) t)
-      (leRAddMono (w .π₂))))
+ltRAddMono : (u v t : Real) → u < v → u + t < v + t using (Real.lt.<.unfold)
+ltRAddMono =
+  λu. λv. λt. λh. squash-elim
+    h
+    w. ltROf
+      _
+      _
+      _
+      transportP
+        {Real}
+        λs. s ≤ v + t
+        {u + realOfQ (qInvNat (w .π₁)) + t}
+        realAddSwapR u (realOfQ (qInvNat (w .π₁))) t
+        leRAddMono (w .π₂)

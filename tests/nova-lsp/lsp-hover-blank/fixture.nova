@@ -1,9 +1,11 @@
-def cst : (A B : 𝕌) → A → B → A ≔ λA. λB. λa. λb. a
+cst : (A B : 𝕌) → A → B → A
+cst = λA. λB. λa. λb. a
 
-def trans3 : (A : 𝕌) (x y z : A) → (x ≡ y) → (y ≡ z) → x ≡ z
-  ≔ λA. λx. λy. λz. λp. λq. x ≡⟨ p ⟩ y ≡⟨ q ⟩ z
+trans3 : (A : 𝕌) (x y z : A) → (x ≡ y) → (y ≡ z) → x ≡ z
+trans3 = λA. λx. λy. λz. λp. λq. x ≡⟨ p ⟩ y ≡⟨ q ⟩ z
 
-def useCst : ℕ → 𝟙 → ℕ ≔ λn. λu. cst _ _ n u
+useCst : ℕ → 𝟙 → ℕ
+useCst = λn. λu. cst _ _ n u
 
-def useTrans : (A : 𝕌) (a b c : A) → (a ≡ b) → (b ≡ c) → a ≡ c
-  ≔ λA. λa. λb. λc. λp. λq. trans3 _ _ _ _ p q
+useTrans : (A : 𝕌) (a b c : A) → (a ≡ b) → (b ≡ c) → a ≡ c
+useTrans = λA. λa. λb. λc. λp. λq. trans3 _ _ _ _ p q

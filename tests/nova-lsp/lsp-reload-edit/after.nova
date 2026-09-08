@@ -1,2 +1,4 @@
-def f : ℕ ≔ S Z
-def g : f ≡ Z ∈ ℕ using (f.eq) ≔ ⋆
+f : ℕ
+f = S Z
+g : f ≡ Z ∈ ℕ using (f.eq)
+g = ⋆

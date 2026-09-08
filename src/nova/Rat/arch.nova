@@ -31,10 +31,11 @@ import Core.prop (⊥, absurdP)
 import Core.equality (trans, sym, cong, transport)
 import Core.id (Id, eqToId, idToEq)
 
-def qFrac : ℕ → ℕ → Q using (Rat.Q.unfold) ≔ λa. λb. qcls (mkRat (intOfNat a) (nzPos b))
+qFrac : ℕ → ℕ → Q using (Rat.Q.unfold)
+qFrac = λa. λb. qcls (mkRat (intOfNat a) (nzPos b))
 
 -- 1/(b+1) is 1/(b+1) — the two spellings coincide on the nose
-def qFracOne : (b : ℕ) → qFrac (S Z) b ≡ qInvNat b
+qFracOne : (b : ℕ) → qFrac (S Z) b ≡ qInvNat b
   using (Int.order.intOfNat.eq,
     Int.intOne.eq,
     Rat.arch.qFrac.eq,
@@ -42,21 +43,22 @@ def qFracOne : (b : ℕ) → qFrac (S Z) b ≡ qInvNat b
     Rat.frac.nzPos.eq,
     Rat.Q.unfold,
     Rat.qcls.eq,
-    Real.qInvNat.eq) ≔
-  λb. ⋆
+    Real.qInvNat.eq)
+qFracOne = λb. ⋆
 
 -- the sign of a natural is never negative
-def intSgnOfNatNonNeg : {k : ℕ} → NonNegS (intSgn (intOfNat k))
+intSgnOfNatNonNeg : {k : ℕ} → NonNegS (intSgn (intOfNat k))
   using (Int.order.intOfNatZero,
     Int.Int.unfold,
     Rat.half.nzPosInt,
     Rat.order.NonNegS.unfold,
-    Rat.order.Sign.unfold) ≔
+    Rat.order.Sign.unfold)
+intSgnOfNatNonNeg =
   λk. ℕ-elim (inj₁ (eqToId _ _ intSgnZero)) (j ih. inj₂ (eqToId _ _ (intSgnPos j))) k
 
 -- ...so a fraction with a natural numerator over a positive
 -- denominator is never negative: its sign is that of the natural a·(b+1)
-def sgnQFrac : (a b : ℕ) → sgnQ (qFrac a b) ≡ intSgn (intOfNat (a * S b))
+sgnQFrac : (a b : ℕ) → sgnQ (qFrac a b) ≡ intSgn (intOfNat (a * S b))
   using (Int.eq.classNormPairEq.eq,
     Int.eq.intCanon.eq,
     Int.eq.intCanonClass.eq,
@@ -86,16 +88,16 @@ def sgnQFrac : (a b : ℕ) → sgnQ (qFrac a b) ≡ intSgn (intOfNat (a * S b))
     Rat.order.sPos.eq,
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
-    Rat.qcls.eq) ≔
-  λa. λb. cong (λv. Sign) (λv. intSgn v) (intOfNatMul a (S b))
+    Rat.qcls.eq)
+sgnQFrac = λa. λb. cong (λv. Sign) (λv. intSgn v) (intOfNatMul a (S b))
 
-def nonNegSgnFrac : {a b : ℕ} → NonNegS (sgnQ (qFrac a b)) using (Rat.order.NonNegS.unfold) ≔
-  λa. λb. transport NonNegS (sym _ _ (sgnQFrac a b)) intSgnOfNatNonNeg
+nonNegSgnFrac : {a b : ℕ} → NonNegS (sgnQ (qFrac a b)) using (Rat.order.NonNegS.unfold)
+nonNegSgnFrac = λa. λb. transport NonNegS (sym _ _ (sgnQFrac a b)) intSgnOfNatNonNeg
 
 -- ===== 1/(b+1) ≤ (a+1)/(b+1) =====
 -- the difference is ((b+1)·a) / (b+1)²: the denominators are literally
 -- equal (nzMul computes), so only the numerators have to be matched
-def fracNumEq : {a b : ℕ}
+fracNumEq : {a b : ℕ}
   → intScale (nzPos b) (intOfNat (S a)) + intScale (nzPos b) (intNeg intOne) ≡ intOfNat (S b * a)
   using (multZeroId.rw,
     zeroPlusId.rw,
@@ -109,10 +111,10 @@ def fracNumEq : {a b : ℕ}
     Int.order.intOfNat.eq,
     Rat.frac.intScale.eq,
     Rat.frac.intScaleN.eq,
-    Rat.frac.nzPos.eq) ≔
-  λa. λb. ⋆
+    Rat.frac.nzPos.eq)
+fracNumEq = λa. λb. ⋆
 
-def qDiffFracInv : (a b : ℕ) → qFrac (S a) b + qNeg (qInvNat b) ≡ qFrac (S b * a) (b * b + b + b)
+qDiffFracInv : (a b : ℕ) → qFrac (S a) b + qNeg (qInvNat b) ≡ qFrac (S b * a) (b * b + b + b)
   using (Int.order.intOfNat.eq,
     Int.intNeg.eq,
     Int.intOne.eq,
@@ -130,32 +132,32 @@ def qDiffFracInv : (a b : ℕ) → qFrac (S a) b + qNeg (qInvNat b) ≡ qFrac (S
     Rat.+.eq,
     Rat.qNeg.eq,
     Rat.qcls.eq,
-    Real.qInvNat.eq) ≔
+    Real.qInvNat.eq)
+qDiffFracInv =
   λa. λb. cong
-    (λv. Q)
-    (λv. qcls (mkRat v (nzPos (b * b + b + b))))
+    λv. Q
+    λv. qcls (mkRat v (nzPos (b * b + b + b)))
     {intScale (nzPos b) (intOfNat (S a)) + intScale (nzPos b) (intNeg intOne)}
     {intOfNat (S b * a)}
     fracNumEq
 
-def leQInvFrac : {a b : ℕ} → qInvNat b ≤ qFrac (S a) b
-  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold) ≔
-  λa. λb. transport (λw. NonNegS (sgnQ w)) (sym _ _ (qDiffFracInv a b)) nonNegSgnFrac
+leQInvFrac : {a b : ℕ} → qInvNat b ≤ qFrac (S a) b
+  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
+leQInvFrac = λa. λb. transport (λw. NonNegS (sgnQ w)) (sym _ _ (qDiffFracInv a b)) nonNegSgnFrac
 
 -- ===== normalizing the denominator's sign =====
 -- the cross-multiplication behind qNegDen, in folded vocabulary
-def negDenCross : (N : Int) (b : ℕ) → intNeg N * intNeg (nzToInt (nzPos b)) ≡ N * nzToInt (nzPos b)
-  using (Int.Int.unfold) ≔
+negDenCross : (N : Int) (b : ℕ) → intNeg N * intNeg (nzToInt (nzPos b)) ≡ N * nzToInt (nzPos b)
+  using (Int.Int.unfold)
+negDenCross =
   λN. λb. intNeg N * intNeg (nzToInt (nzPos b))
-      ≡⟨ intMulNegL N (intNeg (nzToInt (nzPos b))) ⟩ intNeg (N * intNeg (nzToInt (nzPos b)))
-      ≡⟨ cong
-        (λv. Int)
-        (λv. intNeg v)
-        (intMulNegR N (nzToInt (nzPos b))) ⟩ intNeg (intNeg (N * nzToInt (nzPos b)))
-      ≡⟨ intNegNeg (N * nzToInt (nzPos b)) ⟩ N * nzToInt (nzPos b)
+    ≡⟨ intMulNegL N (intNeg (nzToInt (nzPos b))) ⟩ intNeg (N * intNeg (nzToInt (nzPos b)))
+    ≡⟨ cong (λv. Int) (λv. intNeg v) (intMulNegR N (nzToInt (nzPos b))) ⟩
+      intNeg (intNeg (N * nzToInt (nzPos b)))
+    ≡⟨ intNegNeg (N * nzToInt (nzPos b)) ⟩ N * nzToInt (nzPos b)
 
 -- N/(−(b+1)) and (−N)/(b+1) are the same rational
-def qNegDen : (N : Int) (b : ℕ) → qcls (mkRat (intNeg N) (nzPos b)) ≡ qcls (mkRat N (nzNeg b))
+qNegDen : (N : Int) (b : ℕ) → qcls (mkRat (intNeg N) (nzPos b)) ≡ qcls (mkRat N (nzNeg b))
   using (Int.Int.unfold,
     Int.intNeg.eq,
     Rat.frac.den.eq,
@@ -166,13 +168,14 @@ def qNegDen : (N : Int) (b : ℕ) → qcls (mkRat (intNeg N) (nzPos b)) ≡ qcls
     Rat.frac.nzToInt.eq,
     Rat.RatR.eq,
     Rat.dInt.eq,
-    Rat.qcls.eq) ≔
-  λN. λb. clsEqOfRel (mkRat (intNeg N) (nzPos b)) (mkRat N (nzNeg b)) (negDenCross N b)
+    Rat.qcls.eq)
+qNegDen = λN. λb. clsEqOfRel (mkRat (intNeg N) (nzPos b)) (mkRat N (nzNeg b)) (negDenCross N b)
 
 -- every rational has a representative with a POSITIVE denominator
-def PosDenView : Q → 𝕌 ≔ λu. (M : Int) (b : ℕ) × Id _ (qcls (mkRat M (nzPos b))) u
+PosDenView : Q → 𝕌
+PosDenView = λu. (M : Int) (b : ℕ) × Id _ (qcls (mkRat M (nzPos b))) u
 
-def qPosDenView : (N : Int) (d : NZ) → PosDenView (qcls (mkRat N d))
+qPosDenView : (N : Int) (d : NZ) → PosDenView (qcls (mkRat N d))
   using (Core.id.Id.eq,
     Int.Int.unfold,
     Int.intNeg.eq,
@@ -182,15 +185,16 @@ def qPosDenView : (N : Int) (d : NZ) → PosDenView (qcls (mkRat N d))
     Rat.frac.nzNeg.eq,
     Rat.frac.nzPos.eq,
     Rat.Q.eq,
-    Rat.qcls.eq) ≔
+    Rat.qcls.eq)
+qPosDenView =
   λN. λd. ⊎-elim
-    (b. N, b, eqToId _ (qcls (mkRat N (nzPos b))) ⋆)
-    (b. intNeg N, b, eqToId _ (qcls (mkRat N (nzNeg b))) (qNegDen N b))
+    b. N, b, eqToId _ (qcls (mkRat N (nzPos b))) ⋆
+    b. intNeg N, b, eqToId _ (qcls (mkRat N (nzNeg b))) (qNegDen N b)
     d
 
 -- ===== the sign of a fraction with a decided numerator =====
 -- a negative numerator over a positive denominator is negative
-def sgnNegOverPos : {a b : ℕ} → sgnQ (qcls (mkRat (nzToInt (nzNeg a)) (nzPos b))) ≡ sNeg
+sgnNegOverPos : {a b : ℕ} → sgnQ (qcls (mkRat (nzToInt (nzNeg a)) (nzPos b))) ≡ sNeg
   using (Int.eq.intCanon.eq,
     Int.eq.intCanonClass.eq,
     Int.nonZero.nzOfInt.eq,
@@ -211,16 +215,17 @@ def sgnNegOverPos : {a b : ℕ} → sgnQ (qcls (mkRat (nzToInt (nzNeg a)) (nzPos
     Rat.order.sPos.eq,
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
-    Rat.qcls.eq) ≔
+    Rat.qcls.eq)
+sgnNegOverPos =
   λa. λb. trans
-    (intSgn (nzToInt (nzNeg a) * nzToInt (nzPos b)))
+    intSgn (nzToInt (nzNeg a) * nzToInt (nzPos b))
     _
     _
-    (cong (λv. Sign) (λv. intSgn v) (sym _ _ (nzToIntMul (nzNeg a) (nzPos b))))
+    cong (λv. Sign) (λv. intSgn v) (sym _ _ (nzToIntMul (nzNeg a) (nzPos b)))
     intSgnNeg
 
 -- a zero numerator makes the fraction zero
-def sgnZeroOverPos : {b : ℕ} → sgnQ (qcls (mkRat intZero (nzPos b))) ≡ sZero
+sgnZeroOverPos : {b : ℕ} → sgnQ (qcls (mkRat intZero (nzPos b))) ≡ sZero
   using (Int.eq.intCanon.eq,
     Int.eq.intCanonClass.eq,
     Int.nonZero.nzOfInt.eq,
@@ -240,20 +245,22 @@ def sgnZeroOverPos : {b : ℕ} → sgnQ (qcls (mkRat intZero (nzPos b))) ≡ sZe
     Rat.order.sPos.eq,
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
-    Rat.qcls.eq) ≔
+    Rat.qcls.eq)
+sgnZeroOverPos =
   λb. trans
-    (intSgn (intZero * nzToInt (nzPos b)))
+    intSgn (intZero * nzToInt (nzPos b))
     _
     _
-    (cong (λv. Sign) (λv. intSgn v) (intMulZeroL (nzToInt (nzPos b))))
+    cong (λv. Sign) (λv. intSgn v) (intMulZeroL (nzToInt (nzPos b)))
     intSgnZero
 
 -- ===== the theorem =====
-def ArchWit : Q → 𝕌 ≔ λu. (k : ℕ) × qInvNat k ≤ u
+ArchWit : Q → 𝕌
+ArchWit = λu. (k : ℕ) × qInvNat k ≤ u
 
 -- with a positive denominator fixed, decide the numerator: positive
 -- gives the index, zero and negative contradict positivity
-def qArchPos : {M : Int}
+qArchPos : {M : Int}
   {b : ℕ}
   → (sgnQ (qcls (mkRat M (nzPos b))) ≡ sPos) → ArchWit (qcls (mkRat M (nzPos b)))
   using (Int.order.intOfNat.eq,
@@ -265,71 +272,59 @@ def qArchPos : {M : Int}
     Rat.frac.nzNeg.eq,
     Rat.frac.nzPos.eq,
     Rat.frac.nzToInt.eq,
-    Rat.qcls.eq) ≔
+    Rat.qcls.eq)
+qArchPos =
   λM. λb. λhp. ⊎-elim
-    (u. (⊎-elim (w. (nzToInt w ≡ M) → ArchWit (qcls (mkRat M (nzPos b))))
-      (a. λhe. b,
+    u. (⊎-elim
+      w. (nzToInt w ≡ M) → ArchWit (qcls (mkRat M (nzPos b)))
+      a. λhe. b,
         transport
-          (λv. qInvNat b ≤ v)
+          λv. qInvNat b ≤ v
           {qFrac (S a) b}
           {qcls (mkRat M (nzPos b))}
-          (cong (λv. Q) (λv. qcls (mkRat v (nzPos b))) {nzToInt (nzPos a)} he)
-          leQInvFrac)
-      (a. λhe. 𝟘-elim (sNegNotPos
-        (trans
+          cong (λv. Q) (λv. qcls (mkRat v (nzPos b))) {nzToInt (nzPos a)} he
+          leQInvFrac
+      a. λhe. 𝟘-elim (sNegNotPos
+        trans
           _
           _
           _
-          (sym
+          sym
             _
             _
-            (trans
+            trans
               _
               _
               sNeg
-              (cong (λv. Sign) (λv. sgnQ (qcls (mkRat v (nzPos b)))) (sym (nzToInt (nzNeg a)) _ he))
-              sgnNegOverPos))
-          hp)))
-      (u .π₁))
-      (u .π₂))
-    (hz. 𝟘-elim (sZeroNotPos
-      (trans
+              cong (λv. Sign) (λv. sgnQ (qcls (mkRat v (nzPos b)))) (sym (nzToInt (nzNeg a)) _ he)
+              sgnNegOverPos
+          hp)
+      u .π₁)
+      u .π₂
+    hz. 𝟘-elim (sZeroNotPos
+      trans
         _
         _
         _
-        (sym
+        sym
           _
           _
-          (trans
-            _
-            _
-            sZero
-            (cong (λv. Sign) (λv. sgnQ (qcls (mkRat v (nzPos b)))) hz)
-            sgnZeroOverPos))
-        hp)))
-    (nzOfInt M)
+          trans _ _ sZero (cong (λv. Sign) (λv. sgnQ (qcls (mkRat v (nzPos b)))) hz) sgnZeroOverPos
+        hp)
+    nzOfInt M
 
 -- at a raw fraction: normalize the denominator, then decide
-def qArchAt : (N : Int) (d : NZ) → (sgnQ (qcls (mkRat N d)) ≡ sPos) → ArchWit (qcls (mkRat N d))
-  using (Rat.arch.ArchWit.unfold, Rat.arch.PosDenView.unfold) ≔
-  λN. λd. λhp. let v ≔ qPosDenView
-    N
-    d in let e : qcls
-    (mkRat
-      (v .π₁)
-      (nzPos
-        (v .π₂ .π₁))) ≡ qcls
-    (mkRat
-      N
-      d) ≔ idToEq
-    _
-    _
-    _
-    (v .π₂ .π₂) in transport ArchWit e (qArchPos (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) e) hp))
+qArchAt : (N : Int) (d : NZ) → (sgnQ (qcls (mkRat N d)) ≡ sPos) → ArchWit (qcls (mkRat N d))
+  using (Rat.arch.ArchWit.unfold, Rat.arch.PosDenView.unfold)
+qArchAt =
+  λN. λd. λhp. let v = qPosDenView N d
+    in let e : qcls (mkRat (v .π₁) (nzPos (v .π₂ .π₁))) ≡ qcls (mkRat N d)
+      = idToEq _ _ _ (v .π₂ .π₂)
+      in transport ArchWit e (qArchPos (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) e) hp))
 
 -- every positive rational dominates a unit fraction. The witness is
 -- squashed: a bare Σ would ask the class to determine the index
-def qArch : (u : Q) → (sgnQ u ≡ sPos) → ∥ArchWit u∥
+qArch : (u : Q) → (sgnQ u ≡ sPos) → ∥ArchWit u∥
   using (Core.id.Id.eq,
     Int.Int.unfold,
     Rat.arch.ArchWit.unfold,
@@ -345,76 +340,76 @@ def qArch : (u : Q) → (sgnQ u ≡ sPos) → ∥ArchWit u∥
     Rat.+.eq,
     Rat.qNeg.eq,
     Rat.qcls.eq,
-    Real.qInvNat.eq) ≔
+    Real.qInvNat.eq)
+qArch =
   λu. quot-elim
-    (p. λhp. ⋆ (transport
-      (λr. ArchWit (qcls r))
+    p. λhp. ⋆ (transport
+      λr. ArchWit (qcls r)
       {mkRat (num p) (den p)}
       {p}
       ratEta
-      (qArchAt
+      qArchAt
         _
         _
-        (trans
-          _
-          _
-          sPos
-          (cong (λr. Sign) (λr. sgnQ (qcls r)) {mkRat (num p) (den p)} {p} ratEta)
-          hp))))
+        trans _ _ sPos (cong (λr. Sign) (λr. sgnQ (qcls r)) {mkRat (num p) (den p)} {p} ratEta) hp)
     u
 
 -- ===== the closeness principle =====
 -- a decidable goal is reachable from ⊥ : an order fact is a SIGN
 -- verdict, and ⊥ proves the equation that verdict needs
-def leQOfFalse : {x y : Q} → ⊥ → x ≤ y using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold) ≔
-  λx. λy. λf. inj₁ (eqToId _ _ (absurdP (sgnQ (y + qNeg x) ≡ sZero) f))
+leQOfFalse : {x y : Q} → ⊥ → x ≤ y using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
+leQOfFalse = λx. λy. λf. inj₁ (eqToId _ _ (absurdP (sgnQ (y + qNeg x) ≡ sZero) f))
 
 -- the difference's sign flips with the difference (leQTotal's core,
 -- named)
-def sgnQSubFlip : {x y : Q} → sgnQ (x + qNeg y) ≡ sgnFlip (sgnQ (y + qNeg x)) ≔
+sgnQSubFlip : {x y : Q} → sgnQ (x + qNeg y) ≡ sgnFlip (sgnQ (y + qNeg x))
+sgnQSubFlip =
   λx. λy. trans
     _
     _
     _
-    (cong (λw. Sign) (λw. sgnQ w) {x + qNeg y} {qNeg (y + qNeg x)} qSubNeg)
+    cong (λw. Sign) (λw. sgnQ w) {x + qNeg y} {qNeg (y + qNeg x)} qSubNeg
     sgnQNegFlip
 
 -- (b + q) − a ≡ q − (a − b): moving a subtraction across the ≤
-def qShiftEq : (a b q : Q) → b + q + qNeg a ≡ q + qNeg (a + qNeg b) using (Rat.Q.unfold) ≔
+qShiftEq : (a b q : Q) → b + q + qNeg a ≡ q + qNeg (a + qNeg b) using (Rat.Q.unfold)
+qShiftEq =
   λa. λb. λq. b + q + qNeg a
-      ≡⟨ cong (λw. Q) (λw. w + qNeg a) (qAddComm b q) ⟩ q + b + qNeg a
-      ≡⟨ qAddAssoc q b (qNeg a) ⟩ q + (b + qNeg a)
-      ≡⟨ cong (λw. Q) (λw. q + w) (sym _ _ (qSubFlip a b)) ⟩ q + qNeg (a + qNeg b)
+    ≡⟨ cong (λw. Q) (λw. w + qNeg a) (qAddComm b q) ⟩ q + b + qNeg a
+    ≡⟨ qAddAssoc q b (qNeg a) ⟩ q + (b + qNeg a)
+    ≡⟨ cong (λw. Q) (λw. q + w) (sym _ _ (qSubFlip a b)) ⟩ q + qNeg (a + qNeg b)
 
-def leQSubShift : (a b : Q) {q : Q} → a ≤ b + q → a + qNeg b ≤ q
-  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold) ≔
-  λa. λb. λq. transport (λw. NonNegS (sgnQ w)) (qShiftEq a b q)
+leQSubShift : (a b : Q) {q : Q} → a ≤ b + q → a + qNeg b ≤ q
+  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold)
+leQSubShift = λa. λb. λq. transport (λw. NonNegS (sgnQ w)) (qShiftEq a b q)
 
 -- h + h ≡ h forces h ≡ 0
-def qAddSelfCancel : (h : Q) → (h + h ≡ h) → h ≡ qZero ≔
+qAddSelfCancel : (h : Q) → (h + h ≡ h) → h ≡ qZero
+qAddSelfCancel =
   λh. λe. trans
     _
     _
     _
-    (sym
+    sym
       _
       _
-      (trans
+      trans
         _
         _
         _
-        (qAddAssoc h h (qNeg h))
-        (trans _ _ _ (cong (λw. Q) (λw. h + w) (qAddNegR h)) (qAddZeroR h))))
-    (trans _ _ _ (cong (λw. Q) (λw. w + qNeg h) e) (qAddNegR h))
+        qAddAssoc h h (qNeg h)
+        trans _ _ _ (cong (λw. Q) (λw. h + w) (qAddNegR h)) (qAddZeroR h)
+    trans _ _ _ (cong (λw. Q) (λw. w + qNeg h) e) (qAddNegR h)
 
 -- no unit fraction is zero
-def qInvNatNotZero : (k : ℕ) → (qInvNat k ≡ qZero) → 𝟘 ≔
+qInvNatNotZero : (k : ℕ) → (qInvNat k ≡ qZero) → 𝟘
+qInvNatNotZero =
   λk. λe. sZeroNotPos
-    (trans _ _ _ (sym _ _ (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) e) sgnQZero)) (qInvNatPos k))
+    trans _ _ _ (sym _ _ (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) e) sgnQZero)) (qInvNatPos k)
 
 -- a < b would give an index k with 1/(k+1) ≤ a − b ≤ 1/(2k+2), and
 -- those two unit fractions are equal only if the smaller is zero
-def archContra : (a b : Q) → ((k : ℕ) → a ≤ b + qInvNat k) → Id _ (sgnQ (b + qNeg a)) sNeg → ⊥
+archContra : (a b : Q) → ((k : ℕ) → a ≤ b + qInvNat k) → Id _ (sgnQ (b + qNeg a)) sNeg → ⊥
   using (Core.equality.cong.eq,
     Core.equality.trans.eq,
     hyp.rw,
@@ -437,102 +432,98 @@ def archContra : (a b : Q) → ((k : ℕ) → a ≤ b + qInvNat k) → Id _ (sgn
     Rat.+.eq,
     Rat.qNeg.eq,
     Real.qInvNat.eq,
-    sgnQSubFlip.eq) ≔
-  λa. λb. λhyp. λhneg. let hpos : sgnQ
-    (a
-      + qNeg
-        b) ≡ sPos ≔ trans
-    _
-    _
-    _
-    sgnQSubFlip
-    (trans
+    sgnQSubFlip.eq)
+archContra =
+  λa. λb. λhyp. λhneg. let hpos : sgnQ (a + qNeg b) ≡ sPos
+    = trans
       _
       _
-      sPos
-      (cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ hneg))
-      ⋆) in squash-elim (qArch
-    _
-    hpos) (w. let hup : qInvNat
-    (w .π₁) ≡ qInvNat
-    (dbl
-      (w .π₁)) ≔ leQAntisym
-    (leQTrans _ _ _ (w .π₂) (leQSubShift _ _ (hyp (dbl (w .π₁)))))
-    (leQInvDbl
-      (w .π₁)) in ⋆ (qInvNatNotZero _ (qAddSelfCancel _ (trans _ _ _ (qInvHalf (w .π₁)) hup))))
+      _
+      sgnQSubFlip
+      trans _ _ sPos (cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ hneg)) ⋆
+    in squash-elim
+      qArch _ hpos
+      w. let hup : qInvNat (w .π₁) ≡ qInvNat (dbl (w .π₁))
+        = leQAntisym
+          leQTrans _ _ _ (w .π₂) (leQSubShift _ _ (hyp (dbl (w .π₁))))
+          leQInvDbl (w .π₁)
+        in ⋆ (qInvNatNotZero _ (qAddSelfCancel _ (trans _ _ _ (qInvHalf (w .π₁)) hup)))
 
 -- ...so "a ≤ b + 1/(k+1) for every k" collapses to "a ≤ b"
-def leQOfArch : (a b : Q) → ((k : ℕ) → a ≤ b + qInvNat k) → a ≤ b
-  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold) ≔
+leQOfArch : (a b : Q) → ((k : ℕ) → a ≤ b + qInvNat k) → a ≤ b
+  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold)
+leQOfArch =
   λa. λb. λhyp. ⊎-elim
-    (nn. nn)
-    (hneg. leQOfFalse (archContra _ _ hyp hneg))
-    (sgnCases (sgnQ (b + qNeg a)))
+    nn. nn
+    hneg. leQOfFalse (archContra _ _ hyp hneg)
+    sgnCases (sgnQ (b + qNeg a))
 
 -- ===== closeness, in Bnd form =====
 -- −(b + h) + h ≡ −b : the ε moves back out of a negated bound
-def qNegAddCancel : {b h : Q} → qNeg (b + h) + h ≡ qNeg b using (Rat.Q.unfold) ≔
+qNegAddCancel : {b h : Q} → qNeg (b + h) + h ≡ qNeg b using (Rat.Q.unfold)
+qNegAddCancel =
   λb. λh. qNeg (b + h) + h
-      ≡⟨ cong (λw. Q) (λw. w + h) (qNegAdd b h) ⟩ qNeg b + qNeg h + h
-      ≡⟨ qAddAssoc (qNeg b) (qNeg h) h ⟩ qNeg b + (qNeg h + h)
-      ≡⟨ cong (λw. Q) (λw. qNeg b + w) (qAddNegL h) ⟩ qNeg b + qZero
-      ≡⟨ qAddZeroR (qNeg b) ⟩ qNeg b
+    ≡⟨ cong (λw. Q) (λw. w + h) (qNegAdd b h) ⟩ qNeg b + qNeg h + h
+    ≡⟨ qAddAssoc (qNeg b) (qNeg h) h ⟩ qNeg b + (qNeg h + h)
+    ≡⟨ cong (λw. Q) (λw. qNeg b + w) (qAddNegL h) ⟩ qNeg b + qZero
+    ≡⟨ qAddZeroR (qNeg b) ⟩ qNeg b
 
 -- a bound that holds with EVERY slack 1/(k+1) holds without slack.
 -- Both halves are leQOfArch; the lower one first moves the ε across
 -- the negation
-def bndOfArch : {b : Q} (d : Q) → ((k : ℕ) → Bnd (b + qInvNat k) d) → Bnd b d
-  using (Rat.bound.Bnd.unfold) ≔
+bndOfArch : {b : Q} (d : Q) → ((k : ℕ) → Bnd (b + qInvNat k) d) → Bnd b d
+  using (Rat.bound.Bnd.unfold)
+bndOfArch =
   λb. λd. λh. leQOfArch
     _
     _
-    (λk. transport
-      (λw. w ≤ d + qInvNat k)
+    λk. transport
+      λw. w ≤ d + qInvNat k
       {qNeg (b + qInvNat k) + qInvNat k}
       {qNeg b}
       qNegAddCancel
-      (leQPlusMono (qInvNat k) (h k .π₁))), leQOfArch _ _ (λk. h k .π₂)
+      leQPlusMono (qInvNat k) (h k .π₁),
+    leQOfArch _ _ (λk. h k .π₂)
 
 -- ===== the four-leg sum a triangle chain produces =====
 -- ((a+b) + y) + (b+a) ≡ (a+a) + ((b+b) + y): the two outer indices
 -- collect, the two inner ones collect, and the middle stays put
-def qFourSum : (a b y : Q) → a + b + y + (b + a) ≡ a + a + (b + b + y) using (Rat.Q.unfold) ≔
+qFourSum : (a b y : Q) → a + b + y + (b + a) ≡ a + a + (b + b + y) using (Rat.Q.unfold)
+qFourSum =
   λa. λb. λy. a + b + y + (b + a)
-      ≡⟨ qAddAssoc (a + b) y (b + a) ⟩ a + b + (y + (b + a))
-      ≡⟨ cong (λw. Q) (λw. a + b + w) (qAddComm y (b + a)) ⟩ a + b + (b + a + y)
-      ≡⟨ sym _ _ (qAddAssoc (a + b) (b + a) y) ⟩ a + b + (b + a) + y
-      ≡⟨ cong
-        (λw. Q)
-        (λw. w + y)
-        (trans
-          _
-          _
-          _
-          (cong (λw. Q) (λw. a + b + w) (qAddComm b a))
-          (qPairSwap a b a b)) ⟩ a + a + (b + b) + y
-      ≡⟨ qAddAssoc (a + a) (b + b) y ⟩ a + a + (b + b + y)
+    ≡⟨ qAddAssoc (a + b) y (b + a) ⟩ a + b + (y + (b + a))
+    ≡⟨ cong (λw. Q) (λw. a + b + w) (qAddComm y (b + a)) ⟩ a + b + (b + a + y)
+    ≡⟨ sym _ _ (qAddAssoc (a + b) (b + a) y) ⟩ a + b + (b + a) + y
+    ≡⟨ cong
+      λw. Q
+      λw. w + y
+      trans _ _ _ (cong (λw. Q) (λw. a + b + w) (qAddComm b a)) (qPairSwap a b a b) ⟩
+      a + a + (b + b) + y
+    ≡⟨ qAddAssoc (a + a) (b + b) y ⟩ a + a + (b + b + y)
 
 -- three copies sit under four
-def leQTripleQuad : {h : Q} → qZero ≤ h → h + (h + h) ≤ h + h + (h + h)
-  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold) ≔
+leQTripleQuad : {h : Q} → qZero ≤ h → h + (h + h) ≤ h + h + (h + h)
+  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
+leQTripleQuad =
   λh. λnn. transport
-    (λw. w ≤ h + h + (h + h))
-    (qAddAssoc h h h)
-    (leQPlusMonoL _ _ (h + h) (leQSelfAdd h nn))
+    λw. w ≤ h + h + (h + h)
+    qAddAssoc h h h
+    leQPlusMonoL _ _ (h + h) (leQSelfAdd h nn)
 
 -- ...so three quarter-fractions fit inside one: 3/(4k+4) ≤ 1/(k+1)
-def leQTripleInv : (k : ℕ)
+leQTripleInv : (k : ℕ)
   → qInvNat (dbl (dbl k)) + (qInvNat (dbl (dbl k)) + qInvNat (dbl (dbl k))) ≤ qInvNat k
-  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold) ≔
+  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
+leQTripleInv =
   λk. transport
-    (λw. qInvNat (dbl (dbl k)) + (qInvNat (dbl (dbl k)) + qInvNat (dbl (dbl k))) ≤ w)
-    (trans _ _ _ (cong (λw. Q) (λw. w + w) (qInvHalf (dbl k))) (qInvHalf k))
-    (leQTripleQuad (leQZeroInvNat (dbl (dbl k))))
+    λw. qInvNat (dbl (dbl k)) + (qInvNat (dbl (dbl k)) + qInvNat (dbl (dbl k))) ≤ w
+    trans _ _ _ (cong (λw. Q) (λw. w + w) (qInvHalf (dbl k))) (qInvHalf k)
+    leQTripleQuad (leQZeroInvNat (dbl (dbl k)))
 
 -- the converse of leQSubShift: a bound on the difference is a shifted ≤
-def leQAddShift : (a : Q) {b q : Q} → a + qNeg b ≤ q → a ≤ b + q
-  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold) ≔
-  λa. λb. λq. transport (λw. NonNegS (sgnQ w)) (sym _ _ (qShiftEq a b q))
+leQAddShift : (a : Q) {b q : Q} → a + qNeg b ≤ q → a ≤ b + q
+  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold)
+leQAddShift = λa. λb. λq. transport (λw. NonNegS (sgnQ w)) (sym _ _ (qShiftEq a b q))
 
 -- ===== ≤ is decidable, so its squash is faithful =====
 --
@@ -542,13 +533,14 @@ def leQAddShift : (a : Q) {b q : Q} → a + qNeg b ≤ q → a ≤ b + q
 -- the two sides, so matching leaves it unsolved (E-1). Landing in the
 -- SQUASH instead makes the descent free — proof irrelevance closes it
 -- — and this recovers the datum, by deciding and refuting.
-def leQUnsquash : (x : Q) {y : Q} → ∥x ≤ y∥ → x ≤ y
+leQUnsquash : (x : Q) {y : Q} → ∥x ≤ y∥ → x ≤ y
   using (Core.id.Id.unfold,
     Core.prop.⊥.unfold,
     Rat.order.≤.unfold,
     Rat.order.NonNegS.unfold,
-    Rat.Q.unfold) ≔
+    Rat.Q.unfold)
+leQUnsquash =
   λx. λy. λh. ⊎-elim
-    (nn. nn)
-    (hneg. leQOfFalse (squash-elim h (le. ⋆ (nonNegNotNeg _ le hneg))))
-    (sgnCases (sgnQ (y + qNeg x)))
+    nn. nn
+    hneg. leQOfFalse (squash-elim h (le. ⋆ (nonNegNotNeg _ le hneg)))
+    sgnCases (sgnQ (y + qNeg x))

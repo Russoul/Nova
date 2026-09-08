@@ -1,2 +1,4 @@
-def double : ℕ → ℕ ≔ λlofo. ℕ-elim (mn. ℕ) Z (pk ihq. S (S ihq)) lofo
-def four : ℕ ≔ double (double (S (S Z)))
+double : ℕ → ℕ
+double = λlofo. ℕ-elim (mn. ℕ) Z (pk ihq. S (S ihq)) lofo
+four : ℕ
+four = double (double (S (S Z)))

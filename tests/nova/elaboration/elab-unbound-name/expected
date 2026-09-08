@@ -1,8 +1,8 @@
-input.nova:1:15: error: def bad: unknown name 'y'
-1 | def bad : ℕ ≔ y
-  |               ^
+input.nova:2:7: error: def bad: unknown name 'y'
+2 | bad = y
+  |       ^
 declared bad [+1 declaration]
 open declarations (1):
   [bad] ⊢ ? : ℕ
-      at: input.nova:1:5: def bad
+      at: input.nova:1:1: def bad
 Error: 1 item failed to elaborate

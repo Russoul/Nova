@@ -12,7 +12,8 @@ import Algebra.monoid (IsMonoid)
 import Algebra.group (IsGroup)
 import Core.id (Id)
 
-def IsCommRing : 𝕌 → 𝕌 using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold) ≔
+IsCommRing : 𝕌 → 𝕌 using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold)
+IsCommRing =
   λR. (add : IsGroup R)
     (mul : R → R → R)
     (one : R)

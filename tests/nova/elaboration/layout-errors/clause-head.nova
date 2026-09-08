@@ -1,0 +1,3 @@
+plus : ℕ → ℕ → ℕ
+plus Z n = n
+minus (S m) n = n

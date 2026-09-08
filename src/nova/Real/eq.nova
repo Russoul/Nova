@@ -22,28 +22,14 @@ import Real.neg (seqOf, regOf, regBnd, reqOf, reqRefl, reqSym, realEqOfREq)
 import Real.add (rBoundHalf)
 import Core.equality (trans, sym, cong, transport)
 
-def qtr : ℕ → ℕ ≔ λk. dbl (dbl k)
+qtr : ℕ → ℕ
+qtr = λk. dbl (dbl k)
 
 -- one slack-carrying bound on the two-step difference
-def reqStep : (x y z : RSeq)
-  → ((j : ℕ)
-    → Bnd
-      (rBound j j)
-      (seqOf
-        x
-        j
-        + qNeg
-          (seqOf
-            y
-            j)))
-    → ((j : ℕ)
-      → Bnd
-        (rBound j j)
-        (seqOf
-          y
-          j
-          + qNeg
-            (seqOf z j))) → (n k : ℕ) → Bnd (rBound n n + qInvNat k) (seqOf x n + qNeg (seqOf z n))
+reqStep : (x y z : RSeq)
+  → ((j : ℕ) → Bnd (rBound j j) (seqOf x j + qNeg (seqOf y j)))
+    → ((j : ℕ) → Bnd (rBound j j) (seqOf y j + qNeg (seqOf z j)))
+      → (n k : ℕ) → Bnd (rBound n n + qInvNat k) (seqOf x n + qNeg (seqOf z n))
   using (Core.id.Id.eq,
     Rat.bound.Bnd.unfold,
     Rat.half.dbl.eq,
@@ -59,49 +45,50 @@ def reqStep : (x y z : RSeq)
     Real.Regular.unfold,
     Real.qInvNat.eq,
     Real.rBound.eq,
-    Real.eq.qtr.eq) ≔
+    Real.eq.qtr.eq)
+reqStep =
   λx. λy. λz. λu. λv. λn. λk. bndWeaken
     _
     _
     _
-    (leQPlusMonoL
-      (qInvNat (qtr k) + (qInvNat (qtr k) + qInvNat (qtr k)))
-      (qInvNat k)
-      (rBound n n)
-      (leQTripleInv k))
-    (bndEqB
+    leQPlusMonoL
+      qInvNat (qtr k) + (qInvNat (qtr k) + qInvNat (qtr k))
+      qInvNat k
+      rBound n n
+      leQTripleInv k
+    bndEqB
       _
-      (rBound n n + (qInvNat (qtr k) + (qInvNat (qtr k) + qInvNat (qtr k))))
+      rBound n n + (qInvNat (qtr k) + (qInvNat (qtr k) + qInvNat (qtr k)))
       _
-      (cong (λw. Q) (λw. rBound n n + (w + rBound (qtr k) (qtr k))) (qInvHalf (qtr k)))
-      (bndEqB
-        (rBound n (dbl (qtr k)) + rBound (qtr k) (qtr k) + rBound (dbl (qtr k)) n)
-        (qInvNat
-          n + qInvNat n + (qInvNat (dbl (qtr k)) + qInvNat (dbl (qtr k)) + rBound (qtr k) (qtr k)))
+      cong (λw. Q) (λw. rBound n n + (w + rBound (qtr k) (qtr k))) (qInvHalf (qtr k))
+      bndEqB
+        rBound n (dbl (qtr k)) + rBound (qtr k) (qtr k) + rBound (dbl (qtr k)) n
+        qInvNat n + qInvNat n
+          + (qInvNat (dbl (qtr k)) + qInvNat (dbl (qtr k)) + rBound (qtr k) (qtr k))
         _
-        (qFourSum (qInvNat n) (qInvNat (dbl (qtr k))) (rBound (qtr k) (qtr k)))
-        (bndVia
+        qFourSum (qInvNat n) (qInvNat (dbl (qtr k))) (rBound (qtr k) (qtr k))
+        bndVia
           _
           _
           _
           _
           _
-          (bndVia
+          bndVia
             _
             _
             _
             _
             _
-            (regBnd _ (regOf x) n (dbl (qtr k)))
-            (bndEqB
+            regBnd _ (regOf x) n (dbl (qtr k))
+            bndEqB
               _
               _
               _
-              (rBoundHalf (qtr k) (qtr k))
-              (bndVia _ _ _ _ _ (u (dbl (qtr k))) (v (dbl (qtr k))))))
-          (regBnd _ (regOf z) (dbl (qtr k)) n))))
+              rBoundHalf (qtr k) (qtr k)
+              bndVia _ _ _ _ _ (u (dbl (qtr k))) (v (dbl (qtr k)))
+          regBnd _ (regOf z) (dbl (qtr k)) n
 
-def reqTrans : {x : RSeq} (y : RSeq) {z : RSeq} → REq x y → REq y z → REq x z
+reqTrans : {x : RSeq} (y : RSeq) {z : RSeq} → REq x y → REq y z → REq x z
   using (Core.id.Id.eq,
     Rat.bound.Bnd.unfold,
     Rat.order.Sign.eq,
@@ -114,14 +101,15 @@ def reqTrans : {x : RSeq} (y : RSeq) {z : RSeq} → REq x y → REq y z → REq 
     Real.RSeq.unfold,
     Real.Regular.unfold,
     Real.rBound.eq,
-    Real.neg.seqOf.eq) ≔
-  λx. λy. λz. λhxy. λhyz. squash-elim hxy (u. squash-elim hyz (v. reqOf
-    _
-    _
-    (λn. bndOfArch (seqOf x n + qNeg (seqOf z n)) (λk. reqStep x y z u v n k))))
+    Real.neg.seqOf.eq)
+reqTrans =
+  λx. λy. λz. λhxy. λhyz. squash-elim
+    hxy
+    u. squash-elim
+      hyz
+      v. reqOf _ _ (λn. bndOfArch (seqOf x n + qNeg (seqOf z n)) (λk. reqStep x y z u v n k))
 
 -- ...so REq-related representatives name the same real, and the
 -- quotient is by an honest equivalence
-def realEqTrans : (x y z : RSeq) → REq x y → REq y z → class x ≡ class z ∈ Real
-  using (Real.Real.unfold) ≔
-  λx. λy. λz. λh1. λh2. realEqOfREq _ _ (reqTrans _ h1 h2)
+realEqTrans : (x y z : RSeq) → REq x y → REq y z → class x ≡ class z ∈ Real using (Real.Real.unfold)
+realEqTrans = λx. λy. λz. λh1. λh2. realEqOfREq _ _ (reqTrans _ h1 h2)

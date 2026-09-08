@@ -270,7 +270,20 @@ seam-first — type, using clause and body each against the width
 alone, so a long body never forces breaks inside the type (the
 greedy engine's cross-seam pollution), application spines break
 one-argument-per-line at uniform indent, telescopes at binder
-seams, chains at links, using lists at commas. All Phase-2 sugar is
+seams, chains at links, using lists at commas. The surface is
+INDENTATION-SIGNIFICANT (docs/NovaElaboration.txt, Layout), so the
+printer's layout is PART of the parse and the canonical form is the
+layout-native one: a spine that breaks prints one argument per line
+at +2, and an argument that is an abstraction, a pair, a λ, a let,
+an ascription or an operator term prints WITHOUT parentheses on its
+line (the same argument in flat mode keeps them — the Doc engine's
+one mode-dependent node, DAlt); an eliminator's motive is its first
+argument line when the form breaks; signatures print keyword-free,
+clauses at column 0, a data literal's entries as a block at +2, one
+per line. Every other break the engine makes is layout-safe: a break
+inside a nest lands at ≥ the line's indent + 2, and the breaks that
+lead with a token (→ ≡⟨ , an operator) lead with a non-term-initial
+one or stand in a required position. All Phase-2 sugar is
 AST-bijective, so the identity-tier verification (AST equality +
 identical elaboration) is unchanged and stays green over the whole
 corpus, byte-idempotent on a second pass.
@@ -749,7 +762,7 @@ unsolved-keys-only discipline), then the sources. With Regular
 factored through Bnd, the corpus's dependent function
 extensionality collapses to its logical content:
 
-  regularIsProp ≔ λf. λp. λq.
+  regularIsProp = λf. λp. λq.
     funextD (λm. funextD (λn. bndIsProp _ _ (p m n) (q m n)))
 
 — no carriers, no motives, no endpoints: every index recovered

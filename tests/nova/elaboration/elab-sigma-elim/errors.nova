@@ -1,4 +1,6 @@
 -- the scrutinee must be a VARIABLE ...
-def notVar : (p : ℕ × ℕ) → ℕ ≔ λp. sigma-elim (a b. a) (p .π₁, p .π₂)
+notVar : (p : ℕ × ℕ) → ℕ
+notVar = λp. sigma-elim (a b. a) (p .π₁, p .π₂)
 -- ... of a × type
-def notSigma : (n : ℕ) → ℕ ≔ λn. sigma-elim (a b. a) n
+notSigma : (n : ℕ) → ℕ
+notSigma = λn. sigma-elim (a b. a) n

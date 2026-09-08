@@ -6,11 +6,14 @@
 -- take every goal after it down with the item.
 --
 -- The conversions that follow then say what each one has to be.
-def cong : {A : 𝕌} (B : A → 𝕌) (f : (v : A) → B v) {v w : A} → (v ≡ w) → f v ≡ f w ≔
+cong : {A : 𝕌} (B : A → 𝕌) (f : (v : A) → B v) {v w : A} → (v ≡ w) → f v ≡ f w
+cong =
   λA. λB. λf. λv. λw. λh. ⋆
 
-def withVar : (A : 𝕌) (x y : A) → (x ≡ y) → x ≡ x ≔
+withVar : (A : 𝕌) (x y : A) → (x ≡ y) → x ≡ x
+withVar =
   λA. λx. λy. λp. cong (λv. A) (λv. v) p
 
-def withHole : (A : 𝕌) (x y : A) → (x ≡ y) → x ≡ x ≔
+withHole : (A : 𝕌) (x y : A) → (x ≡ y) → x ≡ x
+withHole =
   λA. λx. λy. λp. cong (λv. A) (λv. v) ?p

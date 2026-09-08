@@ -1,1 +1,2 @@
-def bzero : ℕ ≔ Z
+bzero : ℕ
+bzero = Z

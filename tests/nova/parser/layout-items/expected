@@ -1,0 +1,3 @@
+def plus : PiC _ (ℕc) (PiC _ (ℕc) (ℕc)) | Z n := n@0 | S (m) n := S (App (App (plus@sig) (m@1)) (n@0))
+data [a : 𝕌] (B : U ; nil : El (B@⬡0) ; ins : (_ : ext a@0) → (_ : El B@⬡1) → El (B@⬡2))
+def decl : PiC n (ℕc) (ℕc)

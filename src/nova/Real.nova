@@ -15,9 +15,10 @@ import Rat.order (Sign, sPos, sZero, nzSgn, intSgn, intSgnNz, sgnQ, sgnQZero, No
 import Core.equality (trans, sym, cong, transport)
 import Core.id (Id, eqToId)
 
-def qInvNat : ℕ → Q using (Rat.Q.unfold) ≔ λn. qcls (mkRat intOne (nzPos n))
+qInvNat : ℕ → Q using (Rat.Q.unfold)
+qInvNat = λn. qcls (mkRat intOne (nzPos n))
 
-def qInvNatPos : (n : ℕ) → sgnQ (qInvNat n) ≡ sPos
+qInvNatPos : (n : ℕ) → sgnQ (qInvNat n) ≡ sPos
   using (Int.eq.intCanon.eq,
     Int.eq.intCanonClass.eq,
     Int.nonZero.nzOfInt.eq,
@@ -41,22 +42,23 @@ def qInvNatPos : (n : ℕ) → sgnQ (qInvNat n) ≡ sPos
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.qcls.eq,
-    Real.qInvNat.eq) ≔
+    Real.qInvNat.eq)
+qInvNatPos =
   λn. trans
     _
     _
     _
-    (cong (λv. Sign) (λv. intSgn v) (sym _ _ (nzToIntMul nzOne (nzPos n))))
-    (trans _ _ sPos (intSgnNz (nzMul nzOne (nzPos n))) ⋆)
+    cong (λv. Sign) (λv. intSgn v) (sym _ _ (nzToIntMul nzOne (nzPos n)))
+    trans _ _ sPos (intSgnNz (nzMul nzOne (nzPos n))) ⋆
 
 -- the regularity bound 1/(m+1) + 1/(n+1), positive
-def rBound : ℕ → ℕ → Q using (Rat.Q.unfold) ≔ λm. λn. qInvNat m + qInvNat n
+rBound : ℕ → ℕ → Q using (Rat.Q.unfold)
+rBound = λm. λn. qInvNat m + qInvNat n
 
-def rBoundPos : {m n : ℕ} → sgnQ (rBound m n) ≡ sPos
-  using (Rat.+.eq, Real.qInvNat.eq, Real.rBound.eq) ≔
-  λm. λn. sgnQAddPos _ _ (qInvNatPos m) (qInvNatPos n)
+rBoundPos : {m n : ℕ} → sgnQ (rBound m n) ≡ sPos using (Rat.+.eq, Real.qInvNat.eq, Real.rBound.eq)
+rBoundPos = λm. λn. sgnQAddPos _ _ (qInvNatPos m) (qInvNatPos n)
 
-def qNegZero : qNeg qZero ≡ qZero
+qNegZero : qNeg qZero ≡ qZero
   using (Int.intNeg.eq,
     Int.intZero.eq,
     Rat.frac.den.eq,
@@ -68,65 +70,72 @@ def qNegZero : qNeg qZero ≡ qZero
     Rat.Q.unfold,
     Rat.qNeg.eq,
     Rat.qZero.eq,
-    Rat.qcls.eq) ≔
-  ⋆
+    Rat.qcls.eq)
+qNegZero = ⋆
 
 -- −(bound) ≤ 0 ≤ bound
-def leQNegBoundZero : {m n : ℕ} → qNeg (rBound m n) ≤ qZero
-  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold) ≔
+leQNegBoundZero : {m n : ℕ} → qNeg (rBound m n) ≤ qZero
+  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
+leQNegBoundZero =
   λm. λn. inj₂ (eqToId
     _
     _
-    (trans
+    trans
       _
       _
       sPos
-      (cong
-        (λv. Sign)
-        (λv. sgnQ v)
-        (trans _ _ _ (Rat.qAddZeroL (qNeg (qNeg (rBound m n)))) (qNegNeg (rBound m n))))
-      rBoundPos))
+      cong
+        λv. Sign
+        λv. sgnQ v
+        trans _ _ _ (Rat.qAddZeroL (qNeg (qNeg (rBound m n)))) (qNegNeg (rBound m n))
+      rBoundPos)
 
-def leQZeroBound : (m n : ℕ) → qZero ≤ rBound m n
-  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold) ≔
+leQZeroBound : (m n : ℕ) → qZero ≤ rBound m n using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
+leQZeroBound =
   λm. λn. inj₂ (eqToId
     _
     _
-    (trans
+    trans
       _
       _
       sPos
-      (cong
-        (λv. Sign)
-        (λv. sgnQ v)
-        (trans _ _ _ (cong (λv. Q) (λv. rBound m n + v) qNegZero) (Rat.qAddZeroR (rBound m n))))
-      rBoundPos))
+      cong
+        λv. Sign
+        λv. sgnQ v
+        trans _ _ _ (cong (λv. Q) (λv. rBound m n + v) qNegZero) (Rat.qAddZeroR (rBound m n))
+      rBoundPos)
 
 -- ===== the carrier =====
 -- regularity, two-sided: −(1/(m+1)+1/(n+1)) ≤ f m − f n ≤ ⋯
-def Regular : (ℕ → Q) → 𝕌 ≔ λf. (m n : ℕ) → Bnd (rBound m n) (f m + qNeg (f n))
+Regular : (ℕ → Q) → 𝕌
+Regular = λf. (m n : ℕ) → Bnd (rBound m n) (f m + qNeg (f n))
 
-def RSeq : 𝕌 ≔ (f : ℕ → Q) × Regular f
+RSeq : 𝕌
+RSeq = (f : ℕ → Q) × Regular f
 
 -- eventual closeness: |x_n − y_n| ≤ 2/(n+1), squashed — the relation
 -- is a PROPOSITION (Ω), as a quotient's must be
-def REq : RSeq → RSeq → Ω using (Real.RSeq.unfold) ≔
+REq : RSeq → RSeq → Ω using (Real.RSeq.unfold)
+REq =
   λx. λy. ∥(n : ℕ)
     → qNeg (rBound n n) ≤ x .π₁ n + qNeg (y .π₁ n) × x .π₁ n + qNeg (y .π₁ n) ≤ rBound n n∥
 
-def Real : 𝕌 ≔ RSeq / (x y. REq x y)
+Real : 𝕌
+Real = RSeq / (x y. REq x y)
 
 -- ===== ℚ embeds =====
 -- a constant sequence is regular: its differences are zero, and the
 -- zero-bounds transport along q − q ≡ 0
-def constReg : {q : Q} → Regular (λn. q) using (Rat.bound.Bnd.unfold, Real.Regular.unfold) ≔
-  λq. λm. λn. transport
-    (λw. qNeg (rBound m n) ≤ w)
-    (sym _ _ (qAddNegR q))
-    leQNegBoundZero, transport (λw. w ≤ rBound m n) (sym _ _ (qAddNegR q)) (leQZeroBound m n)
+constReg : {q : Q} → Regular (λn. q) using (Rat.bound.Bnd.unfold, Real.Regular.unfold)
+constReg =
+  λq. λm. λn. transport (λw. qNeg (rBound m n) ≤ w) (sym _ _ (qAddNegR q)) leQNegBoundZero,
+    transport (λw. w ≤ rBound m n) (sym _ _ (qAddNegR q)) (leQZeroBound m n)
 
-def realOfQ : Q → Real using (Real.RSeq.unfold, Real.Real.unfold) ≔ λq. class ((λn. q), constReg)
+realOfQ : Q → Real using (Real.RSeq.unfold, Real.Real.unfold)
+realOfQ = λq. class ((λn. q), constReg)
 
-def realZero : Real using (Real.Real.unfold) ≔ realOfQ qZero
+realZero : Real using (Real.Real.unfold)
+realZero = realOfQ qZero
 
-def realOne : Real using (Real.Real.unfold) ≔ realOfQ qOne
+realOne : Real using (Real.Real.unfold)
+realOne = realOfQ qOne

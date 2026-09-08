@@ -1,163 +1,154 @@
 LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (1):
-  [L11:5-L11:9] (warning)   [decl] ⊢ ? : (n : ℕ) → (plus n Z ≡ n ∈ ℕ)
-      at: DIR/fixture.nova:11:5: def decl
+  [L12:1-L12:5] (warning)   [decl] ⊢ ? : (n : ℕ) → (plus n Z ≡ n ∈ ℕ)
+      at: DIR/fixture.nova:12:1: def decl
 ELABTIME: reported
-TOKENS (136):
+TOKENS (127):
   L1:1+64 comment
   L2:1+67 comment
   L3:1+68 comment
   L4:1+45 comment
-  L5:1+3 keyword
-  L5:5+4 variable
+  L5:1+4 variable
+  L5:6+1 keyword
+  L5:8+1 keyword
   L5:10+1 keyword
   L5:12+1 keyword
   L5:14+1 keyword
   L5:16+1 keyword
   L5:18+1 keyword
-  L5:20+1 keyword
-  L5:22+1 keyword
-  L5:23+8 variable
-  L5:31+1 keyword
-  L6:3+1 keyword
-  L6:5+4 variable
+  L5:19+8 variable
+  L5:27+1 keyword
+  L6:1+4 variable
+  L6:6+1 keyword
+  L6:8+1 variable
   L6:10+1 keyword
   L6:12+1 variable
   L6:14+1 keyword
-  L6:16+1 variable
-  L6:18+1 keyword
-  L6:19+5 variable
-  L6:24+1 keyword
-  L7:3+1 keyword
-  L7:5+4 variable
+  L6:15+5 variable
+  L6:20+1 keyword
+  L7:1+4 variable
+  L7:6+1 keyword
+  L7:7+1 keyword
+  L7:9+1 variable
   L7:10+1 keyword
-  L7:11+1 keyword
-  L7:13+1 variable
+  L7:12+1 variable
   L7:14+1 keyword
-  L7:16+1 variable
+  L7:16+1 keyword
   L7:18+1 keyword
-  L7:20+1 keyword
-  L7:22+1 keyword
-  L7:23+4 variable
-  L7:28+1 variable
-  L7:30+1 variable
-  L7:31+1 keyword
-  L9:1+3 keyword
-  L9:5+3 variable
-  L9:9+1 keyword
-  L9:11+1 keyword
-  L9:12+1 variable
-  L9:14+1 keyword
-  L9:16+1 keyword
-  L9:17+1 keyword
-  L9:19+1 keyword
-  L9:21+4 variable
+  L7:19+4 variable
+  L7:24+1 variable
+  L7:26+1 variable
+  L7:27+1 keyword
+  L9:1+3 variable
+  L9:5+1 keyword
+  L9:7+1 keyword
+  L9:8+1 variable
+  L9:10+1 keyword
+  L9:12+1 keyword
+  L9:13+1 keyword
+  L9:15+1 keyword
+  L9:17+4 variable
+  L9:22+1 keyword
+  L9:24+1 variable
   L9:26+1 keyword
   L9:28+1 variable
-  L9:30+1 keyword
-  L9:32+1 variable
-  L9:34+1 keyword
-  L9:36+1 keyword
-  L9:37+1 variable
-  L9:38+1 keyword
-  L9:40+5 variable
-  L9:46+1 variable
-  L11:1+3 keyword
-  L11:5+4 variable
-  L11:10+1 keyword
-  L11:12+1 keyword
-  L11:13+1 variable
-  L11:15+1 keyword
-  L11:17+1 keyword
-  L11:18+1 keyword
-  L11:20+1 keyword
-  L11:22+4 variable
-  L11:27+1 variable
-  L11:29+1 keyword
-  L11:31+1 keyword
-  L11:33+1 variable
-  L13:1+4 keyword
-  L13:6+1 keyword
-  L13:7+1 variable
-  L13:9+1 keyword
-  L13:11+1 keyword
-  L13:12+1 keyword
-  L13:14+1 keyword
-  L13:16+3 variable
-  L13:20+1 keyword
-  L13:22+1 keyword
+  L10:1+3 variable
+  L10:5+1 keyword
+  L10:7+1 keyword
+  L10:8+1 variable
+  L10:9+1 keyword
+  L10:11+5 variable
+  L10:17+1 variable
+  L12:1+4 variable
+  L12:6+1 keyword
+  L12:8+1 keyword
+  L12:9+1 variable
+  L12:11+1 keyword
+  L12:13+1 keyword
+  L12:14+1 keyword
+  L12:16+1 keyword
+  L12:18+4 variable
+  L12:23+1 variable
+  L12:25+1 keyword
+  L12:27+1 keyword
+  L12:29+1 variable
+  L14:1+4 keyword
   L14:6+1 keyword
-  L14:8+3 variable
+  L14:7+1 variable
+  L14:9+1 keyword
+  L14:11+1 keyword
   L14:12+1 keyword
-  L14:14+2 keyword
-  L14:17+3 variable
-  L15:6+1 keyword
-  L15:8+3 variable
-  L15:12+1 keyword
-  L15:14+1 variable
-  L15:16+1 keyword
-  L15:18+2 keyword
-  L15:21+3 variable
-  L15:25+1 keyword
-  L15:27+2 keyword
-  L15:30+3 variable
-  L16:6+1 keyword
-  L16:8+3 variable
-  L16:12+1 keyword
-  L16:14+1 keyword
-  L16:15+1 variable
-  L16:17+1 keyword
-  L16:19+1 variable
-  L16:20+1 keyword
-  L16:22+1 keyword
-  L16:23+1 variable
-  L16:25+1 keyword
-  L16:27+1 variable
-  L16:28+1 keyword
-  L16:30+1 keyword
-  L16:31+1 variable
-  L16:33+1 keyword
-  L16:35+2 keyword
-  L16:38+3 variable
-  L16:41+1 keyword
-  L16:43+1 keyword
-  L16:45+3 variable
-  L16:49+1 variable
-  L16:51+1 keyword
-  L16:52+3 variable
-  L16:56+1 variable
-  L16:58+1 variable
-  L16:59+1 keyword
-  L16:61+1 keyword
-  L16:63+3 variable
-  L16:67+1 variable
-  L16:69+1 keyword
-  L16:70+3 variable
-  L16:74+1 variable
-  L16:76+1 variable
-  L16:77+1 keyword
-  L16:79+1 keyword
-  L16:81+2 keyword
-  L16:84+3 variable
-  L16:88+1 keyword
+  L15:3+3 variable
+  L15:7+1 keyword
+  L15:9+1 keyword
+  L16:3+3 variable
+  L16:7+1 keyword
+  L16:9+2 keyword
+  L16:12+3 variable
+  L17:3+3 variable
+  L17:7+1 keyword
+  L17:9+1 variable
+  L17:11+1 keyword
+  L17:13+2 keyword
+  L17:16+3 variable
+  L17:20+1 keyword
+  L17:22+2 keyword
+  L17:25+3 variable
+  L18:3+3 variable
+  L18:7+1 keyword
+  L18:9+1 keyword
+  L18:10+1 variable
+  L18:12+1 keyword
+  L18:14+1 variable
+  L18:15+1 keyword
+  L18:17+1 keyword
+  L18:18+1 variable
+  L18:20+1 keyword
+  L18:22+1 variable
+  L18:23+1 keyword
+  L18:25+1 keyword
+  L18:26+1 variable
+  L18:28+1 keyword
+  L18:30+2 keyword
+  L18:33+3 variable
+  L18:36+1 keyword
+  L18:38+1 keyword
+  L18:40+3 variable
+  L18:44+1 variable
+  L18:46+1 keyword
+  L18:47+3 variable
+  L18:51+1 variable
+  L18:53+1 variable
+  L18:54+1 keyword
+  L18:56+1 keyword
+  L18:58+3 variable
+  L18:62+1 variable
+  L18:64+1 keyword
+  L18:65+3 variable
+  L18:69+1 variable
+  L18:71+1 variable
+  L18:72+1 keyword
+  L18:74+1 keyword
+  L18:76+2 keyword
+  L18:79+3 variable
 SYMBOLS (10):
-  plus (kind 12) [L5:1-L7:32]
-  plusZ (kind 12) [L5:1-L7:32]
-  plusS (kind 12) [L5:1-L7:32]
-  plusUniq (kind 12) [L5:1-L7:32]
-  use (kind 12) [L9:1-L9:47]
-  decl (kind 12) [L11:1-L13:1]
-  Bag (kind 23) [L13:1-L16:89]
-  nil (kind 9) [L13:1-L16:89]
-  ins (kind 9) [L13:1-L16:89]
-  swp (kind 25) [L13:1-L16:89]
-DEFINITION(plusZ): SAME FILE [L5:1-L7:32]
-HOVER(plusZ): [L6:19-L6:24] ```nova ⏎ plusZ : (n : ℕ) → (plus Z n ≡ n ∈ ℕ) ⏎ ```
+  plus (kind 12) [L5:1-L7:28]
+  plusZ (kind 12) [L5:1-L7:28]
+  plusS (kind 12) [L5:1-L7:28]
+  plusUniq (kind 12) [L5:1-L7:28]
+  use (kind 12) [L9:1-L10:18]
+  decl (kind 12) [L12:1-L12:30]
+  Bag (kind 23) [L14:1-L18:82]
+  nil (kind 9) [L14:1-L18:82]
+  ins (kind 9) [L14:1-L18:82]
+  swp (kind 25) [L14:1-L18:82]
+DEFINITION(plusZ): SAME FILE [L5:1-L7:28]
+HOVER(plusZ): [L6:15-L6:20] ```nova ⏎ plusZ : (n : ℕ) → (plus Z n ≡ n ∈ ℕ) ⏎ ```
 CODE ACTIONS(plusZ) (0):
 DIAGNOSTICS FOR FIXTURE (1):
-  [L11:5-L11:9] (warning)   [decl] ⊢ ? : (n : ℕ) → (plus n Z ≡ n ∈ ℕ)
-      at: DIR/fixture.nova:11:5: def decl
+  [L12:1-L12:5] (warning)   [decl] ⊢ ? : (n : ℕ) → (plus n Z ≡ n ∈ ℕ)
+      at: DIR/fixture.nova:12:1: def decl
 ELABTIME: reported
 SERVER REQUEST AFTER DIDSAVE: workspace/semanticTokens/refresh
 SERVER EXIT CODE: 0

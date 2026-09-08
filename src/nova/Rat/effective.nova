@@ -24,69 +24,66 @@ import Rat.inv (notIntro, notApply, numNonZero, ratZeroOfNumZero, qNonZeroIsNzq,
 import Core.quotEffective (effectiveAtEquiv)
 import Core.equality (trans, sym, cong)
 
-def addCongL : {x y z : Int} → (x ≡ y) → x + z ≡ y + z using (Int.Int.unfold, Int.mul.intAddCong2) ≔
-  λx. λy. λz. λh. ⋆
+addCongL : {x y z : Int} → (x ≡ y) → x + z ≡ y + z using (Int.Int.unfold, Int.mul.intAddCong2)
+addCongL = λx. λy. λz. λh. ⋆
 
-def addCongR : {x y z : Int} → (y ≡ z) → x + y ≡ x + z using (Int.Int.unfold, Int.mul.intAddCong2) ≔
-  λx. λy. λz. λh. ⋆
+addCongR : {x y z : Int} → (y ≡ z) → x + y ≡ x + z using (Int.Int.unfold, Int.mul.intAddCong2)
+addCongR = λx. λy. λz. λh. ⋆
 
 -- x·d ≡ y·d with d ≠ 0 gives x ≡ y: the difference times d is zero,
 -- so the difference is zero
-def intMulCancel : (x y d : Int) (h : x * d ≡ y * d) (hd : ¬ (d ≡ intZero)) → x ≡ y
-  using (intAddNegL, intMulNegL, intAddZeroL, intAddZeroR) ≔
+intMulCancel : (x y d : Int) (h : x * d ≡ y * d) (hd : ¬ (d ≡ intZero)) → x ≡ y
+  using (intAddNegL, intMulNegL, intAddZeroL, intAddZeroR)
+intMulCancel =
   λx. λy. λd. λh. λhd. sym
     _
     _
-    (trans
+    trans
       _
       _
       _
-      (sym _ _ (intAddZeroL y))
-      (trans
+      sym _ _ (intAddZeroL y)
+      trans
         {Int}
-        (intZero + y)
-        (x + intNeg y + y)
+        intZero + y
+        x + intNeg y + y
         _
-        (addCongL
-          (sym
+        addCongL
+          sym
             _
             _
-            (intNoZeroDiv
+            intNoZeroDiv
               _
-              (trans
+              trans
                 _
                 _
                 _
-                (intMulDistribR x (intNeg y) d)
-                (trans _ _ _ (intAddCong2 _ _ _ _ h (intMulNegL y d)) (intAddNegR (y * d))))
-              hd)))
-        (trans
+                intMulDistribR x (intNeg y) d
+                trans _ _ _ (intAddCong2 _ _ _ _ h (intMulNegL y d)) (intAddNegR (y * d))
+              hd
+        trans
           _
           _
           _
-          (intAddAssoc x (intNeg y) y)
-          (trans
-            {Int}
-            (x + (intNeg y + y))
-            (x + intZero)
-            _
-            (addCongR (intAddNegL y))
-            (intAddZeroR x)))))
+          intAddAssoc x (intNeg y) y
+          trans {Int} (x + (intNeg y + y)) (x + intZero) _ (addCongR (intAddNegL y)) (intAddZeroR x)
 
 -- ===== RatR is an equivalence =====
 -- (a·b)·c ≡ (a·c)·b, the one rearrangement transitivity needs
 -- (a·b)·c ≡ (a·c)·b, the one rearrangement transitivity needs — a
 -- calc chain: only tier-0/½ conversion is implicit, every step a
 -- named link, no holes
-def mulSwapRight : {a b c : Int} → a * b * c ≡ a * c * b using (Int.Int.unfold) ≔
+mulSwapRight : {a b c : Int} → a * b * c ≡ a * c * b using (Int.Int.unfold)
+mulSwapRight =
   λa. λb. λc. a * b * c
-      ≡⟨ intMulAssoc a b c ⟩ a * (b * c)
-      ≡⟨ mulCongR a _ _ (intMulComm b c) ⟩ a * (c * b)
-      ≡⟨ intMulAssoc a c b ⟩ a * c * b
+    ≡⟨ intMulAssoc a b c ⟩ a * (b * c)
+    ≡⟨ mulCongR a _ _ (intMulComm b c) ⟩ a * (c * b)
+    ≡⟨ intMulAssoc a c b ⟩ a * c * b
 
-def ratRRefl : (p : Rat) → RatR p p using (Rat.RatR.unfold) ≔ λp. ⋆
+ratRRefl : (p : Rat) → RatR p p using (Rat.RatR.unfold)
+ratRRefl = λp. ⋆
 
-def ratRSymm : (p q : Rat) → RatR p q → RatR q p
+ratRSymm : (p q : Rat) → RatR p q → RatR q p
   using (Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
@@ -95,13 +92,13 @@ def ratRSymm : (p q : Rat) → RatR p q → RatR q p
     Rat.frac.num.eq,
     Rat.RatR.eq,
     Rat.RatR.unfold,
-    Rat.dInt.eq) ≔
-  λp. λq. λh. sym {Int} (num p * dInt q) (num q * dInt p) h
+    Rat.dInt.eq)
+ratRSymm = λp. λq. λh. sym {Int} (num p * dInt q) (num q * dInt p) h
 
 -- multiply the goal through by the middle denominator, walk it across
 -- the two hypotheses, and cancel — the middle denominator is non-zero
 -- because it is the image of an NZ
-def ratRTrans : (p q r : Rat) → RatR p q → RatR q r → RatR p r
+ratRTrans : (p q r : Rat) → RatR p q → RatR q r → RatR p r
   using (intMulAssoc,
     Int.Int.eq,
     Int.Int.unfold,
@@ -113,42 +110,43 @@ def ratRTrans : (p q r : Rat) → RatR p q → RatR q r → RatR p r
     Rat.frac.nzToInt.eq,
     Rat.RatR.eq,
     Rat.RatR.unfold,
-    Rat.dInt.eq) ≔
+    Rat.dInt.eq)
+ratRTrans =
   λp. λq. λr. λh1. λh2. intMulCancel
     _
     _
     _
-    (trans
-      (num p * dInt r * dInt q)
+    trans
+      num p * dInt r * dInt q
       _
       _
       mulSwapRight
-      (trans
+      trans
         _
         _
         _
-        (mulCongL (num p * dInt q) (num q * dInt p) (dInt r) h1)
-        (trans
-          (num q * dInt p * dInt r)
+        mulCongL (num p * dInt q) (num q * dInt p) (dInt r) h1
+        trans
+          num q * dInt p * dInt r
           _
           _
           mulSwapRight
-          (trans
+          trans
             _
             _
-            (num r * dInt p * dInt q)
-            (mulCongL (num q * dInt r) (num r * dInt q) (dInt p) h2)
-            mulSwapRight))))
-    (nzToIntNonZero (den q))
+            num r * dInt p * dInt q
+            mulCongL (num q * dInt r) (num r * dInt q) (dInt p) h2
+            mulSwapRight
+    nzToIntNonZero (den q)
 
 -- ===== effectivity =====
-def qEffective : (p q : Rat) → (class p ≡ class q ∈ Q) → RatR p q
-  using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold, Rat.Q.unfold, Rat.RatR.unfold) ≔
-  effectiveAtEquiv RatR ratRRefl ratRTrans ratRSymm
+qEffective : (p q : Rat) → (class p ≡ class q ∈ Q) → RatR p q
+  using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold, Rat.Q.unfold, Rat.RatR.unfold)
+qEffective = effectiveAtEquiv RatR ratRRefl ratRTrans ratRSymm
 
 -- the converse of Rat/inv.nova's ratZeroOfNumZero, which needed
 -- effectivity and so could not be stated until now
-def numZeroOfRatZero : (p : Rat) (h : class p ≡ qZero) → num p ≡ intZero
+numZeroOfRatZero : (p : Rat) (h : class p ≡ qZero) → num p ≡ intZero
   using (intMulOneR,
     intMulZeroL,
     Int.Int.eq,
@@ -170,25 +168,26 @@ def numZeroOfRatZero : (p : Rat) (h : class p ≡ qZero) → num p ≡ intZero
     Rat.RatR.eq,
     Rat.dInt.eq,
     Rat.qZero.eq,
-    Rat.qcls.eq) ≔
+    Rat.qcls.eq)
+numZeroOfRatZero =
   λp. λh. trans
     _
-    (num p * dInt ratZero)
+    num p * dInt ratZero
     _
-    (sym _ _ (intMulOneR (num p)))
-    (trans
-      (num p * dInt ratZero)
-      (num ratZero * dInt p)
+    sym _ _ (intMulOneR (num p))
+    trans
+      num p * dInt ratZero
+      num ratZero * dInt p
       intZero
-      (qEffective _ ratZero h)
-      (intMulZeroL (dInt p)))
+      qEffective _ ratZero h
+      intMulZeroL (dInt p)
 
-def numZeroIff : (p : Rat) → (class p ≡ qZero) ↔ (num p ≡ intZero)
-  using (Core.prop.↔.unfold, Core.prop.∧.unfold, Rat.Q.unfold) ≔
-  λp. iffIntro (numZeroOfRatZero p) (ratZeroOfNumZero p)
+numZeroIff : (p : Rat) → (class p ≡ qZero) ↔ (num p ≡ intZero)
+  using (Core.prop.↔.unfold, Core.prop.∧.unfold, Rat.Q.unfold)
+numZeroIff = λp. iffIntro (numZeroOfRatZero p) (ratZeroOfNumZero p)
 
 -- ===== the image of NZQ is exactly the non-zero rationals =====
-def qOfNzqNonZero : (x : NZQ) → ¬ (qOfNzq x ≡ qZero)
+qOfNzqNonZero : (x : NZQ) → ¬ (qOfNzq x ≡ qZero)
   using (Core.prop.¬.unfold,
     Core.prop.⊃.unfold,
     Rat.frac.NZ.unfold,
@@ -198,22 +197,24 @@ def qOfNzqNonZero : (x : NZQ) → ¬ (qOfNzq x ≡ qZero)
     Rat.NZQ.unfold,
     Rat.nzqToRat.eq,
     Rat.qOfNzq.eq,
-    Rat.qcls.eq) ≔
+    Rat.qcls.eq)
+qOfNzqNonZero =
   λx. notIntro _ (λh. notApply _ (nzToIntNonZero (x .π₁)) (numZeroOfRatZero (nzqToRat x) h))
 
 -- so "non-zero" and "of the form qOfNzq x" coincide — the classical
 -- description of ℚ's units, with the structural one
-def qNonZeroIffNzq : (u : Q) → ¬ (u ≡ qZero) ↔ ∥(x : NZQ) × qOfNzq x ≡ u∥
-  using (Core.prop.↔.unfold, Core.prop.∧.unfold) ≔
+qNonZeroIffNzq : (u : Q) → ¬ (u ≡ qZero) ↔ ∥(x : NZQ) × qOfNzq x ≡ u∥
+  using (Core.prop.↔.unfold, Core.prop.∧.unfold)
+qNonZeroIffNzq =
   λu. iffIntro
-    (λh. qNonZeroIsNzq h)
-    (λh. squash-elim h (w. notIntro
-      (u ≡ qZero)
-      (λe. notApply _ (qOfNzqNonZero (w .π₁)) (trans _ _ _ (w .π₂) e))))
+    λh. qNonZeroIsNzq h
+    λh. squash-elim
+      h
+      w. notIntro (u ≡ qZero) (λe. notApply _ (qOfNzqNonZero (w .π₁)) (trans _ _ _ (w .π₂) e))
 
 -- ===== the field axiom, classically =====
 -- 1 ≠ 0: nzToInt nzOne IS intOne, and the image of an NZ misses zero
-def qOneNotZero : ¬ (qOne ≡ qZero)
+qOneNotZero : ¬ (qOne ≡ qZero)
   using (Int.intOne.eq,
     Core.prop.¬.unfold,
     Core.prop.⊃.unfold,
@@ -225,28 +226,32 @@ def qOneNotZero : ¬ (qOne ≡ qZero)
     Rat.frac.ratOfInt.eq,
     Rat.frac.ratOne.eq,
     Rat.qOne.eq,
-    Rat.qcls.eq) ≔
+    Rat.qcls.eq)
+qOneNotZero =
   notIntro _ (λh. notApply (intOne ≡ intZero) (nzToIntNonZero nzOne) (numZeroOfRatZero ratOne h))
 
 -- INVERTIBLE ⟺ NON-ZERO. Forwards is the inverse theorem; backwards,
 -- a zero u would make 1 = u·v = 0·v = 0
-def qInvertibleIffNonZero : (u : Q) → ¬ (u ≡ qZero) ↔ ∥(v : Q) × u * v ≡ qOne∥
+qInvertibleIffNonZero : (u : Q) → ¬ (u ≡ qZero) ↔ ∥(v : Q) × u * v ≡ qOne∥
   using (Int.Int.unfold,
     Core.prop.↔.unfold,
     Core.prop.∧.unfold,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
-    Rat.Q.unfold) ≔
+    Rat.Q.unfold)
+qInvertibleIffNonZero =
   λu. iffIntro
-    (λh. qInvExists h)
-    (λh. squash-elim h (w. notIntro
-      (u ≡ qZero)
-      (λe. notApply
-        _
-        qOneNotZero
-        (trans
-          qOne
+    λh. qInvExists h
+    λh. squash-elim
+      h
+      w. notIntro
+        u ≡ qZero
+        λe. notApply
           _
-          _
-          (sym (class (class (S Z, Z), inj₁ Z)) (class (class (S Z, Z), inj₁ Z)) (w .π₂))
-          (trans _ _ qZero (cong (λt. Q) (λx. x * w .π₁) e) qMulZeroL)))))
+          qOneNotZero
+          trans
+            qOne
+            _
+            _
+            sym (class (class (S Z, Z), inj₁ Z)) (class (class (S Z, Z), inj₁ Z)) (w .π₂)
+            trans _ _ qZero (cong (λt. Q) (λx. x * w .π₁) e) qMulZeroL

@@ -1,4 +1,4 @@
 defined letObl [+1 obligation]
 open obligations (1):
-  [1] (n : ℕ) (m : ℕ ≔ S n) ⊢ m ≐ Z : ℕ
-      at: input.nova:6:50: def letObl: checking ⋆
+  [1] (n : ℕ) (m : ℕ = S n) ⊢ m ≐ Z : ℕ
+      at: input.nova:7:50: def letObl: checking ⋆
