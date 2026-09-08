@@ -71,7 +71,8 @@ ltOfMonusSuc =
 fuelStep : {a b f' : ℕ} → a ≤ S f' → S b ≤ a → a ∸ S b ≤ f'
   using (Core.id.Id.unfold, Natural.order.≤.unfold)
 fuelStep =
-  λa. λb. λf'. λle. λlt. b + le .π₁,
+  λa. λb. λf'. λle. λlt. (,)
+    b + le .π₁
     eqToId
       _
       _
@@ -234,7 +235,8 @@ leSucNotSelf =
 -- d·(d'+1) is strictly below (d+1)·(d'+1)
 ltProdSuc : (d d' : ℕ) → S (d * S d') ≤ S d * S d' using (Natural.plusSucId, Natural.order.≤.unfold)
 ltProdSuc =
-  λd. λd'. d',
+  λd. λd'. (,)
+    d'
     eqToId
       _
       _
@@ -303,41 +305,46 @@ divKZero : (r d r' d' : ℕ) {k : ℕ} → r ≤ d → (r * S d' ≡ k * (S d' *
 divKZero =
   λr. λd. λr'. λd'. λk. ℕ-elim
     λb. λh. ⋆
-    k' rec. λb. λh. 𝟘-elim (leSucNotSelf
-      _
-      leTrans
+    k' rec. λb. λh. 𝟘-elim
+      leSucNotSelf
         _
-        _
-        _
-        ltProdSuc d d'
         leTrans
-          S d * S d'
           _
           _
-          k' * (S d' * S d) + r' * S d,
-            eqToId
-              _
-              _
-              sym
+          _
+          ltProdSuc d d'
+          leTrans
+            S d * S d'
+            _
+            _
+            (,)
+              k' * (S d' * S d) + r' * S d
+              eqToId
                 _
                 _
-                trans
+                sym
                   _
                   _
-                  _
-                  h
                   trans
                     _
                     _
                     _
-                    cong (λu. ℕ) (λw. w + r' * S d) (sucMult k' (S d' * S d))
+                    h
                     trans
                       _
                       _
                       _
-                      plusAssoc (S d' * S d) (k' * (S d' * S d)) (r' * S d)
-                      cong (λu. ℕ) (λw. w + (k' * (S d' * S d) + r' * S d)) (multComm (S d) (S d'))
-          leMultMonoR (S d') b)
+                      cong (λu. ℕ) (λw. w + r' * S d) (sucMult k' (S d' * S d))
+                      trans
+                        _
+                        _
+                        _
+                        plusAssoc (S d' * S d) (k' * (S d' * S d)) (r' * S d)
+                        cong
+                          λu. ℕ
+                          λw. w + (k' * (S d' * S d) + r' * S d)
+                          multComm (S d) (S d')
+            leMultMonoR (S d') b
     k
 
 -- ===== equal rationals have equal floors =====
@@ -395,7 +402,8 @@ divNUnique =
 -- most b, so one more divisor overshoots
 leDivSuc : (m b : ℕ) → m ≤ S (divN m b) * S b using (Natural.order.≤.unfold)
 leDivSuc =
-  λm. λb. S b ∸ modN m b,
+  λm. λb. (,)
+    S b ∸ modN m b
     eqToId
       _
       _

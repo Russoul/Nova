@@ -57,16 +57,15 @@ bndHi = λb. λu. λh. h .π₂
 -- the triangle inequality, in two-sided form
 bndAdd : {a b u v : Q} → Bnd a u → Bnd b v → Bnd (a + b) (u + v) using (Rat.bound.Bnd.unfold)
 bndAdd =
-  λa. λb. λu. λv. λhu. λhv. transport
-    λw. w ≤ u + v
-    sym _ _ (qNegAdd a b)
-    leQAdd _ _ _ _ (hu .π₁) (hv .π₁),
+  λa. λb. λu. λv. λhu. λhv. (,)
+    transport (λw. w ≤ u + v) (sym _ _ (qNegAdd a b)) (leQAdd _ _ _ _ (hu .π₁) (hv .π₁))
     leQAdd _ _ _ _ (hu .π₂) (hv .π₂)
 
 -- a bound on u bounds −u, with the same b
 bndNeg : (b u : Q) → Bnd b u → Bnd b (qNeg u) using (Rat.bound.Bnd.unfold)
 bndNeg =
-  λb. λu. λh. leQNegFlip _ _ (h .π₂),
+  λb. λu. λh. (,)
+    leQNegFlip _ _ (h .π₂)
     transport (λw. qNeg u ≤ w) (qNegNeg b) (leQNegFlip _ _ (h .π₁))
 
 -- a bound transports along an equality of the bounded rational
@@ -170,10 +169,8 @@ leQZeroOfNonNeg =
 leQZeroOfPos : (u : Q) → (sgnQ u ≡ sPos) → qZero ≤ u
   using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 leQZeroOfPos =
-  λu. λh. inj₂ (eqToId
-    _
-    _
-    trans _ _ _ (cong (λv. Sign) (λv. sgnQ v) {u + qNeg qZero} {u} qSubZeroR) h)
+  λu. λh. inj₂
+    eqToId _ _ (trans _ _ _ (cong (λv. Sign) (λv. sgnQ v) {u + qNeg qZero} {u} qSubZeroR) h)
 
 -- ===== growing a bound by a nonnegative amount =====
 leQSelfAdd : (a : Q) {b : Q} → qZero ≤ b → a ≤ a + b

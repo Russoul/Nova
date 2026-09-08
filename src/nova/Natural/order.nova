@@ -34,7 +34,8 @@ leStep = λa. λb. λle. S (le .π₁), eqToId _ _ (let h = idToEq _ _ _ (le .π
 -- ===== transitivity, antisymmetry =====
 leTrans : (a b c : ℕ) → a ≤ b → b ≤ c → a ≤ c using (Core.id.Id.unfold, Natural.order.≤.unfold)
 leTrans =
-  λa. λb. λc. λl1. λl2. l1 .π₁ + l2 .π₁,
+  λa. λb. λc. λl1. λl2. (,)
+    l1 .π₁ + l2 .π₁
     eqToId
       _
       _
@@ -81,7 +82,8 @@ leAntisym =
 -- ===== monotonicity =====
 leSucMono : {a b : ℕ} → a ≤ b → S a ≤ S b using (Core.id.Id.unfold, Natural.order.≤.unfold)
 leSucMono =
-  λa. λb. λle. le .π₁,
+  λa. λb. λle. (,)
+    le .π₁
     eqToId
       _
       _
@@ -90,7 +92,8 @@ leSucMono =
 
 leSucInv : (a b : ℕ) → S a ≤ S b → a ≤ b using (Core.id.Id.unfold, Natural.order.≤.unfold)
 leSucInv =
-  λa. λb. λle. le .π₁,
+  λa. λb. λle. (,)
+    le .π₁
     eqToId
       _
       _
@@ -103,7 +106,8 @@ leSucInv =
 lePlusMonoR : {a : ℕ} (b c : ℕ) → a ≤ b → a + c ≤ b + c
   using (Core.id.Id.unfold, Natural.order.≤.unfold)
 lePlusMonoR =
-  λa. λb. λc. λle. le .π₁,
+  λa. λb. λc. λle. (,)
+    le .π₁
     eqToId
       _
       _
@@ -126,7 +130,8 @@ lePlusMonoL =
 leMultMonoR : {a b : ℕ} (c : ℕ) → a ≤ b → a * c ≤ b * c
   using (Core.id.Id.unfold, Natural.order.≤.unfold)
 leMultMonoR =
-  λa. λb. λc. λle. le .π₁ * c,
+  λa. λb. λc. λle. (,)
+    le .π₁ * c
     eqToId
       _
       _

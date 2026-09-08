@@ -1,8 +1,7 @@
 -- distill golden: a keyword-headed form (t{2½}) heads a spine. The
--- printer drops the parentheses under a PROJECTION — the postfix
--- marker is unmistakable — and keeps them under an application
--- argument, which is juxtaposed exactly as the eliminator's own
--- arguments are (docs/NovaPerfectSurface.txt, Phase 1)
+-- printer writes it BARE under a projection and as an application
+-- head alike — every keyword form has a fixed arity, so the spine's
+-- own arguments simply follow its slots (docs/NovaPerfectSurface.txt)
 
 stream : 𝕌 → 𝕌
 stream = λa. ν (K a × 𝕏)

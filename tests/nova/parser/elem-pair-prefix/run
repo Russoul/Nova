@@ -1,0 +1,19 @@
+#!/bin/sh
+# (,) — the pair constructor as a prefix head, variadic and right-nested
+"$1" run surface-elem "(,) Z (S Z) ()"
+"$1" run surface-elem "Z, S Z, ()"
+"$1" run surface-elem "(,) Z (S Z) .π₁"
+# argument lines, nested: the same tuple as the comma spelling below it
+"$1" run surface-elem "(,)
+    (,) Z
+        S Z
+        λx. x
+        λx. S x
+        λx. S (S x)
+    (,) ()
+        λx. x
+        λy. y"
+"$1" run surface-elem "(Z, S Z, (λx. x), (λx. S x), λx. S (S x)), (), (λx. x), λy. y"
+# a head, not a value
+"$1" run surface-elem "(,) Z"
+"$1" run surface-elem "(,)"

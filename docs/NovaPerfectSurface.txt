@@ -278,7 +278,16 @@ at +2, and an argument that is an abstraction, a pair, a λ, a let,
 an ascription or an operator term prints WITHOUT parentheses on its
 line (the same argument in flat mode keeps them — the Doc engine's
 one mode-dependent node, DAlt); an eliminator's motive is its first
-argument line when the form breaks; signatures print keyword-free,
+argument line when the form breaks; a PAIR that does not fit its line
+prints as the prefix head `(,)` over its right-nested chain, one
+component per argument line (`a, b, c` flat, `(,)` ⏎ `a` ⏎ `b` ⏎ `c`
+broken — a record is one field per line); a ONE-ARGUMENT head (S,
+inj₁, class, out, 𝟘-elim, a ⋆ with its witness) keeps its argument
+on the line while it fits and otherwise puts it bare on an argument
+line, like any spine's; a keyword form heading an application prints
+bare (`ℕ-elim m z s n x` — its arity is fixed, so the spine's own
+arguments simply follow its slots), the ⋆ family excepted, whose
+optional witness makes `(⋆) x` and `(⋆ w) x` necessary; signatures print keyword-free,
 clauses at column 0, a data literal's entries as a block at +2, one
 per line. Every other break the engine makes is layout-safe: a break
 inside a nest lands at ≥ the line's indent + 2, and the breaks that

@@ -13,11 +13,16 @@ import Algebra.group (IsGroup)
 
 intAddGroup : IsGroup Int using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold)
 intAddGroup =
-  ((+),
-    intZero,
-      (λx. λy. λz. eqToId _ _ (intAddAssoc x y z)),
-        (λx. eqToId _ _ (intAddZeroL x)), λx. eqToId _ _ (intAddZeroR x)),
-    intNeg, (λx. eqToId _ _ (intAddNegL x)), λx. eqToId _ _ (intAddNegR x)
+  (,)
+    (,)
+      (+)
+      intZero
+      λx. λy. λz. eqToId _ _ (intAddAssoc x y z)
+      λx. eqToId _ _ (intAddZeroL x)
+      λx. eqToId _ _ (intAddZeroR x)
+    intNeg
+    λx. eqToId _ _ (intAddNegL x)
+    λx. eqToId _ _ (intAddNegR x)
 
 -- the underlying monoid is the group's first component
 intAddMonoid : IsMonoid Int using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold)

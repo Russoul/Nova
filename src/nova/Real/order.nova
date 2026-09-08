@@ -419,20 +419,21 @@ leQOfLeR =
     hneg. leQOfFalse
       squash-elim
         h
-        u. ⋆ (nonNegNotNeg
-          _
-          leQOfArch
-            p
-            q
-            λk. leQAddShift
-              _
-              transport
-                λw. p + qNeg q ≤ w
-                {rBound (dbl k) (dbl k)}
-                {qInvNat k}
-                qInvHalf k
-                u (dbl k)
-          hneg)
+        u. ⋆
+          nonNegNotNeg
+            _
+            leQOfArch
+              p
+              q
+              λk. leQAddShift
+                _
+                transport
+                  λw. p + qNeg q ≤ w
+                  {rBound (dbl k) (dbl k)}
+                  {qInvNat k}
+                  qInvHalf k
+                  u (dbl k)
+            hneg
     sgnCases (sgnQ (q + qNeg p))
 
 -- so ℚ ↪ ℝ is an order EMBEDDING, and in particular injective

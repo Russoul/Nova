@@ -281,7 +281,7 @@ intOfNatMagNonNeg : {z : Int} → NonNegS (intSgn z) → intOfNat (intMag z) ≡
     Rat.order.NonNegS.unfold)
 intOfNatMagNonNeg =
   λz. λnn. ⊎-elim
-    e. (⊎-elim
+    e. ⊎-elim
       w. (nzToInt w ≡ z) → intOfNat (intMag z) ≡ z
       n. λhe. trans
         _
@@ -302,14 +302,15 @@ intOfNatMagNonNeg =
               intMagNz (nzPos n)
           ⋆
         he
-      n. λhe. 𝟘-elim (nonNegNotNeg
-        _
-        nn
-        eqToId
+      n. λhe. 𝟘-elim
+        nonNegNotNeg
           _
-          _
-          trans _ _ sNeg (cong (λv. Sign) (λv. intSgn v) (sym (nzToInt (nzNeg n)) _ he)) intSgnNeg)
-      e .π₁)
+          nn
+          eqToId
+            _
+            _
+            trans _ _ sNeg (cong (λv. Sign) (λv. intSgn v) (sym (nzToInt (nzNeg n)) _ he)) intSgnNeg
+      e .π₁
       e .π₂
     hz. trans
       _
@@ -452,7 +453,7 @@ leQBoundPos : {M : Int}
 leQBoundPos =
   λM. λb. ⊎-elim
     w. qcls (mkRat M (nzPos b)) ≤ qOfNat (S (divN (intMag M) b))
-    e. (⊎-elim
+    e. ⊎-elim
       w. (nzToInt w ≡ M) → qcls (mkRat M (nzPos b)) ≤ qOfNat (S (divN (intMag M) b))
       n. λhe. transport
         λv. qcls (mkRat v (nzPos b)) ≤ qOfNat (S (divN (intMag M) b))
@@ -466,31 +467,32 @@ leQBoundPos =
         _
         _
         _
-        inj₂ (eqToId
-          _
-          _
-          trans
+        inj₂
+          eqToId
             _
             _
-            _
-            cong (λw. Sign) (λw. sgnQ w) (qAddZeroL (qNeg (qcls (mkRat M (nzPos b)))))
-            sgnQNegOfNeg
-              eqToId
-                _
-                _
-                trans
-                  sgnQ (qcls (mkRat M (nzPos b)))
+            trans
+              _
+              _
+              _
+              cong (λw. Sign) (λw. sgnQ w) (qAddZeroL (qNeg (qcls (mkRat M (nzPos b)))))
+              sgnQNegOfNeg
+                eqToId
                   _
                   _
-                  sgnQFracPos
                   trans
+                    sgnQ (qcls (mkRat M (nzPos b)))
                     _
                     _
-                    sNeg
-                    cong (λv. Sign) (λv. intSgn v) (sym (nzToInt (nzNeg n)) _ he)
-                    intSgnNeg)
+                    sgnQFracPos
+                    trans
+                      _
+                      _
+                      sNeg
+                      cong (λv. Sign) (λv. intSgn v) (sym (nzToInt (nzNeg n)) _ he)
+                      intSgnNeg
         leQZeroNat (S (divN (intMag M) b))
-      e .π₁)
+      e .π₁
       e .π₂
     hz. leQTrans
       _
@@ -499,28 +501,29 @@ leQBoundPos =
       transport
         λv. qcls (mkRat v (nzPos b)) ≤ qZero
         sym _ _ hz
-        inj₁ (eqToId
-          _
-          _
-          trans
-            _
+        inj₁
+          eqToId
             _
             _
             trans
               _
               _
-              sgnFlip (sgnQ (qcls (mkRat intZero (nzPos b))))
-              cong (λw. Sign) (λw. sgnQ w) (qAddZeroL (qNeg (qcls (mkRat intZero (nzPos b)))))
-              sgnQNegFlip
-            trans
               _
-              _
-              sZero
-              cong
-                λw. Sign
-                λw. sgnFlip w
-                trans (sgnQ (qcls (mkRat intZero (nzPos b)))) _ _ sgnQFracPos intSgnZero
-              ⋆)
+              trans
+                _
+                _
+                sgnFlip (sgnQ (qcls (mkRat intZero (nzPos b))))
+                cong (λw. Sign) (λw. sgnQ w) (qAddZeroL (qNeg (qcls (mkRat intZero (nzPos b)))))
+                sgnQNegFlip
+              trans
+                _
+                _
+                sZero
+                cong
+                  λw. Sign
+                  λw. sgnFlip w
+                  trans (sgnQ (qcls (mkRat intZero (nzPos b)))) _ _ sgnQFracPos intSgnZero
+                ⋆
       leQZeroNat (S (divN (intMag M) b))
     nzOfInt M
 
@@ -552,12 +555,13 @@ leQBoundSq : (u : Q) → ∥u ≤ qOfNat (qNatBound u)∥
     Rat.qcls.eq)
 leQBoundSq =
   λu. quot-elim
-    p. ⋆ (transport
-      λr. qcls r ≤ qOfNat (qNatBound (qcls r))
-      {mkRat (num p) (den p)}
-      {p}
-      ratEta
-      leQBoundAt (num p) (den p))
+    p. ⋆
+      transport
+        λr. qcls r ≤ qOfNat (qNatBound (qcls r))
+        {mkRat (num p) (den p)}
+        {p}
+        ratEta
+        leQBoundAt (num p) (den p)
     u
 
 leQBound : (u : Q) → u ≤ qOfNat (qNatBound u) using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
@@ -597,16 +601,17 @@ qNatBoundNeg =
 -- the two-sided bound: −K ≤ u ≤ K
 bndNatBound : (u : Q) → Bnd (qOfNat (qNatBound u)) u using (Rat.bound.Bnd.unfold)
 bndNatBound =
-  λu. transport
-    λw. qNeg (qOfNat (qNatBound u)) ≤ w
-    qNegNeg u
-    leQNegFlip
-      _
-      _
-      transport
-        λk. qNeg u ≤ qOfNat k
-        {qNatBound (qNeg u)}
-        {qNatBound u}
-        qNatBoundNeg
-        leQBound (qNeg u),
+  λu. (,)
+    transport
+      λw. qNeg (qOfNat (qNatBound u)) ≤ w
+      qNegNeg u
+      leQNegFlip
+        _
+        _
+        transport
+          λk. qNeg u ≤ qOfNat k
+          {qNatBound (qNeg u)}
+          {qNatBound u}
+          qNatBoundNeg
+          leQBound (qNeg u)
     leQBound _

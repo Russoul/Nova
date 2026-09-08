@@ -36,8 +36,8 @@ nzOfPairD =
     λb. ℕ-elim (λhab. inj₂ ⋆) (j ihb. λhab. inj₁ (nzNeg j, ⋆)) b
     k ih. λb. ℕ-elim
       λhab. inj₁ (nzPos k, ⋆)
-      j ihb. λhab. 𝟘-elim (zNotS
-        trans _ _ _ (sym _ _ hab) (trans _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))
+      j ihb. λhab. 𝟘-elim
+        zNotS (trans _ _ _ (sym _ _ hab) (trans _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))
       b
     a
 

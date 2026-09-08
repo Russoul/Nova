@@ -15,11 +15,16 @@ import Core.id (Id, eqToId, idToEq)
 
 realAddGroup : IsGroup Real using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold)
 realAddGroup =
-  ((+),
-    realZero,
-      (λx. λy. λz. eqToId _ _ (realAddAssoc x y z)),
-        (λx. eqToId _ _ (realAddZeroL x)), λx. eqToId _ _ (realAddZeroR x)),
-    realNeg, (λx. eqToId _ _ (realAddNegL x)), λx. eqToId _ _ (realAddNegR x)
+  (,)
+    (,)
+      (+)
+      realZero
+      λx. λy. λz. eqToId _ _ (realAddAssoc x y z)
+      λx. eqToId _ _ (realAddZeroL x)
+      λx. eqToId _ _ (realAddZeroR x)
+    realNeg
+    λx. eqToId _ _ (realAddNegL x)
+    λx. eqToId _ _ (realAddNegR x)
 
 -- ===== rearrangement =====
 realLeftSwap : (b c d : Real) → b + (c + d) ≡ c + (b + d)

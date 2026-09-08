@@ -9,10 +9,12 @@ import Algebra.monoid (IsMonoid)
 
 natAddMonoid : IsMonoid ℕ using (Algebra.monoid.IsMonoid.unfold)
 natAddMonoid =
-  (+),
-    Z,
-      (λx. λy. λz. eqToId _ _ (plusAssoc x y z)),
-        (λx. eqToId _ _ (zeroPlusId x)), λx. eqToId _ _ (plusZeroId x)
+  (,)
+    (+)
+    Z
+    λx. λy. λz. eqToId _ _ (plusAssoc x y z)
+    λx. eqToId _ _ (zeroPlusId x)
+    λx. eqToId _ _ (plusZeroId x)
 
 -- The unit laws for * at S Z. On the right the whole statement is a
 -- δβ-computation (n * S Z unwinds through * and + to n); on the left
@@ -34,7 +36,9 @@ oneMultL = λn. ℕ-elim ⋆ (k ih. ⋆) n
 -- (ℕ, *, 1) is a monoid.
 natMulMonoid : IsMonoid ℕ using (Algebra.monoid.IsMonoid.unfold)
 natMulMonoid =
-  (*),
-    S Z,
-      (λx. λy. λz. eqToId _ _ (multAssoc x y z)),
-        (λx. eqToId _ _ (oneMultL x)), λx. eqToId _ _ (multOneR x)
+  (,)
+    (*)
+    S Z
+    λx. λy. λz. eqToId _ _ (multAssoc x y z)
+    λx. eqToId _ _ (oneMultL x)
+    λx. eqToId _ _ (multOneR x)

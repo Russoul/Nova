@@ -160,15 +160,17 @@ ltQTrichotomy =
       h0. inj₂ (inj₁ (eqToId _ _ (sym _ _ (qDiffZero (sgnQZeroView _ (idToEq _ _ _ h0))))))
       hp. inj₁ hp
       nn
-    hneg. inj₂ (inj₂ (ltQOfSgn
-      _
-      _
-      trans
-        sgnQ (x + qNeg y)
-        _
-        _
-        sgnQSubFlip
-        trans _ _ sPos (cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ hneg)) ⋆))
+    hneg. inj₂
+      inj₂
+        ltQOfSgn
+          _
+          _
+          trans
+            sgnQ (x + qNeg y)
+            _
+            _
+            sgnQSubFlip
+            trans _ _ sPos (cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ hneg)) ⋆
     sgnCases (sgnQ (y + qNeg x))
 
 -- ===== compatibility with addition =====

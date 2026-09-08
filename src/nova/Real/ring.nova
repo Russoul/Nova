@@ -525,11 +525,12 @@ realMulNegR =
 -- components
 realCommRing : IsCommRing Real using (Real.group.realAddGroup.eq, Algebra.ring.IsCommRing.unfold)
 realCommRing =
-  realAddGroup,
-    (*),
-      realOne,
-        (λx. λy. λz. eqToId _ _ (realMulAssoc x y z)),
-          (λx. λy. eqToId _ _ (realMulComm x y)),
-            (λx. eqToId _ _ (realMulOneR x)),
-              (λx. λy. eqToId (x + y) (y + x) (realAddComm x y)),
-                λx. λy. λz. eqToId (x * (y + z)) (x * y + x * z) (realDistribL x y z)
+  (,)
+    realAddGroup
+    (*)
+    realOne
+    λx. λy. λz. eqToId _ _ (realMulAssoc x y z)
+    λx. λy. eqToId _ _ (realMulComm x y)
+    λx. eqToId _ _ (realMulOneR x)
+    λx. λy. eqToId (x + y) (y + x) (realAddComm x y)
+    λx. λy. λz. eqToId (x * (y + z)) (x * y + x * z) (realDistribL x y z)

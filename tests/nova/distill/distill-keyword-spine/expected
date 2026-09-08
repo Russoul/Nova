@@ -2,10 +2,9 @@ distilled 1 modules (4 items) to out
 elided 0 of 0 ∈-annotations and motives, blanked 0 arguments
 round-trip OK: ASTs identical, kernel Σ α-identical.
 -- distill golden: a keyword-headed form (t{2½}) heads a spine. The
--- printer drops the parentheses under a PROJECTION — the postfix
--- marker is unmistakable — and keeps them under an application
--- argument, which is juxtaposed exactly as the eliminator's own
--- arguments are (docs/NovaPerfectSurface.txt, Phase 1)
+-- printer writes it BARE under a projection and as an application
+-- head alike — every keyword form has a fixed arity, so the spine's
+-- own arguments simply follow its slots (docs/NovaPerfectSurface.txt)
 
 stream : 𝕌 → 𝕌
 stream = λa. ν (K a × 𝕏)
@@ -17,4 +16,4 @@ tl : (a : 𝕌) → stream a → stream a using (stream.unfold)
 tl = λa. λt. out t .π₂
 
 plus : ℕ → ℕ → ℕ
-plus = λn. λm. (ℕ-elim (k. ℕ → ℕ) (λx. x) (k ih. λx. S (ih x)) n) m
+plus = λn. λm. ℕ-elim (k. ℕ → ℕ) (λx. x) (k ih. λx. S (ih x)) n m

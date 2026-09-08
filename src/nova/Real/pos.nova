@@ -193,15 +193,16 @@ posSampleNN =
     _
     squash-elim
       h
-      u. ⋆ (leQZeroOfSubLe
-        _
-        _
-        leQTrans
-          qInvNat k + qNeg (seqOf p (mulIdx (dbl k) i))
+      u. ⋆
+        leQZeroOfSubLe
           _
           _
-          u (mulIdx (dbl k) i)
-          leQRBoundDeep k i)
+          leQTrans
+            qInvNat k + qNeg (seqOf p (mulIdx (dbl k) i))
+            _
+            _
+            u (mulIdx (dbl k) i)
+            leQRBoundDeep k i
 
 -- ===== NONNEGATIVITY, as a nonnegative PRESENTATION =====
 --
@@ -301,9 +302,10 @@ nonNegMk : (x : Real) (p : RSeq) → (class p ≡ x) → realZero ≤ x → NonN
   using (NonNegPayload.unfold, NonNegR.eq, Real.Real.unfold, Real.RSeq.unfold, Real.Regular.unfold)
 nonNegMk =
   λx. λp. λe. λh. br
-    clampRSeq p,
-      clampNN p,
-        eqToId
-          _
-          _
-          trans _ _ _ (realEqOfREq _ _ (clampREq (transportP (λv. realZero ≤ v) (sym _ _ e) h))) e
+    (,)
+      clampRSeq p
+      clampNN p
+      eqToId
+        _
+        _
+        trans _ _ _ (realEqOfREq _ _ (clampREq (transportP (λv. realZero ≤ v) (sym _ _ e) h))) e

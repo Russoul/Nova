@@ -160,12 +160,13 @@ leQFloorAbsSq : (u : Q) → ∥qOfNat (qFloor u) ≤ qAbs u∥
   using (Int.Int.unfold, Rat.frac.Rat.unfold, Rat.Q.unfold, Rat.qcls.eq)
 leQFloorAbsSq =
   λu. quot-elim
-    p. ⋆ (transport
-      λr. qOfNat (qFloor (qcls r)) ≤ qAbs (qcls r)
-      {mkRat (num p) (den p)}
-      {p}
-      ratEta
-      leQFloorAt (num p) (den p))
+    p. ⋆
+      transport
+        λr. qOfNat (qFloor (qcls r)) ≤ qAbs (qcls r)
+        {mkRat (num p) (den p)}
+        {p}
+        ratEta
+        leQFloorAt (num p) (den p)
     u
 
 leQFloorAbs : {u : Q} → qOfNat (qFloor u) ≤ qAbs u

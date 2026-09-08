@@ -1,0 +1,7 @@
+Pair (Z) (Pair (S (Z)) (()))
+Pair (Z) (Pair (S (Z)) (()))
+P1 (Pair (Z) (S (Z)))
+Pair (Pair (Z) (Pair (S (Z)) (Pair (Lam x (x@0)) (Pair (Lam x (S (x@0))) (Lam x (S (S (x@0)))))))) (Pair (()) (Pair (Lam x (x@0)) (Lam y (y@0))))
+Pair (Pair (Z) (Pair (S (Z)) (Pair (Lam x (x@0)) (Pair (Lam x (S (x@0))) (Lam x (S (S (x@0)))))))) (Pair (()) (Pair (Lam x (x@0)) (Lam y (y@0))))
+ERROR
+ERROR

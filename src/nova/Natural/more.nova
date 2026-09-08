@@ -138,7 +138,8 @@ leMaxR : (a b : ℕ) → b ≤ natMax a b
 leMaxR =
   λa. λb. ⊎-elim
     le. Z, eqToId _ _ (trans _ _ _ (plusZeroId b) (sym (natMax a b) _ (leMonusPlus le)))
-    le. le .π₁ + (b ∸ a),
+    le. (,)
+      le .π₁ + (b ∸ a)
       eqToId
         _
         _
