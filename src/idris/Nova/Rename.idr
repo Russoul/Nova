@@ -182,8 +182,8 @@ parameters (rm : RenameMap, resolve : String -> String)
   rnItem ownQ (SDeclDef r x ty) = SDeclDef r (defName ownQ x) (rnT ty)
   rnItem ownQ (SData params ds) =
     SData (map (\(x, t) => (x, rnT t)) params) (map rnQDecl ds)
-  rnItem ownQ (SClausalDef r x ty eta er wit cls) =
-    SClausalDef r (defName ownQ x) (rnT ty) eta er (map rnE wit)
+  rnItem ownQ (SClausalDef r x ty mu eta er wit cls) =
+    SClausalDef r (defName ownQ x) (rnT ty) mu eta er (map rnE wit)
       (map ({ crhs $= rnE }) cls)
 
 

@@ -292,8 +292,8 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
     in SDeclDef r x ty'
   xfItem ownQ (SData params ds) =
     SData (map (\(x, t) => (x, xfT t)) params) (map xfQDecl ds)
-  xfItem ownQ (SClausalDef r x ty eta er wit cls) =
-    SClausalDef r x (xfT ty) eta er (map xfE wit)
+  xfItem ownQ (SClausalDef r x ty mu eta er wit cls) =
+    SClausalDef r x (xfT ty) mu eta er (map xfE wit)
       (map (\c => { crhs $= xfE } c) cls)
 
 ||| Transform a whole module.
@@ -568,7 +568,7 @@ sitesOfUnit resolve q u = concatMap (\(_, it) => goItem it) u.mitems
   goItem (SDef _ _ ty body _) = goT ty ++ goE body
   goItem (SDeclDef _ _ ty) = goT ty
   goItem (SData params ds) = concatMap (goT . snd) params
-  goItem (SClausalDef _ _ ty _ _ wit cls) =
+  goItem (SClausalDef _ _ ty _ _ _ wit cls) =
     goT ty ++ concatMap goE wit ++ concatMap (\c => goE c.crhs) cls
 
 ||| find a def by bare or qualified name: (qualified, surface type)

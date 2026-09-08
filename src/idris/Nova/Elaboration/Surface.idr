@@ -823,6 +823,10 @@ record SClause where
   cpats : List SPat
   cvars : List SName
   crhs : SElem
+  ||| the clause's own `using` clause: lemmas ADDED to its equation
+  ||| lemma's discharge scope, beside the item's (a zero-pattern clause
+  ||| takes none — the signature's using is the item's)
+  cuses : Maybe (List String)
   ||| the [name] override for this clause's equation lemma
   cname : Maybe String
   ||| the override name's own span, when written (hover: the lemma's type)
@@ -855,7 +859,9 @@ data SItem : Type where
   ||| body, the user's witness t, or a declaration), one Π-closed
   ||| equation lemma per clause, and the pointwise uniqueness lemma
   ||| (named by the [eta] override)
-  SClausalDef : (nrng : Maybe Range) -> String -> STy ->
+  ||| The item's `using` clause scopes EVERY generated item: the
+  ||| definition (or witness), each equation lemma, the uniqueness lemma
+  SClausalDef : (nrng : Maybe Range) -> String -> STy -> (uses : Maybe (List String)) ->
                 (etaName : Maybe String) -> (etaRng : Maybe Range) ->
                 (witness : Maybe SElem) -> List SClause -> SItem
 
@@ -890,8 +896,8 @@ stripPosItem (SData ps ds) =
   stripQDecl : SQDecl -> SQDecl
   stripQDecl d =
     { dqbinders := map (\(x, b) => (x, mapFst stripPos b)) d.dqbinders } d
-stripPosItem (SClausalDef r n ty eta er wit cls) =
-  SClausalDef r n (stripPos ty) eta er (map stripPos wit)
+stripPosItem (SClausalDef r n ty mu eta er wit cls) =
+  SClausalDef r n (stripPos ty) mu eta er (map stripPos wit)
               (map (\c => { crhs := stripPos c.crhs } c) cls)
 
 export
@@ -901,7 +907,7 @@ itemName (SDeclDef _ n _) = n
 itemName (SData _ ds) = case ds of
   (d :: _) => d.dqname
   [] => "data"
-itemName (SClausalDef _ n _ _ _ _ _) = n
+itemName (SClausalDef _ n _ _ _ _ _ _) = n
 
 -- ===== Show instances (parser golden tests) =====
 
@@ -991,8 +997,10 @@ Show SPat where
 
 export covering
 Show SClause where
-  show (MkSClause ps _ rhs mn _ _) =
-    "| " ++ joinBy " " (map show ps) ++ " := " ++ show rhs
+  show (MkSClause ps _ rhs mu mn _ _) =
+    "| " ++ joinBy " " (map show ps)
+      ++ maybe "" (\ns => " using (\{joinBy ", " ns})") mu
+      ++ " := " ++ show rhs
       ++ maybe "" (\n => " [\{n}]") mn
 
 export covering
@@ -1028,8 +1036,9 @@ Show SItem where
   show (SData ps ds) =
     "data " ++ concatMap (\p => case p of (x, t) => "[\{x} : \{show t}] ") ps
       ++ "(" ++ joinBy " ; " (map show ds) ++ ")"
-  show (SClausalDef _ x ty eta _ w cls) =
+  show (SClausalDef _ x ty mu eta _ w cls) =
     "def \{x} : \{show ty}"
+      ++ maybe "" (\ns => " using (\{joinBy ", " ns})") mu
       ++ maybe "" (\n => " [\{n}]") eta
       ++ maybe "" (\t => " := \{show t}") w
       ++ concatMap (\c => " \{show c}") cls

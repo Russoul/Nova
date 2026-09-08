@@ -159,14 +159,16 @@ item  ::= n : t{≥1} uses? ⏎ n = t{≥0}        # a DEFINITION: the
 entry  ::= n : Q                              # an entry's continuation
                                               #   lines stand deeper than
                                               #   the entry column
-clause ::= lhs = t{≥0} ([n])?                 # a column-0 line directly
+clause ::= lhs uses? = t{≥0} ([n])?           # a column-0 line directly
                                               #   after its signature
                                               #   (comment lines between
                                               #   are fine); the optional
-                                              #   [n] names the clause's
-                                              #   equation lemma (a
-                                              #   zero-pattern clause
-                                              #   takes none)
+                                              #   uses ADDS lemmas to the
+                                              #   clause's equation
+                                              #   lemma's scope, the
+                                              #   optional [n] names that
+                                              #   lemma (a zero-pattern
+                                              #   clause takes neither)
 lhs    ::= n pat* | pat op pat                # the head is the item's own
                                               #   name (infix use needs a
                                               #   fixity, as anywhere);
@@ -1878,10 +1880,9 @@ x : T ⏎ x = t          extends Σ with (ε ⊦ x ≔ t̂ : A)
 # names like any signature reference (aliases first) and scopes every
 # ↓ of the item to them + hypotheses; without the clause the item
 # scopes to hypotheses alone. Name-resolution failures are structural
-# errors at the item. The clausal-def item macro does not yet accept
-# a clause (its generated defs scope to hypotheses, which the
-# generated proofs need — plus computation — and nothing else);
-# declarations discharge nothing and take none.
+# errors at the item. On a signature with DEFINING EQUATIONS the
+# clause scopes every item of the expansion (Defining equations —
+# SCOPES); declarations discharge nothing and take none.
 
 ε ⊢ T ⇝ A type
 ------------------------------------------------------------- (e-decl)
@@ -2182,7 +2183,32 @@ pointwise, exhibit that g satisfies the clauses.
 # but its column: a column-0 line that is not a signature (`n : …`)
 # and not headed by an item keyword is one. Among an item's clauses AT
 # MOST ONE spells no pattern: alone it is the definition, beside
-# pattern clauses it is the WITNESS (below); it takes no [name].
+# pattern clauses it is the WITNESS (below); it takes no [name] and
+# no using.
+
+# SCOPES. The signature's `using` is the ITEM's discharge scope and
+# reaches every item of the expansion: the definition (in the witness
+# tier, the user's witness elaborates under it), each equation lemma,
+# and the uniqueness lemma. A pattern clause may carry a `using` of
+# its own, written before its `=` as the signature's stands before
+# its definiens —
+#
+#   dbl : ℕ → ℕ
+#   dbl = λn. plus n n
+#   dbl Z using (plusZ) = Z
+#   dbl (S m) using (plusS.rw, sucPlusR.rw) = S (S (dbl m))
+#
+# — which ADDS its lemmas to that clause's equation lemma's scope and
+# nowhere else: in the witness tier a clause's equation may need
+# lemmas its siblings do not (here two rewrites carry plus (S m) (S m)
+# to S (S (plus m m))), and naming them at the clause keeps the
+# item's scope small. Named at the signature instead, the same lemmas
+# reach the uniqueness proof too, whose step case needs them for the
+# same rewrite. Each generated lemma also cites what its own
+# synthesized proof needs, silently: a clause lemma the defining
+# equation `f.eq`, the uniqueness lemma the clause lemmas and
+# `hyp.rw`. In the declaration tier nothing is discharged, and the
+# scopes are moot.
 
 # NAMES. The expansion mints Σ names; the reproducibility invariant
 # demands they be a pure function of the source. For an
@@ -3206,9 +3232,9 @@ piCRun always emitted the same text.
   worth their report noise.
 * Congruence/transitivity closure (e-graph) for the HINT probe's
   completeness — the advisory layer is where a stronger search is
-  pure upside. (The `using` clauses themselves have landed, item- and
-  site-level, as the scoped-discharge semantics above; deferred:
-  a clause slot for the clausal-def and data item macros.)
+  pure upside. (The `using` clauses themselves have landed, item-,
+  clause- and site-level, as the scoped-discharge semantics above;
+  deferred: a clause slot for the data item macro.)
 * Incremental re-elaboration (caching per item) — requires recording
   per-item assumption sets; whole-file re-runs make this unnecessary
   at current scale.
