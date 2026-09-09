@@ -23,18 +23,18 @@ Side : ℕ ⊎ ℕ → 𝕌
 Side = λs. ℕ
 
 swap : (w : ℕ ⊎ ℕ) → ℕ ⊎ ℕ
-swap = λw. sum-elim (a. inj₂ a) (b. inj₁ b) w
+swap w = sum-elim (a. inj₂ a) (b. inj₁ b) w
 
 -- the GOAL mentions the eliminated variable, so each branch proves it
 -- at that branch's own injection
 value : (w : ℕ ⊎ ℕ) → Side w using (Side.eq)
-value = λw. sum-elim (a. (a : Side (inj₁ a))) (b. (b : Side (inj₂ b))) w
+value w = sum-elim (a. (a : Side (inj₁ a))) (b. (b : Side (inj₂ b))) w
 
 -- a hypothesis standing AFTER the variable is refined with it: inside
 -- each branch h is already a fact about that injection
 onLater : (w : ℕ ⊎ ℕ) (h : Side w) → Side w
-onLater = λw h. sum-elim (a. h) (b. h) w
+onLater w h = sum-elim (a. h) (b. h) w
 
 -- with entries on both sides of the variable
 bothSides : (n : ℕ) (w : ℕ ⊎ ℕ) (h : Side w) → Side w
-bothSides = λn w h. sum-elim (a. h) (b. h) w
+bothSides n w h = sum-elim (a. h) (b. h) w

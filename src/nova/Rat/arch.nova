@@ -326,9 +326,9 @@ qArchAt : (N : Int) (d : NZ) → (sgnQ (qcls (mkRat N d)) ≡ sPos) → ArchWit 
   using (Rat.arch.ArchWit.unfold, Rat.arch.PosDenView.unfold)
 qArchAt =
   λN d hp. let v = qPosDenView N d
-    in let e : qcls (mkRat (v .π₁) (nzPos (v .π₂ .π₁))) ≡ qcls (mkRat N d)
-      = idToEq _ _ _ (v .π₂ .π₂)
-      in transport ArchWit e (qArchPos (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) e) hp))
+               e : qcls (mkRat (v .π₁) (nzPos (v .π₂ .π₁))) ≡ qcls (mkRat N d)
+                 = idToEq _ _ _ (v .π₂ .π₂)
+               transport ArchWit e (qArchPos (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) e) hp))
 
 -- every positive rational dominates a unit fraction. The witness is
 -- squashed: a bare Σ would ask the class to determine the index
@@ -444,19 +444,22 @@ archContra : (a b : Q) → ((k : ℕ) → a ≤ b + qInvNat k) → Id _ (sgnQ (b
     sgnQSubFlip.eq)
 archContra =
   λa b hyp hneg. let hpos : sgnQ (a + qNeg b) ≡ sPos
-    = trans
-      _
-      _
-      _
-      sgnQSubFlip
-      trans _ _ sPos (cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ hneg)) ⋆
-    in squash-elim
-      qArch _ hpos
-      w. let hup : qInvNat (w .π₁) ≡ qInvNat (dbl (w .π₁))
-        = leQAntisym
-          leQTrans _ _ _ (w .π₂) (leQSubShift _ _ (hyp (dbl (w .π₁))))
-          leQInvDbl (w .π₁)
-        in ⋆ (qInvNatNotZero _ (qAddSelfCancel _ (trans _ _ _ (qInvHalf (w .π₁)) hup)))
+                       = trans
+                         _
+                         _
+                         _
+                         sgnQSubFlip
+                         trans _ _ sPos (cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ hneg)) ⋆
+                     squash-elim
+                       qArch _ hpos
+                       w. let hup : qInvNat (w .π₁) ≡ qInvNat (dbl (w .π₁))
+                                = leQAntisym
+                                  leQTrans _ _ _ (w .π₂) (leQSubShift _ _ (hyp (dbl (w .π₁))))
+                                  leQInvDbl (w .π₁)
+                              ⋆
+                                qInvNatNotZero
+                                  _
+                                  qAddSelfCancel _ (trans _ _ _ (qInvHalf (w .π₁)) hup)
 
 -- ...so "a ≤ b + 1/(k+1) for every k" collapses to "a ≤ b"
 leQOfArch : (a b : Q) → ((k : ℕ) → a ≤ b + qInvNat k) → a ≤ b

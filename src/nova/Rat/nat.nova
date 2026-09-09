@@ -92,7 +92,7 @@ leOfNonNegSgn =
   λa b nn. ⊎-elim
     h0. leOfEq (sym _ _ (natEqOfClassZero (intSgnZeroView _ (idToEq _ _ _ h0))))
     hp. let v = intSgnPosView _ (idToEq _ _ _ hp)
-      in S (v .π₁), eqToId _ _ (natSucOfClassPos (v .π₂))
+            S (v .π₁), eqToId _ _ (natSucOfClassPos (v .π₂))
     nn
 
 -- ===== the order bridge =====

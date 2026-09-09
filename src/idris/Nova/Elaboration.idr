@@ -2175,7 +2175,19 @@ mutual
                    (bump "sz-in" (cast (elemSize a + elemSize b))
                      (bump "sz-nf" (cast (elemSize a' + elemSize b'))
                        (a' == b'))) in
-    if eqFast
+    -- el-prf-prop FIRST, before even the rewritten-sides comparison:
+    -- two elements of a proposition are equal outright, so an
+    -- equation whose exposed type is ≡-/∥·∥-headed needs no steps at
+    -- all — and must take none. The rewritten sides may well coincide
+    -- (a hypothesis under hyp.rw and an unfold license each rewrite
+    -- one side of `g n h ≐ f n h` to the same proof), and the steps
+    -- that make them coincide are rewrites at a PROOF position, which
+    -- the kernel's replay refuses (the uniqueness lemma of a clausal
+    -- item at a proposition type was the case). The neutral-prop case
+    -- stays in spEqStructC, behind the judgemental check it needs
+    if isSynProp tyN
+      then Just (MkECertF bridge [] FProp [])
+    else if eqFast
       then Just (MkECertF bridge base FBeta [])
       else
         (do rest <- timed "sp-match" (\_ => candMatchC dep st cs ctx a' b' tyN) >>= unbridged
@@ -2193,6 +2205,11 @@ mutual
     unbridged : ECert -> Maybe ECert
     unbridged c@(MkECertF Nothing _ _ _) = Just c
     unbridged _ = Nothing
+
+    isSynProp : Ty -> Bool
+    isSynProp (Elem.EqTy _ _ _) = True
+    isSynProp (Squash _) = True
+    isSynProp _ = False
 
   spEqStructC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe ECert
   spEqStructC dep st cs ctx a b OneTy = Just (MkECert [] FProp)

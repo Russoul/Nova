@@ -40,8 +40,8 @@ leTrans =
       _
       _
       let h1 = idToEq _ _ _ (l1 .π₂)
-        in let h2 = idToEq _ _ _ (l2 .π₂)
-          in a + (l1 .π₁ + l2 .π₁)
+          h2 = idToEq _ _ _ (l2 .π₂)
+          a + (l1 .π₁ + l2 .π₁)
             ≡⟨ sym _ _ (plusAssoc a (l1 .π₁) (l2 .π₁)) ⟩ a + l1 .π₁ + l2 .π₁
             ≡⟨ plusCongL (l2 .π₁) h1 ⟩ b + l2 .π₁
             ≡⟨ h2 ⟩ c
@@ -59,25 +59,25 @@ leZeroInv = λa le. sumZeroL _ _ (trans _ _ Z (idToEq _ _ _ (le .π₂)) ⋆)
 leAntisym : (a b : ℕ) → a ≤ b → b ≤ a → a ≡ b using (Core.id.Id.unfold, Natural.order.≤.unfold)
 leAntisym =
   λa b l1 l2. let h1 = idToEq _ _ _ (l1 .π₂)
-    in let h2 = idToEq _ _ _ (l2 .π₂)
-      in let loop : a + (l1 .π₁ + l2 .π₁) ≡ a
-        = a + (l1 .π₁ + l2 .π₁)
-          ≡⟨ sym _ _ (plusAssoc a (l1 .π₁) (l2 .π₁)) ⟩ a + l1 .π₁ + l2 .π₁
-          ≡⟨ plusCongL (l2 .π₁) h1 ⟩ b + l2 .π₁
-          ≡⟨ h2 ⟩ a
-        in let kz = plusCancel
-          l1 .π₁ + l2 .π₁
-          Z
-          a
-          l1 .π₁ + l2 .π₁ + a
-            ≡⟨ plusComm a (l1 .π₁ + l2 .π₁) ⟩ a + (l1 .π₁ + l2 .π₁)
-            ≡⟨ loop ⟩ a
-            ≡⟨ sym _ _ (zeroPlusId a) ⟩ Z + a
-          in let k1z = sumZeroL _ _ kz
-            in a
-              ≡⟨ sym _ _ (plusZeroId a) ⟩ a + Z
-              ≡⟨ plusCongR a (sym _ _ k1z) ⟩ a + l1 .π₁
-              ≡⟨ h1 ⟩ b
+                  h2 = idToEq _ _ _ (l2 .π₂)
+                  loop : a + (l1 .π₁ + l2 .π₁) ≡ a
+                    = a + (l1 .π₁ + l2 .π₁)
+                      ≡⟨ sym _ _ (plusAssoc a (l1 .π₁) (l2 .π₁)) ⟩ a + l1 .π₁ + l2 .π₁
+                      ≡⟨ plusCongL (l2 .π₁) h1 ⟩ b + l2 .π₁
+                      ≡⟨ h2 ⟩ a
+                  kz = plusCancel
+                    l1 .π₁ + l2 .π₁
+                    Z
+                    a
+                    l1 .π₁ + l2 .π₁ + a
+                      ≡⟨ plusComm a (l1 .π₁ + l2 .π₁) ⟩ a + (l1 .π₁ + l2 .π₁)
+                      ≡⟨ loop ⟩ a
+                      ≡⟨ sym _ _ (zeroPlusId a) ⟩ Z + a
+                  k1z = sumZeroL _ _ kz
+                  a
+                    ≡⟨ sym _ _ (plusZeroId a) ⟩ a + Z
+                    ≡⟨ plusCongR a (sym _ _ k1z) ⟩ a + l1 .π₁
+                    ≡⟨ h1 ⟩ b
 
 -- ===== monotonicity =====
 leSucMono : {a b : ℕ} → a ≤ b → S a ≤ S b using (Core.id.Id.unfold, Natural.order.≤.unfold)
@@ -88,7 +88,7 @@ leSucMono =
       _
       _
       let h = idToEq _ _ _ (le .π₂)
-        in S a + le .π₁ ≡⟨ sucPlus a (le .π₁) ⟩ S (a + le .π₁) ≡⟨ cong (λu. ℕ) (λu. S u) h ⟩ S b
+          S a + le .π₁ ≡⟨ sucPlus a (le .π₁) ⟩ S (a + le .π₁) ≡⟨ cong (λu. ℕ) (λu. S u) h ⟩ S b
 
 leSucInv : (a b : ℕ) → S a ≤ S b → a ≤ b using (Core.id.Id.unfold, Natural.order.≤.unfold)
 leSucInv =
@@ -101,7 +101,7 @@ leSucInv =
         a + le .π₁
         b
         let h = idToEq _ _ _ (le .π₂)
-          in S (a + le .π₁) ≡⟨ sym _ _ (sucPlus a (le .π₁)) ⟩ S a + le .π₁ ≡⟨ h ⟩ S b
+            S (a + le .π₁) ≡⟨ sym _ _ (sucPlus a (le .π₁)) ⟩ S a + le .π₁ ≡⟨ h ⟩ S b
 
 lePlusMonoR : {a : ℕ} (b c : ℕ) → a ≤ b → a + c ≤ b + c
   using (Core.id.Id.unfold, Natural.order.≤.unfold)
@@ -112,11 +112,11 @@ lePlusMonoR =
       _
       _
       let h = idToEq _ _ _ (le .π₂)
-        in a + c + le .π₁
-          ≡⟨ plusAssoc a c (le .π₁) ⟩ a + (c + le .π₁)
-          ≡⟨ plusCongR a (plusComm (le .π₁) c) ⟩ a + (le .π₁ + c)
-          ≡⟨ sym _ _ (plusAssoc a (le .π₁) c) ⟩ a + le .π₁ + c
-          ≡⟨ plusCongL c h ⟩ b + c
+          a + c + le .π₁
+            ≡⟨ plusAssoc a c (le .π₁) ⟩ a + (c + le .π₁)
+            ≡⟨ plusCongR a (plusComm (le .π₁) c) ⟩ a + (le .π₁ + c)
+            ≡⟨ sym _ _ (plusAssoc a (le .π₁) c) ⟩ a + le .π₁ + c
+            ≡⟨ plusCongL c h ⟩ b + c
 
 lePlusMonoL : {a b : ℕ} (c : ℕ) → a ≤ b → c + a ≤ c + b using (Natural.order.≤.unfold)
 lePlusMonoL =
@@ -136,12 +136,12 @@ leMultMonoR =
       _
       _
       let h = idToEq _ _ _ (le .π₂)
-        in a * c + le .π₁ * c
-          ≡⟨ plusCongL (le .π₁ * c) (multComm c a) ⟩ c * a + le .π₁ * c
-          ≡⟨ plusCongR (c * a) (multComm c (le .π₁)) ⟩ c * a + c * le .π₁
-          ≡⟨ sym _ _ (multDistrib c a (le .π₁)) ⟩ c * (a + le .π₁)
-          ≡⟨ multComm (a + le .π₁) c ⟩ (a + le .π₁) * c
-          ≡⟨ cong (λu. ℕ) (λu. u * c) h ⟩ b * c
+          a * c + le .π₁ * c
+            ≡⟨ plusCongL (le .π₁ * c) (multComm c a) ⟩ c * a + le .π₁ * c
+            ≡⟨ plusCongR (c * a) (multComm c (le .π₁)) ⟩ c * a + c * le .π₁
+            ≡⟨ sym _ _ (multDistrib c a (le .π₁)) ⟩ c * (a + le .π₁)
+            ≡⟨ multComm (a + le .π₁) c ⟩ (a + le .π₁) * c
+            ≡⟨ cong (λu. ℕ) (λu. u * c) h ⟩ b * c
 
 -- ===== totality: the DECISION, as data =====
 leTotal : (a b : ℕ) → a ≤ b ⊎ b ≤ a

@@ -64,3 +64,7 @@ pinVar : (x : ℕ) (h : ℕ) (w : x ≡ Z) → ℕ
 pinVar = λx. λh. λw. ≡-elim h x w
 pinLong : (x : ℕ) (h : ℕ) (n : ℕ) (m : ℕ) (w : x ≡ Z) → x + x ≡ Z + Z ∈ ℕ
 pinLong = λx. λh. λn. λm. λw. ≡-elim ⋆ x w
+
+len : {a : 𝕌} (n : ℕ) → a → ℕ
+len Z x = Z
+len {b} (S m) x = S (len m x)

@@ -31,18 +31,27 @@ multZeroInv = λj k h. sumZeroL _ _ (trans _ _ _ (sym _ _ (multSucId j k)) h)
 multCancelLe : {n m : ℕ} (k : ℕ) → n ≤ m → (n * S k ≡ m * S k) → n ≡ m
   using (Core.id.Id.unfold, Natural.plusZeroId, Natural.order.≤.unfold)
 multCancelLe =
-  λn m k le h. let e : n + le .π₁ ≡ m
-    = idToEq _ _ _ (le .π₂)
-    in let split : n * S k ≡ n * S k + le .π₁ * S k
-      = trans
-        _
-        _
-        _
-        h
-        trans _ _ _ (cong (λu. ℕ) (λw. w * S k) (sym _ _ e)) (multDistribR (S k) n (le .π₁))
-      in let jz : le .π₁ ≡ Z
-        = multZeroInv _ _ (sym _ _ (plusCancelL (n * S k) Z (le .π₁ * S k) split))
-        in trans _ _ _ (sym _ _ (trans _ _ _ (cong (λu. ℕ) (λw. n + w) jz) (plusZeroId n))) e
+  λn m k le h. let e : n + le .π₁ ≡ m = idToEq _ _ _ (le .π₂)
+                   split : n * S k ≡ n * S k + le .π₁ * S k
+                     = trans
+                       _
+                       _
+                       _
+                       h
+                       trans
+                         _
+                         _
+                         _
+                         cong (λu. ℕ) (λw. w * S k) (sym _ _ e)
+                         multDistribR (S k) n (le .π₁)
+                   jz : le .π₁ ≡ Z
+                     = multZeroInv _ _ (sym _ _ (plusCancelL (n * S k) Z (le .π₁ * S k) split))
+                   trans
+                     _
+                     _
+                     _
+                     sym _ _ (trans _ _ _ (cong (λu. ℕ) (λw. n + w) jz) (plusZeroId n))
+                     e
 
 multCancelR : (n m k : ℕ) → (n * S k ≡ m * S k) → n ≡ m
 multCancelR =
@@ -110,13 +119,12 @@ monusZeroOfLe =
 -- ...and a ≤ b makes the difference add back
 leMonusPlus : {a b : ℕ} → a ≤ b → a + (b ∸ a) ≡ b using (Core.id.Id.unfold, Natural.order.≤.unfold)
 leMonusPlus =
-  λa b le. let e : a + le .π₁ ≡ b
-    = idToEq _ _ _ (le .π₂)
-    in a + (b ∸ a)
-      ≡⟨ cong (λu. ℕ) (λw. a + (w ∸ a)) (sym _ _ e) ⟩ a + (a + le .π₁ ∸ a)
-      ≡⟨ cong (λu. ℕ) (λw. a + (w ∸ a)) (plusComm (le .π₁) a) ⟩ a + (le .π₁ + a ∸ a)
-      ≡⟨ cong (λu. ℕ) (λw. a + w) (plusMonus (le .π₁) a) ⟩ a + le .π₁
-      ≡⟨ e ⟩ b
+  λa b le. let e : a + le .π₁ ≡ b = idToEq _ _ _ (le .π₂)
+               a + (b ∸ a)
+                 ≡⟨ cong (λu. ℕ) (λw. a + (w ∸ a)) (sym _ _ e) ⟩ a + (a + le .π₁ ∸ a)
+                 ≡⟨ cong (λu. ℕ) (λw. a + (w ∸ a)) (plusComm (le .π₁) a) ⟩ a + (le .π₁ + a ∸ a)
+                 ≡⟨ cong (λu. ℕ) (λw. a + w) (plusMonus (le .π₁) a) ⟩ a + le .π₁
+                 ≡⟨ e ⟩ b
 
 -- ===== max and min =====
 natMax : ℕ → ℕ → ℕ

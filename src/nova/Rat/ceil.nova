@@ -532,7 +532,7 @@ leQBoundAt : (N : Int) (d : NZ) → qcls (mkRat N d) ≤ qOfNat (qNatBound (qcls
   using (Rat.arch.PosDenView.unfold, Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 leQBoundAt =
   λN d. let v = qPosDenView N d
-    in transport (λw. w ≤ qOfNat (qNatBound w)) (idToEq _ _ _ (v .π₂ .π₂)) leQBoundPos
+            transport (λw. w ≤ qOfNat (qNatBound w)) (idToEq _ _ _ (v .π₂ .π₂)) leQBoundPos
 
 -- squashed first, so the descent is free; then unsquashed, because ≤
 -- is decidable

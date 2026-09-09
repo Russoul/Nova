@@ -845,6 +845,40 @@ mutual
             pure (x, y, r))
     <|> (do r <- parseSElemPrefix tbl (env :< wildcard :< wildcard); pure ((wildcard, Nothing), (wildcard, Nothing), r))
 
+  ||| A let's BINDINGS: `x = e` or `x : T = e`, the first wherever the
+  ||| block column was read, each further one on a line of its own at
+  ||| that column (the block is already set by the caller). Returns the
+  ||| environment under all of them — each binding pushes its name and
+  ||| the unfolding-equation slot (see the let note above) — and the
+  ||| bindings, outermost first. A line at the column that is not a
+  ||| binding is left for the caller: the scope.
+  letBindings : FixTable -> NameEnv -> Rule (NameEnv, List (SName, SElem))
+  letBindings tbl env = do
+    (x, e) <- binding env
+    let env1 = env :< fst x :< wildcard
+    more env1 [(x, e)]
+   where
+    binding : NameEnv -> Rule (SName, SElem)
+    binding env0 = do
+      x <- parseNameR; sp
+      manno <- optional (do kwc ':'; sp; t <- parseSTy tbl env0; sp; pure t)
+      kwEq; sp
+      e <- parseSElem tbl env0
+      pure (x, maybe e (SAnn e) manno)
+
+    more : NameEnv -> List (SName, SElem) -> Rule (NameEnv, List (SName, SElem))
+    more env0 acc =
+          (do b <- blockNow
+              mc <- ws
+              guard "a binding at the block's column" (mc == Just b)
+              (x, e) <- binding env0
+              more (env0 :< fst x :< wildcard) (acc ++ [(x, e)]))
+      <|> pure (env0, acc)
+
+  ||| Nested lets from a binding list and the scope.
+  foldLet : List (SName, SElem) -> SElem -> SElem
+  foldLet bs b = foldr (\(x, e), body => SLet x e body) b bs
+
   -- t{2}: prefix forms, motive-first eliminators
   parseSElemPrefix : FixTable -> NameEnv -> Rule SElem
   parseSElemPrefix tbl env = do
@@ -875,13 +909,26 @@ mutual
         -- unfolding equation) — so x is pushed under a wildcard slot
         -- and resolves to index 1, the hypothesis slot (never
         -- resolvable) holding index 0
-    <|> (do kw "let"; space; x <- parseNameR; sp
-            manno <- optional (do kwc ':'; sp; t <- parseSTy tbl env; sp; pure t)
-            kwEq; sp
-            e <- parseSElem tbl env; sp
-            kw "in"; sp
-            b <- parseSElem tbl (env :< fst x :< wildcard)
-            pure (SLet x (maybe e (SAnn e) manno) b))
+        -- LAYOUT (docs/NovaElaboration.txt, Layout — LET): the
+        -- bindings and, without `in`, the scope form a BLOCK at the
+        -- column of the first binding's first token — on the let's
+        -- line or the next — each binding's own argument lines deeper.
+        -- `in` ends the bindings early and takes the scope on the
+        -- line (parsed in the ENCLOSING block, as the inline form
+        -- always was); otherwise the block's last item is the scope.
+    <|> (do kw "let"; sp
+            Just p <- peekPos
+              | Nothing => fail "a binding"
+            let c = p.column
+            (env', binds) <- inBlock c (letBindings tbl env)
+            (do sp; kw "in"; sp
+                b <- parseSElem tbl env'
+                pure (foldLet binds b))
+              <|> (do mc <- ws
+                      guard "the let's scope, at the column of its first binding" (mc == Just c)
+                      b <- inBlock c (parseSElem tbl env')
+                      pure (foldLet binds b)))
+
         -- (,) — the PAIR CONSTRUCTOR as a prefix head: `(,) a₁ … aₙ`
         -- (n ≥ 2) is the right-nested tuple a₁, (a₂, …, aₙ), exactly
         -- what the comma builds. It parses AS an application spine —
@@ -1620,6 +1667,55 @@ patVarsOf = foldl goP []
   goP acc (SPSuc p) = goP acc p
   goP acc (SPInj1 p) = goP acc p
   goP acc (SPInj2 p) = goP acc p
+  goP acc (SPImp _ p) = goP acc p
+
+||| Align a clause's written LHS items against the signature's leading
+||| Π-columns (docs/NovaElaboration.txt, Defining equations — IMPLICIT
+||| COLUMNS): at an implicit column a brace item `{p}` is consumed if
+||| one comes next, else the column is AUTO-BOUND to its Π-binder's
+||| name; at an explicit column the next item must be a plain pattern.
+||| Coverage stops at the last written item: a trailing implicit
+||| column is a column only when written. An auto-bound name that a
+||| written pattern variable also spells is SHADOWED by the written one
+||| — the auto-bound column becomes a wildcard rather than a second
+||| occurrence (which would read as a nonlinear pattern).
+alignImplicits : STy -> List SPat -> Either String (List SPat)
+alignImplicits ty items =
+  let written = concatMap patNames items in
+  map (shadow written) <$> go ty items
+ where
+  isBrace : SPat -> Bool
+  isBrace (SPImp _ _) = True
+  isBrace _ = False
+
+  patNames : SPat -> List String
+  patNames (SPVar x) = [fst x]
+  patNames SPZero = []
+  patNames (SPSuc p) = patNames p
+  patNames (SPInj1 p) = patNames p
+  patNames (SPInj2 p) = patNames p
+  patNames (SPImp _ p) = patNames p
+
+  shadow : List String -> SPat -> SPat
+  shadow written (SPImp False (SPVar (x, r))) =
+    if x `elem` written then SPImp False (SPVar (wildcard, r)) else SPImp False (SPVar (x, r))
+  shadow _ p = p
+
+  go : STy -> List SPat -> Either String (List SPat)
+  go _ [] = Right []
+  go t (it :: its) = case unPosTy t of
+    SImpPiC x _ b =>
+      if isBrace it
+        then (it ::) <$> go b its
+        else (SPImp False (SPVar (x, Nothing)) ::) <$> go b (it :: its)
+    SPiC _ _ b =>
+      if isBrace it
+        then Left "!a brace pattern at an explicit column — {p} stands at an implicit binder of the signature"
+        else (it ::) <$> go b its
+    _ =>
+      if any isBrace (it :: its)
+        then Left "!a brace pattern past the signature's Π-columns — {p} stands at an implicit binder of the signature"
+        else Right (it :: its)
 
 ||| lhs ::= n pat* | pat op pat — the head must be the item's own name
 ||| (parsed as an ordinary application or infix spelling and REREAD as
@@ -1628,7 +1724,7 @@ parseClauseLhs : String -> Rule (List SPat)
 parseClauseLhs iname =
       (do h <- parseHead
           guard headed (h == iname)
-          many (do sp; parsePatAtom))
+          many (do sp; lhsItem))
   <|> (do p1 <- parsePat; sp
           op <- parseOpName
           guard headed (op == iname)
@@ -1663,10 +1759,17 @@ parseClauseLhs iname =
     <|> parseOpName
     <|> (do kwc '('; sp; op <- parseOpRef; sp; kwc ')'; pure op)
 
+  ||| An LHS item: a pattern at an explicit column, or `{p}` — a
+  ||| pattern WRITTEN at an implicit column (alignImplicits places it).
+  lhsItem : Rule SPat
+  lhsItem =
+        (do kwc '{'; sp; p <- parsePat; sp; kwc '}'; pure (SPImp True p))
+    <|> parsePatAtom
+
   ||| The LHS's head under either spelling, head check dropped.
   anyHead : Rule String
   anyHead =
-        (do h <- parseHead; ignore (many (do sp; parsePatAtom)); pure h)
+        (do h <- parseHead; ignore (many (do sp; lhsItem)); pure h)
     <|> (do ignore parsePat; sp; parseOpName)
 
 ||| A column-0 line that begins an ITEM rather than a clause: a
@@ -1682,12 +1785,16 @@ itemStart =
 ||| its column and its not being an item. The RHS is parsed in the
 ||| LHS's binder telescope; the optional [n] names the clause's
 ||| equation lemma.
-parseSClauseRaw : FixTable -> String -> Rule SClause
-parseSClauseRaw tbl iname = do
+parseSClauseRaw : FixTable -> String -> STy -> Rule SClause
+parseSClauseRaw tbl iname ty = do
   isItem <- (do itemStart; pure True) <|> pure False
   guard "a clause (this line begins an item)" (not isItem)
   commit
-  pats <- parseClauseLhs iname
+  (prng, items) <- bounds (parseClauseLhs iname)
+  -- implicit columns: written `{p}` or auto-bound from the signature
+  pats <- case alignImplicits ty items of
+            Right ps => pure ps
+            Left msg => maybe (fatal msg) (\r => fatalLoc r msg) prng
   -- a clause's own using, before its `=` as the signature's stands
   -- before its definiens: lemmas ADDED to this clause's equation
   -- lemma's scope (docs/NovaElaboration.txt, Defining equations)
@@ -1701,13 +1808,13 @@ parseSClauseRaw tbl iname = do
 ||| The clause with its own source span attached — what the item macro
 ||| reports its generated equation lemma at.
 export
-parseSClause : FixTable -> String -> Rule SClause
-parseSClause tbl iname = do
+parseSClause : FixTable -> String -> STy -> Rule SClause
+parseSClause tbl iname ty = do
   -- the line break to column 0 is read BEFORE the span is taken, so
   -- the clause's range starts at its own first token
   mc <- ws
   guard "a clause at column 1" (mc == Just 0)
-  (r, c) <- bounds (parseSClauseRaw tbl iname)
+  (r, c) <- bounds (parseSClauseRaw tbl iname ty)
   pure ({ crange := r } c)
 
 -- COMMITS: once a column-0 line has read as `n :` the item can be
@@ -1735,7 +1842,7 @@ parseSItem tbl =
           -- to the named lemmas plus hypotheses
           muses <- optional (do sp; kw "using"; sp; parseUsingNames)
           metaEta <- optional (do sp; kwc '['; sp; (nr, n) <- bounds parseName; sp; kwc ']'; pure (n, nr))
-          cls <- many (parseSClause tbl x)
+          cls <- many (parseSClause tbl x ty)
           -- A signature's definiens is a CLAUSE (docs/NovaElaboration.txt,
           -- Surface syntax): `x = t` is the clause with ZERO patterns.
           -- Alone, it is a plain definition; beside pattern clauses it is

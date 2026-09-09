@@ -87,6 +87,7 @@ data Doc
   | DGroup Doc
   | DNest Nat Doc
   | DAlt Doc Doc     -- flat-mode text, broken-mode text
+  | DAlign Doc       -- breaks inside land at the column this starts at
 
 infixr 6 <->
 
@@ -113,6 +114,7 @@ fitsD rem xs =
     ((i, m, DGroup a) :: z) => fitsD rem ((i, MFlat, a) :: z)
     ((i, MFlat, DAlt f _) :: z) => fitsD rem ((i, MFlat, f) :: z)
     ((i, MBroken, DAlt _ b) :: z) => fitsD rem ((i, MBroken, b) :: z)
+    ((i, m, DAlign a) :: z) => fitsD rem ((i, m, a) :: z)
 
 renderDoc : (width : Nat) -> Doc -> String
 renderDoc w doc = fastConcat (go 0 [(0, MBroken, doc)])
@@ -132,6 +134,7 @@ renderDoc w doc = fastConcat (go 0 [(0, MBroken, doc)])
       else go col ((i, MBroken, a) :: z)
   go col ((i, MFlat, DAlt f _) :: z) = go col ((i, MFlat, f) :: z)
   go col ((i, MBroken, DAlt _ b) :: z) = go col ((i, MBroken, b) :: z)
+  go col ((i, m, DAlign a) :: z) = go col ((col, m, a) :: z)
 
 lineWidth : Nat
 lineWidth = 100
@@ -361,18 +364,17 @@ mutual
     SLam (x, _) b =>
       let (xs, body) = lamRun b in
       txt "λ\{joinBy " " (x :: xs)}. " <-> pe tbl LPair tr body
-    -- an ascribed definiens prints in the annotated-let form (the two
-    -- spellings parse to the same AST). The seams before ≔ and `in`
-    -- are soft breaks: a broken type or definiens puts the next piece
-    -- on a line of its own (both tokens are non-term-initial, so a
-    -- line may lead with them)
-    SLet (x, _) (SAnn d ty) b =>
-      DGroup (txt "let \{x} : " <-> pe tbl LNoComma True ty <->
-              DNest 2 (DLine <-> txt "= " <-> pe tbl LPair True d) <->
-              DNest 2 (DLine <-> txt "in " <-> pe tbl LPair tr b))
-    SLet (x, _) d b =>
-      DGroup (txt "let \{x} = " <-> pe tbl LPair True d <->
-              DNest 2 (DLine <-> txt "in " <-> pe tbl LPair tr b))
+    -- a let prints INLINE when it fits — a chain of nested lets as
+    -- nested inline lets — and as a BLOCK otherwise: the bindings and
+    -- the scope aligned under the first binding, one per line, no
+    -- `in` (docs/NovaElaboration.txt, Layout — LET). An ascribed
+    -- definiens prints in the annotated form (one AST)
+    SLet _ _ _ =>
+      let (binds, scope) = letRun e
+          flat = concatDoc (map (\bd => txt "let " <-> letBindDoc tbl bd <-> txt " in ") binds) <-> pe tbl LPair tr scope
+          broken = txt "let " <-> DAlign (concatDoc (intersperse DLine (map (letBindDoc tbl) binds)) <->
+                                          DLine <-> pe tbl LPair True scope)
+      in DGroup (DAlt flat broken)
     SApp f a => case infixView tbl e of
       Just (op, assoc, p, l, r) =>
         let lctx = case assoc of
@@ -507,6 +509,22 @@ mutual
 
   concatDoc : List Doc -> Doc
   concatDoc = foldr DCat DNil
+
+  ||| One binding of a let: `x = d`, or `x : T = d'` for an ascribed
+  ||| definiens (the annotated form — one AST).
+  letBindDoc : FixTable -> (String, SElem) -> Doc
+  -- the seam before `=` is a soft break in the group holding the type
+  -- (the seam rule): a broken type puts the definiens on a line of its
+  -- own, where its arguments can go deeper than the line
+  letBindDoc tbl (x, SAnn d ty) =
+    txt "\{x} : " <-> DGroup (pe tbl LNoComma True ty <-> DNest 2 (DLine <-> txt "= " <-> pe tbl LPair True d))
+  letBindDoc tbl (x, d) = txt "\{x} = " <-> pe tbl LPair True d
+
+  ||| A let chain: the bindings, outermost first, and the scope under
+  ||| them all (a nested let in scope position is one more binding).
+  letRun : SElem -> (List (String, SElem), SElem)
+  letRun (SLet (x, _) d b) = let (bs, scope) = letRun b in ((x, d) :: bs, scope)
+  letRun t = ([], t)
 
   ||| The binders of a λ-run below a λ, and the body under them all.
   lamRun : SElem -> (List String, SElem)
@@ -702,16 +720,25 @@ mutual
   renderPat (SPSuc p) = "S \{renderPatAtom p}"
   renderPat (SPInj1 p) = "inj₁ \{renderPatAtom p}"
   renderPat (SPInj2 p) = "inj₂ \{renderPatAtom p}"
+  renderPat (SPImp _ p) = "{\{renderPat p}}"
 
   renderPatAtom : SPat -> String
   renderPatAtom p = case p of
     SPVar (x, _) => x
     SPZero => "Z"
+    SPImp _ q => "{\{renderPat q}}"
     _ => "(\{renderPat p})"
 
+||| An AUTO-BOUND implicit column: the printer writes nothing for it
+||| (docs/NovaElaboration.txt, Defining equations — IMPLICIT COLUMNS).
+isAutoPat : SPat -> Bool
+isAutoPat (SPImp False _) = True
+isAutoPat _ = False
+
 renderClause : FixTable -> String -> SClause -> Doc
-renderClause tbl iname (MkSClause pats _ rhs mu mn _ _) =
-  let lhs = case (isOpName iname, pats) of
+renderClause tbl iname (MkSClause allPats _ rhs mu mn _ _) =
+  let pats = filter (not . isAutoPat) allPats
+      lhs = case (isOpName iname, pats) of
               -- an operator-named item's two-pattern clause lays out
               -- infix (the corpus spelling); operands sit at full
               -- pattern level there
@@ -750,6 +777,7 @@ flatW DHard = 100000
 flatW (DGroup d) = flatW d
 flatW (DNest _ d) = flatW d
 flatW (DAlt f _) = flatW f
+flatW (DAlign d) = flatW d
 
 ||| Lay out `header ≔ body` with the SEAM decided first: if the whole
 ||| item fits one line, render flat; otherwise the body moves under

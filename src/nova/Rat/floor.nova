@@ -153,7 +153,7 @@ leQFloorAt : (N : Int) (d : NZ) → qOfNat (qFloor (qcls (mkRat N d))) ≤ qAbs 
     Rat.qcls.eq)
 leQFloorAt =
   λN d. let v = qPosDenView N d
-    in transport (λw. qOfNat (qFloor w) ≤ qAbs w) (idToEq _ _ _ (v .π₂ .π₂)) leQFloorPos
+            transport (λw. qOfNat (qFloor w) ≤ qAbs w) (idToEq _ _ _ (v .π₂ .π₂)) leQFloorPos
 
 -- ===== ...and on the quotient =====
 leQFloorAbsSq : (u : Q) → ∥qOfNat (qFloor u) ≤ qAbs u∥

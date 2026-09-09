@@ -1,0 +1,16 @@
+defined len by clauses (len, lenZ, lenS, lenEta)
+defined len' by clauses (len', len'Z, len'S, len'Eta)
+defined half by clauses (half, halfZ, halfS, halfEta)
+defined sh by clauses (sh, shEq, shEta)
+defined useLen
+Accepted.
+--- a brace at an explicit column:
+explicit.nova:2:1: error: a brace pattern at an explicit column — {p} stands at an implicit binder of the signature
+2 | len Z {x} = Z
+  | ^^^^^^^^^
+  note: while parsing the construct beginning at 2:1
+--- a brace past the columns:
+past.nova:2:1: error: a brace pattern past the signature's Π-columns — {p} stands at an implicit binder of the signature
+2 | f Z {b} = Z
+  | ^^^^^^^
+  note: while parsing the construct beginning at 2:1
