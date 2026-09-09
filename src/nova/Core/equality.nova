@@ -4,46 +4,45 @@
 -- what other theories build from J is judgemental here.
 
 refl : {A : 𝕌} (a : A) → a ≡ a
-refl = λA. λa. ⋆
+refl = λA a. ⋆
 
 sym : {A : 𝕌} (a b : A) → (a ≡ b) → b ≡ a
-sym = λA. λa. λb. λh. ⋆
+sym = λA a b h. ⋆
 
 trans : {A : 𝕌} (a b c : A) → (a ≡ b) → (b ≡ c) → a ≡ c
-trans = λA. λa. λb. λc. λab. λbc. a ≡⟨ ab ⟩ b ≡⟨ bc ⟩ c
+trans = λA a b c ab bc. a ≡⟨ ab ⟩ b ≡⟨ bc ⟩ c
 
 -- coercion along a universe equation: the element itself, at the
 -- other type (A ≐ B by reflection)
 coe : {A B : 𝕌} → (A ≡ B) → A → B
-coe = λA. λB. λh. λa. a
+coe = λA B h a. a
 
 -- transport along an equation in the base: again the element itself
 -- (P a ≐ P b by congruence over the reflected hypothesis)
 transport : {A : 𝕌} (P : A → 𝕌) {a b : A} → (a ≡ b) → P a → P b
-transport = λA. λP. λa. λb. λh. λp. p
+transport = λA P a b h p. p
 
 -- transport at a PROP motive: equality is Ω-valued, so prop-indexed
 -- facts move along an equation the same way elements do — the proof
 -- itself, at the other instance ((P a) ≐ (P b) by congruence
 -- over the reflected hypothesis)
 transportP : {A : 𝕌} (P : A → Ω) {a b : A} → (a ≡ b) → P a → P b
-transportP = λA. λP. λa. λb. λh. λp. p
+transportP = λA P a b h p. p
 
 -- dependent congruence: in an extensional theory it is one ⋆, since
 -- reflecting the hypothesis makes the sides and their types equal
 cong : {A : 𝕌} (B : A → 𝕌) (f : (v : A) → B v) {v w : A} → (v ≡ w) → f v ≡ f w
-cong = λA. λB. λf. λv. λw. λh. ⋆
+cong = λA B f v w h. ⋆
 
 appCong : {A : 𝕌}
   (B : A → 𝕌)
   {f0 f1 : (x : A) → B x}
   {a0 a1 : A}
   → (f0 ≡ f1) → (a0 ≡ a1) → f0 a0 ≡ f1 a1 ∈ B a1
-appCong =
-  λA. λB. λf0. λf1. λa0. λa1. λf. λa. f0 a0 ≡⟨ a ⟩ f0 a1 ≡⟨ cong (λ_. B a1) (λg. g a1) f ⟩ f1 a1
+appCong = λA B f0 f1 a0 a1 f a. f0 a0 ≡⟨ a ⟩ f0 a1 ≡⟨ cong (λ_. B a1) (λg. g a1) f ⟩ f1 a1
 
 irr : {A : 𝕌} {v u : A} (p : v ≡ u) → p ≡ (⋆)
-irr = λA. λv. λu. λp. ⋆
+irr = λA v u p. ⋆
 
 -- Σ-η and componentwise equality at a DEPENDENT pair. Both are the
 -- non-dependent versions (Int/eq.nova's pairEtaG/pairEq2) with the
@@ -51,14 +50,8 @@ irr = λA. λv. λu. λp. ⋆
 -- makes x .π₁ ≐ y .π₁, which is exactly what h2's type needs. Stated
 -- type-generically, as every shape-generic lemma must be (B-3).
 paireta : {A : 𝕌} {B : A → 𝕌} (p : (a : A) × B a) → (p .π₁, p .π₂) ≡ p using (sigma.eta)
-paireta = λA. λB. λp. ⋆
+paireta = λA B p. ⋆
 
 pairext : {A : 𝕌} {B : A → 𝕌} {x y : (a : A) × B a} → (x .π₁ ≡ y .π₁) → (x .π₂ ≡ y .π₂) → x ≡ y
   using (sigma.eta, hyp.rw)
-pairext =
-  λA. λB. λx. λy. λh1. λh2. trans
-    _
-    _
-    _
-    trans _ _ (y .π₁, y .π₂) (sym _ _ (paireta x)) ⋆
-    paireta y
+pairext = λA B x y h1 h2. trans _ _ _ (trans _ _ (y .π₁, y .π₂) (sym _ _ (paireta x)) ⋆) (paireta y)

@@ -43,35 +43,35 @@ sqNat : ℕ → ℕ
 sqNat = λD. S D * S D
 
 qScaled : Q → ℕ → Q
-qScaled = λu. λD. u * qOfNat (sqNat D)
+qScaled = λu D. u * qOfNat (sqNat D)
 
 leQZeroScaled : {u : Q} (D : ℕ) → qZero ≤ u → qZero ≤ qScaled u D using (qScaled.eq)
-leQZeroScaled = λu. λD. λnn. leQZeroMul nn (leQZeroNat (sqNat D))
+leQZeroScaled = λu D nn. leQZeroMul nn (leQZeroNat (sqNat D))
 
 -- ⌊u⁺·(D+1)²⌋, the natural the root is taken of
 qFl : Q → ℕ → ℕ
-qFl = λu. λD. qFloor (qScaled u D)
+qFl = λu D. qFloor (qScaled u D)
 
 qSqrtNum : Q → ℕ → ℕ
-qSqrtNum = λu. λD. isqrt (qFl u D)
+qSqrtNum = λu D. isqrt (qFl u D)
 
 qSqrtAt : Q → ℕ → Q
-qSqrtAt = λu. λD. qOfNat (qSqrtNum u D) * qInvNat D
+qSqrtAt = λu D. qOfNat (qSqrtNum u D) * qInvNat D
 
 -- ===== the four facts =====
 leQFlBelow : {u : Q} (D : ℕ) → qZero ≤ u → qOfNat (qFl u D) ≤ qScaled u D using (qFl.eq)
-leQFlBelow = λu. λD. λnn. leQFloor (leQZeroScaled D nn)
+leQFlBelow = λu D nn. leQFloor (leQZeroScaled D nn)
 
 leQFlAbove : (u : Q) (D : ℕ) → qScaled u D ≤ qOfNat (S (qFl u D))
   using (qFl.eq, qScaled.eq, Rat.ceil.qNatBound.eq)
-leQFlAbove = λu. λD. leQBound (qScaled u D)
+leQFlAbove = λu D. leQBound (qScaled u D)
 
 sqrtNumLe : (u : Q) (D : ℕ) → qSqrtNum u D * qSqrtNum u D ≤ qFl u D using (qSqrtNum.eq)
-sqrtNumLe = λu. λD. isqrtLe (qFl u D)
+sqrtNumLe = λu D. isqrtLe (qFl u D)
 
 sqrtNumUpper : (u : Q) (D : ℕ) → S (qFl u D) ≤ S (qSqrtNum u D) * S (qSqrtNum u D)
   using (qSqrtNum.eq)
-sqrtNumUpper = λu. λD. isqrtUpper (qFl u D)
+sqrtNumUpper = λu D. isqrtUpper (qFl u D)
 
 -- ===== the two bridges =====
 -- (D+1)·(1/(D+1)) is one, on the nose
@@ -110,27 +110,27 @@ qMulInvNat =
 -- other way round
 mulIdxNz : {c m : ℕ} → c * m + c + m ≡ mulIdx c m using (Real.mul.mulIdx.eq)
 mulIdxNz =
-  λc. λm. c * m + c + m
+  λc m. c * m + c + m
     ≡⟨ plusComm m (c * m + c) ⟩ m + (c * m + c)
     ≡⟨ cong (λw. ℕ) (λw. m + w) (plusComm c (c * m)) ⟩ m + (c + c * m)
     ≡⟨ cong (λw. ℕ) (λw. m + w) (sym _ _ (multSucId c m)) ⟩ m + c * S m
 
 nzPosMul : (c m : ℕ) → nzMul (nzPos c) (nzPos m) ≡ nzPos (mulIdx c m)
   using (Rat.frac.nzMul.eq, Rat.frac.nzPos.eq)
-nzPosMul = λc. λm. cong (λw. NZ) (λw. nzPos w) {c * m + c + m} {mulIdx c m} mulIdxNz
+nzPosMul = λc m. cong (λw. NZ) (λw. nzPos w) {c * m + c + m} {mulIdx c m} mulIdxNz
 
 ratMulInv : (c m : ℕ)
   → ratMul (mkRat intOne (nzPos c)) (mkRat intOne (nzPos m))
     ≡ mkRat (intOne * intOne) (nzMul (nzPos c) (nzPos m))
   using (Rat.ratMul.eq, Rat.frac.mkRat.eq, Rat.frac.num.eq, Rat.frac.den.eq)
-ratMulInv = λc. λm. ⋆
+ratMulInv = λc m. ⋆
 
 qInvNatCls : (k : ℕ) → qInvNat k ≡ qcls (mkRat intOne (nzPos k)) using (Real.qInvNat.eq)
 qInvNatCls = λk. ⋆
 
 qInvNatMulIdx : {c m : ℕ} → qInvNat (mulIdx c m) ≡ qInvNat c * qInvNat m
 qInvNatMulIdx =
-  λc. λm. qInvNat (mulIdx c m)
+  λc m. qInvNat (mulIdx c m)
     ≡⟨ qInvNatCls (mulIdx c m) ⟩ qcls (mkRat intOne (nzPos (mulIdx c m)))
     ≡⟨ cong (λw. Q) (λw. qcls (mkRat intOne w)) (sym _ _ (nzPosMul c m)) ⟩
       qcls (mkRat intOne (nzMul (nzPos c) (nzPos m)))
@@ -157,20 +157,20 @@ qInvNatMulIdx =
 -- chain of ≤; no strict order and no division appear.
 qMulSwap3 : (x y z : Q) → x * y * z ≡ x * z * y
 qMulSwap3 =
-  λx. λy. λz. x * y * z
+  λx y z. x * y * z
     ≡⟨ qMulAssoc x y z ⟩ x * (y * z)
     ≡⟨ cong (λw. Q) (λw. x * w) (qMulComm y z) ⟩ x * (z * y)
     ≡⟨ sym _ _ (qMulAssoc x z y) ⟩ x * z * y
 
 qDistrib3 : (x y z w : Q) → (x + y) * z * w ≡ x * z * w + y * z * w
 qDistrib3 =
-  λx. λy. λz. λw. (x + y) * z * w
+  λx y z w. (x + y) * z * w
     ≡⟨ cong (λt. Q) (λt. t * w) (qDistribR z x y) ⟩ (x * z + y * z) * w
     ≡⟨ qDistribR w (x * z) (y * z) ⟩ x * z * w + y * z * w
 
 qNatSumEq : (a b T : ℕ) → qOfNat a * qOfNat b + qOfNat T ≡ qOfNat (a * b + T)
 qNatSumEq =
-  λa. λb. λT. qOfNat a * qOfNat b + qOfNat T
+  λa b T. qOfNat a * qOfNat b + qOfNat T
     ≡⟨ cong (λw. Q) (λw. w + qOfNat T) (qOfNatMul a b) ⟩ qOfNat (a * b) + qOfNat T
     ≡⟨ qOfNatAdd (a * b) T ⟩ qOfNat (a * b + T)
 
@@ -183,7 +183,7 @@ flCompare : {u v : Q}
         → qFl u Dm * sqNat Dn ≤ S (qFl v Dn) * sqNat Dm + T
   using (qScaled.eq)
 flCompare =
-  λu. λv. λDm. λDn. λT. λd. λnnu. λh1. λh2. leNOfQ
+  λu v Dm Dn T d nnu h1 h2. leNOfQ
     transport
       λw. w ≤ qOfNat (S (qFl v Dn) * sqNat Dm + T)
       qOfNatMul (qFl u Dm) (sqNat Dn)
@@ -218,7 +218,7 @@ flCompare =
 -- (a·b)² = a²·b², so cross-multiplying commutes with squaring
 mulSq : (a b : ℕ) → a * b * (a * b) ≡ a * a * (b * b)
 mulSq =
-  λa. λb. a * b * (a * b)
+  λa b. a * b * (a * b)
     ≡⟨ multAssoc a b (a * b) ⟩ a * (b * (a * b))
     ≡⟨ cong (λw. ℕ) (λw. a * w) (multLeftComm b a b) ⟩ a * (a * (b * b))
     ≡⟨ sym _ _ (multAssoc a a (b * b)) ⟩ a * a * (b * b)
@@ -232,7 +232,7 @@ sqrtCompareN : {u v : Q}
         → qSqrtNum u Dm * S Dn ≤ S (qSqrtNum v Dn) * S Dm + S (isqrt T)
   using (sqNat.eq)
 sqrtCompareN =
-  λu. λv. λDm. λDn. λT. λd. λnnu. λh1. λh2. sqrtStepN
+  λu v Dm Dn T d nnu h1 h2. sqrtStepN
     transport
       λw. w ≤ S (qSqrtNum v Dn) * S Dm * (S (qSqrtNum v Dn) * S Dm) + T
       sym _ _ (mulSq (qSqrtNum u Dm) (S Dn))
@@ -257,7 +257,7 @@ sqrtCompareN =
 -- ===== ...and back to a comparison of approximants =====
 qMulLeftComm : (x y z : Q) → x * (y * z) ≡ y * (x * z)
 qMulLeftComm =
-  λx. λy. λz. x * (y * z)
+  λx y z. x * (y * z)
     ≡⟨ sym _ _ (qMulAssoc x y z) ⟩ x * y * z
     ≡⟨ cong (λw. Q) (λw. w * z) (qMulComm x y) ⟩ y * x * z
     ≡⟨ qMulAssoc y x z ⟩ y * (x * z)
@@ -265,7 +265,7 @@ qMulLeftComm =
 -- the denominator cancels its own numeral, exactly
 cancelDen : {A : Q} {D : ℕ} {e : Q} → A * qOfNat (S D) * (e * qInvNat D) ≡ A * e
 cancelDen =
-  λA. λD. λe. A * qOfNat (S D) * (e * qInvNat D)
+  λA D e. A * qOfNat (S D) * (e * qInvNat D)
     ≡⟨ qMulAssoc A (qOfNat (S D)) (e * qInvNat D) ⟩ A * (qOfNat (S D) * (e * qInvNat D))
     ≡⟨ cong (λw. Q) (λw. A * w) (qMulLeftComm (qOfNat (S D)) e (qInvNat D)) ⟩
       A * (e * (qOfNat (S D) * qInvNat D))
@@ -278,7 +278,7 @@ crossToQ : {a b e Dm Dn : ℕ}
   → a * S Dn ≤ b * S Dm + e
     → qOfNat a * qInvNat Dm ≤ qOfNat b * qInvNat Dn + qOfNat e * (qInvNat Dm * qInvNat Dn)
 crossToQ =
-  λa. λb. λe. λDm. λDn. λle. transport
+  λa b e Dm Dn le. transport
     λw. w ≤ qOfNat b * qInvNat Dn + qOfNat e * (qInvNat Dm * qInvNat Dn)
     {qOfNat a * qOfNat (S Dn) * (qInvNat Dm * qInvNat Dn)}
     {qOfNat a * qInvNat Dm}
@@ -324,7 +324,7 @@ leQSqrtStep : {u v : Q}
           ≤ qSqrtAt v Dn + qInvNat Dn + qOfNat (S (isqrt T)) * (qInvNat Dm * qInvNat Dn)
   using (qSqrtAt.eq)
 leQSqrtStep =
-  λu. λv. λDm. λDn. λT. λd. λnnu. λh1. λh2. transport
+  λu v Dm Dn T d nnu h1 h2. transport
     λw. qSqrtAt u Dm ≤ w + qOfNat (S (isqrt T)) * (qInvNat Dm * qInvNat Dn)
     {qOfNat (S (qSqrtNum v Dn)) * qInvNat Dn}
     {qSqrtAt v Dn + qInvNat Dn}

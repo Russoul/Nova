@@ -16,13 +16,13 @@ import Int.add (+, intAddComm, intAddAssoc)
 import Core.equality (trans, cong, sym, paireta)
 
 distribBack : {n m k : ℕ} → n * m + n * k ≡ n * (m + k) using (multDistrib)
-distribBack = λn. λm. λk. ⋆
+distribBack = λn m k. ⋆
 
 -- right distributivity: Natural.nova has only the left law, so this is
 -- multComm on each factor, distribBack in the middle, multComm back
 distribBackR : (m k n : ℕ) → m * n + k * n ≡ (m + k) * n using (distribBack)
 distribBackR =
-  λm. λk. λn. trans
+  λm k n. trans
     _
     _
     _
@@ -43,30 +43,28 @@ swap4 : (p q r s : ℕ) → p + q + (r + s) ≡ p + r + (q + s)
     plusAssoc.rw,
     swapLeft,
     swapLeft.rw)
-swap4 = λp. λq. λr. λs. ⋆
+swap4 = λp q r s. ⋆
 
 swap4b : {p q r s : ℕ} → p + q + (r + s) ≡ p + s + (q + r)
   using (Int.add.intAddCross, swap4, plusAssoc)
 swap4b =
-  λp. λq. λr. λs. p + q + (r + s)
-    ≡⟨ plusComm s r ⟩ p + q + (s + r)
-    ≡⟨ swap4 p q s r ⟩ p + s + (q + r)
+  λp q r s. p + q + (r + s) ≡⟨ plusComm s r ⟩ p + q + (s + r) ≡⟨ swap4 p q s r ⟩ p + s + (q + r)
 
 -- congruence of + in each argument: with h reflected the two sides
 -- are judgemental, so each is one ⋆ (and unlike a rewrite step, a
 -- lemma application is unconstrained by the position it lands in)
 plusCongL : {x y z : ℕ} → (x ≡ y) → x + z ≡ y + z using (hyp.rw)
-plusCongL = λx. λy. λz. λh. ⋆
+plusCongL = λx y z h. ⋆
 
 plusCongR : {x y z : ℕ} → (y ≡ z) → x + y ≡ x + z
-plusCongR = λx. λy. λz. λh. ⋆
+plusCongR = λx y z h. ⋆
 
 -- x*y*z + x*u*v ≡ x*(y*z + u*v): reassociate both products, then
 -- collect the common left factor
 collectL : (x y z u v : ℕ) → x * y * z + x * u * v ≡ x * (y * z + u * v)
   using (distribBack, multAssoc)
 collectL =
-  λx. λy. λz. λu. λv. trans
+  λx y z u v. trans
     _
     _
     _
@@ -91,7 +89,7 @@ assocRep : (a1 a2 b1 b2 c1 c2 : ℕ)
     ≡ a1 * (b1 * c1 + b2 * c2) + a2 * (b1 * c2 + b2 * c1)
   using (hyp.rw)
 assocRep =
-  λa1. λa2. λb1. λb2. λc1. λc2. (a1 * b1 + a2 * b2) * c1 + (a1 * b2 + a2 * b1) * c2
+  λa1 a2 b1 b2 c1 c2. (a1 * b1 + a2 * b2) * c1 + (a1 * b2 + a2 * b1) * c2
     ≡⟨ distribBackR (a1 * b1) (a2 * b2) c1 ⟩ a1 * b1 * c1 + a2 * b2 * c1 + (a1 * b2 + a2 * b1) * c2
     ≡⟨ distribBackR (a1 * b2) (a2 * b1) c2 ⟩
       a1 * b1 * c1 + a2 * b2 * c1 + (a1 * b2 * c2 + a2 * b1 * c2)
@@ -108,7 +106,7 @@ sum4Distrib : (a1 a2 b1 b2 c1 c2 : ℕ)
   → a1 * b1 + a2 * b2 + (a1 * c2 + a2 * c1) ≡ a1 * (b1 + c2) + a2 * (b2 + c1)
   using (distribBack, plusAssoc)
 sum4Distrib =
-  λa1. λa2. λb1. λb2. λc1. λc2. trans
+  λa1 a2 b1 b2 c1 c2. trans
     _
     _
     _
@@ -125,7 +123,7 @@ sum4DistribR : (x1 x2 y1 y2 c1 c2 : ℕ)
   → x1 * c1 + x2 * c2 + (y1 * c2 + y2 * c1) ≡ (x1 + y2) * c1 + (x2 + y1) * c2
   using (distribBackR, plusAssoc)
 sum4DistribR =
-  λx1. λx2. λy1. λy2. λc1. λc2. trans
+  λx1 x2 y1 y2 c1 c2. trans
     _
     _
     _
@@ -145,7 +143,7 @@ intMulWD : (a1 a2 b1 b2 c1 c2 : ℕ)
   → a1 * b1 + a2 * b2 + (a1 * c2 + a2 * c1) ≡ a1 * b2 + a2 * b1 + (a1 * c1 + a2 * c2)
   using (distribBack, distribBackR, hyp.rw, plusAssoc, sum4Distrib)
 intMulWD =
-  λa1. λa2. λb1. λb2. λc1. λc2. λh. trans
+  λa1 a2 b1 b2 c1 c2 h. trans
     _
     _
     _
@@ -158,7 +156,7 @@ intMulWDRep : (a1 a2 b1 b2 c1 c2 : ℕ)
   → a1 * c1 + a2 * c2 + (b1 * c2 + b2 * c1) ≡ a1 * c2 + a2 * c1 + (b1 * c1 + b2 * c2)
   using (distribBack, hyp.rw, plusAssoc, plusComm, sum4DistribR)
 intMulWDRep =
-  λa1. λa2. λb1. λb2. λc1. λc2. λh. trans
+  λa1 a2 b1 b2 c1 c2 h. trans
     _
     _
     _
@@ -185,7 +183,7 @@ intMulWDOuter : (a b : ℕ × ℕ)
     sum4Distrib,
     sum4DistribR)
 intMulWDOuter =
-  λa. λb. λh. λzy. quot-elim
+  λa b h zy. quot-elim
     q. quot-elim
       z. Int
       x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁)
@@ -199,7 +197,7 @@ infixl 7 *
 * : Int → Int → Int
   using (distribBackR, intMulWDOuter, Int.Int.unfold, Int.mul.intMulWD, plusAssoc, sum4Distrib)
 (*) =
-  λx. λy. quot-elim
+  λx y. quot-elim
     a. quot-elim (b. class (a .π₁ * b .π₁ + a .π₂ * b .π₂, a .π₁ * b .π₂ + a .π₂ * b .π₁)) y
     x
 
@@ -223,7 +221,7 @@ oneMult = λm. S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m 
 -- reflection makes the components judgemental, so this is one ⋆
 classCong2 : {u1 u2 v1 v2 : ℕ} → (u1 ≡ v1) → (u2 ≡ v2) → class (u1, u2) ≡ class (v1, v2) ∈ Int
   using (hyp.rw, Int.Int.unfold)
-classCong2 = λu1. λu2. λv1. λv2. λh1. λh2. ⋆
+classCong2 = λu1 u2 v1 v2 h1 h2. ⋆
 
 -- multiplication by 1 on the LEFT does not compute (Natural.nova's * is
 -- recursive in its SECOND argument), so oneMult/zeroMult have to fire
@@ -275,7 +273,7 @@ intMulZeroR = λz. quot-elim (p. ⋆) z
 -- rewrites — each factor has to be commuted by an explicit cong
 mulComm2 : (u1 u2 v1 v2 : ℕ) → u1 * v1 + u2 * v2 ≡ v1 * u1 + v2 * u2
 mulComm2 =
-  λu1. λu2. λv1. λv2. trans
+  λu1 u2 v1 v2. trans
     _
     _
     _
@@ -284,7 +282,7 @@ mulComm2 =
 
 intMulComm : (x y : Int) → x * y ≡ y * x using (Int.Int.unfold, Int.mul.*.eq, plusAssoc)
 intMulComm =
-  λx. λy. quot-elim
+  λx y. quot-elim
     a. quot-elim
       b. classCong2
         mulComm2 (a .π₁) (a .π₂) (b .π₁) (b .π₂)
@@ -299,7 +297,7 @@ intMulComm =
 
 intMulAssoc : (x y z : Int) → x * y * z ≡ x * (y * z) using (assocRep, Int.Int.unfold, Int.mul.*.eq)
 intMulAssoc =
-  λx. λy. λz. quot-elim
+  λx y z. quot-elim
     a. quot-elim
       b. quot-elim
         c. classCong2
@@ -319,20 +317,20 @@ intMulDistribL : (x y z : Int) → x * (y + z) ≡ x * y + x * z
     plusAssoc.rw,
     sum4Distrib,
     sum4Distrib.rw)
-intMulDistribL = λx. λy. λz. quot-elim (a. quot-elim (b. quot-elim (c. ⋆) z) y) x
+intMulDistribL = λx y z. quot-elim (a. quot-elim (b. quot-elim (c. ⋆) z) y) x
 
 -- congruence in both arguments, for building chains: reflection makes
 -- the hypotheses judgemental, so each is one ⋆
 intAddCong2 : (x y u v : Int) → (x ≡ u) → (y ≡ v) → x + y ≡ u + v using (hyp.rw, Int.Int.unfold)
-intAddCong2 = λx. λy. λu. λv. λh1. λh2. ⋆
+intAddCong2 = λx y u v h1 h2. ⋆
 
 intMulCong2 : (x y u v : Int) → (x ≡ u) → (y ≡ v) → x * y ≡ u * v using (hyp.rw, Int.Int.unfold)
-intMulCong2 = λx. λy. λu. λv. λh1. λh2. ⋆
+intMulCong2 = λx y u v h1 h2. ⋆
 
 -- distributivity on the right, from the left law by commuting thrice
 intMulDistribR : (x y z : Int) → (x + y) * z ≡ x * z + y * z
 intMulDistribR =
-  λx. λy. λz. trans
+  λx y z. trans
     _
     _
     _
@@ -371,7 +369,7 @@ intAddNegL = λz. quot-elim (p. ⋆) z
 intMulNegL : (x y : Int) → intNeg x * y ≡ intNeg (x * y)
   using (Int.Int.unfold, Int.intNeg.eq, Int.mul.*.eq)
 intMulNegL =
-  λx. λy. quot-elim
+  λx y. quot-elim
     a. quot-elim
       b. classCong2
         plusComm (a .π₁ * b .π₂) (a .π₂ * b .π₁)
@@ -381,7 +379,7 @@ intMulNegL =
 
 intMulNegR : (x y : Int) → x * intNeg y ≡ intNeg (x * y) using (intMulNegL)
 intMulNegR =
-  λx. λy. trans
+  λx y. trans
     _
     _
     _

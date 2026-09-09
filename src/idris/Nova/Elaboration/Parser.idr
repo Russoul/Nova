@@ -859,9 +859,14 @@ mutual
         -- λx. a , b is λx. (a , b). A λ that is a non-final pair
         -- component must therefore be parenthesised, the
         -- Agda/Haskell convention.
-        (do kw2 "λ" "\\"; sp; x <- parseNameR; sp; kwc '.'; sp
-            e <- parseSElem tbl (env :< fst x)
-            pure (SLam x e))
+        -- Binders ITERATE, the twin of the binder group: λx y. b is
+        -- λx. λy. b (whitespace-separated names, one dot).
+        (do kw2 "λ" "\\"; sp; x <- parseNameR
+            xs <- many (do space; parseNameR)
+            sp; kwc '.'; sp
+            let names = x :: xs
+            e <- parseSElem tbl (env <>< map fst names)
+            pure (foldr SLam e names))
         -- let x = e in b / let x : T = e in b — the annotated form is
         -- sugar for an ascribed definiens (the definiens elaborates in
         -- inference mode); the body extends maximally, like λ's.

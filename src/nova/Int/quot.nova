@@ -29,7 +29,7 @@ import Core.equality (transportP, sym, trans, cong)
 
 intGop : (x y : Int) → gop intAddGroup x y ≡ x + y
   using (Algebra.groupTheory.gop.eq, Int.group.intAddGroup.eq)
-intGop = λx. λy. ⋆
+intGop = λx y. ⋆
 
 intGe : ge intAddGroup ≡ intZero using (Algebra.groupTheory.ge.eq, Int.group.intAddGroup.eq)
 intGe = ⋆
@@ -40,7 +40,7 @@ intGinv = λx. ⋆
 
 -- ℤ is abelian, in the group-theoretic vocabulary
 intGopComm : (x y : Int) → gop intAddGroup x y ≡ gop intAddGroup y x
-intGopComm = λx. λy. trans _ _ _ (intGop x y) (trans _ _ _ (intAddComm x y) (sym _ _ (intGop y x)))
+intGopComm = λx y. trans _ _ _ (intGop x y) (trans _ _ _ (intAddComm x y) (sym _ _ (intGop y x)))
 
 -- ===== nℤ =====
 --
@@ -50,13 +50,13 @@ intGopComm = λx. λy. trans _ _ _ (intGop x y) (trans _ _ _ (intAddComm x y) (s
 -- closure proofs each unpack their hypotheses and repackage a new
 -- witness, which is exactly what el-squash-e-prf allows.
 nZfib : Int → Int → 𝕌
-nZfib = λn. λx. (k : Int) × Id _ (n * k) x
+nZfib = λn x. (k : Int) × Id _ (n * k) x
 
 nZ : Int → Int → Ω
-nZ = λn. λx. ∥nZfib n x∥
+nZ = λn x. ∥nZfib n x∥
 
 nZIntro : (n x k : Int) → (n * k ≡ x) → nZ n x using (nZ.eq, nZfib.unfold)
-nZIntro = λn. λx. λk. λe. ⋆ (k, eqToId _ _ e)
+nZIntro = λn x k e. ⋆ (k, eqToId _ _ e)
 
 -- 0 = n · 0
 nZUnit : (n : Int) → nZ n (ge intAddGroup)
@@ -65,7 +65,7 @@ nZUnit = λn. nZIntro _ _ _ (trans (n * intZero) _ _ intMulZeroR (sym _ _ intGe)
 -- n·k₁ + n·k₂ = n·(k₁+k₂)
 nZOp : (n x y : Int) → nZ n x → nZ n y → nZ n (gop intAddGroup x y) using (nZ.eq, nZfib.unfold)
 nZOp =
-  λn. λx. λy. λhx. λhy. squash-elim
+  λn x y hx hy. squash-elim
     hx
     u. squash-elim
       hy
@@ -82,7 +82,7 @@ nZOp =
 -- n·(−k) = −(n·k)
 nZInv : (n x : Int) → nZ n x → nZ n (ginv intAddGroup x) using (nZ.eq, nZfib.unfold)
 nZInv =
-  λn. λx. λhx. squash-elim
+  λn x hx. squash-elim
     hx
     u. nZIntro
       _
@@ -115,7 +115,7 @@ intModCls = λn. qcls intAddGroup (nZ n)
 intModMulZero : {n k : Int} → intModCls (n * k) ≡ intModCls intZero ∈ IntMod n
   using (intModCls.eq, Algebra.subgroup.cosetRel.eq)
 intModMulZero =
-  λn. λk. qclsEq
+  λn k. qclsEq
     nZIsSubgroup n
     n * k
     intZero
@@ -146,19 +146,19 @@ intRaddGroup = ⋆
 
 intRmul : (x y : Int) → rmul _ intCommRing x y ≡ x * y
   using (Algebra.ringTheory.rmul.eq, Int.ring.intCommRing.eq)
-intRmul = λx. λy. ⋆
+intRmul = λx y. ⋆
 
 -- a·(n·k) = n·(a·k): one associativity and one commutation
 nZScaleAlg : (n a k : Int) → a * (n * k) ≡ n * (a * k)
 nZScaleAlg =
-  λn. λa. λk. a * (n * k)
+  λn a k. a * (n * k)
     ≡⟨ sym _ _ (intMulAssoc a n k) ⟩ a * n * k
     ≡⟨ cong (λw. Int) (λw. w * k) (intMulComm a n) ⟩ n * a * k
     ≡⟨ intMulAssoc n a k ⟩ n * (a * k)
 
 nZScale : (n a x : Int) → nZ n x → nZ n (rmul _ intCommRing a x) using (nZ.eq, nZfib.unfold)
 nZScale =
-  λn. λa. λx. λhx. squash-elim
+  λn a x hx. squash-elim
     hx
     u. nZIntro
       _

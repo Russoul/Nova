@@ -34,10 +34,10 @@ import Core.quotEffective (classEqOfRel)
 import Core.equality (transportP, sym, trans, cong)
 
 QRing : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → 𝕌
-QRing = λR. λr. λI. QGroup _ (raddGroup r) I
+QRing = λR r I. QGroup _ (raddGroup r) I
 
 qrCls : {R : 𝕌} {r : IsCommRing R} {I : R → Ω} → R → QRing _ r I using (QRing.eq)
-qrCls = λR. λr. λI. qcls (raddGroup r) I
+qrCls = λR r I. qcls (raddGroup r) I
 
 -- ===== the two well-definedness proofs =====
 qrMulWDInner : {R : 𝕌}
@@ -48,7 +48,7 @@ qrMulWDInner : {R : 𝕌}
       → cosetRel (raddGroup r) I b b' → cosetRel (raddGroup r) I (rmul _ r a b) (rmul _ r a b')
   using (Algebra.subgroup.cosetRel.eq)
 qrMulWDInner =
-  λR. λr. λI. λid. λa. λb. λb'. λh. transportP
+  λR r I id a b b' h. transportP
     I
     sym _ _ (rMulSub _ r a b b')
     idScale _ _ _ id a (gop (raddGroup r) b (ginv (raddGroup r) b')) h
@@ -61,7 +61,7 @@ qrMulWDOuter : {R : 𝕌}
       → cosetRel (raddGroup r) I a a' → cosetRel (raddGroup r) I (rmul _ r a b) (rmul _ r a' b)
   using (Algebra.subgroup.cosetRel.eq)
 qrMulWDOuter =
-  λR. λr. λI. λid. λa. λa'. λb. λh. transportP
+  λR r I id a a' b h. transportP
     I
     {rmul _ r (gop (raddGroup r) a (ginv (raddGroup r) a')) b}
     {gop (raddGroup r) (rmul _ r a b) (ginv (raddGroup r) (rmul _ r a' b))}
@@ -91,7 +91,7 @@ qrMulWDInnerCls : (R : 𝕌)
       → cosetRel (raddGroup r) I b b' → qrCls (rmul _ r a b) ≡ qrCls (rmul _ r a b') ∈ QRing _ r I
   using (qrCls.eq, Algebra.quotGroup.qcls.eq)
 qrMulWDInnerCls =
-  λR. λr. λI. λid. λa. λb. λb'. λh. classEqOfRel
+  λR r I id a b b' h. classEqOfRel
     cosetRel (raddGroup r) I
     rmul _ r a b
     rmul _ r a b'
@@ -105,7 +105,7 @@ qrMulWDOuterCls : {R : 𝕌}
       → cosetRel (raddGroup r) I a a' → qrCls (rmul _ r a b) ≡ qrCls (rmul _ r a' b) ∈ QRing _ r I
   using (qrCls.eq, Algebra.quotGroup.qcls.eq)
 qrMulWDOuterCls =
-  λR. λr. λI. λid. λa. λa'. λb. λh. classEqOfRel
+  λR r I id a a' b h. classEqOfRel
     cosetRel (raddGroup r) I
     rmul _ r a b
     rmul _ r a' b
@@ -122,7 +122,7 @@ qrMulWDOuterElim : (R : 𝕌)
             ≡ quot-elim (q. qrCls (rmul _ r x' q)) v
   using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrMulWDInnerCls)
 qrMulWDOuterElim =
-  λR. λr. λI. λid. λx. λx'. λh. λv. quot-elim
+  λR r I id x x' h v. quot-elim
     w. quot-elim (z. QRing _ r I) (q. qrCls (rmul _ r x q)) w
       ≡ quot-elim (q. qrCls (rmul _ r x' q)) w
     c. qrMulWDOuterCls id h
@@ -133,7 +133,7 @@ qrMul : (R : 𝕌)
   (I : R → Ω)
   → IsIdeal _ r I → QRing _ r I → QRing _ r I → QRing _ r I
   using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrMulWDInnerCls, qrMulWDOuterElim)
-qrMul = λR. λr. λI. λid. λu. λv. quot-elim (p. quot-elim (q. qrCls (rmul _ r p q)) v) u
+qrMul = λR r I id u v. quot-elim (p. quot-elim (q. qrCls (rmul _ r p q)) v) u
 
 qrMulCls : (R : 𝕌)
   (r : IsCommRing R)
@@ -142,11 +142,11 @@ qrMulCls : (R : 𝕌)
   (a b : R)
   → qrMul _ _ _ id (class a) (class b) ≡ class (rmul _ r a b)
   using (QRing.eq, qrCls.eq, Algebra.quotGroup.QGroup.unfold, Algebra.quotGroup.qcls.eq, qrMul.eq)
-qrMulCls = λR. λr. λI. λid. λa. λb. ⋆
+qrMulCls = λR r I id a b. ⋆
 
 qrOne : {R : 𝕌} {r : IsCommRing R} {I : R → Ω} → QRing _ r I
   using (QRing.eq, Algebra.quotGroup.QGroup.unfold)
-qrOne = λR. λr. λI. class (rone r)
+qrOne = λR r I. class (rone r)
 
 -- ===== the additive side, renamed =====
 --
@@ -154,14 +154,14 @@ qrOne = λR. λr. λI. class (rone r)
 -- it in ring vocabulary and bridge qIsGroup's projections once.
 qrAddGroup : {R : 𝕌} {r : IsCommRing R} {I : R → Ω} → IsIdeal _ r I → IsGroup (QRing _ r I)
   using (QRing.eq)
-qrAddGroup = λR. λr. λI. λid. qIsGroup _ _ _ (idSub id) (idNormal _ r I)
+qrAddGroup = λR r I id. qIsGroup _ _ _ (idSub id) (idNormal _ r I)
 
 qrAdd : {R : 𝕌}
   {r : IsCommRing R}
   {I : R → Ω}
   → IsIdeal _ r I → QRing _ r I → QRing _ r I → QRing _ r I
   using (QRing.eq)
-qrAdd = λR. λr. λI. λid. qMul _ _ _ (idNormal _ r I)
+qrAdd = λR r I id. qMul _ _ _ (idNormal _ r I)
 
 qrGop : (R : 𝕌)
   (r : IsCommRing R)
@@ -170,7 +170,7 @@ qrGop : (R : 𝕌)
   (u v : QRing _ r I)
   → gop (qrAddGroup id) u v ≡ qrAdd id u v
   using (qrAddGroup.eq, qrAdd.eq, Algebra.groupTheory.gop.eq, Algebra.quotGroup.qIsGroup.eq)
-qrGop = λR. λr. λI. λid. λu. λv. ⋆
+qrGop = λR r I id u v. ⋆
 
 qrAddCls : (R : 𝕌)
   (r : IsCommRing R)
@@ -179,7 +179,7 @@ qrAddCls : (R : 𝕌)
   (a b : R)
   → qrAdd id (class a) (class b) ≡ class (gop (raddGroup r) a b)
   using (QRing.eq, qrAdd.eq, Algebra.quotGroup.QGroup.unfold)
-qrAddCls = λR. λr. λI. λid. λa. λb. qMulCls _ _ _ (idNormal _ r I) a b
+qrAddCls = λR r I id a b. qMulCls _ _ _ (idNormal _ r I) a b
 
 -- ===== the multiplicative laws, each a descent into Ω =====
 qrMulAssoc : (R : 𝕌)
@@ -190,7 +190,7 @@ qrMulAssoc : (R : 𝕌)
   → qrMul _ _ _ id (qrMul _ _ _ id u v) w ≡ qrMul _ _ _ id u (qrMul _ _ _ id v w)
   using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrMulCls.rw)
 qrMulAssoc =
-  λR. λr. λI. λid. λu. λv. λw. quot-elim
+  λR r I id u v w. quot-elim
     a. quot-elim
       b. quot-elim
         c. trans
@@ -221,7 +221,7 @@ qrMulComm : (R : 𝕌)
   → qrMul _ _ _ id u v ≡ qrMul _ _ _ id v u
   using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrMulCls.rw)
 qrMulComm =
-  λR. λr. λI. λid. λu. λv. quot-elim
+  λR r I id u v. quot-elim
     a. quot-elim
       b. trans
         _
@@ -245,7 +245,7 @@ qrMulOne : (R : 𝕌)
   → qrMul _ _ _ id u qrOne ≡ u
   using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrOne.eq, qrMulCls.rw)
 qrMulOne =
-  λR. λr. λI. λid. λu. quot-elim
+  λR r I id u. quot-elim
     a. trans _ _ _ ⋆ (cong (λz. QRing _ r I) (λz. class z) {rmul _ r a (rone r)} {a} rMulOne)
     u
 
@@ -257,7 +257,7 @@ qrAddComm : {R : 𝕌}
   → qrAdd id u v ≡ qrAdd id v u
   using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrAddCls.rw)
 qrAddComm =
-  λR. λr. λI. λid. λu. λv. quot-elim
+  λR r I id u v. quot-elim
     a. quot-elim
       b. trans
         _
@@ -281,7 +281,7 @@ qrDistribL : {R : 𝕌}
   → qrMul _ _ _ id u (qrAdd id v w) ≡ qrAdd id (qrMul _ _ _ id u v) (qrMul _ _ _ id u w)
   using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrMulCls.rw, qrAddCls.rw)
 qrDistribL =
-  λR. λr. λI. λid. λu. λv. λw. quot-elim
+  λR r I id u v w. quot-elim
     a. quot-elim
       b. quot-elim
         c. trans
@@ -303,14 +303,14 @@ qrDistribL =
 qrIsCommRing : {R : 𝕌} {r : IsCommRing R} {I : R → Ω} → IsIdeal _ r I → IsCommRing (QRing _ r I)
   using (Algebra.ring.IsCommRing.unfold, Algebra.groupTheory.gop.eq)
 qrIsCommRing =
-  λR. λr. λI. λid. (,)
+  λR r I id. (,)
     qrAddGroup id
     qrMul _ _ _ id
     qrOne
-    λx. λy. λz. eqToId _ _ (qrMulAssoc _ _ _ id x y z)
-    λx. λy. eqToId _ _ (qrMulComm _ _ _ id x y)
+    λx y z. eqToId _ _ (qrMulAssoc _ _ _ id x y z)
+    λx y. eqToId _ _ (qrMulComm _ _ _ id x y)
     λx. eqToId _ _ (qrMulOne _ _ _ id x)
-    λx. λy. eqToId
+    λx y. eqToId
       gop (qrAddGroup id) x y
       gop (qrAddGroup id) y x
       trans
@@ -319,7 +319,7 @@ qrIsCommRing =
         _
         qrGop _ _ _ id x y
         trans (qrAdd id x y) _ _ qrAddComm (sym _ _ (qrGop _ _ _ id y x))
-    λx. λy. λz. eqToId
+    λx y z. eqToId
       qrMul _ _ _ id x (gop (qrAddGroup id) y z)
       gop (qrAddGroup id) (qrMul _ _ _ id x y) (qrMul _ _ _ id x z)
       trans

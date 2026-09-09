@@ -22,7 +22,7 @@ ratAddGroup =
     (,)
       (+)
       qZero
-      λx. λy. λz. eqToId _ _ (qAddAssoc x y z)
+      λx y z. eqToId _ _ (qAddAssoc x y z)
       λx. eqToId _ _ (qAddZeroL x)
       λx. eqToId _ _ (qAddZeroR x)
     qNeg
@@ -34,7 +34,7 @@ ratMulMonoid =
   (,)
     (*)
     qOne
-    λx. λy. λz. eqToId _ _ (qMulAssoc x y z)
+    λx y z. eqToId _ _ (qMulAssoc x y z)
     λx. eqToId _ _ (qMulOneL x)
     λx. eqToId _ _ (qMulOneR x)
 
@@ -98,9 +98,9 @@ ratField =
   (,)
     ratAddGroup
     ratMulMonoid
-    λx. λy. eqToId _ _ (qAddComm x y)
-    λx. λy. eqToId _ _ (qMulComm x y)
-    λx. λy. λz. eqToId _ _ (qDistribL x y z)
-    λx. λy. λz. eqToId _ _ (qDistribR x y z)
+    λx y. eqToId _ _ (qAddComm x y)
+    λx y. eqToId _ _ (qMulComm x y)
+    λx y z. eqToId _ _ (qDistribL x y z)
+    λx y z. eqToId _ _ (qDistribR x y z)
     qOneNotZeroD
-    λx. λk. qInv x, eqToId _ _ (qMulInvR (notIntro (x ≡ qZero) (λe. ⋆ (k (eqToId _ qZero e)))))
+    λx k. qInv x, eqToId _ _ (qMulInvR (notIntro (x ≡ qZero) (λe. ⋆ (k (eqToId _ qZero e)))))

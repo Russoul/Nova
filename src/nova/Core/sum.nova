@@ -11,19 +11,19 @@
 import Core.equality (cong, transport)
 
 swap : {a b : 𝕌} → a ⊎ b → b ⊎ a
-swap = λa. λb. λt. ⊎-elim (x. inj₂ x) (y. inj₁ y) t
+swap = λa b t. ⊎-elim (x. inj₂ x) (y. inj₁ y) t
 
 -- β on each injection, by computation
 swapBeta1 : (a b : 𝕌) (x : a) → swap (inj₁ x) ≡ inj₂ x ∈ b ⊎ a using (Core.sum.swap.eq)
-swapBeta1 = λa. λb. λx. ⋆
+swapBeta1 = λa b x. ⋆
 
 swapBeta2 : (a b : 𝕌) (y : b) → swap (inj₂ y) ≡ inj₁ y ∈ b ⊎ a using (Core.sum.swap.eq)
-swapBeta2 = λa. λb. λy. ⋆
+swapBeta2 = λa b y. ⋆
 
 -- swap is an involution: case analysis with an equality motive, both
 -- cases closing by β
 swapInvol : (a b : 𝕌) (t : a ⊎ b) → swap (swap t) ≡ t using (Core.sum.swap.eq)
-swapInvol = λa. λb. λt. ⊎-elim (x. ⋆) (y. ⋆) t
+swapInvol = λa b t. ⊎-elim (x. ⋆) (y. ⋆) t
 
 -- the uniqueness (η) law, propositionally: any map out of a ⊎ b IS
 -- the eliminator over its own injection images (el-sum-eta's content,
@@ -33,46 +33,42 @@ sumEta : (a b c : 𝕌)
   (t : a ⊎ b)
   → ⊎-elim (w. c) (x. f (inj₁ x)) (y. f (inj₂ y)) t ≡ f t
 sumEta =
-  λa. λb. λc. λf. λt. ⊎-elim
-    w. ⊎-elim (v. c) (x. f (inj₁ x)) (y. f (inj₂ y)) w ≡ f w
-    x. ⋆
-    y. ⋆
-    t
+  λa b c f t. ⊎-elim (w. ⊎-elim (v. c) (x. f (inj₁ x)) (y. f (inj₂ y)) w ≡ f w) (x. ⋆) (y. ⋆) t
 
 -- the ⊎ TYPE former and its code agree: (a ⊎ b) ≐ a ⊎ b
 -- (ty-el-sum), so the conversions between them are the identity
 -- case analysis
 toCode : {a b : 𝕌} → a ⊎ b → a ⊎ b
-toCode = λa. λb. λt. ⊎-elim (x. inj₁ x) (y. inj₂ y) t
+toCode = λa b t. ⊎-elim (x. inj₁ x) (y. inj₂ y) t
 
 fromCode : {a b : 𝕌} → a ⊎ b → a ⊎ b
-fromCode = λa. λb. λt. ⊎-elim (x. inj₁ x) (y. inj₂ y) t
+fromCode = λa b t. ⊎-elim (x. inj₁ x) (y. inj₂ y) t
 
 toFromId : (a b : 𝕌) (t : a ⊎ b) → toCode (fromCode t) ≡ t
   using (Core.sum.fromCode.eq, Core.sum.toCode.eq)
-toFromId = λa. λb. λt. ⊎-elim (x. ⋆) (y. ⋆) t
+toFromId = λa b t. ⊎-elim (x. ⋆) (y. ⋆) t
 
 -- inj₁ is injective — DERIVABLE, no rule needed: a ⊎-elim retraction
 -- at constant motive a whose right case returns a fixed default
 -- (the compared element itself serves), then congruence
 outl : (a b : 𝕌) → a → a ⊎ b → a
-outl = λa. λb. λd. λt. ⊎-elim (x. x) (y. d) t
+outl = λa b d t. ⊎-elim (x. x) (y. d) t
 
 inj1Injective : (a b : 𝕌) (x x' : a) → (inj₁ x ≡ inj₁ x' ∈ a ⊎ b) → x ≡ x' using (Core.sum.outl.eq)
-inj1Injective = λa. λb. λx. λx'. λh. cong (λw. a) (outl _ b x) h
+inj1Injective = λa b x x' h. cong (λw. a) (outl _ b x) h
 
 -- inj₁ and inj₂ are disjoint — also derivable: transport the
 -- "is-left" code along the bad equation and land a 𝟙-witness in 𝟘
 isLeftCode : (a b : 𝕌) → a ⊎ b → 𝕌
-isLeftCode = λa. λb. λt. ⊎-elim (x. 𝟙) (y. 𝟘) t
+isLeftCode = λa b t. ⊎-elim (x. 𝟙) (y. 𝟘) t
 
 inj1NotInj2 : (a b : 𝕌) (x : a) (y : b) → (inj₁ x ≡ inj₂ y ∈ a ⊎ b) → 𝟘
   using (Core.sum.isLeftCode.unfold)
-inj1NotInj2 = λa. λb. λx. λy. λh. transport (isLeftCode a b) h ()
+inj1NotInj2 = λa b x y h. transport (isLeftCode a b) h ()
 
 -- the mirror image of outl/inj1Injective, for the right injection
 outr : (a b : 𝕌) → b → a ⊎ b → b
-outr = λa. λb. λd. λt. ⊎-elim (x. d) (y. y) t
+outr = λa b d t. ⊎-elim (x. d) (y. y) t
 
 inj2Injective : (a b : 𝕌) (y y' : b) → (inj₂ y ≡ inj₂ y' ∈ a ⊎ b) → y ≡ y' using (Core.sum.outr.eq)
-inj2Injective = λa. λb. λy. λy'. λh. cong (λw. b) (outr a _ y) h
+inj2Injective = λa b y y' h. cong (λw. b) (outr a _ y) h

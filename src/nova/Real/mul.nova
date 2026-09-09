@@ -35,12 +35,12 @@ import Real.bound (seqBound, bndSeqBound, seqBoundPos)
 import Core.equality (trans, sym, cong, transport, transportP)
 
 mulIdx : ℕ → ℕ → ℕ
-mulIdx = λc. λm. m + c * S m
+mulIdx = λc m. m + c * S m
 
 sucMulIdx : (c m : ℕ) → S (mulIdx c m) ≡ S c * S m
   using (Natural.*.eq, Natural.+.eq, Real.mul.mulIdx.eq)
 sucMulIdx =
-  λc. λm. trans (S (m + c * S m)) _ _ (sym _ _ (sucPlus m (c * S m))) (sym _ _ (sucMult c (S m)))
+  λc m. trans (S (m + c * S m)) _ _ (sym _ _ (sucPlus m (c * S m))) (sym _ _ (sucMult c (S m)))
 
 -- (c+1) · 1/((c+1)(m+1)) = 1/(m+1) : cross-multiplication is the
 -- successor identity above. Split into the two sides, because a
@@ -49,7 +49,7 @@ sucMulIdx =
 qMulIdxNum : {c m : ℕ} → intOfNat (S c) * intOne * nzToInt (nzPos m) ≡ intOfNat (S c * S m)
   using (Rat.half.nzPosInt)
 qMulIdxNum =
-  λc. λm. trans
+  λc m. trans
     _
     intOfNat (S c) * intOfNat (S m)
     _
@@ -59,7 +59,7 @@ qMulIdxNum =
 qMulIdxDen : (c m : ℕ) → intOne * nzToInt (nzMul nzOne (nzPos (mulIdx c m))) ≡ intOfNat (S c * S m)
   using (Rat.half.nzPosInt)
 qMulIdxDen =
-  λc. λm. trans
+  λc m. trans
     _
     _
     _
@@ -99,7 +99,7 @@ qMulIdxRel : (c m : ℕ)
     Rat.ratMul.eq,
     Real.mul.mulIdx.eq)
 qMulIdxRel =
-  λc. λm. trans
+  λc m. trans
     {Int}
     intOfNat (S c) * intOne * nzToInt (nzPos m)
     _
@@ -120,7 +120,7 @@ qMulInvIdx : {c m : ℕ} → qOfNat (S c) * qInvNat (mulIdx c m) ≡ qInvNat m
     Real.qInvNat.eq,
     Real.mul.mulIdx.eq)
 qMulInvIdx =
-  λc. λm. trans
+  λc m. trans
     _
     qcls (ratMul (mkRat (intOfNat (S c)) nzOne) (mkRat intOne (nzPos (mulIdx c m))))
     _
@@ -135,16 +135,13 @@ qMulInvIdx =
 -- generically, where every symbol is a variable.
 qMulInvIdxC : {C c m : ℕ} → (C ≡ S c) → qOfNat C * qInvNat (mulIdx c m) ≡ qInvNat m
 qMulInvIdxC =
-  λC. λc. λm. λh. transportP
-    λw. qOfNat w * qInvNat (mulIdx c m) ≡ qInvNat m
-    sym _ _ h
-    qMulInvIdx
+  λC c m h. transportP (λw. qOfNat w * qInvNat (mulIdx c m) ≡ qInvNat m) (sym _ _ h) qMulInvIdx
 
 -- ...so the factor turns the deep bound into the shallow one exactly
 qMulRBoundIdx : (c m n : ℕ) → qOfNat (S c) * rBound (mulIdx c m) (mulIdx c n) ≡ rBound m n
   using (Rat.+.eq, Real.qInvNat.eq, Real.rBound.eq, Real.mul.mulIdx.eq)
 qMulRBoundIdx =
-  λc. λm. λn. trans
+  λc m n. trans
     _
     _
     _
@@ -164,11 +161,11 @@ qMulRBoundIdx =
 -- ===== the product-difference identity =====
 qMulSubL : (x y y' : Q) → x * (y + qNeg y') ≡ x * y + qNeg (x * y')
 qMulSubL =
-  λx. λy. λy'. trans _ _ _ (qDistribL x y (qNeg y')) (cong (λw. Q) (λw. x * y + w) (qNegMulR x y'))
+  λx y y'. trans _ _ _ (qDistribL x y (qNeg y')) (cong (λw. Q) (λw. x * y + w) (qNegMulR x y'))
 
 qMulSubR : {y' x x' : Q} → y' * (x + qNeg x') ≡ x * y' + qNeg (x' * y')
 qMulSubR =
-  λy'. λx. λx'. trans
+  λy' x x'. trans
     _
     _
     _
@@ -186,7 +183,7 @@ qMulSubR =
 -- x·y − x′·y′ ≡ x·(y − y′) + y′·(x − x′)
 qMulDiff : (x y x' y' : Q) → x * (y + qNeg y') + y' * (x + qNeg x') ≡ x * y + qNeg (x' * y')
 qMulDiff =
-  λx. λy. λx'. λy'. trans
+  λx y x' y'. trans
     _
     _
     _
@@ -206,14 +203,14 @@ qMulDiff =
 -- ===== the factor and the sequence =====
 -- C − 1, written so that S (mulPred p q) IS seqBound p + seqBound q
 mulPred : RSeq → RSeq → ℕ
-mulPred = λp. λq. seqBound p + S (qNatBound (seqOf q Z))
+mulPred = λp q. seqBound p + S (qNatBound (seqOf q Z))
 
 mulSeq : RSeq → RSeq → ℕ → Q
-mulSeq = λp. λq. λm. seqOf p (mulIdx (mulPred p q) m) * seqOf q (mulIdx (mulPred p q) m)
+mulSeq = λp q m. seqOf p (mulIdx (mulPred p q) m) * seqOf q (mulIdx (mulPred p q) m)
 
 qMulSumBound : (A B : ℕ) (r : Q) → qOfNat A * r + qOfNat B * r ≡ qOfNat (A + B) * r
 qMulSumBound =
-  λA. λB. λr. sym
+  λA B r. sym
     _
     _
     trans
@@ -242,7 +239,7 @@ bndMulSubQ : {x y x' y' a b d e : Q}
           → qZero ≤ a
             → qZero ≤ b → qZero ≤ d → qZero ≤ e → Bnd (a * d + b * e) (x * y + qNeg (x' * y'))
 bndMulSubQ =
-  λx. λy. λx'. λy'. λa. λb. λd. λe. λhx. λhy'. λhd. λhe. λha. λhb. λhd0. λhe0. bndEq
+  λx y x' y' a b d e hx hy' hd he ha hb hd0 he0. bndEq
     _
     _
     qMulDiff x y x' y'
@@ -258,7 +255,7 @@ bndMulSub : {x y x' y' : Q}
           → qZero ≤ qOfNat A
             → qZero ≤ qOfNat B → qZero ≤ d → Bnd (qOfNat (A + B) * d) (x * y + qNeg (x' * y'))
 bndMulSub =
-  λx. λy. λx'. λy'. λA. λB. λd. λhx. λhy'. λhg. λhf. λhA. λhB. λhd. bndEqB
+  λx y x' y' A B d hx hy' hg hf hA hB hd. bndEqB
     _
     _
     _
@@ -277,15 +274,7 @@ bndMulDiffGen : (f g : ℕ → Q)
         → Bnd (rBound a b) (f a + qNeg (f b))
           → qZero ≤ qOfNat A
             → qZero ≤ qOfNat B → Bnd (qOfNat (A + B) * rBound a b) (f a * g a + qNeg (f b * g b))
-bndMulDiffGen =
-  λf. λg. λA. λB. λa. λb. λhfa. λhgb. λhg. λhf. λhA. λhB. bndMulSub
-    hfa
-    hgb
-    hg
-    hf
-    hA
-    hB
-    leQZeroBound a b
+bndMulDiffGen = λf g A B a b hfa hgb hg hf hA hB. bndMulSub hfa hgb hg hf hA hB (leQZeroBound a b)
 
 bndMulDiff : (p q : RSeq)
   (a b : ℕ)
@@ -293,7 +282,7 @@ bndMulDiff : (p q : RSeq)
     qOfNat (seqBound p + seqBound q) * rBound a b
     seqOf p a * seqOf q a + qNeg (seqOf p b * seqOf q b)
 bndMulDiff =
-  λp. λq. λa. λb. bndMulDiffGen
+  λp q a b. bndMulDiffGen
     seqOf p
     seqOf q
     _
@@ -321,8 +310,8 @@ mulReg : {p q : RSeq} → Regular (mulSeq p q)
     Real.mul.mulSeq.eq,
     Real.neg.seqOf.eq)
 mulReg =
-  λp. λq. bndReg
-    λm. λn. bndEqB
+  λp q. bndReg
+    λm n. bndEqB
       qOfNat (seqBound p + seqBound q) * rBound (mulIdx (mulPred p q) m) (mulIdx (mulPred p q) n)
       rBound m n
       seqOf p (mulIdx (mulPred p q) m) * seqOf q (mulIdx (mulPred p q) m)
@@ -331,7 +320,7 @@ mulReg =
       bndMulDiff p q (mulIdx (mulPred p q) m) (mulIdx (mulPred p q) n)
 
 rMul : RSeq → RSeq → RSeq using (Real.RSeq.unfold)
-rMul = λp. λq. mulSeq p q, mulReg
+rMul = λp q. mulSeq p q, mulReg
 
 -- ===== well-definedness =====
 --
@@ -344,7 +333,7 @@ rMul = λp. λq. mulSeq p q, mulReg
 -- (a + p) + (r + (s + a)) ≡ (a + a) + (p + (r + s))
 qRearr5 : (a p r s : Q) → a + p + (r + (s + a)) ≡ a + a + (p + (r + s))
 qRearr5 =
-  λa. λp. λr. λs. a + p + (r + (s + a))
+  λa p r s. a + p + (r + (s + a))
     ≡⟨ cong (λw. Q) (λw. a + p + w) (sym _ _ (qAddAssoc r s a)) ⟩ a + p + (r + s + a)
     ≡⟨ cong (λw. Q) (λw. a + p + w) (qAddComm (r + s) a) ⟩ a + p + (a + (r + s))
     ≡⟨ qPairSwap a p a (r + s) ⟩ a + a + (p + (r + s))
@@ -354,7 +343,7 @@ qTailSum : {C A D : ℕ}
   {t : Q}
   → qOfNat C * t + (qOfNat A * t + qOfNat A * t + qOfNat D * t) ≡ qOfNat (C + (A + A + D)) * t
 qTailSum =
-  λC. λA. λD. λt. trans
+  λC A D t. trans
     _
     _
     _
@@ -380,7 +369,7 @@ wdBoundEq : {C A E n a b t k : ℕ}
           ≡ rBound n n + qInvNat k
   using (Rat.nat.qOfNat.eq, Rat.+.eq, Rat.*.eq, Real.qInvNat.eq, Real.rBound.eq)
 wdBoundEq =
-  λC. λA. λE. λn. λa. λb. λt. λk. λh1. λh2. λh3. trans
+  λC A E n a b t k h1 h2 h3. trans
     _
     _
     _
@@ -438,7 +427,7 @@ wdBoundEq =
 
 -- the deep index: its factor is everything the three legs spend
 wdIdx : RSeq → RSeq → RSeq → ℕ
-wdIdx = λp. λq. λq'. seqBound p + seqBound q + (seqBound p + seqBound p + mulPred p q')
+wdIdx = λp q q'. seqBound p + seqBound q + (seqBound p + seqBound p + mulPred p q')
 
 -- The three-leg comparison, abstract in the sequences, their bounds
 -- and every index. Two representatives of the same real get different
@@ -462,7 +451,7 @@ rMulWDGen : (f g g' : ℕ → Q)
       → (qOfNat (A + B + (A + A + (A + B'))) * qInvNat t ≡ qInvNat k)
         → Bnd (rBound n n + qInvNat k) (f a * g a + qNeg (f b * g' b))
 rMulWDGen =
-  λf. λg. λg'. λA. λB. λB'. λhfB. λhgB. λhg'B. λhfR. λhgR. λhg'R. λhq. λhA. λhB. λhB'. λn. λk. λa. λb. λt. λh1. λh2. λh3. bndEqB
+  λf g g' A B B' hfB hgB hg'B hfR hgR hg'R hq hA hB hB' n k a b t h1 h2 h3. bndEqB
     _
     _
     _
@@ -486,7 +475,7 @@ rMulWDGen =
 -- the two successor identities the factors satisfy, each definitional
 facEqPair : (p q : RSeq) → seqBound p + seqBound q ≡ S (mulPred p q)
   using (Natural.+.eq, Real.bound.seqBound.eq, Real.mul.mulPred.eq)
-facEqPair = λp. λq. ⋆
+facEqPair = λp q. ⋆
 
 facEqDeep : (p q q' : RSeq)
   → seqBound p + seqBound q + (seqBound p + seqBound p + (seqBound p + seqBound q'))
@@ -497,7 +486,7 @@ facEqDeep : (p q q' : RSeq)
     Real.mul.mulPred.eq,
     Real.mul.wdIdx.eq,
     Real.neg.seqOf.eq)
-facEqDeep = λp. λq. λq'. ⋆
+facEqDeep = λp q q'. ⋆
 
 rMulWDStep : (p q q' : RSeq)
   (hq : (j : ℕ) → Bnd (rBound j j) (seqOf q j + qNeg (seqOf q' j)))
@@ -511,7 +500,7 @@ rMulWDStep : (p q q' : RSeq)
     Real.mul.mulSeq.eq,
     Real.neg.seqOf.eq)
 rMulWDStep =
-  λp. λq. λq'. λhq. λn. λk. rMulWDGen
+  λp q q' hq n k. rMulWDGen
     seqOf p
     seqOf q
     seqOf q'
@@ -548,7 +537,7 @@ rMulWDInner : (p : RSeq) {q q' : RSeq} → REq q q' → REq (rMul p q) (rMul p q
     Real.mul.rMul.eq,
     Real.neg.seqOf.eq)
 rMulWDInner =
-  λp. λq. λq'. λh. squash-elim
+  λp q q' h. squash-elim
     h
     u. reqOf _ _ (λn. bndOfArch (mulSeq p q n + qNeg (mulSeq p q' n)) (λk. rMulWDStep p _ _ u n k))
 
@@ -573,7 +562,7 @@ rMulWDInner =
 -- unfolds. D-3 still earns its keep.
 rMulWDInnerCls : (p q q' : RSeq) (h : REq q q') → class (rMul p q) ≡ class (rMul p q') ∈ Real
   using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold)
-rMulWDInnerCls = λp. λq. λq'. λh. realEqOfREq _ _ (rMulWDInner p h)
+rMulWDInnerCls = λp q q' h. realEqOfREq _ _ (rMulWDInner p h)
 
 -- ===== the sampling depth is symmetric =====
 --
@@ -583,7 +572,7 @@ rMulWDInnerCls = λp. λq. λq'. λh. realEqOfREq _ _ (rMulWDInner p h)
 -- ceilings never have to be looked at.
 ssAddComm : {a b : ℕ} → S (S a) + S b ≡ S (S b) + S a
 ssAddComm =
-  λa. λb. S (S a) + S b
+  λa b. S (S a) + S b
     ≡⟨ sucPlus (S a) (S b) ⟩ S (S a + S b)
     ≡⟨ cong (λw. ℕ) (λw. S w) (sucPlus a (S b)) ⟩ S (S (a + S b))
     ≡⟨ cong (λw. ℕ) (λw. S (S w)) (plusSucId a b) ⟩ S (S (S (a + b)))
@@ -594,7 +583,7 @@ ssAddComm =
 
 mulPredComm : {p q : RSeq} → mulPred p q ≡ mulPred q p
   using (Real.bound.seqBound.eq, Real.mul.mulPred.eq)
-mulPredComm = λp. λq. ssAddComm
+mulPredComm = λp q. ssAddComm
 
 -- the pointwise step, at abstract sequences and abstract depths: the
 -- two products differ by qMulComm and by the depth, and the depth
@@ -604,7 +593,7 @@ mulSeqCommAt : (f g : ℕ → Q)
   (c d n : ℕ)
   → (c ≡ d) → f (mulIdx c n) * g (mulIdx c n) ≡ g (mulIdx d n) * f (mulIdx d n)
 mulSeqCommAt =
-  λf. λg. λc. λd. λn. λh. f (mulIdx c n) * g (mulIdx c n)
+  λf g c d n h. f (mulIdx c n) * g (mulIdx c n)
     ≡⟨ qMulComm (f (mulIdx c n)) (g (mulIdx c n)) ⟩ g (mulIdx c n) * f (mulIdx c n)
     ≡⟨ cong (λw. Q) (λw. g (mulIdx w n) * f (mulIdx w n)) h ⟩ g (mulIdx d n) * f (mulIdx d n)
 
@@ -614,7 +603,7 @@ mulSeqCommAt =
 rMulComm : {x y : RSeq} → rMul x y ≡ rMul y x
   using (Real.mul.mulSeq.eq, Real.mul.rMul.eq, Real.neg.seqOf.eq)
 rMulComm =
-  λx. λy. rseqEq (λn. mulSeqCommAt (seqOf x) (seqOf y) (mulPred x y) (mulPred y x) n mulPredComm)
+  λx y. rseqEq (λn. mulSeqCommAt (seqOf x) (seqOf y) (mulPred x y) (mulPred y x) n mulPredComm)
 
 -- outer well-definedness, spent in one line against commutativity
 rMulWDOuterCls : {x x' c : RSeq} (h : REq x x') → class (rMul x c) ≡ class (rMul x' c) ∈ Real
@@ -627,7 +616,7 @@ rMulWDOuter : (x x' : RSeq)
   → quot-elim (w. Real) (q. class (rMul x q)) v ≡ quot-elim (q. class (rMul x' q)) v
   using (rMulWDInnerCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
 rMulWDOuter =
-  λx. λx'. λh. λv. quot-elim
+  λx x' h v. quot-elim
     w. quot-elim (z. Real) (q. class (rMul x q)) w ≡ quot-elim (q. class (rMul x' q)) w
     c. rMulWDOuterCls h
     v
@@ -641,16 +630,16 @@ infixl 7 *
     Real.RSeq.unfold,
     Real.Real.unfold,
     Real.Regular.unfold)
-(*) = λu. λv. quot-elim (p. quot-elim (q. class (rMul p q)) v) u
+(*) = λu v. quot-elim (p. quot-elim (q. class (rMul p q)) v) u
 
 realMulCls : {x : RSeq} (y : RSeq) → class x * class y ≡ class (rMul x y)
   using (Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold, Real.mul.rMul.eq, Real.mul.*.eq)
-realMulCls = λx. λy. ⋆
+realMulCls = λx y. ⋆
 
 realMulComm : (u v : Real) → u * v ≡ v * u
   using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold, Real.mul.*.eq)
 realMulComm =
-  λu. λv. quot-elim
+  λu v. quot-elim
     p. quot-elim (q. cong (λw. Real) (λw. class w) {rMul p q} {rMul q p} rMulComm) v
     u
 
@@ -667,7 +656,4 @@ realMulOfQ : (a b : Q) → realOfQ a * realOfQ b ≡ realOfQ (a * b)
     Real.mul.*.eq,
     Real.neg.seqOf.eq)
 realMulOfQ =
-  λa. λb. realEqOfSeqEq
-    rMul ((λn. a), constReg) ((λn. b), constReg)
-    (λn. a * b), constReg
-    λn. ⋆
+  λa b. realEqOfSeqEq (rMul ((λn. a), constReg) ((λn. b), constReg)) ((λn. a * b), constReg) (λn. ⋆)

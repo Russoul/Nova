@@ -16,7 +16,7 @@ eqSquash = λa. ⋆
 -- el-prf-prop: proof irrelevance — any two proofs of a proposition are
 -- judgementally equal.
 irrel : (p : Ω) (x y : p) → x ≡ y
-irrel = λp. λx. λy. ⋆
+irrel = λp x y. ⋆
 
 -- code-prop-eq (propositional extensionality): mutually implied
 -- propositions are equal codes at Ω. Both squashees are inhabited, so
@@ -29,17 +29,17 @@ propext = ⋆
 -- Automatic discharge reaches only the 𝟙-/≡-shaped cases above, and
 -- no search can replace this one — the implications carry content.
 propExt : {p q : Ω} → (p → q) → (q → p) → p ≡ q
-propExt = λp. λq. λf. λg. ⋆ (f, g)
+propExt = λp q f g. ⋆ (f, g)
 
 -- squashed reflection: a squashed equality reflects into a judgemental
 -- equality (el-squash-e-eq + el-reflect).
 reflectSquash : {A : 𝕌} {a b : A} (h : a ≡ b) → a ≡ b
-reflectSquash = λA. λa. λb. λh. ⋆
+reflectSquash = λA a b h. ⋆
 
 -- ty-quot-cong: quotients by iff-equal Ω relations are the SAME type,
 -- so a variable of one moves to the other with no coercion.
 quotIff : (A : 𝕌) (v : A / (n m. ∥𝟙∥)) → A / (n m. Z ≡ Z) using (propext)
-quotIff = λA. λv. v
+quotIff = λA v. v
 
 -- Impredicative connectives (Ω section, docs/NovaFoundation.txt): ⊤, ⊥,
 -- ∧, ⊃ are the squashed types the theory itself names in its notes.
@@ -58,43 +58,43 @@ quotIff = λA. λv. v
 
 infixr 5 ∧
 ∧ : Ω → Ω → Ω
-(∧) = λp. λq. ∥p × q∥
+(∧) = λp q. ∥p × q∥
 
 infixr 3 ⊃
 ⊃ : Ω → Ω → Ω
-(⊃) = λp. λq. ∥p → q∥
+(⊃) = λp q. ∥p → q∥
 
 ¬ : Ω → Ω
 ¬ = λp. p ⊃ ⊥
 
 infixr 4 ∨
 ∨ : Ω → Ω → Ω
-(∨) = λp. λq. ∥(r : Ω) → (p → r) → (q → r) → r∥
+(∨) = λp q. ∥(r : Ω) → (p → r) → (q → r) → r∥
 
 andIntro : {p q : Ω} → p → q → p ∧ q using (Core.prop.∧.unfold)
-andIntro = λp. λq. λx. λy. ⋆ (x, y)
+andIntro = λp q x y. ⋆ (x, y)
 
 andFst : {p q : Ω} → p ∧ q → p using (Core.prop.∧.unfold)
-andFst = λp. λq. λh. squash-elim h (u. u .π₁)
+andFst = λp q h. squash-elim h (u. u .π₁)
 
 andSnd : {p q : Ω} → p ∧ q → q using (Core.prop.∧.unfold)
-andSnd = λp. λq. λh. squash-elim h (u. u .π₂)
+andSnd = λp q h. squash-elim h (u. u .π₂)
 
 andElim : {p q x : Ω} → p ∧ q → (p → q → x) → x using (Core.prop.∧.unfold)
-andElim = λp. λq. λx. λi. λf. squash-elim i (u. f (u .π₁) (u .π₂))
+andElim = λp q x i f. squash-elim i (u. f (u .π₁) (u .π₂))
 
 impIntro : {p q : Ω} → (p → q) → p ⊃ q using (Core.prop.⊃.unfold)
-impIntro = λp. λq. λf. ⋆ f
+impIntro = λp q f. ⋆ f
 
 impApply : {p q : Ω} → p ⊃ q → p → q using (Core.prop.⊃.unfold)
-impApply = λp. λq. λh. λx. squash-elim h (f. f x)
+impApply = λp q h x. squash-elim h (f. f x)
 
 -- ⊥ ≜ ∥𝟘∥, so 𝟘-elim cannot consume a proof of ⊥ directly: a refutation
 -- has to unsquash first. absurdP names that step, and it is as far as
 -- ELIMINATING the proof goes — el-squash-e-prf reaches only further
 -- PROPOSITIONS, so there is no A-valued counterpart of this shape.
 absurdP : (p : Ω) → ⊥ → p using (Core.prop.⊥.unfold)
-absurdP = λp. λh. squash-elim h (x. 𝟘-elim x)
+absurdP = λp h. squash-elim h (x. 𝟘-elim x)
 
 -- That limit is a limit on the ELIMINATOR, not on ⊥: a proof of ⊥ does
 -- yield data — by going around it. ⊥ proves every proposition and
@@ -116,46 +116,46 @@ absurd = λh. transport isZeroCode (absurdP (Z ≡ S Z) h) ()
 -- …and hence the A-valued eliminator the paragraph above says no
 -- ELIMINATION of a ⊥-proof can give: 𝟘-elim consumes the escaped 𝟘.
 absurdD : (A : 𝕌) → ⊥ → A
-absurdD = λA. λh. 𝟘-elim (absurd h)
+absurdD = λA h. 𝟘-elim (absurd h)
 
 orInl : {p q : Ω} → p → p ∨ q using (Core.prop.∨.unfold)
-orInl = λp. λq. λx. ⋆ (λr. λf. λg. f x)
+orInl = λp q x. ⋆ (λr f g. f x)
 
 orInr : {p q : Ω} → q → p ∨ q using (Core.prop.∨.unfold)
-orInr = λp. λq. λy. ⋆ (λr. λf. λg. g y)
+orInr = λp q y. ⋆ (λr f g. g y)
 
 orElim : (p q c : Ω) → p ∨ q → (p → c) → (q → c) → c using (Core.prop.∨.unfold)
-orElim = λp. λq. λc. λh. λf. λg. squash-elim h (u. u c f g)
+orElim = λp q c h f g. squash-elim h (u. u c f g)
 
 -- Logical equivalence, as a pair of implications (∧ + ⊃ already
 -- give this for free — ↔ names it so callers stop re-deriving it)
 infixr 2 ↔
 ↔ : Ω → Ω → Ω
-(↔) = λp. λq. (p ⊃ q) ∧ (q ⊃ p)
+(↔) = λp q. (p ⊃ q) ∧ (q ⊃ p)
 
 iffIntro : {p q : Ω} → (p → q) → (q → p) → p ↔ q using (Core.prop.↔.eq)
-iffIntro = λp. λq. λf. λg. andIntro (impIntro f) (impIntro g)
+iffIntro = λp q f g. andIntro (impIntro f) (impIntro g)
 
 iffLeft : {p q : Ω} → p ↔ q → p → q using (Core.prop.↔.eq)
-iffLeft = λp. λq. λh. impApply (andFst h)
+iffLeft = λp q h. impApply (andFst h)
 
 iffRight : {p q : Ω} → p ↔ q → q → p using (Core.prop.↔.eq)
-iffRight = λp. λq. λh. impApply (andSnd h)
+iffRight = λp q h. impApply (andSnd h)
 
 -- code-prop-eq against ↔: iff-equal propositions are EQUAL codes, so
 -- one can be rewritten to the other anywhere a prop is expected
 propExtOfIff : {p q : Ω} → p ↔ q → p ≡ q
-propExtOfIff = λp. λq. λh. propExt (iffLeft h) (iffRight h)
+propExtOfIff = λp q h. propExt (iffLeft h) (iffRight h)
 
 -- Curry/uncurry as a logical equivalence (each direction its own
 -- lemma, rather than a literal code-prop-eq equality — code-prop-eq's
 -- automatic search is still 𝟙-/≡-shaped only; only el-squash-i/
 -- el-squash-e-prf were generalized).
 curry : {p q c : Ω} → p ∧ q ⊃ c → p ⊃ q ⊃ c using (Core.prop.⊃.eq, Core.prop.⊃.unfold)
-curry = λp. λq. λc. λh. impIntro (λx. impIntro (λy. impApply h (andIntro x y)))
+curry = λp q c h. impIntro (λx. impIntro (λy. impApply h (andIntro x y)))
 
 uncurry : {p q c : Ω} → p ⊃ q ⊃ c → p ∧ q ⊃ c using (Core.prop.⊃.unfold)
-uncurry = λp. λq. λc. λh. impIntro (λpq. impApply (impApply h (andFst pq)) (andSnd pq))
+uncurry = λp q c h. impIntro (λpq. impApply (impApply h (andFst pq)) (andSnd pq))
 
 -- Weak/intuitionistic excluded middle: ¬¬(p ∨ ¬p) holds constructively
 -- for every proposition, no case split needed — a genuine stress test
@@ -173,7 +173,7 @@ notNotLem = λp. impIntro (λk. impApply k (orInr (impIntro (λhp. impApply k (o
 -- containing r, picked out by a single impredicative Π over Ω itself.
 rClosure : {A : 𝕌} → (A → A → Ω) → A → A → Ω
 rClosure =
-  λA. λr. λa. λb. ∥(R : A → A → Ω)
+  λA r a b. ∥(R : A → A → Ω)
     → ((x y : A) → r x y → R x y)
       → ((x : A) → R x x)
         → ((x y z : A) → R x y → R y z → R x z) → ((x y : A) → R x y → R y x) → R a b∥
@@ -181,19 +181,19 @@ rClosure =
 -- containment: instantiate the universal at the caller's own R
 rClosureContains : {A : 𝕌} (r : A → A → Ω) (a b : A) → r a b → rClosure r a b
   using (Core.prop.rClosure.unfold)
-rClosureContains = λA. λr. λa. λb. λh. ⋆ (λR. λcont. λrefl. λtrans. λsymm. cont a b h)
+rClosureContains = λA r a b h. ⋆ (λR cont refl trans symm. cont a b h)
 
 -- reflexivity, symmetry, transitivity: rClosure r is itself an
 -- equivalence relation, again by instantiating the universal
 rClosureRefl : {A : 𝕌} (r : A → A → Ω) (a : A) → rClosure r a a using (Core.prop.rClosure.unfold)
-rClosureRefl = λA. λr. λa. ⋆ (λR. λcont. λrefl. λtrans. λsymm. refl a)
+rClosureRefl = λA r a. ⋆ (λR cont refl trans symm. refl a)
 
 rClosureSymm : {A : 𝕌} {r : A → A → Ω} {a b : A} → rClosure r a b → rClosure r b a
   using (Core.prop.rClosure.unfold)
 rClosureSymm =
-  λA. λr. λa. λb. λh. squash-elim
+  λA r a b h. squash-elim
     h
-    u. ⋆ (λR. λcont. λrefl. λtrans. λsymm. symm a b (u (λx. λy. R x y) cont refl trans symm))
+    u. ⋆ (λR cont refl trans symm. symm a b (u (λx y. R x y) cont refl trans symm))
 
 rClosureTrans : {A : 𝕌}
   {r : A → A → Ω}
@@ -201,12 +201,12 @@ rClosureTrans : {A : 𝕌}
   → rClosure r a b → rClosure r b c → rClosure r a c
   using (Core.prop.rClosure.unfold)
 rClosureTrans =
-  λA. λr. λa. λb. λc. λhab. λhbc. squash-elim
+  λA r a b c hab hbc. squash-elim
     hab
     uab. squash-elim
       hbc
       ubc. ⋆
-        λR. λcont. λrefl. λtrans. λsymm. trans
+        λR cont refl trans symm. trans
           a
           b
           c
@@ -224,6 +224,4 @@ rClosureLeast : {A : 𝕌}
         → ((x y : A) → Q x y → Q y x) → (a b : A) → rClosure r a b → Q a b
   using (Core.prop.rClosure.unfold)
 rClosureLeast =
-  λA. λr. λQ. λcontQ. λreflQ. λtransQ. λsymmQ. λa. λb. λh. squash-elim
-    h
-    u. u (λx. λy. Q x y) contQ reflQ transQ symmQ
+  λA r Q contQ reflQ transQ symmQ a b h. squash-elim h (u. u (λx y. Q x y) contQ reflQ transQ symmQ)

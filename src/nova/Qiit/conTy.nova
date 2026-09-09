@@ -21,14 +21,7 @@ g2 = ext g1 (arr g1 (unit g1) (unit g1))
 -- one elimination problem (both motives, all four methods)
 clen : Con → ℕ using (Qiit.conTy.Con.unfold)
 clen =
-  λg. ConElim
-    λw. ℕ
-    λg. λw. ℕ
-    Z
-    λg. λihg. λA. λihA. S ihg
-    λg. λihg. S Z
-    λg. λihg. λA. λihA. λB. λihB. S ihA
-    g
+  λg. ConElim (λw. ℕ) (λg w. ℕ) Z (λg ihg A ihA. S ihg) (λg ihg. S Z) (λg ihg A ihA B ihB. S ihA) g
 
 clenG2 : clen g2 ≡ 2
   using (Qiit.conTy.ConElim.eq,
@@ -44,13 +37,13 @@ clenG2 = ⋆
 -- the same elimination problem read at the Ty motive: type size
 tsize : (g : Con) → Ty g → ℕ using (Qiit.conTy.Con.unfold, Qiit.conTy.Ty.unfold)
 tsize =
-  λg. λt. TyElim
+  λg t. TyElim
     λw. ℕ
-    λg. λw. ℕ
+    λg w. ℕ
     Z
-    λg. λihg. λA. λihA. S ihg
-    λg. λihg. S Z
-    λg. λihg. λA. λihA. λB. λihB. S ihA
+    λg ihg A ihA. S ihg
+    λg ihg. S Z
+    λg ihg A ihA B ihB. S ihA
     g
     t
 

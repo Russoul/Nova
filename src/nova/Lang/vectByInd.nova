@@ -1,8 +1,8 @@
 vect : ℕ → 𝕌 → 𝕌
-vect = λx. λy. ℕ-elim 𝟙 (n ih. y × ih) x
+vect = λx y. ℕ-elim 𝟙 (n ih. y × ih) x
 
 vectZ : (A : 𝕌) → vect Z A ≡ 𝟙 using (Lang.vectByInd.vect.eq)
 vectZ = λA. ⋆
 
 vectS : (n : ℕ) (A : 𝕌) → vect (S n) A ≡ A × vect n A using (Lang.vectByInd.vect.eq)
-vectS = λn. λA. ⋆
+vectS = λn A. ⋆

@@ -22,7 +22,7 @@ intAddWD : (a1 a2 b1 b2 c1 c2 : ℕ)
     swapLeft.rw,
     zeroPlusId,
     zeroPlusId.rw)
-intAddWD = λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim ⋆ (k ih. ⋆) a2
+intAddWD = λa1 a2 b1 b2 c1 c2 h. ℕ-elim ⋆ (k ih. ⋆) a2
 
 -- cross-sum well-definedness in the OUTER argument, conditional on h
 intAddCross : (a1 a2 b1 b2 c1 c2 : ℕ)
@@ -38,7 +38,7 @@ intAddCross : (a1 a2 b1 b2 c1 c2 : ℕ)
     sucPlus.rw,
     swapLeft)
 intAddCross =
-  λa1. λa2. λb1. λb2. λc1. λc2. λh. ℕ-elim
+  λa1 a2 b1 b2 c1 c2 h. ℕ-elim
     a1 + c1 + (b2 + Z)
       ≡⟨ plusZeroId b2 ⟩ a1 + c1 + b2
       ≡⟨ plusAssoc a1 c1 b2 ⟩ a1 + (c1 + b2)
@@ -59,7 +59,7 @@ intAddWDOuter : (a b : ℕ × ℕ)
     ≡ quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) zy
   using (intAddCross, intAddWD, Int.Int.unfold, plusAssoc)
 intAddWDOuter =
-  λa. λb. λh. λzy. quot-elim
+  λa b h zy. quot-elim
     q. quot-elim (z. Int) (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)) q
       ≡ quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) q
     c. ⋆
@@ -67,7 +67,7 @@ intAddWDOuter =
 
 infixl 6 +
 + : Int → Int → Int using (intAddWD, intAddWDOuter, Int.Int.unfold, plusAssoc)
-(+) = λzx. λzy. quot-elim (a. quot-elim (b. class (a .π₁ + b .π₁, a .π₂ + b .π₂)) zy) zx
+(+) = λzx zy. quot-elim (a. quot-elim (b. class (a .π₁ + b .π₁, a .π₂ + b .π₂)) zy) zx
 
 intAddTest : class (Z, Z) + class (S Z, S Z) ≡ class (S Z, S Z) using (Int.Int.unfold, Int.add.+.eq)
 intAddTest = ⋆
@@ -77,7 +77,7 @@ intAddTest = ⋆
 -- join's quotient condition takes
 crossComm : (x y z w : ℕ) → x + y + (z + w) ≡ w + z + (y + x)
 crossComm =
-  λx. λy. λz. λw. x + y + (z + w)
+  λx y z w. x + y + (z + w)
     ≡⟨ cong (λu. ℕ) (λu. u + (z + w)) (plusComm y x) ⟩ y + x + (z + w)
     ≡⟨ plusComm w z ⟩ y + x + (w + z)
     ≡⟨ plusComm (w + z) (y + x) ⟩ w + z + (y + x)
@@ -86,10 +86,10 @@ crossComm =
 -- representative-level cross-sum permutation
 intAddComm : (x y : Int) → x + y ≡ y + x
   using (crossComm, Int.Int.unfold, Int.add.+.eq, Natural.swapMid, plusAssoc, plusComm, swapLeft)
-intAddComm = λx. λy. quot-elim (a. quot-elim (b. ⋆) y) x
+intAddComm = λx y. quot-elim (a. quot-elim (b. ⋆) y) x
 
 -- associativity: three eliminations; the representatives reassociate
 -- by plusAssoc and close by commutativity of the cross sum
 intAddAssoc : (x y z : Int) → x + y + z ≡ x + (y + z)
   using (hyp.rw, Int.add.+.eq, Int.Int.eq, Int.Int.unfold, plusAssoc, plusAssoc.rw)
-intAddAssoc = λx. λy. λz. quot-elim (a. quot-elim (b. quot-elim (c. ⋆) z) y) x
+intAddAssoc = λx y z. quot-elim (a. quot-elim (b. quot-elim (c. ⋆) z) y) x

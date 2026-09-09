@@ -27,7 +27,7 @@ import Core.equality (trans, sym, cong, transport, transportP)
 rBoundHalf : (m n : ℕ) → rBound (dbl m) (dbl n) + rBound (dbl m) (dbl n) ≡ rBound m n
   using (Rat.Q.unfold, Real.rBound.eq)
 rBoundHalf =
-  λm. λn. rBound (dbl m) (dbl n) + rBound (dbl m) (dbl n)
+  λm n. rBound (dbl m) (dbl n) + rBound (dbl m) (dbl n)
     ≡⟨ qPairSwap (qInvNat (dbl m)) (qInvNat (dbl n)) (qInvNat (dbl m)) (qInvNat (dbl n)) ⟩
       qInvNat (dbl m) + qInvNat (dbl m) + (qInvNat (dbl n) + qInvNat (dbl n))
     ≡⟨ cong (λw. Q) (λw. w + (qInvNat (dbl n) + qInvNat (dbl n))) (qInvHalf m) ⟩
@@ -48,7 +48,7 @@ leQBoundDblL : (m n : ℕ) → rBound (dbl m) n ≤ rBound m n
     Rat.qNeg.eq,
     Real.qInvNat.eq,
     Real.rBound.eq)
-leQBoundDblL = λm. λn. leQAdd _ _ _ _ (leQInvDbl m) (leQRefl (qInvNat n))
+leQBoundDblL = λm n. leQAdd _ _ _ _ (leQInvDbl m) (leQRefl (qInvNat n))
 
 -- the diagonal doubled bound IS the halved unit fraction, and it sits
 -- under the diagonal bound at the original index
@@ -62,7 +62,7 @@ leQBoundDblDiag =
 
 -- ===== the operation on representatives =====
 addSeq : (ℕ → Q) → (ℕ → Q) → ℕ → Q using (Rat.Q.unfold)
-addSeq = λf. λg. λn. f (dbl n) + g (dbl n)
+addSeq = λf g n. f (dbl n) + g (dbl n)
 
 addReg : {f g : ℕ → Q} → Regular f → Regular g → Regular (addSeq f g)
   using (Core.id.Id.eq,
@@ -79,8 +79,8 @@ addReg : {f g : ℕ → Q} → Regular f → Regular g → Regular (addSeq f g)
     Real.rBound.eq,
     Real.add.addSeq.eq)
 addReg =
-  λf. λg. λhf. λhg. bndReg
-    λm. λn. bndEq
+  λf g hf hg. bndReg
+    λm n. bndEq
       _
       f (dbl m) + g (dbl m) + qNeg (f (dbl n) + g (dbl n))
       qSubAdd (f (dbl m)) (f (dbl n)) (g (dbl m)) (g (dbl n))
@@ -92,7 +92,7 @@ addReg =
         bndAdd (regBnd _ hf (dbl m) (dbl n)) (regBnd _ hg (dbl m) (dbl n))
 
 rAdd : RSeq → RSeq → RSeq using (Real.RSeq.unfold)
-rAdd = λx. λy. addSeq (seqOf x) (seqOf y), addReg (regOf x) (regOf y)
+rAdd = λx y. addSeq (seqOf x) (seqOf y), addReg (regOf x) (regOf y)
 
 -- ===== well-definedness =====
 -- INNER: replacing the right summand by a close one leaves the sums
@@ -112,7 +112,7 @@ reqOfRAdd : (p q r : RSeq)
     Real.add.rAdd.eq,
     Real.add.addSeq.eq,
     Real.neg.seqOf.eq)
-reqOfRAdd = λp. λq. λr. λf. reqOf _ _ f
+reqOfRAdd = λp q r f. reqOf _ _ f
 
 rAddWDInner : (x : RSeq) {y y' : RSeq} → REq y y' → REq (rAdd x y) (rAdd x y')
   using (Core.id.Id.eq,
@@ -136,7 +136,7 @@ rAddWDInner : (x : RSeq) {y y' : RSeq} → REq y y' → REq (rAdd x y) (rAdd x y
     Real.add.rAdd.eq,
     Real.neg.seqOf.eq)
 rAddWDInner =
-  λx. λy. λy'. λh. squash-elim
+  λx y y' h. squash-elim
     h
     u. reqOf
       _
@@ -149,7 +149,7 @@ rAddWDInner =
 
 rAddWDInnerCls : (x y y' : RSeq) (h : REq y y') → class (rAdd x y) ≡ class (rAdd x y') ∈ Real
   using (Real.Real.unfold)
-rAddWDInnerCls = λx. λy. λy'. λh. realEqOfREq _ _ (rAddWDInner x h)
+rAddWDInnerCls = λx y y' h. realEqOfREq _ _ (rAddWDInner x h)
 
 -- addition on REPRESENTATIVES is commutative on the nose — the two
 -- sequences sample at the same doubled index — which is a statement
@@ -163,7 +163,7 @@ rAddComm : {x y : RSeq} → rAdd x y ≡ rAdd y x
     Real.add.addSeq.eq,
     Real.add.rAdd.eq,
     Real.neg.seqOf.eq)
-rAddComm = λx. λy. rseqEq (λn. qAddComm (seqOf x (dbl n)) (seqOf y (dbl n)))
+rAddComm = λx y. rseqEq (λn. qAddComm (seqOf x (dbl n)) (seqOf y (dbl n)))
 
 -- ...so the OUTER case needs no new arithmetic: commuting turns it
 -- into the inner one with the arguments swapped
@@ -178,7 +178,7 @@ rAddWDOuter : (x x' : RSeq)
   → quot-elim (w. Real) (q. class (rAdd x q)) v ≡ quot-elim (q. class (rAdd x' q)) v
   using (rAddWDInnerCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
 rAddWDOuter =
-  λx. λx'. λh. λv. quot-elim
+  λx x' h v. quot-elim
     w. quot-elim (z. Real) (q. class (rAdd x q)) w ≡ quot-elim (q. class (rAdd x' q)) w
     c. rAddWDOuterCls h
     v
@@ -191,11 +191,11 @@ infixl 6 +
     Real.RSeq.unfold,
     Real.Real.unfold,
     Real.Regular.unfold)
-(+) = λu. λv. quot-elim (p. quot-elim (q. class (rAdd p q)) v) u
+(+) = λu v. quot-elim (p. quot-elim (q. class (rAdd p q)) v) u
 
 realAddCls : (x y : RSeq) → class x + class y ≡ class (rAdd x y)
   using (Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold, Real.add.rAdd.eq, Real.add.+.eq)
-realAddCls = λx. λy. ⋆
+realAddCls = λx y. ⋆
 
 -- ===== the laws that hold pointwise =====
 realAddComm : (u v : Real) → u + v ≡ v + u
@@ -205,7 +205,7 @@ realAddComm : (u v : Real) → u + v ≡ v + u
     Real.Regular.unfold,
     Real.add.realAddCls)
 realAddComm =
-  λu. λv. quot-elim
+  λu v. quot-elim
     p. quot-elim (q. cong (λw. Real) (λw. class w) {rAdd p q} {rAdd q p} rAddComm) v
     u
 
@@ -222,10 +222,7 @@ realAddOfQ : (p q : Q) → realOfQ p + realOfQ q ≡ realOfQ (p + q)
     Real.add.+.eq,
     Real.neg.seqOf.eq)
 realAddOfQ =
-  λp. λq. realEqOfSeqEq
-    rAdd ((λn. p), constReg) ((λn. q), constReg)
-    (λn. p + q), constReg
-    λn. ⋆
+  λp q. realEqOfSeqEq (rAdd ((λn. p), constReg) ((λn. q), constReg)) ((λn. p + q), constReg) (λn. ⋆)
 
 -- u + (−u) = 0 : the sampled difference cancels on the nose
 realAddNegR : (u : Real) → u + realNeg u ≡ realZero
@@ -303,7 +300,7 @@ realAddZeroL = λu. trans _ _ _ (realAddComm realZero u) (realAddZeroR u)
 qMidCancel : (a b c a' c' : Q) → a + b + c + qNeg (a' + (b + c')) ≡ a + qNeg a' + (c + qNeg c')
   using (Rat.Q.unfold)
 qMidCancel =
-  λa. λb. λc. λa'. λc'. a + b + c + qNeg (a' + (b + c'))
+  λa b c a' c'. a + b + c + qNeg (a' + (b + c'))
     ≡⟨ cong (λw. Q) (λw. a + b + c + qNeg w) (sym _ _ (qAddAssoc a' b c')) ⟩
       a + b + c + qNeg (a' + b + c')
     ≡⟨ sym _ _ (qSubAdd (a + b) (a' + b) c c') ⟩ a + b + qNeg (a' + b) + (c + qNeg c')
@@ -336,7 +333,7 @@ realAddAssoc : (u v w : Real) → u + v + w ≡ u + (v + w)
     Real.add.+.eq,
     Real.neg.seqOf.eq)
 realAddAssoc =
-  λu. λv. λw. quot-elim
+  λu v w. quot-elim
     x. quot-elim
       y. quot-elim
         z. realEqOfREq

@@ -1,21 +1,21 @@
 id : {A : 𝕌} (x : A) → A
-id = λA. λx. x
+id = λA x. x
 
 infixr 1 ∘
 ∘ : {A B C : 𝕌} (g : B → C) (f : A → B) → A → C
-(∘) = λA. λB. λC. λg. λf. λx. g (f x)
+(∘) = λA B C g f x. g (f x)
 
 idP : {A : Ω} (x : A) → A
-idP = λA. λx. x
+idP = λA x. x
 
 const : {A B : 𝕌} (x : A) (y : B) → A
-const = λA. λB. λx. λy. x
+const = λA B x y. x
 
 constP : {A B : Ω} (x : A) (y : B) → A
-constP = λA. λB. λx. λy. x
+constP = λA B x y. x
 
 -- Function extensionality — a theorem here, not an axiom: reflect the
 -- pointwise hypothesis under the binder and the sides are equal by
 -- ξ and η (funext-via-reflection, NovaFoundation's ν SUBSUMPTION note).
 funext : {A : 𝕌} {B : A → 𝕌} {f g : (x : A) → B x} → ((x : A) → f x ≡ g x) → f ≡ g using (pi.eta)
-funext = λA. λB. λf. λg. λh. ⋆
+funext = λA B f g h. ⋆

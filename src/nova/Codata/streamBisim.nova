@@ -17,28 +17,25 @@ import Codata.streamEq (tlN, nth, obsEq, obsEqRefl, nthMap, mapIdObsEq, mapFuseO
 
 bisim : {a : 𝕌} → stream a → stream a → Ω
 bisim =
-  λa. λs. λt. ∥(r : stream a → stream a → Ω)
+  λa s t. ∥(r : stream a → stream a → Ω)
     × ((x y : stream a) → r x y → (hd x ≡ hd y) × r (tl x) (tl y)) × r s t∥
 
 -- UNFOLD, head half: bisimilar streams agree at the head
 bisimHd : {a : 𝕌} {s t : stream a} → bisim s t → hd s ≡ hd t using (Codata.streamBisim.bisim.unfold)
-bisimHd = λa. λs. λt. λh. squash-elim h (w. w .π₂ .π₁ s t (w .π₂ .π₂) .π₁)
+bisimHd = λa s t h. squash-elim h (w. w .π₂ .π₁ s t (w .π₂ .π₂) .π₁)
 
 -- UNFOLD, tail half: bisimilarity is preserved by observation —
 -- the SAME invariant relates the tails
 bisimTl : {a : 𝕌} {s t : stream a} → bisim s t → bisim (tl s) (tl t)
   using (Codata.streamBisim.bisim.unfold)
-bisimTl = λa. λs. λt. λh. squash-elim h (w. ⋆ (w .π₁, w .π₂ .π₁, w .π₂ .π₁ s t (w .π₂ .π₂) .π₂))
+bisimTl = λa s t h. squash-elim h (w. ⋆ (w .π₁, w .π₂ .π₁, w .π₂ .π₁ s t (w .π₂ .π₂) .π₂))
 
 -- a DIRECT corecursive proof: reflexivity, with judgemental equality
 -- itself as the invariant — heads by cong at hd, tails by cong at tl
 bisimRefl : {a : 𝕌} (s : stream a) → bisim s s using (Codata.streamBisim.bisim.unfold)
 bisimRefl =
-  λa. λs. ⋆
-    (,)
-      λx. λy. x ≡ y
-      λx. λy. λp. cong (λv. a) (λv. hd {} a v) p, cong (λv. stream a) (λv. tl v) p
-      ⋆
+  λa s. ⋆
+    (λx y. x ≡ y), (λx y p. cong (λv. a) (λv. hd {} a v) p, cong (λv. stream a) (λv. tl v) p), ⋆
 
 -- obsEq ⊃ bisim: the ℕ-indexed relation is ITSELF a bisimulation —
 -- heads are observation 0, and shifting the index moves under one
@@ -52,8 +49,8 @@ obsEqBisim : {a : 𝕌} {s t : stream a} → obsEq s t → bisim s t
     Codata.streamEq.obsEq.unfold,
     Codata.streamEq.tlN.eq)
 obsEqBisim =
-  λa. λs. λt. λh. ⋆
-    (λx. λy. obsEq x y), (λx. λy. λp. squash-elim p (w. w Z), squash-elim p (w. ⋆ (λn. w (S n)))), h
+  λa s t h. ⋆
+    (λx y. obsEq x y), (λx y p. squash-elim p (w. w Z), squash-elim p (w. ⋆ (λn. w (S n)))), h
 
 -- bisim ⊃ obsEq: unfold n times, by ℕ-induction over the depth
 bisimObsEq : {a : 𝕌} {s t : stream a} → bisim s t → obsEq s t
@@ -65,11 +62,11 @@ bisimObsEq : {a : 𝕌} {s t : stream a} → bisim s t → obsEq s t
     Codata.streamEq.obsEq.unfold,
     Codata.streamEq.tlN.eq)
 bisimObsEq =
-  λa. λs. λt. λh. ⋆
+  λa s t h. ⋆
     λn. ℕ-elim
       m. (x y : stream a) → bisim x y → nth m x ≡ nth m y
-      λx. λy. λg. bisimHd g
-      m ih. λx. λy. λg. ih (tl x) (tl y) (bisimTl g)
+      λx y g. bisimHd g
+      m ih. λx y g. ih (tl x) (tl y) (bisimTl g)
       n
       s
       t
@@ -78,7 +75,7 @@ bisimObsEq =
 -- interop corollary: map-identity, now in the corecursive spelling
 mapIdBisim : {a : 𝕌} (s : stream a) → bisim (map (id {a}) s) s
   using (Codata.streamBisim.bisim.unfold, Core.prelude.id.eq)
-mapIdBisim = λa. λs. obsEqBisim (mapIdObsEq s)
+mapIdBisim = λa s. obsEqBisim (mapIdObsEq s)
 
 -- THE REFLECTION: bisimilarity implies equality — el-nu-coind's
 -- surface form, with bisim ITSELF as the invariant and the unfold
@@ -92,14 +89,14 @@ bisimReflect : {a : 𝕌} {s t : stream a} → bisim s t → s ≡ t
     Codata.stream.stream.unfold,
     Codata.stream.tl.eq,
     Codata.streamBisim.bisim.unfold)
-bisimReflect = λa. λs. λt. λh. coind (x y. bisim x y) h (x y hb. ⋆ (bisimHd hb, bisimTl hb))
+bisimReflect = λa s t h. coind (x y. bisim x y) h (x y hb. ⋆ (bisimHd hb, bisimTl hb))
 
 obsEqReflect : {a : 𝕌} {s t : stream a} → obsEq s t → s ≡ t
-obsEqReflect = λa. λs. λt. λh. bisimReflect (obsEqBisim h)
+obsEqReflect = λa s t h. bisimReflect (obsEqBisim h)
 
 -- the η-needing equalities, now judgemental theorems
 mapIdEq : (a : 𝕌) (s : stream a) → map (id {a}) s ≡ s using (Core.prelude.id.eq)
-mapIdEq = λa. λs. bisimReflect (mapIdBisim s)
+mapIdEq = λa s. bisimReflect (mapIdBisim s)
 
 mapFuseEq : (a b c : 𝕌) (f : a → b) (g : b → c) (s : stream a) → map g (map f s) ≡ map (g ∘ f) s
-mapFuseEq = λa. λb. λc. λf. λg. λs. obsEqReflect (mapFuseObsEq f g s)
+mapFuseEq = λa b c f g s. obsEqReflect (mapFuseObsEq f g s)

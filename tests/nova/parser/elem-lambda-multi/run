@@ -1,0 +1,6 @@
+#!/bin/sh
+# λx y. b is λx. λy. b — binders iterate, like a binder group
+"$1" run surface-elem "λx y z. (x, y, z)"
+"$1" run surface-elem "λx. λy. λz. (x, y, z)"
+"$1" run surface-elem "\\x y. x"
+"$1" run surface-elem "ℕ \\x ℕ"

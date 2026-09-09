@@ -134,7 +134,7 @@ nzSgnMulSq : {a b : NZ} → nzSgn (nzMul a (nzMul b b)) ≡ nzSgn a
     Rat.order.sNeg.eq,
     Rat.order.sPos.eq)
 nzSgnMulSq =
-  λa. λb. ⊎-elim
+  λa b. ⊎-elim
     m. ⊎-elim (v. nzSgn (nzMul (nzPos m) (nzMul v v)) ≡ nzSgn (nzPos m)) (k. ⋆) (k. ⋆) b
     m. ⊎-elim (v. nzSgn (nzMul (nzNeg m) (nzMul v v)) ≡ nzSgn (nzNeg m)) (k. ⋆) (k. ⋆) b
     a
@@ -144,7 +144,7 @@ nzSgnMulSq =
 -- NZ where nzSgnMulSq computes
 intSgnMulSq : (z : Int) (e : NZ) → intSgn (z * (nzToInt e * nzToInt e)) ≡ intSgn z
 intSgnMulSq =
-  λz. λe. ⊎-elim
+  λz e. ⊎-elim
     u. trans
       _
       _
@@ -187,21 +187,21 @@ intSgnMulSq =
 -- ===== interchange, hypothesis-free =====
 mulLeftSwap : (b c d : Int) → b * (c * d) ≡ c * (b * d) using (Int.Int.unfold)
 mulLeftSwap =
-  λb. λc. λd. b * (c * d)
+  λb c d. b * (c * d)
     ≡⟨ sym _ _ (intMulAssoc b c d) ⟩ b * c * d
     ≡⟨ cong (λv. Int) (λv. v * d) (intMulComm b c) ⟩ c * b * d
     ≡⟨ intMulAssoc c b d ⟩ c * (b * d)
 
 mulPairSwap : (a b c d : Int) → a * b * (c * d) ≡ a * c * (b * d) using (Int.Int.unfold)
 mulPairSwap =
-  λa. λb. λc. λd. a * b * (c * d)
+  λa b c d. a * b * (c * d)
     ≡⟨ intMulAssoc a b (c * d) ⟩ a * (b * (c * d))
     ≡⟨ cong (λv. Int) (λv. a * v) (mulLeftSwap b c d) ⟩ a * (c * (b * d))
     ≡⟨ sym _ _ (intMulAssoc a c (b * d)) ⟩ a * c * (b * d)
 
 mulPairSwapR : (a b c d : Int) → a * b * (c * d) ≡ a * d * (c * b) using (Int.Int.unfold)
 mulPairSwapR =
-  λa. λb. λc. λd. a * b * (c * d)
+  λa b c d. a * b * (c * d)
     ≡⟨ cong (λv. Int) (λv. a * b * v) (intMulComm c d) ⟩ a * b * (d * c)
     ≡⟨ mulPairSwap a b d c ⟩ a * d * (b * c)
     ≡⟨ cong (λv. Int) (λv. a * d * v) (intMulComm b c) ⟩ a * d * (c * b)
@@ -229,7 +229,7 @@ ratSgnWD : (p q : Rat) → RatR p q → ratSgn p ≡ ratSgn q
     Rat.RatR.unfold,
     Rat.dInt.eq)
 ratSgnWD =
-  λp. λq. λh. trans
+  λp q h. trans
     intSgn (num p * denInt p)
     _
     intSgn (num q * denInt q)
@@ -305,7 +305,7 @@ intMulNegL : {z w : Int} → intNeg z * w ≡ intNeg (z * w)
     Int.mul.sum4Distrib,
     plusAssoc,
     Rat.frac.plusSwapRight)
-intMulNegL = λz. λw. quot-elim (u. quot-elim (v. ⋆) w) z
+intMulNegL = λz w. quot-elim (u. quot-elim (v. ⋆) w) z
 
 -- negating flips the decided sign, shape by shape
 intSgnNegNz : {e : NZ} → intSgn (intNeg (nzToInt e)) ≡ sgnFlip (nzSgn e)
@@ -384,14 +384,14 @@ intSgnNegFlip =
 -- ===== ℚ additive-group algebra, hypothesis-free =====
 qLeftSwap : (b c d : Q) → b + (c + d) ≡ c + (b + d) using (Rat.Q.unfold)
 qLeftSwap =
-  λb. λc. λd. b + (c + d)
+  λb c d. b + (c + d)
     ≡⟨ sym _ _ (qAddAssoc b c d) ⟩ b + c + d
     ≡⟨ cong (λv. Q) (λv. v + d) (qAddComm b c) ⟩ c + b + d
     ≡⟨ qAddAssoc c b d ⟩ c + (b + d)
 
 qPairSwap : (a b c d : Q) → a + b + (c + d) ≡ a + c + (b + d) using (Rat.Q.unfold)
 qPairSwap =
-  λa. λb. λc. λd. a + b + (c + d)
+  λa b c d. a + b + (c + d)
     ≡⟨ qAddAssoc a b (c + d) ⟩ a + (b + (c + d))
     ≡⟨ cong (λv. Q) (λv. a + v) (qLeftSwap b c d) ⟩ a + (c + (b + d))
     ≡⟨ sym _ _ (qAddAssoc a c (b + d)) ⟩ a + c + (b + d)
@@ -399,7 +399,7 @@ qPairSwap =
 -- −u + (u + v) ≡ v, then inverse uniqueness, then −(a+b) ≡ (−a)+(−b)
 qNegPlusCancel : (u v : Q) → qNeg u + (u + v) ≡ v using (Rat.Q.unfold)
 qNegPlusCancel =
-  λu. λv. qNeg u + (u + v)
+  λu v. qNeg u + (u + v)
     ≡⟨ sym _ _ (qAddAssoc (qNeg u) u v) ⟩ qNeg u + u + v
     ≡⟨ cong (λw. Q) (λw. w + v) (qAddComm (qNeg u) u) ⟩ u + qNeg u + v
     ≡⟨ cong (λw. Q) (λw. w + v) (qAddNegR u) ⟩ qZero + v
@@ -407,7 +407,7 @@ qNegPlusCancel =
 
 qNegUnique : {u v : Q} → (u + v ≡ qZero) → v ≡ qNeg u
 qNegUnique =
-  λu. λv. λh. trans
+  λu v h. trans
     _
     _
     _
@@ -421,7 +421,7 @@ qNegUnique =
 
 qNegAdd : (a b : Q) → qNeg (a + b) ≡ qNeg a + qNeg b
 qNegAdd =
-  λa. λb. sym
+  λa b. sym
     _
     _
     qNegUnique
@@ -439,7 +439,7 @@ qNegAdd =
 
 qSubNeg : {x y : Q} → x + qNeg y ≡ qNeg (y + qNeg x)
 qSubNeg =
-  λx. λy. sym
+  λx y. sym
     _
     _
     trans
@@ -504,14 +504,14 @@ NonNegS = λs. Id _ s sZero ⊎ Id _ s sPos
 
 infixl 4 ≤
 ≤ : Q → Q → 𝕌
-(≤) = λx. λy. NonNegS (sgnQ (y + qNeg x))
+(≤) = λx y. NonNegS (sgnQ (y + qNeg x))
 
 leQRefl : (x : Q) → x ≤ x using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 leQRefl = λx. inj₁ (eqToId _ _ (trans _ _ _ (cong (λu. Sign) (λu. sgnQ u) (qAddNegR x)) sgnQZero))
 
 leQOfEq : (x y : Q) → (x ≡ y) → x ≤ y using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 leQOfEq =
-  λx. λy. λh. inj₁
+  λx y h. inj₁
     eqToId
       _
       _
@@ -542,7 +542,7 @@ leQTotal : (x y : Q) → x ≤ y ⊎ y ≤ x
     Rat.order.sgnFlip.eq,
     Rat.Q.unfold)
 leQTotal =
-  λx. λy. ⊎-elim
+  λx y. ⊎-elim
     nn. inj₁ nn
     hneg. inj₂
       inj₂
@@ -589,7 +589,7 @@ sNegNotPos = λh. transport sIsPos (sym _ _ h) ()
 intSgnPosView : (z : Int) → (intSgn z ≡ sPos) → (k : ℕ) × nzToInt (nzPos k) ≡ z
   using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.nzNeg.eq, Rat.frac.nzPos.eq)
 intSgnPosView =
-  λz. λh. ⊎-elim
+  λz h. ⊎-elim
     u. ⊎-elim
       w. (nzToInt w ≡ z) → (k : ℕ) × nzToInt (nzPos k) ≡ z
       k. λhe. k, he
@@ -619,7 +619,7 @@ intSgnPosView =
 intSgnZeroView : (z : Int) → (intSgn z ≡ sZero) → z ≡ intZero
   using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.nzNeg.eq, Rat.frac.nzPos.eq)
 intSgnZeroView =
-  λz. λh. ⊎-elim
+  λz h. ⊎-elim
     u. ⊎-elim
       w. (nzToInt w ≡ z) → z ≡ intZero
       k. λhe. 𝟘-elim
@@ -659,7 +659,7 @@ intSgnPosMul : {a b : Int} → (intSgn a ≡ sPos) → (intSgn b ≡ sPos) → i
     Rat.order.nzSgn.eq,
     Rat.order.sPos.eq)
 intSgnPosMul =
-  λa. λb. λha. λhb. let va = intSgnPosView _ ha
+  λa b ha hb. let va = intSgnPosView _ ha
     in let vb = intSgnPosView _ hb
       in trans
         _
@@ -710,7 +710,7 @@ intSgnPosAdd : {a b : Int} → (intSgn a ≡ sPos) → (intSgn b ≡ sPos) → i
     Rat.order.sPos.eq,
     Rat.order.sZero.eq)
 intSgnPosAdd =
-  λa. λb. λha. λhb. let va = intSgnPosView _ ha
+  λa b ha hb. let va = intSgnPosView _ ha
     in let vb = intSgnPosView _ hb
       in trans
         _
@@ -751,7 +751,7 @@ ratCrossPosL : {p : Rat}
     Rat.frac.Rat.unfold,
     Rat.order.Sign.unfold)
 ratCrossPosL =
-  λp. λq. λhp. trans
+  λp q hp. trans
     _
     _
     _
@@ -786,7 +786,7 @@ ratCrossPosR : (p : Rat)
     Rat.frac.Rat.unfold,
     Rat.order.Sign.unfold)
 ratCrossPosR =
-  λp. λq. λhq. trans
+  λp q hq. trans
     _
     _
     _
@@ -837,7 +837,7 @@ ratAddPos : {p q : Rat} → (ratSgn p ≡ sPos) → (ratSgn q ≡ sPos) → ratS
     Rat.order.ratSgn.eq,
     Rat.order.sZero.eq)
 ratAddPos =
-  λp. λq. λhp. λhq. trans
+  λp q hp hq. trans
     _
     _
     _
@@ -881,7 +881,7 @@ sgnQAddPos : (u v : Q) → (sgnQ u ≡ sPos) → (sgnQ v ≡ sPos) → sgnQ (u +
     Rat.Q.unfold,
     Rat.RatR.unfold,
     Rat.+.eq)
-sgnQAddPos = λu. λv. quot-elim (p. quot-elim (q. λhp. λhq. ratAddPos hp hq) v) u
+sgnQAddPos = λu v. quot-elim (p. quot-elim (q. λhp hq. ratAddPos hp hq) v) u
 
 -- a zero sign names the zero class
 sgnQZeroView : (u : Q) → (sgnQ u ≡ sZero) → u ≡ qZero
@@ -941,14 +941,14 @@ sgnQZeroView =
 -- (z − y) + (y − x) ≡ z − x
 qSubSplit : (x y z : Q) → z + qNeg y + (y + qNeg x) ≡ z + qNeg x using (Rat.Q.unfold)
 qSubSplit =
-  λx. λy. λz. z + qNeg y + (y + qNeg x)
+  λx y z. z + qNeg y + (y + qNeg x)
     ≡⟨ qAddAssoc z (qNeg y) (y + qNeg x) ⟩ z + (qNeg y + (y + qNeg x))
     ≡⟨ cong (λw. Q) (λw. z + w) (qNegPlusCancel y (qNeg x)) ⟩ z + qNeg x
 
 -- (a − b) + b ≡ a, hypothesis-free
 qPlusNegCancelR : (a b : Q) → a + qNeg b + b ≡ a using (Rat.Q.unfold)
 qPlusNegCancelR =
-  λa. λb. a + qNeg b + b
+  λa b. a + qNeg b + b
     ≡⟨ qAddAssoc a (qNeg b) b ⟩ a + (qNeg b + b)
     ≡⟨ cong (λw. Q) (λw. a + w) (qAddNegL b) ⟩ a + qZero
     ≡⟨ qAddZeroR a ⟩ a
@@ -956,7 +956,7 @@ qPlusNegCancelR =
 -- a zero difference names an equality
 qDiffZero : {a b : Q} → (a + qNeg b ≡ qZero) → a ≡ b
 qDiffZero =
-  λa. λb. λh. trans
+  λa b h. trans
     _
     _
     _
@@ -967,7 +967,7 @@ qDiffZero =
 leQTrans : (x y z : Q) → x ≤ y → y ≤ z → x ≤ z
   using (Core.id.Id.unfold, Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold)
 leQTrans =
-  λx. λy. λz. λl1. λl2. let comb : sgnQ (z + qNeg x) ≡ sgnQ (z + qNeg y + (y + qNeg x))
+  λx y z l1 l2. let comb : sgnQ (z + qNeg x) ≡ sgnQ (z + qNeg y + (y + qNeg x))
     = cong (λw. Sign) (λw. sgnQ w) (sym _ _ (qSubSplit x y z))
     in ⊎-elim
       h10. let e0 = sgnQZeroView _ (idToEq _ _ _ h10)
@@ -1010,7 +1010,7 @@ leQAntisym : {x y : Q} → x ≤ y → y ≤ x → x ≡ y
     Rat.order.sgnFlip.eq,
     Rat.Q.unfold)
 leQAntisym =
-  λx. λy. λl1. λl2. let fl : sgnQ (x + qNeg y) ≡ sgnFlip (sgnQ (y + qNeg x))
+  λx y l1 l2. let fl : sgnQ (x + qNeg y) ≡ sgnFlip (sgnQ (y + qNeg x))
     = trans
       _
       _
@@ -1031,7 +1031,7 @@ leQAntisym =
 -- (y + w) − (x + w) ≡ y − x, hypothesis-free
 qSubPlusCancel : (x y w : Q) → y + w + qNeg (x + w) ≡ y + qNeg x using (Rat.Q.unfold)
 qSubPlusCancel =
-  λx. λy. λw. y + w + qNeg (x + w)
+  λx y w. y + w + qNeg (x + w)
     ≡⟨ cong (λv. Q) (λv. y + w + v) (qNegAdd x w) ⟩ y + w + (qNeg x + qNeg w)
     ≡⟨ qPairSwap y w (qNeg x) (qNeg w) ⟩ y + qNeg x + (w + qNeg w)
     ≡⟨ cong (λv. Q) (λv. y + qNeg x + v) (qAddNegR w) ⟩ y + qNeg x + qZero
@@ -1041,15 +1041,12 @@ qSubPlusCancel =
 leQPlusMono : {x y : Q} (w : Q) → x ≤ y → x + w ≤ y + w
   using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold)
 leQPlusMono =
-  λx. λy. λw. λle. transport
-    NonNegS
-    sym _ _ (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancel x y w))
-    le
+  λx y w le. transport NonNegS (sym _ _ (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancel x y w))) le
 
 leQPlusMonoL : (x y w : Q) → x ≤ y → w + x ≤ w + y
   using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 leQPlusMonoL =
-  λx. λy. λw. λle. transport
+  λx y w le. transport
     λv. v ≤ w + y
     qAddComm x w
     transport (λv. x + w ≤ v) (qAddComm y w) (leQPlusMono w le)
@@ -1067,7 +1064,7 @@ ratSgnMulIs : (p q : Rat)
     Rat.order.Sign.unfold,
     Rat.order.ratSgn.eq,
     Rat.ratMul.eq)
-ratSgnMulIs = λp. λq. ⋆
+ratSgnMulIs = λp q. ⋆
 
 -- positive fractions multiply to a positive fraction: interchange
 -- num·num · den·den into (num·den)·(num·den)
@@ -1079,7 +1076,7 @@ ratMulPos : {p q : Rat} → (ratSgn p ≡ sPos) → (ratSgn q ≡ sPos) → ratS
     Rat.frac.Rat.unfold,
     Rat.order.Sign.unfold)
 ratMulPos =
-  λp. λq. λhp. λhq. trans
+  λp q hp hq. trans
     _
     intSgn (num p * nzToInt (den p) * (num q * nzToInt (den q)))
     _
@@ -1119,12 +1116,12 @@ sgnQMulPos : {u v : Q} → (sgnQ u ≡ sPos) → (sgnQ v ≡ sPos) → sgnQ (u *
     Rat.RatR.unfold,
     Rat.*.eq,
     Rat.ratMul.eq)
-sgnQMulPos = λu. λv. quot-elim (p. quot-elim (q. λhp. λhq. ratMulPos hp hq) v) u
+sgnQMulPos = λu v. quot-elim (p. quot-elim (q. λhp hq. ratMulPos hp hq) v) u
 
 -- (−x)·c ≡ −(x·c) on ℚ, by inverse uniqueness
 qNegMulL : (x c : Q) → qNeg x * c ≡ qNeg (x * c)
 qNegMulL =
-  λx. λc. qNegUnique
+  λx c. qNegUnique
     trans
       _
       _
@@ -1135,7 +1132,7 @@ qNegMulL =
 -- (y − x)·c ≡ y·c − x·c, hypothesis-free
 qSubDistribR : (x y c : Q) → (y + qNeg x) * c ≡ y * c + qNeg (x * c) using (Rat.Q.unfold)
 qSubDistribR =
-  λx. λy. λc. (y + qNeg x) * c
+  λx y c. (y + qNeg x) * c
     ≡⟨ qDistribR c y (qNeg x) ⟩ y * c + qNeg x * c
     ≡⟨ cong (λv. Q) (λv. y * c + v) (qNegMulL x c) ⟩ y * c + qNeg (x * c)
 
@@ -1161,7 +1158,7 @@ leQMulMono : (x y : Q) {c : Q} → x ≤ y → qZero ≤ c → x * c ≤ y * c
     Rat.qZero.eq,
     Rat.qcls.eq)
 leQMulMono =
-  λx. λy. λc. λle. λlc. let dEq : sgnQ (y * c + qNeg (x * c)) ≡ sgnQ ((y + qNeg x) * c)
+  λx y c le lc. let dEq : sgnQ (y * c + qNeg (x * c)) ≡ sgnQ ((y + qNeg x) * c)
     = cong (λv. Sign) (λv. sgnQ v) (sym _ _ (qSubDistribR x y c))
     in let cEq : sgnQ (c + qNeg qZero) ≡ sgnQ c
       = cong

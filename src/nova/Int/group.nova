@@ -17,7 +17,7 @@ intAddGroup =
     (,)
       (+)
       intZero
-      λx. λy. λz. eqToId _ _ (intAddAssoc x y z)
+      λx y z. eqToId _ _ (intAddAssoc x y z)
       λx. eqToId _ _ (intAddZeroL x)
       λx. eqToId _ _ (intAddZeroR x)
     intNeg

@@ -3,7 +3,7 @@ import Lang.vectByInd (vect)
 
 vappend : (n : ℕ) {A : 𝕌} (m : ℕ) → vect n A → vect m A → vect (n + m) A
   using (Natural.+.unfold, sucPlus.rw, vect.eq, Lang.vectByInd.vect.unfold, zeroPlusId.rw)
-vappend = λn. λA. λm. ℕ-elim (λv. λw. w) (k ih. λv. λw. v .π₁, ih (v .π₂) w) n
+vappend = λn A m. ℕ-elim (λv w. w) (k ih. λv w. v .π₁, ih (v .π₂) w) n
 
 -- This equation holds by direct computation
 vappendZ : (A : 𝕌) (n : ℕ) (v : vect Z A) (w : vect n A) → vappend _ _ v w ≡ w ∈ vect n A
@@ -14,7 +14,7 @@ vappendZ : (A : 𝕌) (n : ℕ) (v : vect Z A) (w : vect n A) → vappend _ _ v 
     Lang.vectByInd.vect.unfold,
     zeroPlusId,
     zeroPlusId.rw)
-vappendZ = λA. λn. λv. λw. ⋆
+vappendZ = λA n v w. ⋆
 
 --  ^^^^^^^^^ FIXME: Can't be synthesised
 vappendS : (n : ℕ)
@@ -31,7 +31,7 @@ vappendS : (n : ℕ)
     vect.eq,
     Lang.vectByInd.vect.unfold,
     zeroPlusId.rw)
-vappendS = λn. λA. λm. λv. λw. ⋆
+vappendS = λn A m v w. ⋆
 
 -- the associativity step case, packaged: with the tail instance of
 -- the induction hypothesis supplied as an equation, both sides
@@ -56,7 +56,7 @@ vappendAssocS : {A : 𝕌}
     vect.eq,
     Lang.vectByInd.vect.unfold,
     zeroPlusId.rw)
-vappendAssocS = λA. λm. λk. λp. λv. λw. λq. λhih. ⋆
+vappendAssocS = λA m k p v w q hih. ⋆
 
 -- Associativity: the statement itself only type-checks up to
 -- plus-associativity (the two sides' lengths differ intensionally)
@@ -82,7 +82,7 @@ vappendAssoc : (n : ℕ)
     zeroPlusId,
     zeroPlusId.rw)
 vappendAssoc =
-  λn. λA. λm. λk. λv. λw. λu. ℕ-elim
+  λn A m k v w u. ℕ-elim
     p. (q : vect p A)
       → vappend (p + m) k (vappend _ _ q v) w
         ≡ vappend _ _ q (vappend _ _ v w)

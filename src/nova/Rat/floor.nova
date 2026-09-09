@@ -31,7 +31,7 @@ import Core.id (Id, idToEq, eqToId)
 
 qSubFlip : (x y : Q) → x + qNeg y ≡ qNeg (y + qNeg x)
 qSubFlip =
-  λx. λy. x + qNeg y
+  λx y. x + qNeg y
     ≡⟨ qAddComm x (qNeg y) ⟩ qNeg y + x
     ≡⟨ cong (λv. Q) (λv. qNeg y + v) (sym _ _ (qNegNeg x)) ⟩ qNeg y + qNeg (qNeg x)
     ≡⟨ sym _ _ (qNegAdd y (qNeg x)) ⟩ qNeg (y + qNeg x)
@@ -48,10 +48,10 @@ qNegFrac : (N : Int) (b : ℕ) → qNeg (qcls (mkRat N (nzPos b))) ≡ qcls (mkR
     Rat.Q.unfold,
     Rat.qNeg.eq,
     Rat.qcls.eq)
-qNegFrac = λN. λb. ⋆
+qNegFrac = λN b. ⋆
 
 intNegPair : (a b : ℕ) → intNeg (class (a, b)) ≡ class (b, a) using (Int.Int.unfold, Int.intNeg.eq)
-intNegPair = λa. λb. ⋆
+intNegPair = λa b. ⋆
 
 -- ===== comparing a natural with a fraction, the other way round =====
 -- ratCeil's qDiffNatFrac, negated on both sides
@@ -60,7 +60,7 @@ qDiffFracNat : {m b K : ℕ}
     ≡ qcls (mkRat (class (m, S b * K)) (nzPos b))
   using (Rat.Q.unfold, Rat.frac.Rat.unfold, Int.Int.unfold)
 qDiffFracNat =
-  λm. λb. λK. qcls (mkRat (intOfNat m) (nzPos b)) + qNeg (qOfNat K)
+  λm b K. qcls (mkRat (intOfNat m) (nzPos b)) + qNeg (qOfNat K)
     ≡⟨ qSubFlip (qcls (mkRat (intOfNat m) (nzPos b))) (qOfNat K) ⟩
       qNeg (qOfNat K + qNeg (qcls (mkRat (intOfNat m) (nzPos b))))
     ≡⟨ cong
@@ -77,7 +77,7 @@ qDiffFracNat =
 leQNatOfFrac : {m b K : ℕ} → K * S b ≤ m → qOfNat K ≤ qcls (mkRat (intOfNat m) (nzPos b))
   using (Int.Int.unfold, Rat.frac.Rat.unfold, Rat.order.≤.eq, Rat.Q.unfold)
 leQNatOfFrac =
-  λm. λb. λK. λle. transport
+  λm b K le. transport
     NonNegS
     sym
       _
@@ -97,7 +97,7 @@ leQNatOfFrac =
 
 -- ===== the quotient really is under the dividend =====
 divMulLe : (a b : ℕ) → divN a b * S b ≤ a using (Natural.order.≤.unfold)
-divMulLe = λa. λb. modN a b, eqToId _ _ (sym _ _ (divModEq a b))
+divMulLe = λa b. modN a b, eqToId _ _ (sym _ _ (divModEq a b))
 
 -- ===== at a representative =====
 leQFloorPos : {M : Int} {b : ℕ} → qOfNat (divN (intMag M) b) ≤ qAbs (qcls (mkRat M (nzPos b)))
@@ -107,7 +107,7 @@ leQFloorPos : {M : Int} {b : ℕ} → qOfNat (divN (intMag M) b) ≤ qAbs (qcls 
     Rat.order.NonNegS.unfold,
     Rat.Q.unfold)
 leQFloorPos =
-  λM. λb. ⊎-elim
+  λM b. ⊎-elim
     w. qOfNat (divN (intMag M) b)
       ≤ ⊎-elim (nn. qcls (mkRat M (nzPos b))) (hn. qNeg (qcls (mkRat M (nzPos b)))) w
     nn. transport
@@ -152,7 +152,7 @@ leQFloorAt : (N : Int) (d : NZ) → qOfNat (qFloor (qcls (mkRat N d))) ≤ qAbs 
     Rat.Q.unfold,
     Rat.qcls.eq)
 leQFloorAt =
-  λN. λd. let v = qPosDenView N d
+  λN d. let v = qPosDenView N d
     in transport (λw. qOfNat (qFloor w) ≤ qAbs w) (idToEq _ _ _ (v .π₂ .π₂)) leQFloorPos
 
 -- ===== ...and on the quotient =====
@@ -173,4 +173,4 @@ leQFloorAbs : {u : Q} → qOfNat (qFloor u) ≤ qAbs u
 leQFloorAbs = λu. leQUnsquash _ (leQFloorAbsSq u)
 
 leQFloor : {u : Q} → qZero ≤ u → qOfNat (qFloor u) ≤ u
-leQFloor = λu. λnn. transport (λw. qOfNat (qFloor u) ≤ w) (qAbsOfNonNeg nn) leQFloorAbs
+leQFloor = λu nn. transport (λw. qOfNat (qFloor u) ≤ w) (qAbsOfNonNeg nn) leQFloorAbs

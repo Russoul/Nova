@@ -34,7 +34,7 @@ import Core.equality (trans, sym, cong)
 
 invRepAt : (p : Rat) → ((e : NZ) × nzToInt e ≡ num p) ⊎ (num p ≡ intZero) → Rat
   using (Rat.frac.Rat.unfold)
-invRepAt = λp. λv. ⊎-elim (u. mkRat (dInt p) (u .π₁)) (u. ratZero) v
+invRepAt = λp v. ⊎-elim (u. mkRat (dInt p) (u .π₁)) (u. ratZero) v
 
 invRep : Rat → Rat using (Rat.frac.Rat.unfold)
 invRep = λp. invRepAt _ (nzOfInt (num p))
@@ -65,7 +65,7 @@ invRepWDAt : {p p' : Rat}
     Rat.RatR.unfold,
     Rat.dInt.eq)
 invRepWDAt =
-  λp. λp'. λh. λv. λv'. ⊎-elim
+  λp p' h v v'. ⊎-elim
     ex. ⊎-elim
       ey. trans
         dInt p * nzToInt (ey .π₁)
@@ -140,7 +140,7 @@ invRepWD : {p p' : Rat}
     Rat.algInv.invRepAt.eq,
     Rat.RatR.unfold,
     Rat.dInt.eq)
-invRepWD = λp. λp'. λh. invRepWDAt h (nzOfInt (num p)) (nzOfInt (num p'))
+invRepWD = λp p' h. invRepWDAt h (nzOfInt (num p)) (nzOfInt (num p'))
 
 -- ===== the inverse on ℚ =====
 invRepWDCls : (p p' : Rat) (h : RatR p p') → class (invRep p) ≡ class (invRep p') ∈ Q
@@ -150,7 +150,7 @@ invRepWDCls : (p p' : Rat) (h : RatR p p') → class (invRep p) ≡ class (invRe
     Rat.Q.unfold,
     Rat.RatR.eq,
     Rat.RatR.unfold)
-invRepWDCls = λp. λp'. λh. clsEqOfRel _ _ (invRepWD h)
+invRepWDCls = λp p' h. clsEqOfRel _ _ (invRepWD h)
 
 qInv : Q → Q
   using (Int.Int.unfold,
@@ -229,7 +229,7 @@ invRepRel : {p : Rat}
     Rat.dInt.eq,
     Rat.ratMul.eq)
 invRepRel =
-  λp. λe. λhe. trans
+  λp e he. trans
     _
     _
     _
@@ -272,7 +272,7 @@ invRepCorrectAt : {p : Rat}
     Rat.qcls.eq,
     Rat.ratMul.eq)
 invRepCorrectAt =
-  λp. λhnz. λv. ⊎-elim
+  λp hnz v. ⊎-elim
     ex. clsEqOfRel (ratMul p (mkRat (dInt p) (ex .π₁))) ratOne (invRepRel (ex .π₂))
     ex. absurdP _ (notApply _ hnz ex)
     v
@@ -309,7 +309,7 @@ qMulInvR = λu. quot-elim (p. λh. invRepCorrectAt (numNonZero h) (nzOfInt (num 
 --
 -- a Σ-TYPE, not a squash: the first component is the inverse itself
 qInvExistsD : (u : Q) (h : ¬ (u ≡ qZero)) → (v : Q) × u * v ≡ qOne
-qInvExistsD = λu. λh. qInv u, qMulInvR h
+qInvExistsD = λu h. qInv u, qMulInvR h
 
 -- and it computes: (⅓)⁻¹ = 3
 qInvThird : qInv (qcls third) ≡ qcls (mkRat (class (3, Z)) (nzPos Z))
@@ -353,7 +353,7 @@ qInvThird = ⋆
 -- types would and would not buy.)
 qInvUniqueVal : (u : Q) {v v' : Q} (h : u * v ≡ qOne) (h' : u * v' ≡ qOne) → v ≡ v'
 qInvUniqueVal =
-  λu. λv. λv'. λh. λh'. trans
+  λu v v' h h'. trans
     _
     _
     _
@@ -390,11 +390,11 @@ invPairCong : {u a a' : Q}
   (h : a ≡ a')
   → (a, b) ≡ (a', b') ∈ (v : Q) × u * v ≡ qOne
   using (hyp.rw, Rat.Q.unfold, sigma.eta)
-invPairCong = λu. λa. λa'. λb. λb'. λh. ⋆
+invPairCong = λu a a' b b' h. ⋆
 
 -- so any two inverse-witnesses are equal, given as pairs
 qInvWitnessUnique : (u a a' : Q)
   (b : u * a ≡ qOne)
   (b' : u * a' ≡ qOne)
   → (a, b) ≡ (a', b') ∈ (v : Q) × u * v ≡ qOne
-qInvWitnessUnique = λu. λa. λa'. λb. λb'. invPairCong (qInvUniqueVal _ b b')
+qInvWitnessUnique = λu a a' b b'. invPairCong (qInvUniqueVal _ b b')

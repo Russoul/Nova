@@ -21,7 +21,7 @@ import Core.prelude (funext)
 import Core.equality (trans, sym, cong, transport, pairext)
 
 regularIsProp : (f : ℕ → Q) (p q : Regular f) → p ≡ q using (Rat.Q.unfold, Real.Regular.unfold)
-regularIsProp = λf. λp. λq. funext (λm. funext (λn. bndIsProp _ _ (p m n) (q m n)))
+regularIsProp = λf p q. funext (λm. funext (λn. bndIsProp _ _ (p m n) (q m n)))
 
 -- The witness of y has to be READ at Regular (seqOf x), and the
 -- conversion Regular (seqOf y) ≐ Regular (seqOf x) is not one the
@@ -48,7 +48,7 @@ rseqEqAt : {x y : RSeq} → (seqOf x ≡ seqOf y) → x ≡ y
     Real.neg.regOf.eq,
     Real.neg.seqOf.eq)
 rseqEqAt =
-  λx. λy. λh. pairext {}
+  λx y h. pairext {}
     _
     Regular
     _
@@ -57,12 +57,12 @@ rseqEqAt =
     regularIsProp _ (regOf x) (transport (λf. Regular f) (sym _ _ h) (regOf y))
 
 rseqEq : {x y : RSeq} → ((n : ℕ) → seqOf x n ≡ seqOf y n) → x ≡ y
-rseqEq = λx. λy. λe. rseqEqAt (funext e)
+rseqEq = λx y e. rseqEqAt (funext e)
 
 -- ...and hence equal reals, without going through REq at all
 realEqOfSeqEq : (x y : RSeq) → ((n : ℕ) → seqOf x n ≡ seqOf y n) → class x ≡ class y ∈ Real
   using (Real.Real.unfold)
-realEqOfSeqEq = λx. λy. λe. cong (λw. Real) (λw. class w) (rseqEq e)
+realEqOfSeqEq = λx y e. cong (λw. Real) (λw. class w) (rseqEq e)
 
 -- ===== outer well-definedness, for free, from commutativity =====
 --
@@ -82,7 +82,7 @@ wdOuterOfComm : (op : RSeq → RSeq → RSeq)
       → (x x' c : RSeq) → REq x x' → class (op x c) ≡ class (op x' c) ∈ Real
   using (Real.Real.unfold)
 wdOuterOfComm =
-  λop. λcomm. λinner. λx. λx'. λc. λh. trans
+  λop comm inner x x' c h. trans
     _
     _
     _

@@ -57,26 +57,26 @@ qOfNatOne = ⋆
 -- the flipped reading of the hypothesis, as its own lemma: the engine
 -- cannot commute a FIRST argument, so state the exact relation shape
 natDiffRel : (a b k : ℕ) → (a + k ≡ b) → k + a ≡ b
-natDiffRel = λa. λb. λk. λh. trans _ _ _ (plusComm a k) h
+natDiffRel = λa b k h. trans _ _ _ (plusComm a k) h
 
 natDiffClass : {a b k : ℕ} → (a + k ≡ b) → intOfNat k ≡ class (b, a)
   using (Int.order.intOfNat.eq, Int.Int.unfold, natDiffRel, zeroPlusId.rw)
-natDiffClass = λa. λb. λk. λh. ⋆
+natDiffClass = λa b k h. ⋆
 
 -- effectivity of the ℤ quotient reads the two verdicts back as ℕ facts
 natEqOfClassZero : {a b : ℕ} → (class (b, a) ≡ intZero) → b ≡ a
   using (Int.Int.unfold, Int.IntR.eq, Int.intZero.eq, Natural.plusZeroId)
-natEqOfClassZero = λa. λb. λh. intEffective h
+natEqOfClassZero = λa b h. intEffective h
 
 natSucOfClassPos : {a b j : ℕ} → (class (S j, Z) ≡ class (b, a) ∈ Int) → a + S j ≡ b
   using (Int.Int.unfold, Int.IntR.eq)
 natSucOfClassPos =
-  λa. λb. λj. λh. trans _ _ _ (plusComm (S j) a) (trans _ _ _ (intEffective h) (zeroPlusId b))
+  λa b j h. trans _ _ _ (plusComm (S j) a) (trans _ _ _ (intEffective h) (zeroPlusId b))
 
 nonNegSgnOfLe : {a b : ℕ} → a ≤ b → NonNegS (intSgn (class (b, a)))
   using (Int.Int.unfold, Natural.order.≤.unfold, Rat.order.NonNegS.unfold)
 nonNegSgnOfLe =
-  λa. λb. λle. transport
+  λa b le. transport
     NonNegS
     cong (λv. Sign) (λv. intSgn v) (natDiffClass (idToEq _ _ _ (le .π₂)))
     intSgnOfNatNonNeg
@@ -89,7 +89,7 @@ leOfNonNegSgn : {a b : ℕ} → NonNegS (intSgn (class (b, a))) → a ≤ b
     Rat.frac.nzToInt.eq,
     Rat.order.NonNegS.unfold)
 leOfNonNegSgn =
-  λa. λb. λnn. ⊎-elim
+  λa b nn. ⊎-elim
     h0. leOfEq (sym _ _ (natEqOfClassZero (intSgnZeroView _ (idToEq _ _ _ h0))))
     hp. let v = intSgnPosView _ (idToEq _ _ _ hp)
       in S (v .π₁), eqToId _ _ (natSucOfClassPos (v .π₂))
@@ -107,7 +107,7 @@ qOfNatDiffNum : {a b : ℕ}
     plusZeroId.rw,
     zeroPlusId.rw)
 qOfNatDiffNum =
-  λa. λb. trans
+  λa b. trans
     _
     _
     _
@@ -176,7 +176,7 @@ sgnQOfNatDiff : (a b : ℕ) → sgnQ (qOfNat b + qNeg (qOfNat a)) ≡ intSgn (cl
     Rat.qNeg.eq,
     Rat.qcls.eq)
 sgnQOfNatDiff =
-  λa. λb. trans
+  λa b. trans
     _
     _
     _
@@ -194,11 +194,11 @@ leQOfNat : {a b : ℕ} → a ≤ b → qOfNat a ≤ qOfNat b
     Natural.order.≤.unfold,
     Rat.order.≤.unfold,
     Rat.order.NonNegS.unfold)
-leQOfNat = λa. λb. λle. transport NonNegS (sym _ _ (sgnQOfNatDiff a b)) (nonNegSgnOfLe le)
+leQOfNat = λa b le. transport NonNegS (sym _ _ (sgnQOfNatDiff a b)) (nonNegSgnOfLe le)
 
 leNOfQ : {a b : ℕ} → qOfNat a ≤ qOfNat b → a ≤ b
   using (Int.Int.unfold, Natural.order.≤.unfold, Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
-leNOfQ = λa. λb. λh. leOfNonNegSgn (transport NonNegS (sgnQOfNatDiff a b) h)
+leNOfQ = λa b h. leOfNonNegSgn (transport NonNegS (sgnQOfNatDiff a b) h)
 
 -- the embedding is additive
 qOfNatAdd : (a b : ℕ) → qOfNat a + qOfNat b ≡ qOfNat (a + b)
@@ -220,7 +220,7 @@ qOfNatAdd : (a b : ℕ) → qOfNat a + qOfNat b ≡ qOfNat (a + b)
     Rat.+.eq,
     Rat.qcls.eq)
 qOfNatAdd =
-  λa. λb. trans
+  λa b. trans
     _
     _
     _
@@ -247,11 +247,11 @@ qOfNatAdd =
 ratMulUnit : (x y : Int)
   → ratMul (mkRat x nzOne) (mkRat y nzOne) ≡ mkRat (x * y) (nzMul nzOne nzOne)
   using (Rat.ratMul.eq, Rat.frac.mkRat.eq, Rat.frac.num.eq, Rat.frac.den.eq)
-ratMulUnit = λx. λy. ⋆
+ratMulUnit = λx y. ⋆
 
 qOfNatMul : (a b : ℕ) → qOfNat a * qOfNat b ≡ qOfNat (a * b) using (Rat.nat.qOfNat.eq)
 qOfNatMul =
-  λa. λb. qOfNat a * qOfNat b
+  λa b. qOfNat a * qOfNat b
     ≡⟨ qMulCls (mkRat (intOfNat a) nzOne) (mkRat (intOfNat b) nzOne) ⟩
       qcls (ratMul (mkRat (intOfNat a) nzOne) (mkRat (intOfNat b) nzOne))
     ≡⟨ cong (λv. Q) (λv. qcls v) (ratMulUnit (intOfNat a) (intOfNat b)) ⟩
@@ -276,7 +276,7 @@ qOfNatSuc =
 
 qMulSucNat : (c : ℕ) (x : Q) → qOfNat (S c) * x ≡ qOfNat c * x + x
 qMulSucNat =
-  λc. λx. qOfNat (S c) * x
+  λc x. qOfNat (S c) * x
     ≡⟨ cong (λw. Q) (λw. w * x) (qOfNatSuc c) ⟩ (qOfNat c + qOne) * x
     ≡⟨ qDistribR x (qOfNat c) qOne ⟩ qOfNat c * x + qOne * x
     ≡⟨ cong (λw. Q) (λw. qOfNat c * x + w) (qMulOneL x) ⟩ qOfNat c * x + x

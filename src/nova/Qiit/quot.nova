@@ -19,7 +19,7 @@ qlift : (a : 𝕌)
   (resp : (x y : a) → r x y → f x ≡ f y)
   → Q _ r → b
   using (Qiit.quot.Q.unfold)
-qlift = λa. λr. λb. λf. λresp. λq. QElim a r (λw. b) (λx. f x) (λx. λy. λh. resp x y h) q
+qlift = λa r b f resp q. QElim a r (λw. b) (λx. f x) (λx y h. resp x y h) q
 
 qliftBeta : (a : 𝕌)
   (r : a → a → Ω)
@@ -27,16 +27,16 @@ qliftBeta : (a : 𝕌)
   (f : a → b)
   (resp : (x y : a) → r x y → f x ≡ f y)
   (x : a)
-  → qlift _ (λy. λz. r y z) f resp (cls a r x) ≡ f x
+  → qlift _ (λy z. r y z) f resp (cls a r x) ≡ f x
   using (Qiit.quot.Q.eq, Qiit.quot.QElim.eq, Qiit.quot.cls.eq, Qiit.quot.qlift.eq)
-qliftBeta = λa. λr. λb. λf. λresp. λx. ⋆
+qliftBeta = λa r b f resp x. ⋆
 
 -- instance: ℕ quotiented by squashed equality; toNat is one qlift
 eqN : ℕ → ℕ → Ω
-eqN = λx. λy. x ≡ y
+eqN = λx y. x ≡ y
 
 toNat : Q _ eqN → ℕ using (Qiit.quot.Q.unfold, Qiit.quot.eqN.unfold)
-toNat = λq. qlift _ _ (λx. x) (λx. λy. λh. ⋆) q
+toNat = λq. qlift _ _ (λx. x) (λx y h. ⋆) q
 
 toNatCls : toNat (cls ℕ eqN (S Z)) ≡ S Z
   using (Qiit.quot.Q.eq,

@@ -23,7 +23,7 @@ intOfNat = λn. class (n, Z)
 
 infixl 4 ≤
 ≤ : Int → Int → 𝕌
-(≤) = λx. λy. (k : ℕ) × Id _ (x + intOfNat k) y
+(≤) = λx y. (k : ℕ) × Id _ (x + intOfNat k) y
 
 -- ===== glue: intOfNat is an order-embedding-ready map =====
 intOfNatZero : intOfNat Z ≡ intZero using (Int.order.intOfNat.eq, Int.Int.unfold, Int.intZero.eq)
@@ -31,7 +31,7 @@ intOfNatZero = ⋆
 
 intOfNatPlus : (a b : ℕ) → intOfNat a + intOfNat b ≡ intOfNat (a + b)
   using (Int.order.intOfNat.eq, Int.Int.unfold, Int.add.+.eq, Natural.+.eq)
-intOfNatPlus = λa. λb. ⋆
+intOfNatPlus = λa b. ⋆
 
 intOfNatInjZ : {k : ℕ} → (intOfNat k ≡ intZero) → k ≡ Z
   using (hyp.rw,
@@ -40,32 +40,32 @@ intOfNatInjZ : {k : ℕ} → (intOfNat k ≡ intZero) → k ≡ Z
     Int.intZero.eq,
     Natural.plusZeroId,
     Natural.plusZeroId.rw)
-intOfNatInjZ = λk. λh. let r = intEffective h in ⋆
+intOfNatInjZ = λk h. let r = intEffective h in ⋆
 
 -- x + ofNat (a + b) ≡ (x + ofNat a) + ofNat b, hypothesis-free
 intOfNatSplit : {x : Int} {a b : ℕ} → x + intOfNat (a + b) ≡ x + intOfNat a + intOfNat b
   using (Int.Int.unfold)
 intOfNatSplit =
-  λx. λa. λb. x + intOfNat (a + b)
+  λx a b. x + intOfNat (a + b)
     ≡⟨ cong (λu. Int) (λu. x + u) (sym _ _ (intOfNatPlus a b)) ⟩ x + (intOfNat a + intOfNat b)
     ≡⟨ sym _ _ (intAddAssoc x (intOfNat a) (intOfNat b)) ⟩ x + intOfNat a + intOfNat b
 
 -- ===== additive-group plumbing =====
 intNegAdd : (z w : Int) → intNeg (z + w) ≡ intNeg z + intNeg w
   using (Int.Int.unfold, Int.intNeg.eq, Int.add.+.eq)
-intNegAdd = λz. λw. quot-elim (p. quot-elim (q. ⋆) w) z
+intNegAdd = λz w. quot-elim (p. quot-elim (q. ⋆) w) z
 
 -- −x + (x + a) ≡ a, hypothesis-free
 intNegPlusCancel : (x a : Int) → intNeg x + (x + a) ≡ a using (Int.Int.unfold)
 intNegPlusCancel =
-  λx. λa. intNeg x + (x + a)
+  λx a. intNeg x + (x + a)
     ≡⟨ sym _ _ (intAddAssoc (intNeg x) x a) ⟩ intNeg x + x + a
     ≡⟨ cong (λu. Int) (λu. u + a) (intAddNegL x) ⟩ intZero + a
     ≡⟨ intAddZeroL a ⟩ a
 
 intCancelL : (x a b : Int) → (x + a ≡ x + b) → a ≡ b
 intCancelL =
-  λx. λa. λb. λh. trans
+  λx a b h. trans
     _
     _
     _
@@ -76,7 +76,7 @@ intCancelL =
 -- order decision below hangs on
 intPlusDiff : (x y : Int) → x + (y + intNeg x) ≡ y using (Int.Int.unfold)
 intPlusDiff =
-  λx. λy. x + (y + intNeg x)
+  λx y. x + (y + intNeg x)
     ≡⟨ cong (λu. Int) (λu. x + u) (intAddComm y (intNeg x)) ⟩ x + (intNeg x + y)
     ≡⟨ sym _ _ (intAddAssoc x (intNeg x) y) ⟩ x + intNeg x + y
     ≡⟨ cong (λu. Int) (λu. u + y) (intAddNegR x) ⟩ intZero + y
@@ -84,7 +84,7 @@ intPlusDiff =
 
 intPlusNegDiff : (x y : Int) → y + intNeg (y + intNeg x) ≡ x using (Int.Int.unfold)
 intPlusNegDiff =
-  λx. λy. y + intNeg (y + intNeg x)
+  λx y. y + intNeg (y + intNeg x)
     ≡⟨ cong (λu. Int) (λu. y + u) (intNegAdd y (intNeg x)) ⟩ y + (intNeg y + intNeg (intNeg x))
     ≡⟨ cong (λu. Int) (λu. y + (intNeg y + u)) (intNegNeg x) ⟩ y + (intNeg y + x)
     ≡⟨ sym _ _ (intAddAssoc y (intNeg y) x) ⟩ y + intNeg y + x
@@ -97,11 +97,11 @@ leZRefl = λx. Z, eqToId _ _ (intAddZeroR x)
 
 leZOfEq : {x y : Int} → (x ≡ y) → x ≤ y
   using (Int.order.≤.unfold, Int.order.intOfNatZero, Int.Int.unfold)
-leZOfEq = λx. λy. λh. Z, eqToId _ _ (trans (x + intOfNat Z) _ _ (intAddZeroR x) h)
+leZOfEq = λx y h. Z, eqToId _ _ (trans (x + intOfNat Z) _ _ (intAddZeroR x) h)
 
 leZTrans : {x : Int} (y : Int) {z : Int} → x ≤ y → y ≤ z → x ≤ z using (Int.order.≤.unfold)
 leZTrans =
-  λx. λy. λz. λl1. λl2. (,)
+  λx y z l1 l2. (,)
     l1 .π₁ + l2 .π₁
     eqToId
       _
@@ -120,7 +120,7 @@ leZTrans =
 
 leZAntisym : (x y : Int) → x ≤ y → y ≤ x → x ≡ y using (Int.order.≤.unfold)
 leZAntisym =
-  λx. λy. λl1. λl2. let h1 = idToEq _ _ _ (l1 .π₂)
+  λx y l1 l2. let h1 = idToEq _ _ _ (l1 .π₂)
     in let h2 = idToEq _ _ _ (l2 .π₂)
       in let loop : x + intOfNat (l1 .π₁ + l2 .π₁) ≡ x
         = trans _ _ _ intOfNatSplit (trans _ _ _ (cong (λu. Int) (λu. u + intOfNat (l2 .π₁)) h1) h2)
@@ -149,14 +149,14 @@ leZAntisym =
 -- a helper and use the hypothesis only through cong)
 intAddShiftR : {x w v : Int} → x + w + v ≡ x + v + w using (Int.Int.unfold)
 intAddShiftR =
-  λx. λw. λv. x + w + v
+  λx w v. x + w + v
     ≡⟨ intAddAssoc x w v ⟩ x + (w + v)
     ≡⟨ cong (λu. Int) (λu. x + u) (intAddComm w v) ⟩ x + (v + w)
     ≡⟨ sym _ _ (intAddAssoc x v w) ⟩ x + v + w
 
 leZPlusMonoR : {x y : Int} (w : Int) → x ≤ y → x + w ≤ y + w using (Int.order.≤.unfold)
 leZPlusMonoR =
-  λx. λy. λw. λle. (,)
+  λx y w le. (,)
     le .π₁
     eqToId
       _
@@ -170,7 +170,7 @@ leZPlusMonoR =
 
 leZPlusMonoL : (x y w : Int) → x ≤ y → w + x ≤ w + y using (Int.order.≤.unfold)
 leZPlusMonoL =
-  λx. λy. λw. λle. leZTrans
+  λx y w le. leZTrans
     _
     leZOfEq (intAddComm w x)
     leZTrans _ (leZPlusMonoR w le) (leZOfEq (intAddComm y w))
@@ -178,7 +178,7 @@ leZPlusMonoL =
 -- again the shuffle first, hypothesis-free
 intNegAddCancel : {x v : Int} → intNeg (x + v) + v ≡ intNeg x using (Int.Int.unfold)
 intNegAddCancel =
-  λx. λv. intNeg (x + v) + v
+  λx v. intNeg (x + v) + v
     ≡⟨ cong (λu. Int) (λu. u + v) (intNegAdd x v) ⟩ intNeg x + intNeg v + v
     ≡⟨ intAddAssoc (intNeg x) (intNeg v) v ⟩ intNeg x + (intNeg v + v)
     ≡⟨ cong (λu. Int) (λu. intNeg x + u) (intAddNegL v) ⟩ intNeg x + intZero
@@ -186,7 +186,7 @@ intNegAddCancel =
 
 leZNegFlip : (x y : Int) → x ≤ y → intNeg y ≤ intNeg x using (Int.order.≤.unfold)
 leZNegFlip =
-  λx. λy. λle. (,)
+  λx y le. (,)
     le .π₁
     eqToId
       _
@@ -202,7 +202,7 @@ leZNegFlip =
 leZOfNat : (a b : ℕ) → a ≤ b → intOfNat a ≤ intOfNat b
   using (Int.order.≤.unfold, Natural.order.≤.unfold)
 leZOfNat =
-  λa. λb. λle. (,)
+  λa b le. (,)
     le .π₁
     eqToId
       _
@@ -222,15 +222,15 @@ leZOfNat =
 -- the represented relation behind clsOfRelGe's class equation, as its
 -- own lemma: k + b ≡ Z + a from b + k ≡ a
 sumSwapZL : (a b k : ℕ) → (b + k ≡ a) → k + b ≡ Z + a
-sumSwapZL = λa. λb. λk. λh. k + b ≡⟨ plusComm b k ⟩ b + k ≡⟨ h ⟩ a ≡⟨ zeroPlusId a ⟩ Z + a
+sumSwapZL = λa b k h. k + b ≡⟨ plusComm b k ⟩ b + k ≡⟨ h ⟩ a ≡⟨ zeroPlusId a ⟩ Z + a
 
 clsOfRelGe : (a b k : ℕ) → (b + k ≡ a) → class (k, Z) ≡ class (a, b) ∈ Int
   using (Int.Int.unfold, plusComm, sumSwapZL, zeroPlusId)
-clsOfRelGe = λa. λb. λk. λh. ⋆
+clsOfRelGe = λa b k h. ⋆
 
 clsOfRelLe : (a b k : ℕ) → (a + k ≡ b) → class (k, Z) ≡ class (b, a) ∈ Int
   using (Int.order.clsOfRelGe, Int.Int.unfold, plusComm, zeroPlusId)
-clsOfRelLe = λa. λb. λk. λh. ⋆
+clsOfRelLe = λa b k h. ⋆
 
 intNegClass : (p : ℕ × ℕ) → intNeg (class p) ≡ class (p .π₂, p .π₁)
   using (Int.Int.unfold, Int.intNeg.eq)
@@ -244,7 +244,7 @@ leZTotal : (x y : Int) → x ≤ y ⊎ y ≤ x
     Int.mul.intAddCong2,
     Natural.order.≤.unfold)
 leZTotal =
-  λx. λy. let d = y + intNeg x
+  λx y. let d = y + intNeg x
     in let hd = intCanonClass d
       in ⊎-elim
         nn. let hb = idToEq _ _ _ (nn .π₂)
@@ -292,12 +292,12 @@ intOfNatMul : (a b : ℕ) → intOfNat a * intOfNat b ≡ intOfNat (a * b)
     Natural.plusZeroId.rw,
     zeroPlusId,
     zeroPlusId.rw)
-intOfNatMul = λa. λb. ⋆
+intOfNatMul = λa b. ⋆
 
 -- right distributivity, from the left one by commutativity
 intMulDistribR : (a b c : Int) → (a + b) * c ≡ a * c + b * c using (Int.Int.unfold)
 intMulDistribR =
-  λa. λb. λc. (a + b) * c
+  λa b c. (a + b) * c
     ≡⟨ intMulComm (a + b) c ⟩ c * (a + b)
     ≡⟨ intMulDistribL c a b ⟩ c * a + c * b
     ≡⟨ cong (λv. Int) (λv. v + c * b) (intMulComm c a) ⟩ a * c + c * b
@@ -307,7 +307,7 @@ intMulDistribR =
 leZMultMonoNat : {x y : Int} {m : ℕ} → x ≤ y → x * intOfNat m ≤ y * intOfNat m
   using (Int.order.≤.unfold)
 leZMultMonoNat =
-  λx. λy. λm. λle. (,)
+  λx y m le. (,)
     le .π₁ * m
     eqToId
       _
@@ -327,14 +327,14 @@ leZMultMonoNat =
 -- a nonneg integer is a natural, witnessed
 leZNonNegView : (c : Int) → intZero ≤ c → (m : ℕ) × intOfNat m ≡ c using (Int.order.≤.unfold)
 leZNonNegView =
-  λc. λle. le .π₁, trans _ _ _ (sym _ _ (intAddZeroL (intOfNat (le .π₁)))) (idToEq _ _ _ (le .π₂))
+  λc le. le .π₁, trans _ _ _ (sym _ _ (intAddZeroL (intOfNat (le .π₁)))) (idToEq _ _ _ (le .π₂))
 
 -- scaling by a NONNEGATIVE integer preserves the order: view the
 -- scalar as a natural and TRANSPORT the scaled inequality along the
 -- view — LeZ is a 𝕌-family, so transport applies to it directly
 leZMultMono : (x y c : Int) → x ≤ y → intZero ≤ c → x * c ≤ y * c using (Int.order.≤.unfold)
 leZMultMono =
-  λx. λy. λc. λle. λlc. transport
+  λx y c le lc. transport
     {Int}
     λu. x * u ≤ y * u
     {intOfNat (leZNonNegView _ lc .π₁)}

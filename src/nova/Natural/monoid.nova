@@ -12,7 +12,7 @@ natAddMonoid =
   (,)
     (+)
     Z
-    λx. λy. λz. eqToId _ _ (plusAssoc x y z)
+    λx y z. eqToId _ _ (plusAssoc x y z)
     λx. eqToId _ _ (zeroPlusId x)
     λx. eqToId _ _ (plusZeroId x)
 
@@ -39,6 +39,6 @@ natMulMonoid =
   (,)
     (*)
     S Z
-    λx. λy. λz. eqToId _ _ (multAssoc x y z)
+    λx y z. eqToId _ _ (multAssoc x y z)
     λx. eqToId _ _ (oneMultL x)
     λx. eqToId _ _ (multOneR x)

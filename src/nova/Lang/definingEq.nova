@@ -22,10 +22,10 @@ plusZr = λn. ℕ-elim ⋆ (k ih. ⋆) n
 -- candidate satisfying the clauses IS plus — here a hand-written
 -- eliminator, its clause hypotheses paid by computation
 plusByHand : ℕ → ℕ → ℕ
-plusByHand = λm. λn. ℕ-elim n (k ih. S ih) m
+plusByHand = λm n. ℕ-elim n (k ih. S ih) m
 
 byHandIsPlus : (m n : ℕ) → plusByHand m n ≡ plus m n using (Lang.definingEq.plusByHand.eq)
-byHandIsPlus = λm. λn. plusEta plusByHand (λx. ⋆) (λk. λx. ⋆) m n
+byHandIsPlus = λm n. plusEta plusByHand (λx. ⋆) (λk x. ⋆) m n
 
 -- recursion at a CHANGED trailing argument is in the fragment: the
 -- Π-motive over the trailing columns makes the induction hypothesis

@@ -48,7 +48,7 @@ leQZeroOne = leQZeroOfPos _ sgnQOneEq
 
 qNeZeroOfPos : {u : Q} → (sgnQ u ≡ sPos) → ¬ (u ≡ qZero) using (Core.prop.¬.eq)
 qNeZeroOfPos =
-  λu. λhp. impIntro
+  λu hp. impIntro
     {u ≡ qZero}
     {⊥}
     λhz. 𝟘-elim
@@ -56,13 +56,13 @@ qNeZeroOfPos =
         trans _ _ _ (sym _ _ (trans _ _ _ (cong (λw. Sign) (λw. sgnQ w) hz) sgnQZeroEq)) hp
 
 qMulInvPos : {c : Q} → (sgnQ c ≡ sPos) → c * qInv c ≡ qOne
-qMulInvPos = λc. λhp. qMulInvR (qNeZeroOfPos hp)
+qMulInvPos = λc hp. qMulInvR (qNeZeroOfPos hp)
 
 -- a negative sign is a value at most zero
 leQZeroOfNeg : {u : Q} → Id _ (sgnQ u) sNeg → u ≤ qZero
   using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 leQZeroOfNeg =
-  λu. λhn. transport
+  λu hn. transport
     λw. NonNegS (sgnQ w)
     sym _ _ (qAddZeroL (qNeg u))
     inj₂ (eqToId _ _ (sgnQNegOfNeg hn))
@@ -70,7 +70,7 @@ leQZeroOfNeg =
 -- nonnegative times nonpositive is nonpositive
 leQMulNonPos : {a b : Q} → qZero ≤ a → b ≤ qZero → a * b ≤ qZero
 leQMulNonPos =
-  λa. λb. λha. λhb. transport
+  λa b ha hb. transport
     λw. w ≤ qZero
     qNegNeg (a * b)
     transport
@@ -87,7 +87,7 @@ leQMulNonPos =
 leQZeroInv : {c : Q} → (sgnQ c ≡ sPos) → qZero ≤ qInv c
   using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 leQZeroInv =
-  λc. λhp. ⊎-elim
+  λc hp. ⊎-elim
     nn. leQZeroOfNonNeg _ nn
     hn. 𝟘-elim
       sZeroNotPos
@@ -118,7 +118,7 @@ leQZeroInv =
 -- ===== cancellation, and what follows =====
 cancelR : {z c : Q} → (sgnQ c ≡ sPos) → z * c * qInv c ≡ z
 cancelR =
-  λz. λc. λhp. trans
+  λz c hp. trans
     _
     _
     _
@@ -127,7 +127,7 @@ cancelR =
 
 leQMulCancel : {x y : Q} (c : Q) → (sgnQ c ≡ sPos) → x * c ≤ y * c → x ≤ y
 leQMulCancel =
-  λx. λy. λc. λhp. λh. transport
+  λx y c hp h. transport
     {Q}
     λw. w ≤ y
     {x * c * qInv c}
@@ -143,7 +143,7 @@ leQMulCancel =
 
 qAddSubCancel : {c u : Q} → c + (u + qNeg c) ≡ u
 qAddSubCancel =
-  λc. λu. trans
+  λc u. trans
     _
     _
     _
@@ -158,7 +158,7 @@ qAddSubCancel =
 -- anything above a positive is positive
 sgnQPosOfLe : (c : Q) {u : Q} → (sgnQ c ≡ sPos) → c ≤ u → sgnQ u ≡ sPos using (Rat.order.≤.unfold)
 sgnQPosOfLe =
-  λc. λu. λhp. λh. transportP
+  λc u hp h. transportP
     {Q}
     λw. sgnQ w ≡ sPos
     {c + (u + qNeg c)}
@@ -169,7 +169,7 @@ sgnQPosOfLe =
 -- the reciprocal is antitone on the positives: cancel by c, then by u
 leQInvAnti : {c u : Q} → (sgnQ c ≡ sPos) → c ≤ u → qInv u ≤ qInv c
 leQInvAnti =
-  λc. λu. λhp. λh. leQMulCancel
+  λc u hp h. leQMulCancel
     _
     hp
     transport
@@ -202,7 +202,7 @@ leQInvAnti =
 -- ...so a reciprocal is bounded by any M inverse to a lower bound
 leQInvBound : (c : Q) {u M : Q} → (sgnQ c ≡ sPos) → c ≤ u → (c * M ≡ qOne) → qInv u ≤ M
 leQInvBound =
-  λc. λu. λM. λhp. λh. λhm. transport
+  λc u M hp h hm. transport
     λw. qInv u ≤ w
     sym _ _ (qInvUniqueVal _ hm (qMulInvPos hp))
     leQInvAnti hp h
@@ -216,7 +216,7 @@ leQInvBound =
 -- closeness and the two reciprocals carry the bound.
 negMulL : {x y : Q} → qNeg x * y ≡ qNeg (x * y)
 negMulL =
-  λx. λy. trans
+  λx y. trans
     _
     _
     _
@@ -225,7 +225,7 @@ negMulL =
 
 invFirst : (a b : Q) → (sgnQ b ≡ sPos) → b * qInv a * qInv b ≡ qInv a
 invFirst =
-  λa. λb. λhb. trans
+  λa b hb. trans
     _
     _
     _
@@ -234,7 +234,7 @@ invFirst =
 
 invSecond : (a b : Q) → (sgnQ a ≡ sPos) → qNeg a * qInv a * qInv b ≡ qNeg (qInv b)
 invSecond =
-  λa. λb. λha. trans
+  λa b ha. trans
     _
     _
     _
@@ -247,7 +247,7 @@ invSecond =
 qInvDiff : {a b : Q}
   → (sgnQ a ≡ sPos) → (sgnQ b ≡ sPos) → (b + qNeg a) * qInv a * qInv b ≡ qInv a + qNeg (qInv b)
 qInvDiff =
-  λa. λb. λha. λhb. (b + qNeg a) * qInv a * qInv b
+  λa b ha hb. (b + qNeg a) * qInv a * qInv b
     ≡⟨ cong (λw. Q) (λw. w * qInv b) (qDistribR (qInv a) b (qNeg a)) ⟩
       (b * qInv a + qNeg a * qInv a) * qInv b
     ≡⟨ qDistribR (qInv b) (b * qInv a) (qNeg a * qInv a) ⟩

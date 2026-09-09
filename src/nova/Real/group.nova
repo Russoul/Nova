@@ -19,7 +19,7 @@ realAddGroup =
     (,)
       (+)
       realZero
-      λx. λy. λz. eqToId _ _ (realAddAssoc x y z)
+      λx y z. eqToId _ _ (realAddAssoc x y z)
       λx. eqToId _ _ (realAddZeroL x)
       λx. eqToId _ _ (realAddZeroR x)
     realNeg
@@ -29,14 +29,14 @@ realAddGroup =
 -- ===== rearrangement =====
 realLeftSwap : (b c d : Real) → b + (c + d) ≡ c + (b + d)
 realLeftSwap =
-  λb. λc. λd. b + (c + d)
+  λb c d. b + (c + d)
     ≡⟨ sym _ _ (realAddAssoc b c d) ⟩ b + c + d
     ≡⟨ cong (λv. Real) (λv. v + d) (realAddComm b c) ⟩ c + b + d
     ≡⟨ realAddAssoc c b d ⟩ c + (b + d)
 
 realPairSwap : (a b c d : Real) → a + b + (c + d) ≡ a + c + (b + d)
 realPairSwap =
-  λa. λb. λc. λd. a + b + (c + d)
+  λa b c d. a + b + (c + d)
     ≡⟨ realAddAssoc a b (c + d) ⟩ a + (b + (c + d))
     ≡⟨ cong (λv. Real) (λv. a + v) (realLeftSwap b c d) ⟩ a + (c + (b + d))
     ≡⟨ sym _ _ (realAddAssoc a c (b + d)) ⟩ a + c + (b + d)
@@ -44,7 +44,7 @@ realPairSwap =
 -- ===== inverses =====
 realNegPlusCancel : (u v : Real) → realNeg u + (u + v) ≡ v
 realNegPlusCancel =
-  λu. λv. realNeg u + (u + v)
+  λu v. realNeg u + (u + v)
     ≡⟨ sym _ _ (realAddAssoc (realNeg u) u v) ⟩ realNeg u + u + v
     ≡⟨ cong (λw. Real) (λw. w + v) (realAddNegL u) ⟩ realZero + v
     ≡⟨ realAddZeroL v ⟩ v
@@ -53,7 +53,7 @@ realNegPlusCancel =
 -- type-undetermined position inside realAdd's quot-elim (B-1)
 realNegUnique : (u v : Real) → (u + v ≡ realZero) → v ≡ realNeg u
 realNegUnique =
-  λu. λv. λh. trans
+  λu v h. trans
     _
     _
     _
@@ -62,7 +62,7 @@ realNegUnique =
 
 realNegAdd : (a b : Real) → realNeg (a + b) ≡ realNeg a + realNeg b
 realNegAdd =
-  λa. λb. sym
+  λa b. sym
     _
     _
     realNegUnique
@@ -77,7 +77,7 @@ realNegAdd =
 -- ===== subtraction =====
 infixl 6 -
 - : Real → Real → Real using (Real.Real.unfold)
-(-) = λu. λv. u + realNeg v
+(-) = λu v. u + realNeg v
 
 realSubSelf : {u : Real} → u - u ≡ realZero
   using (Real.Real.unfold, Real.add.+.eq, Real.group.-.eq, Real.neg.realNeg.eq)
@@ -90,14 +90,14 @@ realSubZero = λu. trans _ _ _ (cong (λw. Real) (λw. u + w) Real.neg.realNegZe
 -- (u − v) + (v − w) ≡ u − w : the three-term split
 realSubVia : {u v w : Real} → u - v + (v - w) ≡ u - w
 realSubVia =
-  λu. λv. λw. u + realNeg v + (v + realNeg w)
+  λu v w. u + realNeg v + (v + realNeg w)
     ≡⟨ realAddAssoc u (realNeg v) (v + realNeg w) ⟩ u + (realNeg v + (v + realNeg w))
     ≡⟨ cong (λz. Real) (λz. u + z) (realNegPlusCancel v (realNeg w)) ⟩ u + realNeg w
 
 -- −(u − v) ≡ v − u
 realNegSub : {u v : Real} → realNeg (u - v) ≡ v - u
 realNegSub =
-  λu. λv. realNeg (u + realNeg v)
+  λu v. realNeg (u + realNeg v)
     ≡⟨ realNegAdd u (realNeg v) ⟩ realNeg u + realNeg (realNeg v)
     ≡⟨ cong (λz. Real) (λz. realNeg u + z) (realNegNeg v) ⟩ realNeg u + v
     ≡⟨ realAddComm (realNeg u) v ⟩ v + realNeg u
@@ -105,14 +105,14 @@ realNegSub =
 -- (u − v) + v ≡ u, and hence a zero difference is an equality
 realSubPlusCancel : (u v : Real) → u - v + v ≡ u
 realSubPlusCancel =
-  λu. λv. u + realNeg v + v
+  λu v. u + realNeg v + v
     ≡⟨ realAddAssoc u (realNeg v) v ⟩ u + (realNeg v + v)
     ≡⟨ cong (λw. Real) (λw. u + w) (realAddNegL v) ⟩ u + realZero
     ≡⟨ realAddZeroR u ⟩ u
 
 realSubZeroInv : {u v : Real} → (u - v ≡ realZero) → u ≡ v
 realSubZeroInv =
-  λu. λv. λh. trans
+  λu v h. trans
     _
     _
     _

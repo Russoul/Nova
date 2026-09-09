@@ -19,7 +19,7 @@ cancelStep : {a b c d e f : ℕ}
   → (a + d ≡ b + c) → (c + f ≡ d + e) → a + f + (c + d) ≡ b + e + (c + d)
   using (Natural.plusAssoc)
 cancelStep =
-  λa. λb. λc. λd. λe. λf. λh1. λh2. trans
+  λa b c d e f h1 h2. trans
     _
     _
     _
@@ -38,7 +38,7 @@ cancelStep =
 
 cancelTrans : {a b : ℕ} (c d : ℕ) {e f : ℕ} → (a + d ≡ b + c) → (c + f ≡ d + e) → a + f ≡ b + e
   using (Natural.plusAssoc)
-cancelTrans = λa. λb. λc. λd. λe. λf. λh1. λh2. plusCancel _ _ _ (cancelStep h1 h2)
+cancelTrans = λa b c d e f h1 h2. plusCancel _ _ _ (cancelStep h1 h2)
 
 -- IntR is an equivalence. Reflexivity and symmetry are commutativity, so
 -- one ⋆ each; transitivity is cancelTrans at the four components
@@ -47,13 +47,13 @@ intRRefl = λp. ⋆
 
 intRSymm : {p q : ℕ × ℕ} → IntR p q → IntR q p using (Int.IntR.eq, Int.IntR.unfold, plusComm)
 intRSymm =
-  λp. λq. λh. q .π₁ + p .π₂
+  λp q h. q .π₁ + p .π₂
     ≡⟨ plusComm (p .π₂) (q .π₁) ⟩ p .π₂ + q .π₁
     ≡⟨ h ⟩ p .π₁ + q .π₂
     ≡⟨ plusComm (q .π₂) (p .π₁) ⟩ q .π₂ + p .π₁
 
 intRTrans : {p q s : ℕ × ℕ} → IntR p q → IntR q s → IntR p s using (Int.IntR.eq, Int.IntR.unfold)
-intRTrans = λp. λq. λs. λh1. λh2. cancelTrans _ _ h1 h2
+intRTrans = λp q s h1 h2. cancelTrans _ _ h1 h2
 
 -- EFFECTIVITY for Int, on the nose
 intEffective : {p q : ℕ × ℕ} → (class p ≡ class q ∈ Int) → IntR p q

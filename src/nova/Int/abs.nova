@@ -50,7 +50,7 @@ intAbsOfNat =
 intAbsZeroInv : (z : Int) → (intAbs z ≡ Z) → z ≡ intZero
   using (Int.eq.intCanon.eq, Int.abs.intAbs.eq, Int.Int.unfold, Int.intZero.eq)
 intAbsZeroInv =
-  λz. λh. trans
+  λz h. trans
     _
     _
     _
@@ -97,7 +97,7 @@ intAbsNeg = λz. quot-elim (p. normPairSum) z
 
 -- ===== the magnitude is multiplicative =====
 IntAbsMulAt : Int → Int → Ω
-IntAbsMulAt = λx. λy. intAbs (x * y) ≡ intAbs x * intAbs y
+IntAbsMulAt = λx y. intAbs (x * y) ≡ intAbs x * intAbs y
 
 -- the stored magnitude of a non-zero integer, as a natural (one less
 -- than the true magnitude, matching NZ's encoding)
@@ -128,7 +128,7 @@ nzMagMul : {e f : NZ} → nzMag (nzMul e f) ≡ nzMag e * nzMag f + nzMag e + nz
     Rat.frac.nzNeg.eq,
     Rat.frac.nzPos.eq)
 nzMagMul =
-  λe. λf. ⊎-elim
+  λe f. ⊎-elim
     m. ⊎-elim
       v. nzMag (nzMul (nzPos m) v) ≡ nzMag (nzPos m) * nzMag v + nzMag (nzPos m) + nzMag v
       k. ⋆
@@ -144,7 +144,7 @@ nzMagMul =
 -- on the nose for two non-zero integers, and by collapse otherwise
 intAbsMulNz : {e f : NZ} → intAbs (nzToInt e * nzToInt f) ≡ intAbs (nzToInt e) * intAbs (nzToInt f)
 intAbsMulNz =
-  λe. λf. trans
+  λe f. trans
     _
     _
     _
@@ -174,7 +174,7 @@ intAbsMul : (x y : Int) → intAbs (x * y) ≡ intAbs x * intAbs y
     Rat.frac.NZ.unfold,
     Rat.frac.nzToInt.eq)
 intAbsMul =
-  λx. λy. ⊎-elim
+  λx y. ⊎-elim
     ex. ⊎-elim
       ey. transportP
         λv. IntAbsMulAt v y
@@ -241,7 +241,7 @@ magPair = λr. r .π₁ ∸ r .π₂ + (r .π₂ ∸ r .π₁)
 magPairWD : (r r' : ℕ × ℕ) (h : IntR r r') → magPair r ≡ magPair r'
   using (Int.abs.magPair.eq, Int.IntR.eq, Int.IntR.unfold)
 magPairWD =
-  λr. λr'. λh. trans
+  λr r' h. trans
     _
     _
     _
@@ -254,7 +254,7 @@ magPairWD =
 magPairWDRep : (r r' : ℕ × ℕ) → (r .π₁ + r' .π₂ ≡ r .π₂ + r' .π₁) → magPair r ≡ magPair r'
   using (Int.abs.magPair.eq)
 magPairWDRep =
-  λr. λr'. λh. trans
+  λr r' h. trans
     _
     _
     _
@@ -297,11 +297,11 @@ intMagNz : (f : NZ) → intMag (nzToInt f) ≡ S (nzMag f)
 intMagNz = λf. ⊎-elim (n. ⋆) (n. ⋆) f
 
 IntMagMulAt : Int → Int → Ω
-IntMagMulAt = λx. λy. intMag (x * y) ≡ intMag x * intMag y
+IntMagMulAt = λx y. intMag (x * y) ≡ intMag x * intMag y
 
 intMagMulNz : {e f : NZ} → intMag (nzToInt e * nzToInt f) ≡ intMag (nzToInt e) * intMag (nzToInt f)
 intMagMulNz =
-  λe. λf. trans
+  λe f. trans
     _
     _
     _
@@ -331,7 +331,7 @@ intMagMul : (x y : Int) → intMag (x * y) ≡ intMag x * intMag y
     Rat.frac.NZ.unfold,
     Rat.frac.nzToInt.eq)
 intMagMul =
-  λx. λy. ⊎-elim
+  λx y. ⊎-elim
     ex. ⊎-elim
       ey. transportP
         λv. IntMagMulAt v y

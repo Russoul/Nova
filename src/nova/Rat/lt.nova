@@ -12,15 +12,15 @@ import Core.id (Id, eqToId, idToEq)
 
 infixl 4 <
 < : Q → Q → 𝕌
-(<) = λx. λy. Id _ (sgnQ (y + qNeg x)) sPos
+(<) = λx y. Id _ (sgnQ (y + qNeg x)) sPos
 
 ltQOfSgn : (x y : Q) → (sgnQ (y + qNeg x) ≡ sPos) → x < y
   using (Core.id.Id.unfold, Rat.lt.<.unfold, Rat.Q.unfold)
-ltQOfSgn = λx. λy. λh. eqToId _ _ h
+ltQOfSgn = λx y h. eqToId _ _ h
 
 sgnOfLtQ : {x y : Q} → x < y → sgnQ (y + qNeg x) ≡ sPos
   using (Core.id.Id.unfold, Rat.lt.<.unfold, Rat.Q.unfold)
-sgnOfLtQ = λx. λy. λh. idToEq _ _ _ h
+sgnOfLtQ = λx y h. idToEq _ _ _ h
 
 -- strict implies non-strict, on the nose: a positive sign IS a
 -- nonnegative one
@@ -30,15 +30,15 @@ leQOfLtQ : {x y : Q} → x < y → x ≤ y
     Rat.order.≤.unfold,
     Rat.order.NonNegS.unfold,
     Rat.Q.unfold)
-leQOfLtQ = λx. λy. λh. inj₂ h
+leQOfLtQ = λx y h. inj₂ h
 
 ltQZero : (u : Q) → qZero < u → qZero ≤ u using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
-ltQZero = λu. λh. leQOfLtQ h
+ltQZero = λu h. leQOfLtQ h
 
 -- ===== irreflexivity and asymmetry =====
 ltQIrrefl : (x : Q) → x < x → 𝟘
 ltQIrrefl =
-  λx. λh. sZeroNotPos
+  λx h. sZeroNotPos
     trans
       _
       _
@@ -55,7 +55,7 @@ ltQAsym : (x y : Q) → x < y → y < x → 𝟘
     Rat.order.sgnFlip.eq,
     Rat.Q.unfold)
 ltQAsym =
-  λx. λy. λh1. λh2. sNegNotPos
+  λx y h1 h2. sNegNotPos
     trans
       _
       _
@@ -76,7 +76,7 @@ ltQAsym =
 sgnQAddPosNonNeg : {a b : Q} → (sgnQ a ≡ sPos) → NonNegS (sgnQ b) → sgnQ (a + b) ≡ sPos
   using (Rat.order.NonNegS.unfold)
 sgnQAddPosNonNeg =
-  λa. λb. λha. λhb. ⊎-elim
+  λa b ha hb. ⊎-elim
     h0. trans
       _
       _
@@ -91,7 +91,7 @@ sgnQAddPosNonNeg =
 
 ltQTrans : (x y z : Q) → x < y → y < z → x < z using (Core.id.Id.unfold, Rat.lt.<.unfold)
 ltQTrans =
-  λx. λy. λz. λh1. λh2. ltQOfSgn
+  λx y z h1 h2. ltQOfSgn
     _
     _
     trans
@@ -108,7 +108,7 @@ leQLtTrans : (x y z : Q) → x ≤ y → y < z → x < z
     Rat.order.NonNegS.unfold,
     Rat.Q.unfold)
 leQLtTrans =
-  λx. λy. λz. λh1. λh2. ltQOfSgn
+  λx y z h1 h2. ltQOfSgn
     _
     _
     trans
@@ -126,7 +126,7 @@ ltQLeTrans : (x y z : Q) → x < y → y ≤ z → x < z
     Rat.order.NonNegS.unfold,
     Rat.Q.unfold)
 ltQLeTrans =
-  λx. λy. λz. λh1. λh2. ltQOfSgn
+  λx y z h1 h2. ltQOfSgn
     _
     _
     trans
@@ -155,7 +155,7 @@ ltQTrichotomy : (x y : Q) → x < y ⊎ Id _ x y ⊎ y < x
     Rat.+.eq,
     Rat.qNeg.eq)
 ltQTrichotomy =
-  λx. λy. ⊎-elim
+  λx y. ⊎-elim
     nn. ⊎-elim
       h0. inj₂ (inj₁ (eqToId _ _ (sym _ _ (qDiffZero (sgnQZeroView _ (idToEq _ _ _ h0))))))
       hp. inj₁ hp
@@ -177,7 +177,7 @@ ltQTrichotomy =
 ltQPlusMono : (x y w : Q) → x < y → x + w < y + w
   using (Core.id.Id.unfold, Rat.lt.<.unfold, Rat.Q.unfold)
 ltQPlusMono =
-  λx. λy. λw. λh. transport
+  λx y w h. transport
     λs. Id _ s sPos
     sym _ _ (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancel x y w))
     h
@@ -185,7 +185,7 @@ ltQPlusMono =
 ltQPlusMonoL : (x y w : Q) → x < y → w + x < w + y
   using (Core.id.Id.unfold, Rat.lt.<.unfold, Rat.Q.unfold)
 ltQPlusMonoL =
-  λx. λy. λw. λh. transport
+  λx y w h. transport
     λs. Id _ s sPos
     sym _ _ (cong (λv. Sign) (λv. sgnQ v) (qSubPlusCancelL x y w))
     h

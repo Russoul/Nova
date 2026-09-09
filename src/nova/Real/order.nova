@@ -52,7 +52,7 @@ leQFour : (f h : ℕ → Q)
     Real.rBound.eq,
     Real.eq.qtr.eq)
 leQFour =
-  λf. λh. λhf. λhh. λn. λk. λmid. leQTrans
+  λf h hf hh n k mid. leQTrans
     _
     _
     _
@@ -74,18 +74,18 @@ leQFour =
 
 -- ===== the relation on representatives =====
 RLeP : RSeq → RSeq → Ω
-RLeP = λx. λy. ∥(n : ℕ) → seqOf x n + qNeg (seqOf y n) ≤ rBound n n∥
+RLeP = λx y. ∥(n : ℕ) → seqOf x n + qNeg (seqOf y n) ≤ rBound n n∥
 
 rleOf : (x y : RSeq) → ((n : ℕ) → seqOf x n + qNeg (seqOf y n) ≤ rBound n n) → RLeP x y
   using (Real.order.RLeP.unfold)
-rleOf = λx. λy. λh. ⋆ h
+rleOf = λx y h. ⋆ h
 
 -- THE workhorse: a pointwise bound four times too large still gives ≤
 rleOfDouble : (x z : RSeq)
   → ((j : ℕ) → seqOf x j + qNeg (seqOf z j) ≤ rBound j j + rBound j j) → RLeP x z
   using (Real.order.RLeP.unfold)
 rleOfDouble =
-  λx. λz. λd. rleOf
+  λx z d. rleOf
     _
     _
     λn. leQOfArch
@@ -113,9 +113,7 @@ rleRefl =
 
 rleTrans : (x y z : RSeq) → RLeP x y → RLeP y z → RLeP x z using (Real.order.RLeP.unfold)
 rleTrans =
-  λx. λy. λz. λh1. λh2. squash-elim
-    h1
-    u. squash-elim h2 (v. rleOfDouble _ _ (λj. leQVia _ (u j) (v j)))
+  λx y z h1 h2. squash-elim h1 (u. squash-elim h2 (v. rleOfDouble _ _ (λj. leQVia _ (u j) (v j))))
 
 -- replacing the RIGHT side by a close one
 rleCongR : {x : RSeq} (y : RSeq) {y' : RSeq} → REq y y' → RLeP x y → RLeP x y'
@@ -135,7 +133,7 @@ rleCongR : {x : RSeq} (y : RSeq) {y' : RSeq} → REq y y' → RLeP x y → RLeP 
     Real.neg.seqOf.eq,
     Real.order.RLeP.unfold)
 rleCongR =
-  λx. λy. λy'. λhe. λhl. squash-elim
+  λx y y' he hl. squash-elim
     hl
     u. squash-elim he (v. rleOfDouble _ _ (λj. leQVia (seqOf y j) (u j) (v j .π₂)))
 
@@ -158,7 +156,7 @@ rleCongL : (x : RSeq) {x' y : RSeq} → REq x x' → RLeP x y → RLeP x' y
     Real.neg.seqOf.eq,
     Real.order.RLeP.unfold)
 rleCongL =
-  λx. λx'. λy. λhe. λhl. squash-elim
+  λx x' y he hl. squash-elim
     hl
     u. squash-elim
       he
@@ -169,10 +167,10 @@ rleCongL =
 
 -- ===== descent to ℝ =====
 rleWDInner : (x y y' : RSeq) (h : REq y y') → RLeP x y ≡ RLeP x y'
-rleWDInner = λx. λy. λy'. λh. propExt (λp. rleCongR _ h p) (λp. rleCongR _ (reqSym h) p)
+rleWDInner = λx y y' h. propExt (λp. rleCongR _ h p) (λp. rleCongR _ (reqSym h) p)
 
 rleWDOuterCls : {x x' c : RSeq} (h : REq x x') → RLeP x c ≡ RLeP x' c
-rleWDOuterCls = λx. λx'. λc. λh. propExt (λp. rleCongL _ h p) (λp. rleCongL _ (reqSym h) p)
+rleWDOuterCls = λx x' c h. propExt (λp. rleCongL _ h p) (λp. rleCongL _ (reqSym h) p)
 
 rleWDOuter : (x x' : RSeq)
   (h : REq x x')
@@ -180,7 +178,7 @@ rleWDOuter : (x x' : RSeq)
   → quot-elim (w. Ω) (y. RLeP x y) v ≡ quot-elim (y. RLeP x' y) v
   using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold, rleWDInner)
 rleWDOuter =
-  λx. λx'. λh. λv. quot-elim
+  λx x' h v. quot-elim
     w. quot-elim (z. Ω) (y. RLeP x y) w ≡ quot-elim (y. RLeP x' y) w
     c. rleWDOuterCls h
     v
@@ -193,7 +191,7 @@ infixl 4 ≤
     Real.Regular.unfold,
     rleWDInner,
     rleWDOuter)
-(≤) = λu. λv. quot-elim (x. quot-elim (y. RLeP x y) v) u
+(≤) = λu v. quot-elim (x. quot-elim (y. RLeP x y) v) u
 
 leRCls : (x y : RSeq) → class x ≤ class y ≡ RLeP x y
   using (Real.RSeq.unfold,
@@ -201,7 +199,7 @@ leRCls : (x y : RSeq) → class x ≤ class y ≡ RLeP x y
     Real.Regular.unfold,
     Real.order.≤.eq,
     Real.order.RLeP.eq)
-leRCls = λx. λy. ⋆
+leRCls = λx y. ⋆
 
 -- ===== the order laws =====
 leRRefl : {u : Real} → u ≤ u
@@ -222,16 +220,14 @@ leRTrans : (u v w : Real) → u ≤ v → v ≤ w → u ≤ w
     Real.order.RLeP.unfold,
     Real.order.leRCls,
     Real.order.rleTrans.eq)
-leRTrans = λu. λv. λw. quot-elim (x. quot-elim (y. quot-elim (z. λp. λq. rleTrans x y z p q) w) v) u
+leRTrans = λu v w. quot-elim (x. quot-elim (y. quot-elim (z. λp q. rleTrans x y z p q) w) v) u
 
 -- antisymmetry: two one-sided bounds make a two-sided one, which is
 -- exactly REq — so the two reals are equal
 rleAntisym : (x y : RSeq) → RLeP x y → RLeP y x → REq x y
   using (Real.REq.unfold, Real.order.RLeP.unfold)
 rleAntisym =
-  λx. λy. λh1. λh2. squash-elim
-    h1
-    u. squash-elim h2 (v. reqOf _ _ (λn. bndOfBothLe _ _ (u n) (v n)))
+  λx y h1 h2. squash-elim h1 (u. squash-elim h2 (v. reqOf _ _ (λn. bndOfBothLe _ _ (u n) (v n))))
 
 leRAntisym : {u v : Real} → u ≤ v → v ≤ u → u ≡ v
   using (Real.REq.unfold,
@@ -243,7 +239,7 @@ leRAntisym : {u v : Real} → u ≤ v → v ≤ u → u ≡ v
     Real.order.RLeP.unfold,
     Real.order.leRCls,
     Real.order.rleAntisym.eq)
-leRAntisym = λu. λv. quot-elim (x. quot-elim (y. λp. λq. realEqOfREq _ _ (rleAntisym x y p q)) v) u
+leRAntisym = λu v. quot-elim (x. quot-elim (y. λp q. realEqOfREq _ _ (rleAntisym x y p q)) v) u
 
 -- ===== compatibility =====
 -- a common summand cancels, and the deeper sample only tightens
@@ -270,7 +266,7 @@ rleAddMono : {x y c : RSeq} → RLeP x y → RLeP (rAdd x c) (rAdd y c)
     Real.neg.seqOf.eq,
     Real.order.RLeP.unfold)
 rleAddMono =
-  λx. λy. λc. λh. squash-elim
+  λx y c h. squash-elim
     h
     u. rleOf
       _
@@ -294,13 +290,13 @@ leRAddMono : {u v w : Real} → u ≤ v → u + w ≤ v + w
     Real.order.RLeP.unfold,
     Real.order.leRCls,
     Real.order.rleAddMono.eq)
-leRAddMono = λu. λv. λw. quot-elim (x. quot-elim (y. quot-elim (z. λp. rleAddMono p) w) v) u
+leRAddMono = λu v w. quot-elim (x. quot-elim (y. quot-elim (z. λp. rleAddMono p) w) v) u
 
 -- ===== ℚ embeds order-preservingly =====
 -- p ≤ q in ℚ gives p − q ≤ 0
 leQSubZero : {p q : Q} → p ≤ q → p + qNeg q ≤ qZero
   using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
-leQSubZero = λp. λq. λle. transport (λw. p + qNeg q ≤ w) (qAddNegR q) (leQPlusMono (qNeg q) le)
+leQSubZero = λp q le. transport (λw. p + qNeg q ≤ w) (qAddNegR q) (leQPlusMono (qNeg q) le)
 
 leROfQ : (p q : Q) → p ≤ q → realOfQ p ≤ realOfQ q
   using (Core.id.Id.eq,
@@ -324,7 +320,7 @@ leROfQ : (p q : Q) → p ≤ q → realOfQ p ≤ realOfQ q
     Real.order.RLeP.eq,
     Real.order.RLeP.unfold)
 leROfQ =
-  λp. λq. λle. rleOf
+  λp q le. rleOf
     (λn. p), constReg
     (λn. q), constReg
     λn. leQTrans (p + qNeg q) _ _ (leQSubZero le) (leQZeroBound n n)
@@ -414,7 +410,7 @@ leQOfLeR : {p : Q} (q : Q) → realOfQ p ≤ realOfQ q → p ≤ q
     Real.order.≤.unfold,
     Real.order.RLeP.unfold)
 leQOfLeR =
-  λp. λq. λh. ⊎-elim
+  λp q h. ⊎-elim
     nn. nn
     hneg. leQOfFalse
       squash-elim
@@ -439,7 +435,7 @@ leQOfLeR =
 -- so ℚ ↪ ℝ is an order EMBEDDING, and in particular injective
 realOfQInj : (p q : Q) → (realOfQ p ≡ realOfQ q) → p ≡ q
 realOfQInj =
-  λp. λq. λe. leQAntisym
+  λp q e. leQAntisym
     leQOfLeR _ (transportP (λw. realOfQ p ≤ w) e leRRefl)
     leQOfLeR _ (transportP (λw. w ≤ realOfQ p) e leRRefl)
 
@@ -466,7 +462,7 @@ rleNeg : {x y : RSeq} → RLeP x y → RLeP (rNeg y) (rNeg x)
     Real.neg.seqOf.eq,
     Real.order.RLeP.unfold)
 rleNeg =
-  λx. λy. λh. squash-elim
+  λx y h. squash-elim
     h
     u. rleOf
       _
@@ -487,4 +483,4 @@ leRNeg : (u v : Real) → u ≤ v → realNeg v ≤ realNeg u
     Real.order.RLeP.unfold,
     Real.order.leRCls,
     Real.order.rleNeg.eq)
-leRNeg = λu. λv. quot-elim (x. quot-elim (y. λp. rleNeg p) v) u
+leRNeg = λu v. quot-elim (x. quot-elim (y. λp. rleNeg p) v) u

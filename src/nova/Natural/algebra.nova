@@ -16,8 +16,7 @@ IsNatAlgebra = λA. (z : A) × A → A
 NatAlgHom : (A B : 𝕌) → IsNatAlgebra A → IsNatAlgebra B → 𝕌
   using (Natural.algebra.IsNatAlgebra.unfold)
 NatAlgHom =
-  λA. λB. λa. λb. (h : A → B)
-    × Id _ (h (a .π₁)) (b .π₁) × ((x : A) → Id _ (h (a .π₂ x)) (b .π₂ (h x)))
+  λA B a b. (h : A → B) × Id _ (h (a .π₁)) (b .π₁) × ((x : A) → Id _ (h (a .π₂ x)) (b .π₂ (h x)))
 
 -- ℕ is an ℕ-algebra (S eta-expanded: constructors are not functions).
 natAlg : IsNatAlgebra ℕ using (Natural.algebra.IsNatAlgebra.unfold)
@@ -25,7 +24,7 @@ natAlg = Z, λn. S n
 
 -- The fold: iterate the algebra's endomap from its point.
 natFold : (A : 𝕌) → IsNatAlgebra A → ℕ → A using (Natural.algebra.IsNatAlgebra.unfold)
-natFold = λA. λa. λn. ℕ-elim (a .π₁) (k ih. a .π₂ ih) n
+natFold = λA a n. ℕ-elim (a .π₁) (k ih. a .π₂ ih) n
 
 -- EXISTENCE: the fold is a homomorphism into any algebra — both laws
 -- are δβ-computations (ℕ-elim at Z and at S), so each ⋆ is free.
@@ -35,7 +34,7 @@ natAlgInitial : (A : 𝕌) (a : IsNatAlgebra A) → NatAlgHom _ _ natAlg a
     Natural.algebra.NatAlgHom.unfold,
     Natural.algebra.natAlg.eq,
     Natural.algebra.natFold.eq)
-natAlgInitial = λA. λa. natFold _ a, eqToId (natFold _ a Z) _ ⋆, λx. eqToId (natFold _ a (S x)) _ ⋆
+natAlgInitial = λA a. natFold _ a, eqToId (natFold _ a Z) _ ⋆, λx. eqToId (natFold _ a (S x)) _ ⋆
 
 -- UNIQUENESS: any two homomorphisms out of ℕ agree on every point, by
 -- induction. Each case let-binds the homs' laws (reflected from Id)
@@ -53,7 +52,7 @@ natAlgHomUnique : (A : 𝕌)
     Natural.algebra.NatAlgHom.unfold,
     Natural.algebra.natAlg.eq)
 natAlgHomUnique =
-  λA. λa. λf. λg. λn. ℕ-elim
+  λA a f g n. ℕ-elim
     let hf = idToEq _ (f .π₁ Z) (a .π₁) (f .π₂ .π₁)
       in let hg = idToEq _ (g .π₁ Z) (a .π₁) (g .π₂ .π₁) in ⋆
     k ih. let hf = idToEq _ (f .π₁ (S k)) (a .π₂ (f .π₁ k)) (f .π₂ .π₂ k)
@@ -64,4 +63,4 @@ natAlgHomUnique =
 -- and at FUNCTION level, one funext away.
 natAlgHomUniqueFun : (A : 𝕌) (a : IsNatAlgebra A) (f g : NatAlgHom _ _ natAlg a) → f .π₁ ≡ g .π₁
   using (Natural.algebra.NatAlgHom.unfold)
-natAlgHomUniqueFun = λA. λa. λf. λg. funext (natAlgHomUnique _ _ f g)
+natAlgHomUniqueFun = λA a f g. funext (natAlgHomUnique _ _ f g)

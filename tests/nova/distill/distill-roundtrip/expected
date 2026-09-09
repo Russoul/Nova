@@ -7,30 +7,30 @@ round-trip OK: ASTs identical, kernel Σ α-identical.
 
 infixl 6 +
 + : ℕ → ℕ → ℕ
-(+) = λx. λy. ℕ-elim x (n ih. S ih) y
+(+) = λx y. ℕ-elim x (n ih. S ih) y
 
 plusZeroId : (n : ℕ) → n + Z ≡ n using (+.eq)
 plusZeroId = λn. ⋆
 
 plusSucId : (n m : ℕ) → n + S m ≡ S (n + m) using (+.eq)
-plusSucId = λn. λm. ⋆
+plusSucId = λn m. ⋆
 
 zeroPlusId : (n : ℕ) → Z + n ≡ n using (+.eq, plusZeroId)
 zeroPlusId = λn. ℕ-elim ⋆ (k ih. ⋆) n
 
 sucPlus : (n m : ℕ) → S n + m ≡ S (n + m) using (+.eq)
-sucPlus = λn. λm. ℕ-elim ⋆ (k ih. ⋆) m
+sucPlus = λn m. ℕ-elim ⋆ (k ih. ⋆) m
 
 plusComm : (n m : ℕ) → m + n ≡ n + m
 plusComm =
-  λn. λm. ℕ-elim
+  λn m. ℕ-elim
     Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n ⟩ n + Z
     k ih. S k + n ≡⟨ sucPlus k n ⟩ S (k + n) ≡⟨ ih ⟩ S (n + k) ≡⟨ plusSucId n k ⟩ n + S k
     m
 
 swapLeft : (a b c : ℕ) → a + (b + c) ≡ b + (a + c) using (plusComm)
 swapLeft =
-  λa. λb. λc. ℕ-elim
+  λa b c. ℕ-elim
     a + (b + Z) ≡⟨ plusZeroId b ⟩ a + b ≡⟨ plusComm b a ⟩ b + a ≡⟨ plusZeroId a ⟩ b + (a + Z)
     k ih. ⋆ using (+.eq)
     c
@@ -50,7 +50,7 @@ data
   swp : (x : ℕ) (y : ℕ) (m : El Bag) → ins x (ins y m) ≡ ins y (ins x m) ∈ El Bag
 
 size : Bag → ℕ using (Bag.eq)
-size = λm. BagElim (λb. ℕ) Z (λx. λr. λih. S ih) (λx. λy. λr. λih. ⋆) m
+size = λm. BagElim (λb. ℕ) Z (λx r ih. S ih) (λx y r ih. ⋆) m
 
 pairFn : (ℕ → ℕ) × ℕ
 pairFn = (λx. x), Z
@@ -74,19 +74,19 @@ five : ℕ
 five = 5
 
 addPair : (a b : ℕ) → ℕ
-addPair = λa. λb. a + b
+addPair = λa b. a + b
 
 addPair' : (a b : ℕ) → a + b ≡ addPair a b using (addPair.eq)
-addPair' = λa. λb. ⋆
+addPair' = λa b. ⋆
 
 swapPair : (p : ℕ × ℕ) → ℕ × ℕ
 swapPair = λp. sigma-elim (a b. b, a) p
 
 onWholeVar : (p : ℕ × ℕ) (q r s : ℕ) → p ≡ p
-onWholeVar = λp. λq. λr. λs. sigma-elim (a b. ⋆) p
+onWholeVar = λp q r s. sigma-elim (a b. ⋆) p
 
 pinVar : (x h : ℕ) (w : x ≡ Z) → ℕ
-pinVar = λx. λh. λw. ≡-elim h x w
+pinVar = λx h w. ≡-elim h x w
 
 pinLong : (x h n m : ℕ) (w : x ≡ Z) → x + x ≡ Z + Z
-pinLong = λx. λh. λn. λm. λw. ≡-elim ⋆ x w
+pinLong = λx h n m w. ≡-elim ⋆ x w
