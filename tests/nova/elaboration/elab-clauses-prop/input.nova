@@ -1,0 +1,19 @@
+-- a clausal item at a PROPOSITION type: the uniqueness lemma's goal is
+-- an equation between two proofs, closed by proof irrelevance before
+-- any rewrite is attempted (a rewrite at a proof position is refused by
+-- the kernel's replay)
+pf : (n : ℕ) (h : n ≡ Z ∈ ℕ) → n ≡ Z ∈ ℕ
+pf n h = h
+
+sq : (n : ℕ) → ∥ℕ∥
+sq n = ⋆ n
+
+-- the implicit-column variant, as the bracket corpus writes it
+P : 𝕌 → 𝕌
+P = λa. a / (x y. ∥𝟙∥)
+
+pIsProp : {a : 𝕌} (u v : P a) → u ≡ v using (P.unfold)
+pIsProp u v = quot-elim (y. quot-elim (x. ⋆) u) v
+
+pUnit : {a : 𝕌} (s : P a) → s ≡ s
+pUnit {a} s = pIsProp _ _

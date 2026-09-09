@@ -809,6 +809,12 @@ data SPat : Type where
   SPSuc : SPat -> SPat
   SPInj1 : SPat -> SPat
   SPInj2 : SPat -> SPat
+  ||| the pattern at an IMPLICIT column: `{p}` when WRITTEN, else the
+  ||| column's Π-binder auto-bound as a variable (docs/
+  ||| NovaElaboration.txt, Defining equations — IMPLICIT COLUMNS). The
+  ||| flag is what the printer reproduces: a written brace stays, an
+  ||| auto-bound column prints nothing
+  SPImp : (written : Bool) -> SPat -> SPat
 
 ||| One defining equation: `| lhs ≔ rhs [name]?`. The LHS patterns
 ||| cover the leading columns of the item's type; `cvars` is the
@@ -994,6 +1000,8 @@ Show SPat where
   show (SPSuc p) = "S (\{show p})"
   show (SPInj1 p) = "Inj1 (\{show p})"
   show (SPInj2 p) = "Inj2 (\{show p})"
+  show (SPImp True p) = "{\{show p}}"
+  show (SPImp False p) = "{auto \{show p}}"
 
 export covering
 Show SClause where

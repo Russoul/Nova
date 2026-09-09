@@ -74,7 +74,9 @@ qOneNotZeroD : Id _ qOne qZero → 𝟘
     Rat.qcls.eq)
 qOneNotZeroD =
   λp. let h = idToEq _ _ _ p
-    in let r = qEffective ratOne ratZero h in let e = intEffective r in zNotS (sym _ _ e)
+          r = qEffective ratOne ratZero h
+          e = intEffective r
+          zNotS (sym _ _ e)
 
 -- ℚ is a field. The inverse component is UNSQUASHED: qInv is an
 -- honest operation (rationalAlgInv), so the witness is (qInv x, law).

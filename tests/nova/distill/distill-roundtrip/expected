@@ -1,4 +1,4 @@
-distilled 1 modules (24 items) to out
+distilled 1 modules (25 items) to out
 elided 18 of 18 ∈-annotations and motives, blanked 0 arguments
 round-trip OK: ASTs identical, kernel Σ α-identical.
 -- distill golden: identity-tier round trip over one file exercising
@@ -90,3 +90,7 @@ pinVar = λx h w. ≡-elim h x w
 
 pinLong : (x h n m : ℕ) (w : x ≡ Z) → x + x ≡ Z + Z
 pinLong = λx h n m w. ≡-elim ⋆ x w
+
+len : {a : 𝕌} (n : ℕ) → a → ℕ
+len Z x = Z
+len {b} (S m) x = S (len m x)

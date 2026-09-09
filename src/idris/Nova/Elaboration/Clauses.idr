@@ -159,10 +159,99 @@ remapFreeTy sig = mapRefsTy (\d, r, n, i => shiftE 0 d (sig (minus i d))) keepSi
 ||| Replace every reference to the signature name `f` by the variable
 ||| whose top-level index is `base` (the uniqueness lemma states its
 ||| hypotheses about the candidate g).
-replaceSigTy : (f : String) -> (gname : String) -> (base : Nat) -> STy -> STy
-replaceSigTy f gname base =
-  mapRefsTy (\_, r, n, i => SVar r n i)
-            (\d, r, x => if x == f then SVar r gname (base + d) else SSig r x) 0
+||| … and where f's spines carry IMPLICIT columns: g is a variable and
+||| inserts nothing, so every column is passed explicitly — a written
+||| override `{t}` becomes t, an ELIDED implicit column becomes the
+||| clause's own column term (`fills`, the pattern terms at depth 0 of
+||| the clause telescope of size `tele`; shifted to the occurrence's
+||| depth). Filling stops at the last written argument, and past the
+||| columns an override merely drops its braces.
+replaceSigTy : (f : String) -> (gname : String) -> (base : Nat) ->
+               (imps : List Bool) -> (tele : Nat) -> (fills : List SElem) -> STy -> STy
+replaceSigTy f gname base imps tele fills ty = goT 0 ty
+ where
+  mutual
+    goT : Nat -> STy -> STy
+    goT d t = goE d t
+
+    goE : Nat -> SElem -> SElem
+    goE d e = case e of
+      SPos r t => SPos r (goE d t)
+      SApp _ _ =>
+        let (h, args) = unwindL e in
+        case unPos h of
+          SSig r x => if x == f
+                        then foldl SApp (SVar r gname (base + d)) (map (goE d) (explicitArgs d imps fills args))
+                        else foldl SApp (SSig r x) (map (goE d) args)
+          _ => foldl SApp (goE d h) (map (goE d) args)
+      SSig r x => if x == f then SVar r gname (base + d) else e
+      _ => mapRefsE (\_, r, n, i => SVar r n i) (\dd, r, x => SSig r x) 0
+             (mapChildren d e)
+
+    ||| Recurse into every child with the right depth; the node itself
+    ||| is rebuilt unchanged (mapRefsE with identity callbacks walks
+    ||| the structure, goE handles the spine and reference cases)
+    mapChildren : Nat -> SElem -> SElem
+    mapChildren d e = case e of
+      SSuc t => SSuc (goE d t)
+      SLam x t => SLam x (goE (S d) t)
+      SLet x a b => SLet x (goE d a) (goE (S (S d)) b)
+      SPair a b => SPair (goE d a) (goE d b)
+      SProj1 t => SProj1 (goE d t)
+      SProj2 t => SProj2 (goE d t)
+      SPiC x a b => SPiC x (goE d a) (goE (S d) b)
+      SImpPiC x a b => SImpPiC x (goE d a) (goE (S d) b)
+      SSigmaC x a b => SSigmaC x (goE d a) (goE (S d) b)
+      SSumC a b => SSumC (goE d a) (goE d b)
+      SQuotC a x y r => SQuotC (goE d a) x y (goE (S (S d)) r)
+      SEqC rng l r t => SEqC rng (goE d l) (goE d r) (map (goT d) t)
+      SZeroElim t => SZeroElim (goE d t)
+      SNatElim mot z n2 ih st t =>
+        SNatElim (map (\(n, m) => (n, goT (S d) m)) mot) (goE d z) n2 ih (goE (S (S d)) st) (goE d t)
+      SInj1 t => SInj1 (goE d t)
+      SInj2 t => SInj2 (goE d t)
+      SSumElim mot a l b r t =>
+        SSumElim (map (\(z, m) => (z, goT (S d) m)) mot) a (goE (S d) l) b (goE (S d) r) (goE d t)
+      SClass t => SClass (goE d t)
+      SQuotElim mot a g q => SQuotElim (map (\(z, m) => (z, goT (S d) m)) mot) a (goE (S d) g) (goE d q)
+      SSigmaElim x y b w => SSigmaElim x y (goE (S (S d)) b) (goE d w)
+      SSumSplit a l b r w => SSumSplit a (goE (S d) l) b (goE (S d) r) (goE d w)
+      SUnsquash x b w => SUnsquash x (goE (S d) b) (goE d w)
+      SEqElim pf x w => SEqElim (goE d pf) (goE d x) (goE d w)
+      SOut t => SOut (goE d t)
+      SCorec x a g u => SCorec x (goE d a) (goE (S d) g) (goE d u)
+      SCoind nx ny r pw mx my mh q => SCoind nx ny (goE (S (S d)) r) (goE d pw) mx my mh (goE (S (S (S d))) q)
+      SSquash t => SSquash (goT d t)
+      SStarWit w => SStarWit (goE d w)
+      SSquashElim sc x b => SSquashElim (goE d sc) x (goE (S d) b)
+      SChain h links => SChain (goE d h) (map (\(j, m) => (goE d j, goE d m)) links)
+      SAnn t ty => SAnn (goE d t) (goT d ty)
+      SImpArg t => SImpArg (goE d t)
+      SNoIns t => SNoIns (goE d t)
+      _ => e
+
+    ||| f's written arguments made explicit for g: column by column,
+    ||| an implicit column takes a written override's payload or the
+    ||| clause's fill; filling stops where the written arguments end
+    explicitArgs : Nat -> List Bool -> List SElem -> List SElem -> List SElem
+    explicitArgs d _ _ [] = []
+    explicitArgs d [] _ as = map debrace as
+    explicitArgs d (True :: is) fs (a :: as) = case unPos a of
+      SImpArg v => v :: explicitArgs d is (drop 1 fs) as
+      _ => (case fs of
+              (fl :: _) => shiftE 0 (minus d tele) fl
+              [] => a) :: explicitArgs d is (drop 1 fs) (a :: as)
+    explicitArgs d (False :: is) fs (a :: as) = a :: explicitArgs d is (drop 1 fs) as
+
+    debrace : SElem -> SElem
+    debrace a = case unPos a of
+      SImpArg v => v
+      _ => a
+
+    unwindL : SElem -> (SElem, List SElem)
+    unwindL e = case unPos e of
+      SApp g a => let (h, as) = unwindL g in (h, as ++ [a])
+      h => (h, [])
 
 -- ===== Occurrence check =====
 
@@ -244,135 +333,172 @@ spine : SElem -> List SElem -> SElem
 spine = foldl SApp
 
 mutual
-  ||| Replace every application spine `f a₁ … aₙ` (n ≥ |lead|) whose
-  ||| leading arguments are exactly the required variables — the
-  ||| clause's earlier column variables, then the predecessor — by the
-  ||| MARKER variable (top-level index `mk`) applied to the remaining
+  ||| Replace every application spine `f a₁ … aₙ` whose leading
+  ||| arguments are exactly the required variables — the clause's
+  ||| earlier column variables, then the predecessor — by the MARKER
+  ||| variable (top-level index `mk`) applied to the remaining
   ||| (rewritten) arguments. Nothing if any occurrence of f survives
   ||| in another shape: the recursion is not structural.
-  rwE : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> SElem -> Maybe SElem
-  rwE f mk lead d e@(SApp _ _) =
+  |||
+  ||| IMPLICIT COLUMNS (the flag in `lead`): a leading implicit column
+  ||| is in the fragment ELIDED — it then means the column's own
+  ||| variable — or written `{v}` with v that variable. The marker is
+  ||| a variable and inserts nothing, so a written override among the
+  ||| trailing arguments drops its braces, and a trailing implicit
+  ||| column must be written to reach the marker at all (an elided one
+  ||| has no reading there).
+  rwE : (f : String) -> (mk : Nat) -> (lead : List (Bool, Nat)) -> (trail : List Bool) -> Nat -> SElem -> Maybe SElem
+  rwE f mk lead trail d e@(SApp _ _) =
     let (h, args) = unwind e in
     case unPos h of
       SSig r x =>
         if x == f
           then do
-            let (las, rest) = splitAt (length lead) args
-            if length las == length lead && all (\(want, got) => isReqVar (want + d) got) (zip lead las)
-              then do
-                rest' <- traverse (rwE f mk lead d) rest
-                pure (spine (SVar Nothing "ih" (mk + d)) rest')
-              else Nothing
+            rest <- matchLead lead args
+            rest' <- traverse (rwE f mk lead trail d) (unbrace trail rest)
+            pure (spine (SVar Nothing "ih" (mk + d)) rest')
           else do
-            args' <- traverse (rwE f mk lead d) args
+            args' <- traverse (rwE f mk lead trail d) args
             pure (spine (SSig r x) args')
       _ => do
-        h' <- rwE f mk lead d h
-        args' <- traverse (rwE f mk lead d) args
+        h' <- rwE f mk lead trail d h
+        args' <- traverse (rwE f mk lead trail d) args
         pure (spine h' args')
    where
     isReqVar : Nat -> SElem -> Bool
     isReqVar want e = case unPos e of
       SVar _ _ i => i == want
       _ => False
-  rwE f mk lead d (SVar r n i) = Just (SVar r n i)
-  rwE f mk lead d (SSig r x) = if x == f then Nothing else Just (SSig r x)
-  rwE f mk lead d SUnitI = Just SUnitI
-  rwE f mk lead d SZeroN = Just SZeroN
-  rwE f mk lead d (SSuc t) = SSuc <$> rwE f mk lead d t
-  rwE f mk lead d (SLam x t) = SLam x <$> rwE f mk lead (S d) t
-  rwE f mk lead d (SLet x e b) = [| SLet (pure x) (rwE f mk lead d e) (rwE f mk lead (S (S d)) b) |]
-  rwE f mk lead d (SPair a b) = [| SPair (rwE f mk lead d a) (rwE f mk lead d b) |]
-  rwE f mk lead d (SProj1 t) = SProj1 <$> rwE f mk lead d t
-  rwE f mk lead d (SProj2 t) = SProj2 <$> rwE f mk lead d t
-  rwE f mk lead d SZeroC = Just SZeroC
-  rwE f mk lead d SOneC = Just SOneC
-  rwE f mk lead d SNatC = Just SNatC
-  rwE f mk lead d SUnivC = Just SUnivC
-  rwE f mk lead d SPropC = Just SPropC
-  rwE f mk lead d (SPiC x a b) = [| SPiC (pure x) (rwE f mk lead d a) (rwE f mk lead (S d) b) |]
-  rwE f mk lead d (SImpPiC x a b) = [| SImpPiC (pure x) (rwE f mk lead d a) (rwE f mk lead (S d) b) |]
-  rwE f mk lead d (SSigmaC x a b) = [| SSigmaC (pure x) (rwE f mk lead d a) (rwE f mk lead (S d) b) |]
-  rwE f mk lead d (SSumC a b) = [| SSumC (rwE f mk lead d a) (rwE f mk lead d b) |]
-  rwE f mk lead d (SQuotC a x y r) =
-    do a' <- rwE f mk lead d a; r' <- rwE f mk lead (S (S d)) r; pure (SQuotC a' x y r')
-  rwE f mk lead d (SEqC rng l r t) =
-    do l' <- rwE f mk lead d l
-       r' <- rwE f mk lead d r
-       t' <- traverse (rwTy f mk lead d) t
+
+    isImp : SElem -> Bool
+    isImp e = case unPos e of
+      SImpArg _ => True
+      _ => False
+
+    ||| The arguments past the leading columns, when the leading ones
+    ||| are exactly the required variables.
+    matchLead : List (Bool, Nat) -> List SElem -> Maybe (List SElem)
+    matchLead [] as = Just as
+    matchLead ((True, want) :: ls) as = case as of
+      (a :: more) => case unPos a of
+        SImpArg v => if isReqVar (want + d) v then matchLead ls more else Nothing
+        _ => matchLead ls as                 -- elided: the column's own variable
+      [] => matchLead ls []
+    matchLead ((False, want) :: ls) as = case as of
+      (a :: more) => if isReqVar (want + d) a then matchLead ls more else Nothing
+      [] => Nothing
+
+    ||| Trailing arguments for the marker: overrides at implicit
+    ||| trailing columns drop their braces; an implicit trailing column
+    ||| reached by a plain argument has been elided, which has no
+    ||| reading at a variable head (Nothing: out of the fragment).
+    unbrace : List Bool -> List SElem -> List SElem
+    unbrace _ [] = []
+    unbrace (True :: ts) (a :: as) = (case unPos a of
+                                        SImpArg v => v
+                                        _ => a) :: unbrace ts as
+    unbrace (False :: ts) (a :: as) = a :: unbrace ts as
+    unbrace [] (a :: as) = (case unPos a of
+                              SImpArg v => v
+                              _ => a) :: unbrace [] as
+  rwE f mk lead trail d (SVar r n i) = Just (SVar r n i)
+  rwE f mk lead trail d (SSig r x) = if x == f then Nothing else Just (SSig r x)
+  rwE f mk lead trail d SUnitI = Just SUnitI
+  rwE f mk lead trail d SZeroN = Just SZeroN
+  rwE f mk lead trail d (SSuc t) = SSuc <$> rwE f mk lead trail d t
+  rwE f mk lead trail d (SLam x t) = SLam x <$> rwE f mk lead trail (S d) t
+  rwE f mk lead trail d (SLet x e b) = [| SLet (pure x) (rwE f mk lead trail d e) (rwE f mk lead trail (S (S d)) b) |]
+  rwE f mk lead trail d (SPair a b) = [| SPair (rwE f mk lead trail d a) (rwE f mk lead trail d b) |]
+  rwE f mk lead trail d (SProj1 t) = SProj1 <$> rwE f mk lead trail d t
+  rwE f mk lead trail d (SProj2 t) = SProj2 <$> rwE f mk lead trail d t
+  rwE f mk lead trail d SZeroC = Just SZeroC
+  rwE f mk lead trail d SOneC = Just SOneC
+  rwE f mk lead trail d SNatC = Just SNatC
+  rwE f mk lead trail d SUnivC = Just SUnivC
+  rwE f mk lead trail d SPropC = Just SPropC
+  rwE f mk lead trail d (SPiC x a b) = [| SPiC (pure x) (rwE f mk lead trail d a) (rwE f mk lead trail (S d) b) |]
+  rwE f mk lead trail d (SImpPiC x a b) = [| SImpPiC (pure x) (rwE f mk lead trail d a) (rwE f mk lead trail (S d) b) |]
+  rwE f mk lead trail d (SSigmaC x a b) = [| SSigmaC (pure x) (rwE f mk lead trail d a) (rwE f mk lead trail (S d) b) |]
+  rwE f mk lead trail d (SSumC a b) = [| SSumC (rwE f mk lead trail d a) (rwE f mk lead trail d b) |]
+  rwE f mk lead trail d (SQuotC a x y r) =
+    do a' <- rwE f mk lead trail d a; r' <- rwE f mk lead trail (S (S d)) r; pure (SQuotC a' x y r')
+  rwE f mk lead trail d (SEqC rng l r t) =
+    do l' <- rwE f mk lead trail d l
+       r' <- rwE f mk lead trail d r
+       t' <- traverse (rwTy f mk lead trail d) t
        pure (SEqC rng l' r' t')
-  rwE f mk lead d (SZeroElim t) = SZeroElim <$> rwE f mk lead d t
-  rwE f mk lead d (SNatElim mot z n2 ih s t) = do
-    mot' <- traverse (\(n, m) => map (\m' => (n, m')) (rwTy f mk lead (S d) m)) mot
-    z' <- rwE f mk lead d z
-    s' <- rwE f mk lead (S (S d)) s
-    t' <- rwE f mk lead d t
+  rwE f mk lead trail d (SZeroElim t) = SZeroElim <$> rwE f mk lead trail d t
+  rwE f mk lead trail d (SNatElim mot z n2 ih s t) = do
+    mot' <- traverse (\(n, m) => map (\m' => (n, m')) (rwTy f mk lead trail (S d) m)) mot
+    z' <- rwE f mk lead trail d z
+    s' <- rwE f mk lead trail (S (S d)) s
+    t' <- rwE f mk lead trail d t
     pure (SNatElim mot' z' n2 ih s' t')
-  rwE f mk lead d (SInj1 t) = SInj1 <$> rwE f mk lead d t
-  rwE f mk lead d (SInj2 t) = SInj2 <$> rwE f mk lead d t
-  rwE f mk lead d (SSumElim mot a l b r t) = do
-    mot' <- traverse (\(z, m) => map (\m' => (z, m')) (rwTy f mk lead (S d) m)) mot
-    l' <- rwE f mk lead (S d) l
-    r' <- rwE f mk lead (S d) r
-    t' <- rwE f mk lead d t
+  rwE f mk lead trail d (SInj1 t) = SInj1 <$> rwE f mk lead trail d t
+  rwE f mk lead trail d (SInj2 t) = SInj2 <$> rwE f mk lead trail d t
+  rwE f mk lead trail d (SSumElim mot a l b r t) = do
+    mot' <- traverse (\(z, m) => map (\m' => (z, m')) (rwTy f mk lead trail (S d) m)) mot
+    l' <- rwE f mk lead trail (S d) l
+    r' <- rwE f mk lead trail (S d) r
+    t' <- rwE f mk lead trail d t
     pure (SSumElim mot' a l' b r' t')
-  rwE f mk lead d (SClass t) = SClass <$> rwE f mk lead d t
-  rwE f mk lead d (SQuotElim mot a g q) = do
-    mot' <- traverse (\(z, m) => map (\m' => (z, m')) (rwTy f mk lead (S d) m)) mot
-    g' <- rwE f mk lead (S d) g
-    q' <- rwE f mk lead d q
+  rwE f mk lead trail d (SClass t) = SClass <$> rwE f mk lead trail d t
+  rwE f mk lead trail d (SQuotElim mot a g q) = do
+    mot' <- traverse (\(z, m) => map (\m' => (z, m')) (rwTy f mk lead trail (S d) m)) mot
+    g' <- rwE f mk lead trail (S d) g
+    q' <- rwE f mk lead trail d q
     pure (SQuotElim mot' a g' q')
-  rwE f mk lead d (SNuC p) = SNuC <$> rwP f mk lead d p
-  rwE f mk lead d (SOut e) = SOut <$> rwE f mk lead d e
-  rwE f mk lead d (SCorec x a g u) =
-    do a' <- rwE f mk lead d a; g' <- rwE f mk lead (S d) g; u' <- rwE f mk lead d u
+  rwE f mk lead trail d (SNuC p) = SNuC <$> rwP f mk lead trail d p
+  rwE f mk lead trail d (SOut e) = SOut <$> rwE f mk lead trail d e
+  rwE f mk lead trail d (SCorec x a g u) =
+    do a' <- rwE f mk lead trail d a; g' <- rwE f mk lead trail (S d) g; u' <- rwE f mk lead trail d u
        pure (SCorec x a' g' u')
-  rwE f mk lead d (SCoind nx ny r pw mx my mh q) =
-    do r' <- rwE f mk lead (S (S d)) r; pw' <- rwE f mk lead d pw
-       q' <- rwE f mk lead (S (S (S d))) q
+  rwE f mk lead trail d (SCoind nx ny r pw mx my mh q) =
+    do r' <- rwE f mk lead trail (S (S d)) r; pw' <- rwE f mk lead trail d pw
+       q' <- rwE f mk lead trail (S (S (S d))) q
        pure (SCoind nx ny r' pw' mx my mh q')
-  rwE f mk lead d (SUnsquash nx b w) =
-    do b' <- rwE f mk lead (S d) b; w' <- rwE f mk lead d w
+  rwE f mk lead trail d (SUnsquash nx b w) =
+    do b' <- rwE f mk lead trail (S d) b; w' <- rwE f mk lead trail d w
        pure (SUnsquash nx b' w')
-  rwE f mk lead d (SSumSplit na l nb r w) =
-    do l' <- rwE f mk lead (S d) l; r' <- rwE f mk lead (S d) r; w' <- rwE f mk lead d w
+  rwE f mk lead trail d (SSumSplit na l nb r w) =
+    do l' <- rwE f mk lead trail (S d) l; r' <- rwE f mk lead trail (S d) r; w' <- rwE f mk lead trail d w
        pure (SSumSplit na l' nb r' w')
-  rwE f mk lead d (SSigmaElim nx ny b w) =
-    do b' <- rwE f mk lead (S (S d)) b; w' <- rwE f mk lead d w
+  rwE f mk lead trail d (SSigmaElim nx ny b w) =
+    do b' <- rwE f mk lead trail (S (S d)) b; w' <- rwE f mk lead trail d w
        pure (SSigmaElim nx ny b' w')
-  rwE f mk lead d (SEqElim p x w) =
-    do p' <- rwE f mk lead d p; x' <- rwE f mk lead d x; w' <- rwE f mk lead d w
+  rwE f mk lead trail d (SEqElim p x w) =
+    do p' <- rwE f mk lead trail d p; x' <- rwE f mk lead trail d x; w' <- rwE f mk lead trail d w
        pure (SEqElim p' x' w')
-  rwE f mk lead d (SSquash t) = SSquash <$> rwTy f mk lead d t
-  rwE f mk lead d e@(SStar _) = Just e
-  rwE f mk lead d e@(SStarUsing _ _) = Just e
-  rwE f mk lead d (SStarWit e) = SStarWit <$> rwE f mk lead d e
-  rwE f mk lead d (SChain x ls) =
-    do x' <- rwE f mk lead d x
-       ls' <- traverse (\(j, y) => do j' <- rwE f mk lead d j
-                                      y' <- rwE f mk lead d y
+  rwE f mk lead trail d (SSquash t) = SSquash <$> rwTy f mk lead trail d t
+  rwE f mk lead trail d e@(SStar _) = Just e
+  rwE f mk lead trail d e@(SStarUsing _ _) = Just e
+  rwE f mk lead trail d (SStarWit e) = SStarWit <$> rwE f mk lead trail d e
+  rwE f mk lead trail d (SChain x ls) =
+    do x' <- rwE f mk lead trail d x
+       ls' <- traverse (\(j, y) => do j' <- rwE f mk lead trail d j
+                                      y' <- rwE f mk lead trail d y
                                       pure (j', y')) ls
        pure (SChain x' ls')
-  rwE f mk lead d (SSquashElim e x body) =
-    do e' <- rwE f mk lead d e; body' <- rwE f mk lead (S d) body
+  rwE f mk lead trail d (SSquashElim e x body) =
+    do e' <- rwE f mk lead trail d e; body' <- rwE f mk lead trail (S d) body
        pure (SSquashElim e' x body')
-  rwE f mk lead d (SAnn e ty) = [| SAnn (rwE f mk lead d e) (rwTy f mk lead d ty) |]
-  rwE f mk lead d (SImpArg e) = [| SImpArg (rwE f mk lead d e) |]
-  rwE f mk lead d (SNoIns e) = [| SNoIns (rwE f mk lead d e) |]
-  rwE f mk lead d e@(SBlank _) = Just e
-  rwE f mk lead d e@(SHole _ _) = Just e
-  rwE f mk lead d (SPos r e) = SPos r <$> rwE f mk lead d e
+  rwE f mk lead trail d (SAnn e ty) = [| SAnn (rwE f mk lead trail d e) (rwTy f mk lead trail d ty) |]
+  rwE f mk lead trail d (SImpArg e) = [| SImpArg (rwE f mk lead trail d e) |]
+  rwE f mk lead trail d (SNoIns e) = [| SNoIns (rwE f mk lead trail d e) |]
+  rwE f mk lead trail d e@(SBlank _) = Just e
+  rwE f mk lead trail d e@(SHole _ _) = Just e
+  rwE f mk lead trail d (SPos r e) = SPos r <$> rwE f mk lead trail d e
 
-  rwTy : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> STy -> Maybe STy
+  rwTy : (f : String) -> (mk : Nat) -> (lead : List (Bool, Nat)) -> (trail : List Bool) -> Nat -> STy -> Maybe STy
   rwTy = rwE
 
-  rwP : (f : String) -> (mk : Nat) -> (lead : List Nat) -> Nat -> SPoly -> Maybe SPoly
-  rwP f mk lead d SPHole = Just SPHole
-  rwP f mk lead d (SPConst a) = SPConst <$> rwE f mk lead d a
-  rwP f mk lead d (SPProd p q) = [| SPProd (rwP f mk lead d p) (rwP f mk lead d q) |]
-  rwP f mk lead d (SPSum p q) = [| SPSum (rwP f mk lead d p) (rwP f mk lead d q) |]
-  rwP f mk lead d (SPSigma x a p) = [| SPSigma (pure x) (rwE f mk lead d a) (rwP f mk lead (S d) p) |]
-  rwP f mk lead d (SPPi x a p) = [| SPPi (pure x) (rwE f mk lead d a) (rwP f mk lead (S d) p) |]
+  rwP : (f : String) -> (mk : Nat) -> (lead : List (Bool, Nat)) -> (trail : List Bool) -> Nat -> SPoly -> Maybe SPoly
+  rwP f mk lead trail d SPHole = Just SPHole
+  rwP f mk lead trail d (SPConst a) = SPConst <$> rwE f mk lead trail d a
+  rwP f mk lead trail d (SPProd p q) = [| SPProd (rwP f mk lead trail d p) (rwP f mk lead trail d q) |]
+  rwP f mk lead trail d (SPSum p q) = [| SPSum (rwP f mk lead trail d p) (rwP f mk lead trail d q) |]
+  rwP f mk lead trail d (SPSigma x a p) = [| SPSigma (pure x) (rwE f mk lead trail d a) (rwP f mk lead trail (S d) p) |]
+  rwP f mk lead trail d (SPPi x a p) = [| SPPi (pure x) (rwE f mk lead trail d a) (rwP f mk lead trail (S d) p) |]
 
 -- ===== Columns and patterns =====
 
@@ -384,13 +510,31 @@ nth (S n) (_ :: xs) = nth n xs
 ||| Peel exactly k leading Π's off the item's SURFACE type: the
 ||| COLUMNS the clauses pattern, plus the rest (which may itself be a
 ||| Π-type — the generated equations then sit at a function type).
-peelPis : Nat -> STy -> Maybe (List (String, STy), STy)
+||| The leading k Π-columns of the item's type, explicit or IMPLICIT
+||| (each flagged), and the type past them.
+peelPis : Nat -> STy -> Maybe (List (Bool, String, STy), STy)
 peelPis Z ty = Just ([], ty)
 peelPis (S n) ty = case unPosTy ty of
   SPiC x a b => do
     (cols, rest) <- peelPis n b
-    pure ((x, a) :: cols, rest)
+    pure ((False, x, a) :: cols, rest)
+  SImpPiC x a b => do
+    (cols, rest) <- peelPis n b
+    pure ((True, x, a) :: cols, rest)
   _ => Nothing
+
+||| A spine's arguments with the IMPLICIT columns' entries wrapped as
+||| overrides `{t}` — how a lemma statement applies f, whose implicit
+||| positions would otherwise be inserted by recovery.
+impWrap : List Bool -> List SElem -> List SElem
+impWrap (True :: is) (a :: as) = SImpArg a :: impWrap is as
+impWrap (False :: is) (a :: as) = a :: impWrap is as
+impWrap _ as = as
+
+||| The pattern at a column, brace and auto-binding seen through.
+unImp : SPat -> SPat
+unImp (SPImp _ p) = p
+unImp p = p
 
 ||| Syntactic ℕ-recognition (the spec reads whnf(Aⱼ); the syntactic
 ||| approximation only narrows the FRAGMENT — unrecognized split
@@ -437,6 +581,7 @@ assignSlots pats =
   goP seen (SPSuc p) = let (sk, seen') = goP seen p in (KSuc sk, seen')
   goP seen (SPInj1 p) = let (sk, seen') = goP seen p in (KInj1 sk, seen')
   goP seen (SPInj2 p) = let (sk, seen') = goP seen p in (KInj2 sk, seen')
+  goP seen (SPImp _ p) = goP seen p
   go : List String -> List SPat -> (List PatSk, List String)
   go seen [] = ([], seen)
   go seen (p :: ps) =
@@ -526,6 +671,7 @@ data Shape : Type where
 
 isVarPat : SPat -> Bool
 isVarPat (SPVar _) = True
+isVarPat (SPImp _ p) = isVarPat p
 isVarPat _ = False
 
 ||| Linear: no non-wildcard variable occurs twice in one clause's LHS.
@@ -540,6 +686,7 @@ linearClause c =
   patNames (SPSuc p) = patNames p
   patNames (SPInj1 p) = patNames p
   patNames (SPInj2 p) = patNames p
+  patNames (SPImp _ p) = patNames p
 
 analyzeShape : List (String, STy) -> List SClause -> Maybe Shape
 analyzeShape cols clauses =
@@ -567,11 +714,14 @@ analyzeShape cols clauses =
   natShape i zc sc =
     case (nth i zc.cpats, nth i sc.cpats) of
       (Just SPZero, Just (SPSuc (SPVar m))) => Just (ShNat (S i) zc sc m)
+      (Just (SPImp _ SPZero), Just (SPImp _ (SPSuc (SPVar m)))) => Just (ShNat (S i) zc sc m)
       _ => Nothing
   sumShape : Nat -> SClause -> SClause -> Maybe Shape
   sumShape i lc rc =
     case (nth i lc.cpats, nth i rc.cpats) of
       (Just (SPInj1 (SPVar a)), Just (SPInj2 (SPVar b))) =>
+        Just (ShSum (S i) lc a rc b)
+      (Just (SPImp _ (SPInj1 (SPVar a))), Just (SPImp _ (SPInj2 (SPVar b)))) =>
         Just (ShSum (S i) lc a rc b)
       _ => Nothing
 
@@ -610,18 +760,19 @@ colBinder cols i =
 ||| The witness ρ for an ℕ split at 1-based column j of k: eliminate
 ||| the split variable at the Π-motive over the trailing columns.
 ||| Nothing when the recursion is not structural.
-rhoNat : (fname : String) -> (cols : List (String, STy)) -> (b : STy) ->
+rhoNat : (fname : String) -> (cols : List (String, STy)) -> (imps : List Bool) -> (b : STy) ->
          (j, k : Nat) -> (zc, sc : SClause) -> (mvar : SName) -> Maybe SElem
-rhoNat fname cols b j k zc sc mvar = do
+rhoNat fname cols imps b j k zc sc mvar = do
   let kj = minus k j
   -- the Z-clause must not mention f at all
   let False = occursE fname zc.crhs
     | True => Nothing
   -- required leading arguments of a recursive call: the clause's own
   -- column variables (top-level indices k−1 … k−j+1), then the
-  -- predecessor (k−j)
-  let lead = map (\i => minus k i) [1 .. j]
-  sBody <- rwE fname k lead 0 sc.crhs
+  -- predecessor (k−j) — each flagged implicit or not, since an
+  -- implicit one may be elided in the call
+  let lead = zip (take j imps) (map (\i => minus k i) [1 .. j])
+  sBody <- rwE fname k lead (drop j imps) 0 sc.crhs
   let zBody = wrapSLams (drop (minus j 1) zc.cvars) (shiftE kj 1 zc.crhs)
   let sBody' = wrapSLams (drop j sc.cvars) (remapIdxE (msMap kj) sBody)
   let mot = motChain (drop j cols) (shiftTy (S kj) 1 b)
@@ -672,18 +823,21 @@ rhoNone fname c = do
 ||| trailing binders are the columns, so the equation's sides
 ||| determine them — the h's are SIDE CONDITIONS in E's documented
 ||| sense.
-etaType : (fname : String) -> (ty : STy) -> (cols : List (String, STy)) ->
-          (b : STy) -> (lemNames : List String) -> (lemTys : List STy) -> STy
-etaType fname ty cols b lemNames lemTys =
+etaType : (fname : String) -> (ty : STy) -> (cols : List (String, STy)) -> (imps : List Bool) ->
+          (b : STy) -> (lemNames : List String) -> (lemTys : List STy) -> (cds : List ClauseData) -> STy
+etaType fname ty cols imps b lemNames lemTys cds =
   let k = length cols
       m = length lemTys
+      -- each hypothesis is the clause lemma about g: f's spines become
+      -- g's, fully explicit — g is a variable and inserts nothing — an
+      -- elided implicit filled with the clause's own column term
       hyps = the (List (SName, STy))
-               (zipWith (\i, nt => ((fst nt, Nothing), replaceSigTy fname "g" i (snd nt)))
-                        [0 .. minus m 1] (zip lemNames lemTys))
+               (zipWith (\i, (nt, cd) => ((fst nt, Nothing), replaceSigTy fname "g" i imps (length cd.ctele) cd.cargs (snd nt)))
+                        [0 .. minus m 1] (zip (zip lemNames lemTys) cds))
       colBinds = the (List (SName, STy)) (map (\(x, a) => ((x, Nothing), a)) cols)
       args = map (\i => SVar Nothing (colName i) (minus k i)) [1 .. k]
       concl = SEqC Nothing (spine (SVar Nothing "g" (k + m)) args)
-                    (spine (SSig Nothing fname) args) (Just b)
+                    (spine (SSig Nothing fname) (impWrap imps args)) (Just b)
   in SPiC "g" ty (wrapSPis hyps (wrapSPis colBinds concl))
  where
   colName : Nat -> String
@@ -702,10 +856,10 @@ etaBodyStar m k lemNames cols =
     (wrapSLams (map (\n => (n, Nothing)) lemNames)
       (wrapSLams (map (\(x, _) => (x, Nothing)) cols) (SStar Nothing)))
 
-etaBodyElim : (fname : String) -> (cols : List (String, STy)) -> (b : STy) ->
+etaBodyElim : (fname : String) -> (cols : List (String, STy)) -> (imps : List Bool) -> (b : STy) ->
               (j, k, m : Nat) -> (lemNames : List String) ->
               (isNat : Bool) -> (v1, v2 : SName) -> SElem
-etaBodyElim fname cols b j k m lemNames isNat v1 v2 =
+etaBodyElim fname cols imps b j k m lemNames isNat v1 v2 =
   let kj = minus k j
       trailing = drop j cols
       -- context at the motive's equation: [g, h's, x₁…x_j, x, trailing]
@@ -714,7 +868,7 @@ etaBodyElim fname cols b j k m lemNames isNat v1 v2 =
                      else if i == j then kj
                      else minus k i)) [1 .. k]
       concl = SEqC Nothing (spine (SVar Nothing "g" (m + k + 1)) args)
-                    (spine (SSig Nothing fname) args)
+                    (spine (SSig Nothing fname) (impWrap imps args))
                     (Just (shiftTy (S kj) 1 b))
       mot = motChain trailing concl
       trailLams = wrapSLams (map (\(x, _) => (x, Nothing)) trailing) (SStar Nothing)
@@ -737,6 +891,7 @@ defaultTag c = go c.cpats
  where
   tag : SPat -> Maybe String
   tag (SPVar _) = Nothing
+  tag (SPImp _ p) = tag p
   tag SPZero = Just "Z"
   tag (SPSuc _) = Just "S"
   tag (SPInj1 _) = Just "Inl"
@@ -795,9 +950,11 @@ expandClausal nrng fname ty uses etaName etaRng witness clauses = do
              else if n == 0
                then Left "a clause must spell at least one pattern position"
                else Right n
-  (cols, b) <- maybe (Left ("the clauses spell \{show k} pattern positions, "
-                            ++ "but the item's type does not show \{show k} leading Π-columns"))
-                     Right (peelPis k ty)
+  (fcols, b) <- maybe (Left ("the clauses spell \{show k} pattern positions, "
+                             ++ "but the item's type does not show \{show k} leading Π-columns"))
+                      Right (peelPis k ty)
+  let cols = map (\(_, x, a) => (x, a)) fcols
+  let imps = map (\(i, _, _) => i) fcols
   -- names: deterministic defaults; an operator-named item has no
   -- identifier to prefix, so every override is mandatory
   lemNames <-
@@ -812,7 +969,7 @@ expandClausal nrng fname ty uses etaName etaRng witness clauses = do
       else Right (fromMaybe (fname ++ "Eta") etaName)
   -- per-clause telescopes and lemma statements
   cds <- traverse (buildClauseData cols) clauses
-  let lemTys = zipWith (mkLemTy cols b k) clauses cds
+  let lemTys = zipWith (mkLemTy cols imps b k) clauses cds
   -- the λ's here are pure scaffolding over a ⋆ — their binders reuse
   -- the pattern variables' SPANS, which would pull the lemma's
   -- obligations onto a variable inside a pattern. The lemma is about
@@ -822,9 +979,9 @@ expandClausal nrng fname ty uses etaName etaRng witness clauses = do
   let lemBodies = map (\cd => wrapSLams (map (\(n, _) => (n, Nothing)) (map fst cd.ctele))
                                         (SStar Nothing)) cds
   let m = length clauses
-  let eTy = etaType fname ty cols b lemNames lemTys
+  let eTy = etaType fname ty cols imps b lemNames lemTys cds
   let shape = analyzeShape cols clauses
-  let eBodySynth = map (shapedEtaBody cols b k m lemNames) shape
+  let eBodySynth = map (shapedEtaBody cols imps b k m lemNames) shape
   let eBodyStar = etaBodyStar m k lemNames cols
   let names = fname :: lemNames ++ [etaN]
   -- where each generated lemma's NAME lives, for hover: the written
@@ -854,7 +1011,7 @@ expandClausal nrng fname ty uses etaName etaRng witness clauses = do
                   ++ [(nrng, SDef etaR etaN eTy (fromMaybe eBodyStar eBodySynth) etaUses)])
                "defined \{fname} by clauses via witness (\{joinBy ", " names})")
     Nothing =>
-      case (shape, shape >>= shapedRho cols b k) of
+      case (shape, shape >>= shapedRho cols imps b k) of
         (Just _, Just rho) =>
           -- THE FRAGMENT: everything synthesized
           Right (MkExpansion
@@ -890,21 +1047,23 @@ expandClausal nrng fname ty uses etaName etaRng witness clauses = do
 
   ||| Π(Γᵢ). f p̄ᵢ ≡ tᵢ ∈ B[p̄ᵢ] — the clause, Π-closed over its pattern
   ||| telescope; recursive occurrences in tᵢ stay references to f.
-  mkLemTy : List (String, STy) -> STy -> Nat -> SClause -> ClauseData -> STy
-  mkLemTy cols b k clause cd =
+  mkLemTy : List (String, STy) -> List Bool -> STy -> Nat -> SClause -> ClauseData -> STy
+  mkLemTy cols imps b k clause cd =
     let bigL = length cd.ctele
-        lhs = spine (SSig Nothing fname) cd.cargs
+        -- f applied to the patterns, with OVERRIDES at the implicit
+        -- columns: the statement never depends on recovery
+        lhs = spine (SSig Nothing fname) (impWrap imps cd.cargs)
         bC = remapFreeTy (\d => maybe SUnitI (patTerm bigL) (nth d (reverse cd.csks))) b
     in wrapSPis cd.ctele (SEqC Nothing lhs clause.crhs (Just bC))
 
-  shapedRho : List (String, STy) -> STy -> Nat -> Shape -> Maybe SElem
-  shapedRho cols b k (ShNone c) = rhoNone fname c
-  shapedRho cols b k (ShNat j zc sc mvar) = rhoNat fname cols b j k zc sc mvar
-  shapedRho cols b k (ShSum j lc avar rc bvar) = rhoSum fname cols b j k lc avar rc bvar
+  shapedRho : List (String, STy) -> List Bool -> STy -> Nat -> Shape -> Maybe SElem
+  shapedRho cols imps b k (ShNone c) = rhoNone fname c
+  shapedRho cols imps b k (ShNat j zc sc mvar) = rhoNat fname cols imps b j k zc sc mvar
+  shapedRho cols imps b k (ShSum j lc avar rc bvar) = rhoSum fname cols b j k lc avar rc bvar
 
-  shapedEtaBody : List (String, STy) -> STy -> Nat -> Nat -> List String -> Shape -> SElem
-  shapedEtaBody cols b k m lemNames (ShNone _) = etaBodyStar m k lemNames cols
-  shapedEtaBody cols b k m lemNames (ShNat j _ sc mvar) =
-    etaBodyElim fname cols b j k m lemNames True mvar ("ih", Nothing)
-  shapedEtaBody cols b k m lemNames (ShSum j _ avar _ bvar) =
-    etaBodyElim fname cols b j k m lemNames False avar bvar
+  shapedEtaBody : List (String, STy) -> List Bool -> STy -> Nat -> Nat -> List String -> Shape -> SElem
+  shapedEtaBody cols imps b k m lemNames (ShNone _) = etaBodyStar m k lemNames cols
+  shapedEtaBody cols imps b k m lemNames (ShNat j _ sc mvar) =
+    etaBodyElim fname cols imps b j k m lemNames True mvar ("ih", Nothing)
+  shapedEtaBody cols imps b k m lemNames (ShSum j _ avar _ bvar) =
+    etaBodyElim fname cols imps b j k m lemNames False avar bvar

@@ -169,12 +169,17 @@ clause ::= lhs uses? = t{≥0} ([n])?           # a column-0 line directly
                                               #   optional [n] names that
                                               #   lemma (a zero-pattern
                                               #   clause takes neither)
-lhs    ::= n pat* | pat op pat                # the head is the item's own
+lhs    ::= n (pat | {pat})* | pat op pat      # the head is the item's own
                                               #   name (infix use needs a
                                               #   fixity, as anywhere);
                                               #   parsed as an ordinary
                                               #   application spelling and
-                                              #   REREAD as patterns
+                                              #   REREAD as patterns; {pat}
+                                              #   stands at an IMPLICIT
+                                              #   column, which may also be
+                                              #   left out (Defining
+                                              #   equations — IMPLICIT
+                                              #   COLUMNS)
 pat    ::= x | Z | S pat | inj₁ pat | inj₂ pat | (pat)
                                               # constructor spellings and
                                               #   variables, any depth —
@@ -454,10 +459,20 @@ t{2} ::= λx⁺. t{≥0}                   # binders ITERATE: λx y. b is
                                       #   a λ that is a NON-FINAL pair
                                       #   component must be
                                       #   parenthesised
-       | let x = t{≥0} in t{≥0}                               # let-expression;
-                                                              #   body maximal,
-                                                              #   like λ's
-       | let x : t{≥1} = t{≥0} in t{≥0}                       #   (annotated
+       | let bind (⏎ bind)* (in t{≥0} | ⏎ t{≥0})             # let-expression:
+                                                              #   the bindings a
+                                                              #   BLOCK at the
+                                                              #   first one's
+                                                              #   column, the
+                                                              #   scope after `in`
+                                                              #   or as the last
+                                                              #   block item (see
+                                                              #   Layout — LET);
+                                                              #   scope maximal,
+                                                              #   like λ's body
+                                                              # bind ::= x = t{≥0}
+                                                              #   | x : t{≥1} = t{≥0}
+                                                              #   (annotated
                                                               #   definiens) —
                                                               #   see e-let
 t{1} ::= ((x:t{≥0}))+ → t{≥1} | ((x:t{≥0}))+ × t{≥1}
@@ -692,12 +707,33 @@ F{0} ::= F{≥1}
 #
 # Slot arities are unchanged, so a block line past a keyword form's
 # last slot is a spine continuation, exactly as a further juxtaposed
-# atom is: `(out t) u`. The remaining forms take their layout from the
-# general rules alone: `let x = e in b` keeps its `in` (an `in`-less
-# form was considered and withdrawn — its body would stand at the
-# indent of the let's line, which on an item's header line is column
-# 0, an item boundary), and may break before `in`, which is
-# non-term-initial.
+# atom is: `(out t) u`.
+
+# LET. A let's bindings form a BLOCK whose column is that of the FIRST
+# BINDING'S FIRST TOKEN — on the let's line or on the next (the
+# column must stand past the let's line indent, as any block's must);
+# the block is set BEFORE the first binding's definiens is read, so
+# the definiens' own argument lines stand deeper and the next line at
+# the column ends it. Each binding is `x = e` or `x : T = e`, one per
+# line, and `=` (a reserved token) is what tells a binding from a
+# term. The SCOPE is either introduced by `in` — on the line after
+# the last binding, or leading a line of its own (`in` is
+# non-term-initial), the scope then parsed in the ENCLOSING block —
+# or, with no `in`, the block's LAST item. One AST either way (nested
+# lets, one per binding):
+#
+#   let x = e in b             let x = f a       let
+#                                  y = g           x = f a
+#                                  x + y           y = g
+#                                                  x + y
+#
+# Pinning the column to the first binding is what makes the `in`-less
+# form sound: the column is known before any definiens is parsed (so
+# rule 2 cannot hand a binding line to the definiens' spine as an
+# argument), and a let never stands at column 0, so the scope never
+# collides with an item boundary. The scope is POSITIONAL — a let
+# whose block ends in a binding has no scope, and fails at that
+# binding's `=`.
 
 # ERRORS are structural, and name the two columns they saw: "an
 # argument line at column 4 — this spine's arguments stand at column
@@ -2206,6 +2242,43 @@ pointwise, exhibit that g satisfies the clauses.
 # pattern clauses it is the WITNESS (below); it takes no [name] and
 # no using.
 
+# IMPLICIT COLUMNS. A signature's implicit binders {x : A} are
+# columns like any other, and a clause need not spell them. The LHS
+# is aligned against the signature's telescope column by column: at an
+# implicit column a brace pattern `{p}` is consumed if one comes next,
+# else the column is AUTO-BOUND to its Π-binder's name; at an explicit
+# column the next item must be a plain pattern (a brace there is a
+# structural error). Coverage stops at the last written item, so a
+# trailing implicit column is a column only when written. `p` in
+# braces is any pattern — an implicit column may be the split column.
+# The infix spelling has no place for braces and auto-binds every
+# implicit. An auto-bound name is in scope in the RHS; a written
+# pattern variable of the same name SHADOWS it (the auto-bound column
+# is then unnameable, not a second occurrence).
+#
+#   len : {a : 𝕌} (n : ℕ) → a → ℕ
+#   len Z x = Z
+#   len (S m) x = S (len m x)            # a auto-bound, elided in the call
+#
+#   len' : {a : 𝕌} (n : ℕ) → a → ℕ
+#   len' {b} Z x = Z
+#   len' {b} (S m) x = S (len' {b} m x)  # written, renamed, passed
+#
+# In a RECURSIVE CALL an elided implicit column means the clause's own
+# column variable, and a written `{v}` is in the structural fragment
+# exactly when v is that variable; a trailing implicit column must be
+# written to be passed on at all. The generated items: f keeps its
+# {}-binders, so its uses insert as ever; the clause lemmas apply f
+# with OVERRIDES at the implicit columns (`f {a} (S m) x ≡ …`), so
+# their statements never depend on recovery; the uniqueness lemma's g
+# is a variable — variables never insert (docs/NovaPerfectSurface.txt)
+# — so g is applied fully explicitly everywhere, and tᵢ[g/f] fills
+# each elided implicit of a recursive call with the column term of
+# point one. If recovery would have solved an elided implicit to
+# something else, that lemma's statement is ill-typed and the item
+# fails there: the remedy is to write the brace. The printer keeps a
+# written brace and prints nothing for an auto-bound column.
+
 # SCOPES. The signature's `using` is the ITEM's discharge scope and
 # reaches every item of the expansion: the definition (in the witness
 # tier, the user's witness elaborates under it), each equation lemma,
@@ -2263,7 +2336,8 @@ pointwise, exhibit that g satisfies the clauses.
 #     inj₂ / no-split bodies, and each of its occurrences in the
 #     S-clause body heads an application of at least j arguments
 #     whose first j−1 are the clause's own column variables and
-#     whose j-th is the predecessor m. Arguments PAST the split
+#     whose j-th is the predecessor m (an implicit one among them
+#     elided, or written `{v}` — IMPLICIT COLUMNS). Arguments PAST the split
 #     column are arbitrary terms — the Π-motive below quantifies
 #     over the trailing columns, so recursion at a changed later
 #     argument is in the fragment.

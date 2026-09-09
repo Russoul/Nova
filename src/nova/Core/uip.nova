@@ -22,4 +22,4 @@ uip : {a : 𝕌} {x y : a} {p q : Id _ x y} → p ≡ q
   using (hyp.rw, Core.id.Id.eq, Core.id.Id.unfold, Core.id.idToEq.eq)
 uip =
   λa x y p q. let h = idToEq _ _ _ p
-    in trans _ (refl a x) _ (idCanon p h) (sym _ (refl a x) (idCanon q h))
+                  trans _ (refl a x) _ (idCanon p h) (sym _ (refl a x) (idCanon q h))

@@ -1,0 +1,6 @@
+Let x (Z) (Let y (S (x@1)) (Pair (x@3) (y@1)))
+Let x (Z) (Let y (S (x@1)) (Pair (x@3) (y@1)))
+Let x (Z) (Let y (S (x@1)) (Pair (x@3) (y@1)))
+Let x (Ann (Z) (ℕc)) (Let y (S (x@1)) (Pair (x@3) (y@1)))
+Let f (S (Z)) (f@1)
+ERROR

@@ -121,26 +121,31 @@ leZTrans =
 leZAntisym : (x y : Int) → x ≤ y → y ≤ x → x ≡ y using (Int.order.≤.unfold)
 leZAntisym =
   λx y l1 l2. let h1 = idToEq _ _ _ (l1 .π₂)
-    in let h2 = idToEq _ _ _ (l2 .π₂)
-      in let loop : x + intOfNat (l1 .π₁ + l2 .π₁) ≡ x
-        = trans _ _ _ intOfNatSplit (trans _ _ _ (cong (λu. Int) (λu. u + intOfNat (l2 .π₁)) h1) h2)
-        in let sumz : intOfNat (l1 .π₁ + l2 .π₁) ≡ intZero
-          = intCancelL _ _ _ (trans _ _ _ loop (sym _ _ (intAddZeroR x)))
-          in let k1z = sumZeroL _ _ (intOfNatInjZ sumz)
-            in trans
-              _
-              _
-              _
-              trans
-                _
-                _
-                _
-                sym _ _ (intAddZeroR x)
-                cong
-                  λu. Int
-                  λu. x + u
-                  sym _ _ (trans _ _ _ (cong (λu. Int) (λu. intOfNat u) k1z) intOfNatZero)
-              h1
+                  h2 = idToEq _ _ _ (l2 .π₂)
+                  loop : x + intOfNat (l1 .π₁ + l2 .π₁) ≡ x
+                    = trans
+                      _
+                      _
+                      _
+                      intOfNatSplit
+                      trans _ _ _ (cong (λu. Int) (λu. u + intOfNat (l2 .π₁)) h1) h2
+                  sumz : intOfNat (l1 .π₁ + l2 .π₁) ≡ intZero
+                    = intCancelL _ _ _ (trans _ _ _ loop (sym _ _ (intAddZeroR x)))
+                  k1z = sumZeroL _ _ (intOfNatInjZ sumz)
+                  trans
+                    _
+                    _
+                    _
+                    trans
+                      _
+                      _
+                      _
+                      sym _ _ (intAddZeroR x)
+                      cong
+                        λu. Int
+                        λu. x + u
+                        sym _ _ (trans _ _ _ (cong (λu. Int) (λu. intOfNat u) k1z) intOfNatZero)
+                    h1
 
 -- ===== monotonicity =====
 -- the shuffle, HYPOTHESIS-FREE (an equation hypothesis in scope can
@@ -245,38 +250,46 @@ leZTotal : (x y : Int) → x ≤ y ⊎ y ≤ x
     Natural.order.≤.unfold)
 leZTotal =
   λx y. let d = y + intNeg x
-    in let hd = intCanonClass d
-      in ⊎-elim
-        nn. let hb = idToEq _ _ _ (nn .π₂)
-          in let e1 : intOfNat (nn .π₁) ≡ class (intCanon d)
-            = intOfNat (nn .π₁)
-              ≡⟨ clsOfRelGe _ _ _ hb ⟩ class (intCanon d .π₁, intCanon d .π₂)
-              ≡⟨ classPairEta (intCanon d) ⟩ class (intCanon d)
-            in inj₁
-              (,)
-                nn .π₁
-                eqToId
-                  _
-                  _
-                  trans _ _ y (cong (λu. Int) (λu. x + u) (trans _ _ _ e1 hd)) (intPlusDiff x y)
-        nn. let ha = idToEq _ _ _ (nn .π₂)
-          in let e2 : intOfNat (nn .π₁) ≡ intNeg (class (intCanon d))
-            = intOfNat (nn .π₁)
-              ≡⟨ clsOfRelLe _ _ _ ha ⟩ class (intCanon d .π₂, intCanon d .π₁)
-              ≡⟨ sym _ _ (intNegClass (intCanon d)) ⟩ intNeg (class (intCanon d))
-            in inj₂
-              (,)
-                nn .π₁
-                eqToId
-                  _
-                  _
-                  trans
-                    _
-                    _
-                    x
-                    cong (λu. Int) (λu. y + u) (trans _ _ _ e2 (cong (λu. Int) (λu. intNeg u) hd))
-                    intPlusNegDiff x y
-        leTotal (intCanon d .π₂) (intCanon d .π₁)
+            hd = intCanonClass d
+            ⊎-elim
+              nn. let hb = idToEq _ _ _ (nn .π₂)
+                      e1 : intOfNat (nn .π₁) ≡ class (intCanon d)
+                        = intOfNat (nn .π₁)
+                          ≡⟨ clsOfRelGe _ _ _ hb ⟩ class (intCanon d .π₁, intCanon d .π₂)
+                          ≡⟨ classPairEta (intCanon d) ⟩ class (intCanon d)
+                      inj₁
+                        (,)
+                          nn .π₁
+                          eqToId
+                            _
+                            _
+                            trans
+                              _
+                              _
+                              y
+                              cong (λu. Int) (λu. x + u) (trans _ _ _ e1 hd)
+                              intPlusDiff x y
+              nn. let ha = idToEq _ _ _ (nn .π₂)
+                      e2 : intOfNat (nn .π₁) ≡ intNeg (class (intCanon d))
+                        = intOfNat (nn .π₁)
+                          ≡⟨ clsOfRelLe _ _ _ ha ⟩ class (intCanon d .π₂, intCanon d .π₁)
+                          ≡⟨ sym _ _ (intNegClass (intCanon d)) ⟩ intNeg (class (intCanon d))
+                      inj₂
+                        (,)
+                          nn .π₁
+                          eqToId
+                            _
+                            _
+                            trans
+                              _
+                              _
+                              x
+                              cong
+                                λu. Int
+                                λu. y + u
+                                trans _ _ _ e2 (cong (λu. Int) (λu. intNeg u) hd)
+                              intPlusNegDiff x y
+              leTotal (intCanon d .π₂) (intCanon d .π₁)
 
 -- ===== multiplicative order =====
 -- intOfNat is multiplicative (Z·b needs one zeroMult rewrite)

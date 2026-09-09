@@ -1,0 +1,6 @@
+#!/bin/sh
+"$1" elab input.nova
+echo "--- a brace at an explicit column:"
+"$1" elab explicit.nova
+echo "--- a brace past the columns:"
+"$1" elab past.nova

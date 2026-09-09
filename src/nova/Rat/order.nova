@@ -660,26 +660,29 @@ intSgnPosMul : {a b : Int} → (intSgn a ≡ sPos) → (intSgn b ≡ sPos) → i
     Rat.order.sPos.eq)
 intSgnPosMul =
   λa b ha hb. let va = intSgnPosView _ ha
-    in let vb = intSgnPosView _ hb
-      in trans
-        _
-        _
-        _
-        cong
-          λv. Sign
-          λv. intSgn v
-          trans
-            _
-            _
-            _
-            cong (λv. Int) (λv. v * b) (sym _ _ (va .π₂))
-            cong (λv. Int) (λv. nzToInt (nzPos (va .π₁)) * v) (sym _ _ (vb .π₂))
-        trans
-          _
-          _
-          _
-          cong (λv. Sign) (λv. intSgn v) (sym _ _ (nzToIntMul (nzPos (va .π₁)) (nzPos (vb .π₁))))
-          trans _ _ sPos (intSgnNz (nzMul (nzPos (va .π₁)) (nzPos (vb .π₁)))) ⋆
+                  vb = intSgnPosView _ hb
+                  trans
+                    _
+                    _
+                    _
+                    cong
+                      λv. Sign
+                      λv. intSgn v
+                      trans
+                        _
+                        _
+                        _
+                        cong (λv. Int) (λv. v * b) (sym _ _ (va .π₂))
+                        cong (λv. Int) (λv. nzToInt (nzPos (va .π₁)) * v) (sym _ _ (vb .π₂))
+                    trans
+                      _
+                      _
+                      _
+                      cong
+                        λv. Sign
+                        λv. intSgn v
+                        sym _ _ (nzToIntMul (nzPos (va .π₁)) (nzPos (vb .π₁)))
+                      trans _ _ sPos (intSgnNz (nzMul (nzPos (va .π₁)) (nzPos (vb .π₁)))) ⋆
 
 -- positives add to a positive: both views land on class (S j , Z)
 -- forms, whose sum computes to another one
@@ -711,21 +714,21 @@ intSgnPosAdd : {a b : Int} → (intSgn a ≡ sPos) → (intSgn b ≡ sPos) → i
     Rat.order.sZero.eq)
 intSgnPosAdd =
   λa b ha hb. let va = intSgnPosView _ ha
-    in let vb = intSgnPosView _ hb
-      in trans
-        _
-        _
-        _
-        cong
-          λv. Sign
-          λv. intSgn v
-          trans
-            _
-            _
-            _
-            cong (λv. Int) (λv. v + b) (sym _ _ (va .π₂))
-            cong (λv. Int) (λv. nzToInt (nzPos (va .π₁)) + v) (sym _ _ (vb .π₂))
-        ⋆
+                  vb = intSgnPosView _ hb
+                  trans
+                    _
+                    _
+                    _
+                    cong
+                      λv. Sign
+                      λv. intSgn v
+                      trans
+                        _
+                        _
+                        _
+                        cong (λv. Int) (λv. v + b) (sym _ _ (va .π₂))
+                        cong (λv. Int) (λv. nzToInt (nzPos (va .π₁)) + v) (sym _ _ (vb .π₂))
+                    ⋆
 
 -- ratSgn, spelled in the nzToInt∘den vocabulary the shuffling lemmas
 -- speak (denInt is its definitional alias)
@@ -968,37 +971,50 @@ leQTrans : (x y z : Q) → x ≤ y → y ≤ z → x ≤ z
   using (Core.id.Id.unfold, Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold)
 leQTrans =
   λx y z l1 l2. let comb : sgnQ (z + qNeg x) ≡ sgnQ (z + qNeg y + (y + qNeg x))
-    = cong (λw. Sign) (λw. sgnQ w) (sym _ _ (qSubSplit x y z))
-    in ⊎-elim
-      h10. let e0 = sgnQZeroView _ (idToEq _ _ _ h10)
-        in let eq : sgnQ (z + qNeg x) ≡ sgnQ (z + qNeg y)
-          = trans
-            _
-            _
-            _
-            comb
-            cong
-              λw. Sign
-              λw. sgnQ w
-              trans _ _ _ (cong (λw. Q) (λw. z + qNeg y + w) e0) (qAddZeroR (z + qNeg y))
-          in transport NonNegS (sym _ _ eq) l2
-      h1p. ⊎-elim
-        h20. let e0 = sgnQZeroView _ (idToEq _ _ _ h20)
-          in let eq : sgnQ (z + qNeg x) ≡ sgnQ (y + qNeg x)
-            = trans
-              _
-              _
-              _
-              comb
-              cong
-                λw. Sign
-                λw. sgnQ w
-                trans _ _ _ (cong (λw. Q) (λw. w + (y + qNeg x)) e0) (qAddZeroL (y + qNeg x))
-            in transport NonNegS (sym _ _ eq) (inj₂ h1p)
-        h2p. inj₂
-          eqToId _ _ (trans _ _ _ comb (sgnQAddPos _ _ (idToEq _ _ _ h2p) (idToEq _ _ _ h1p)))
-        l2
-      l1
+                      = cong (λw. Sign) (λw. sgnQ w) (sym _ _ (qSubSplit x y z))
+                    ⊎-elim
+                      h10. let e0 = sgnQZeroView _ (idToEq _ _ _ h10)
+                               eq : sgnQ (z + qNeg x) ≡ sgnQ (z + qNeg y)
+                                 = trans
+                                   _
+                                   _
+                                   _
+                                   comb
+                                   cong
+                                     λw. Sign
+                                     λw. sgnQ w
+                                     trans
+                                       _
+                                       _
+                                       _
+                                       cong (λw. Q) (λw. z + qNeg y + w) e0
+                                       qAddZeroR (z + qNeg y)
+                               transport NonNegS (sym _ _ eq) l2
+                      h1p. ⊎-elim
+                        h20. let e0 = sgnQZeroView _ (idToEq _ _ _ h20)
+                                 eq : sgnQ (z + qNeg x) ≡ sgnQ (y + qNeg x)
+                                   = trans
+                                     _
+                                     _
+                                     _
+                                     comb
+                                     cong
+                                       λw. Sign
+                                       λw. sgnQ w
+                                       trans
+                                         _
+                                         _
+                                         _
+                                         cong (λw. Q) (λw. w + (y + qNeg x)) e0
+                                         qAddZeroL (y + qNeg x)
+                                 transport NonNegS (sym _ _ eq) (inj₂ h1p)
+                        h2p. inj₂
+                          eqToId
+                            _
+                            _
+                            trans _ _ _ comb (sgnQAddPos _ _ (idToEq _ _ _ h2p) (idToEq _ _ _ h1p))
+                        l2
+                      l1
 
 leQAntisym : {x y : Q} → x ≤ y → y ≤ x → x ≡ y
   using (Core.id.Id.unfold,
@@ -1011,21 +1027,33 @@ leQAntisym : {x y : Q} → x ≤ y → y ≤ x → x ≡ y
     Rat.Q.unfold)
 leQAntisym =
   λx y l1 l2. let fl : sgnQ (x + qNeg y) ≡ sgnFlip (sgnQ (y + qNeg x))
-    = trans
-      _
-      _
-      _
-      cong (λw. Sign) (λw. sgnQ w) {x + qNeg y} {qNeg (y + qNeg x)} qSubNeg
-      sgnQNegFlip
-    in ⊎-elim
-      h10. sym _ _ (qDiffZero (sgnQZeroView _ (idToEq _ _ _ h10)))
-      h1p. let en : sgnQ (x + qNeg y) ≡ sNeg
-        = trans _ _ _ fl (trans _ _ sNeg (cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ h1p)) ⋆)
-        in ⊎-elim
-          h20. 𝟘-elim (sZeroNotNeg (trans _ _ _ (sym _ _ (idToEq _ _ _ h20)) en))
-          h2p. 𝟘-elim (sPosNotNeg (trans _ _ _ (sym _ _ (idToEq _ _ _ h2p)) en))
-          l2
-      l1
+                    = trans
+                      _
+                      _
+                      _
+                      cong (λw. Sign) (λw. sgnQ w) {x + qNeg y} {qNeg (y + qNeg x)} qSubNeg
+                      sgnQNegFlip
+                  ⊎-elim
+                    h10. sym _ _ (qDiffZero (sgnQZeroView _ (idToEq _ _ _ h10)))
+                    h1p. let en : sgnQ (x + qNeg y) ≡ sNeg
+                               = trans
+                                 _
+                                 _
+                                 _
+                                 fl
+                                 trans
+                                   _
+                                   _
+                                   sNeg
+                                   cong (λw. Sign) (λw. sgnFlip w) (idToEq _ _ _ h1p)
+                                   ⋆
+                             ⊎-elim
+                               h20. 𝟘-elim
+                                 sZeroNotNeg (trans _ _ _ (sym _ _ (idToEq _ _ _ h20)) en)
+                               h2p. 𝟘-elim
+                                 sPosNotNeg (trans _ _ _ (sym _ _ (idToEq _ _ _ h2p)) en)
+                               l2
+                    l1
 
 -- ===== compatibility with the operations =====
 -- (y + w) − (x + w) ≡ y − x, hypothesis-free
@@ -1159,61 +1187,66 @@ leQMulMono : (x y : Q) {c : Q} → x ≤ y → qZero ≤ c → x * c ≤ y * c
     Rat.qcls.eq)
 leQMulMono =
   λx y c le lc. let dEq : sgnQ (y * c + qNeg (x * c)) ≡ sgnQ ((y + qNeg x) * c)
-    = cong (λv. Sign) (λv. sgnQ v) (sym _ _ (qSubDistribR x y c))
-    in let cEq : sgnQ (c + qNeg qZero) ≡ sgnQ c
-      = cong
-        λv. Sign
-        λv. sgnQ v
-        trans _ _ _ (cong (λv. Q) (λv. c + v) {qNeg qZero} {qZero} ⋆) (qAddZeroR c)
-      in ⊎-elim
-        hc0. let c0 : c ≡ qZero
-          = sgnQZeroView _ (trans _ _ _ (sym _ _ cEq) (idToEq _ _ _ hc0))
-          in inj₁
-            eqToId
-              _
-              _
-              trans
-                _
-                _
-                _
-                dEq
-                trans
-                  _
-                  _
-                  _
-                  cong
-                    λv. Sign
-                    λv. sgnQ v
-                    trans
-                      _
-                      _
-                      _
-                      cong (λv. Q) (λv. (y + qNeg x) * v) c0
-                      trans _ _ qZero (qMulComm (y + qNeg x) qZero) qMulZeroL
-                  sgnQZero
-        hcp. let hcs : sgnQ c ≡ sPos
-          = trans _ _ _ (sym _ _ cEq) (idToEq _ _ _ hcp)
-          in ⊎-elim
-            hd0. let d0 : y + qNeg x ≡ qZero
-              = sgnQZeroView _ (idToEq _ _ _ hd0)
-              in inj₁
-                eqToId
-                  _
-                  _
-                  trans
-                    _
-                    _
-                    _
-                    dEq
-                    trans
-                      _
-                      _
-                      _
-                      cong
+                      = cong (λv. Sign) (λv. sgnQ v) (sym _ _ (qSubDistribR x y c))
+                    cEq : sgnQ (c + qNeg qZero) ≡ sgnQ c
+                      = cong
                         λv. Sign
                         λv. sgnQ v
-                        trans _ _ qZero (cong (λv. Q) (λv. v * c) d0) qMulZeroL
-                      sgnQZero
-            hdp. inj₂ (eqToId _ _ (trans _ _ _ dEq (sgnQMulPos (idToEq _ _ _ hdp) hcs)))
-            le
-        lc
+                        trans _ _ _ (cong (λv. Q) (λv. c + v) {qNeg qZero} {qZero} ⋆) (qAddZeroR c)
+                    ⊎-elim
+                      hc0. let c0 : c ≡ qZero
+                                 = sgnQZeroView _ (trans _ _ _ (sym _ _ cEq) (idToEq _ _ _ hc0))
+                               inj₁
+                                 eqToId
+                                   _
+                                   _
+                                   trans
+                                     _
+                                     _
+                                     _
+                                     dEq
+                                     trans
+                                       _
+                                       _
+                                       _
+                                       cong
+                                         λv. Sign
+                                         λv. sgnQ v
+                                         trans
+                                           _
+                                           _
+                                           _
+                                           cong (λv. Q) (λv. (y + qNeg x) * v) c0
+                                           trans _ _ qZero (qMulComm (y + qNeg x) qZero) qMulZeroL
+                                       sgnQZero
+                      hcp. let hcs : sgnQ c ≡ sPos = trans _ _ _ (sym _ _ cEq) (idToEq _ _ _ hcp)
+                               ⊎-elim
+                                 hd0. let d0 : y + qNeg x ≡ qZero
+                                            = sgnQZeroView _ (idToEq _ _ _ hd0)
+                                          inj₁
+                                            eqToId
+                                              _
+                                              _
+                                              trans
+                                                _
+                                                _
+                                                _
+                                                dEq
+                                                trans
+                                                  _
+                                                  _
+                                                  _
+                                                  cong
+                                                    λv. Sign
+                                                    λv. sgnQ v
+                                                    trans
+                                                      _
+                                                      _
+                                                      qZero
+                                                      cong (λv. Q) (λv. v * c) d0
+                                                      qMulZeroL
+                                                  sgnQZero
+                                 hdp. inj₂
+                                   eqToId _ _ (trans _ _ _ dEq (sgnQMulPos (idToEq _ _ _ hdp) hcs))
+                                 le
+                      lc

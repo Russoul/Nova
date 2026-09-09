@@ -33,12 +33,12 @@ brElim = λa b f c t. quot-elim (x. f x) t
 -- ...and it COMPUTES.
 brBeta : {a b : 𝕌} (f : a → b) (c : (x y : a) → f x ≡ f y) (x : a) → brElim f c (br x) ≡ f x
   using (Br.unfold, br.eq, brElim.eq)
-brBeta = λa b f c x. ⋆
+brBeta f c x = ⋆
 
 -- ---------------------------------------------------------------
 -- [A] is a proposition — JUDGEMENTALLY (el-quot-eq concludes ≐)
 brIsProp : {a : 𝕌} (u v : Br a) → u ≡ v using (Br.unfold)
-brIsProp = λa u v. quot-elim (y. quot-elim (x. ⋆) u) v
+brIsProp u v = quot-elim (y. quot-elim (x. ⋆) u) v
 
 -- Consequently EVERY map out of [A] is constant on representatives,
 -- with no hypothesis at all: the coherence brElim asks for is free
@@ -78,14 +78,14 @@ brMapBeta = λa b f x. ⋆
 
 -- the coherence brElim demands IS brIsProp, verbatim
 brJoin : {a : 𝕌} (s : Br (Br a)) → Br a
-brJoin = λa s. brElim (λt. t) brIsProp s
+brJoin s = brElim (λt. t) brIsProp s
 
 -- idempotence, both round trips
 brJoinUnit : {a : 𝕌} (t : Br a) → brJoin (br t) ≡ t using (Br.unfold, br.eq, brJoin.eq, brElim.eq)
-brJoinUnit = λa t. ⋆
+brJoinUnit t = ⋆
 
 brUnitJoin : {a : 𝕌} (s : Br (Br a)) → br (brJoin s) ≡ s
-brUnitJoin = λa s. brIsProp _ _
+brUnitJoin s = brIsProp _ _
 
 -- ---------------------------------------------------------------
 -- The bracket REFLECTS emptiness — by ordinary elimination.
@@ -95,10 +95,10 @@ brUnitJoin = λa s. brIsProp _ _
 -- has to detour through el-reflect on a false equation. Here quot-elim
 -- lands in 𝟘 directly, because the scrutinee still holds its witness.
 zeroConst : {b : 𝕌} (f : 𝟘 → b) (x y : 𝟘) → f x ≡ f y
-zeroConst = λb f x y. 𝟘-elim x
+zeroConst f x y = 𝟘-elim x
 
 brEmpty : Br 𝟘 → 𝟘 using (Br.unfold, zeroConst.eq)
-brEmpty = λt. quot-elim (x. 𝟘-elim x) t
+brEmpty t = quot-elim (x. 𝟘-elim x) t
 
 -- ---------------------------------------------------------------
 -- DESCRIPTION. On a subsingleton the bracket is the type itself: the
@@ -111,14 +111,14 @@ brEmpty = λt. quot-elim (x. 𝟘-elim x) t
 -- coerces into (Br a) from an iff-equal prop, so the only way to
 -- hold one is to have built it from an element.
 brDescr : {a : 𝕌} (s : (x y : a) → x ≡ y) (t : Br a) → a using (Br.unfold)
-brDescr = λa s t. quot-elim (x. x) t
+brDescr s t = quot-elim (x. x) t
 
 brDescrBeta : {a : 𝕌} (s : (x y : a) → x ≡ y) (x : a) → brDescr s (br x) ≡ x
   using (Br.unfold, br.eq, brDescr.eq)
 brDescrBeta = λa s x. ⋆
 
-brDescrEta : {a : 𝕌} (s : (x y : a) → x ≡ y) (t : Br a) → br (brDescr s t) ≡ t
-brDescrEta = λa s t. brIsProp _ _
+brDescrEta' : {a : 𝕌} (s : (x y : a) → x ≡ y) (t : Br a) → br (brDescr s t) ≡ t
+brDescrEta' s t = brIsProp _ _
 
 -- ---------------------------------------------------------------
 -- The payoff, in miniature: a truncated existential whose witness is
@@ -130,7 +130,7 @@ brDescrEta = λa s t. brIsProp _ _
 -- Its Ω twin, ∥(Fib n)∥, says exactly the same thing
 -- (brSquashEq) and yields nothing.
 Fib : ℕ → 𝕌
-Fib = λn. (m : ℕ) × Id _ m n
+Fib n = (m : ℕ) × Id _ m n
 
 -- every element of Fib n is (n , refl): reflect the index equation
 -- first, then uip finishes at the reflected type
@@ -138,7 +138,7 @@ fibCanon : {n : ℕ} (u : Fib n) → u ≡ (n, refl ℕ n)
   using (Fib.unfold, hyp.rw, sigma.eta, Core.id.Id.unfold, Core.id.Id.eq)
 fibCanon =
   λn u. let h = idToEq _ _ _ (u .π₂)
-    in pairext {ℕ} {λm. Id _ m n} {_} {n, refl ℕ n} h (idCanon (u .π₂) h)
+            pairext {ℕ} {λm. Id _ m n} {_} {n, refl ℕ n} h (idCanon (u .π₂) h)
 
 fibIsProp : (n : ℕ) (u v : Fib n) → u ≡ v using (Fib.unfold, Core.id.Id.unfold, Core.id.Id.eq)
 fibIsProp = λn u v. trans _ _ _ (fibCanon u) (sym _ _ (fibCanon v))
