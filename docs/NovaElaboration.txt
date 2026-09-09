@@ -443,7 +443,10 @@ t{2½} ::= 𝟘-elim t{≥4}
                                  #   only right after ⋆ — a witness
                                  #   genuinely named using is written
                                  #   parenthesized
-t{2} ::= λx. t{≥0}                    # the body extends MAXIMALLY:
+t{2} ::= λx⁺. t{≥0}                   # binders ITERATE: λx y. b is
+                                      #   λx. λy. b, the twin of the
+                                      #   binder group (x y : T) →.
+                                      #   The body extends MAXIMALLY:
                                       #   over operators, the code
                                       #   formers → × ⊎ /, ≡-elements,
                                       #   calc chains, and pairs —

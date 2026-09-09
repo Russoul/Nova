@@ -13,54 +13,54 @@ stream : 𝕌 → 𝕌
 stream = λa. ν (K a × 𝕏)
 
 hd : {a : 𝕌} → stream a → a using (Codata.stream.stream.unfold)
-hd = λa. λt. out t .π₁
+hd = λa t. out t .π₁
 
 tl : {a : 𝕌} → stream a → stream a using (Codata.stream.stream.unfold)
-tl = λa. λt. out t .π₂
+tl = λa t. out t .π₂
 
 -- cons, by corecursion at the one-step carrier a × stream a: emit the
 -- stored head, then continue by OBSERVING the stored tail — Lambek's
 -- in, specialized
 cons : {a : 𝕌} → a → stream a → stream a using (Codata.stream.stream.unfold)
-cons = λa. λx. λs. corec (p : a × stream a. p .π₁, out (p .π₂)) (x, s)
+cons = λa x s. corec (p : a × stream a. p .π₁, out (p .π₂)) (x, s)
 
 -- iterate f x: the stream x, f x, f (f x), …
 iterate : {a : 𝕌} → (a → a) → a → stream a using (Codata.stream.stream.unfold)
-iterate = λa. λf. λx. corec (s : a. s, f s) x
+iterate = λa f x. corec (s : a. s, f s) x
 
 -- β-lemmas: one el-nu-beta step each (plus pairing/projections)
 hdCons : {a : 𝕌} (x : a) (s : stream a) → hd (cons x s) ≡ x
   using (cons.eq, hd.eq, hyp.rw, Codata.stream.eq, Codata.stream.stream.unfold)
-hdCons = λa. λx. λs. ⋆
+hdCons = λa x s. ⋆
 
 hdIterate : {a : 𝕌} (f : a → a) (x : a) → hd (iterate f x) ≡ x using (hd.eq, hyp.rw, iterate.eq)
-hdIterate = λa. λf. λx. ⋆
+hdIterate = λa f x. ⋆
 
 -- two observation steps: the tail of an iterate is the iterate of the
 -- image — hd ∘ tl commutes with one application of f
 hdTlIterate : {a : 𝕌} (f : a → a) (x : a) → hd (tl (iterate f x)) ≡ f x
   using (hd.eq, hyp.rw, iterate.eq, tl.eq)
-hdTlIterate = λa. λf. λx. ⋆
+hdTlIterate = λa f x. ⋆
 
 -- the head under one cons-then-tail: reaches the stored tail's head
 hdTlCons : {a : 𝕌} (x : a) (s : stream a) → hd (tl (cons x s)) ≡ hd s
   using (cons.eq, hd.eq, Codata.stream.stream.unfold, tl.eq)
-hdTlCons = λa. λx. λs. ⋆
+hdTlCons = λa x s. ⋆
 
 -- map over streams: relabel every element, by corecursion on the
 -- source stream itself
 map : {a b : 𝕌} → (a → b) → stream a → stream b using (Codata.stream.stream.unfold)
-map = λa. λb. λf. λt. corec (s : stream a. f (hd s), tl s) t
+map = λa b f t. corec (s : stream a. f (hd s), tl s) t
 
 -- map commutes with the observations — the finite-depth shadow of
 -- the (η-needing) map-fusion laws, closed by pure computation
 hdMap : {a b : 𝕌} (f : a → b) (t : stream a) → hd (map f t) ≡ f (hd t)
   using (hd.eq, hyp.rw, map.eq, Codata.stream.eq, Codata.stream.stream.unfold)
-hdMap = λa. λb. λf. λt. ⋆
+hdMap = λa b f t. ⋆
 
 hdTlMap : {a b : 𝕌} (f : a → b) (t : stream a) → hd (tl (map f t)) ≡ f (hd (tl t))
   using (hd.eq, hyp.rw, map.eq, Codata.stream.eq, Codata.stream.stream.unfold, tl.eq)
-hdTlMap = λa. λb. λf. λt. ⋆
+hdTlMap = λa b f t. ⋆
 
 -- With coinduction dischargeable (el-nu-coind; `coind`), the
 -- η-needing laws close. tlCons: the tail of a cons is the consed
@@ -69,7 +69,7 @@ hdTlMap = λa. λb. λf. λt. ⋆
 tlCons : {a : 𝕌} (x : a) (s : stream a) → tl (cons x s) ≡ s
   using (cons.eq, hyp.rw, Codata.stream.eq, Codata.stream.stream.unfold, tl.eq)
 tlCons =
-  λa. λx. λs. coind
+  λa x s. coind
     u v. ∥(w : stream a)
       × (u ≡ corec (p : a × stream a. p .π₁, out (p .π₂)) (out w) ∈ stream a) × (v ≡ w ∈ stream a)∥
     ⋆ (s, ⋆, ⋆)

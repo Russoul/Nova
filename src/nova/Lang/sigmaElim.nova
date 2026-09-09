@@ -15,13 +15,13 @@
 import Natural (+)
 
 uncurry : (f : ℕ → ℕ → ℕ) (p : ℕ × ℕ) → ℕ
-uncurry = λf. λp. sigma-elim (a b. f a b) p
+uncurry = λf p. sigma-elim (a b. f a b) p
 
 -- from the outside the elimination is its own β: at a written pair
 -- the components are the two arguments, and nothing of the machinery
 -- is left to see
 uncurryPair : (f : ℕ → ℕ → ℕ) (a b : ℕ) → uncurry f (a, b) ≡ f a b using (Lang.sigmaElim.uncurry.eq)
-uncurryPair = λf. λa. λb. ⋆
+uncurryPair = λf a b. ⋆
 
 swap : (p : ℕ × ℕ) → ℕ × ℕ
 swap = λp. sigma-elim (a b. b, a) p
@@ -37,4 +37,4 @@ swapInvolutive = λp. sigma-elim (a b. ⋆) p
 -- components, and rewriting by it closes the goal
 sumOfSecondZero : (p : ℕ × ℕ) (h : p .π₂ ≡ Z) → p .π₁ + p .π₂ ≡ p .π₁
   using (hyp.rw, Natural.plusZeroId)
-sumOfSecondZero = λp. λh. sigma-elim (a b. ⋆) p
+sumOfSecondZero = λp h. sigma-elim (a b. ⋆) p

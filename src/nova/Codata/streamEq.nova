@@ -12,19 +12,19 @@ import Core.prelude (id, ∘)
 import Codata.stream (stream, hd, tl, map, iterate)
 
 tlN : {a : 𝕌} → ℕ → stream a → stream a using (Codata.stream.stream.unfold)
-tlN = λa. λn. ℕ-elim (λs. s) (m ih. λs. ih (tl s)) n
+tlN = λa n. ℕ-elim (λs. s) (m ih. λs. ih (tl s)) n
 
 -- the n-th observation
 nth : {a : 𝕌} → ℕ → stream a → a
-nth = λa. λn. λs. hd (tlN n s)
+nth = λa n s. hd (tlN n s)
 
 -- observational equality, in Ω
 obsEq : {a : 𝕌} → stream a → stream a → Ω
-obsEq = λa. λs. λt. ∥(n : ℕ) → nth n s ≡ nth n t∥
+obsEq = λa s t. ∥(n : ℕ) → nth n s ≡ nth n t∥
 
 -- reflexivity: every observation is ≐-reflexive
 obsEqRefl : {a : 𝕌} (s : stream a) → obsEq s s using (Codata.streamEq.obsEq.unfold)
-obsEqRefl = λa. λs. ⋆ (λn. ⋆)
+obsEqRefl = λa s. ⋆ (λn. ⋆)
 
 -- map commutes with EVERY observation, by ℕ-induction — the step is
 -- judgemental: tl (map f s) ≐ map f (tl s) is one el-nu-beta
@@ -36,14 +36,14 @@ nthMap : {a b : 𝕌} (f : a → b) (n : ℕ) (s : stream a) → nth n (map f s)
     Codata.stream.stream.unfold,
     Codata.stream.tl.eq,
     tlN.eq)
-nthMap = λa. λb. λf. λn. ℕ-elim (λs. ⋆) (m ih. λs. ih (tl s)) n
+nthMap = λa b f n. ℕ-elim (λs. ⋆) (m ih. λs. ih (tl s)) n
 
 -- mapping the identity is observationally the identity — the
 -- η-needing `map id s ≡ s` weakened to its observational shadow,
 -- where it is PROVABLE
 mapIdObsEq : {a : 𝕌} (s : stream a) → obsEq (map (id {a}) s) s
   using (Codata.streamEq.obsEq.unfold, Core.prelude.id.eq)
-mapIdObsEq = λa. λs. ⋆ (λn. nthMap (id {a}) n s)
+mapIdObsEq = λa s. ⋆ (λn. nthMap (id {a}) n s)
 
 -- likewise map fusion, observationally: composing maps is mapping
 -- the composite
@@ -62,7 +62,7 @@ mapFuseObsEq : {a b c : 𝕌}
     Codata.streamEq.obsEq.unfold,
     tlN.eq)
 mapFuseObsEq =
-  λa. λb. λc. λf. λg. λs. ⋆
+  λa b c f g s. ⋆
     λn. ℕ-elim
       m. (t : stream a) → nth m (map g (map f t)) ≡ nth m (map (g ∘ f) t)
       λt. ⋆
@@ -77,4 +77,4 @@ iterShiftObsEq : {a : 𝕌} (f : a → a) (x : a) → obsEq (tl (iterate f x)) (
     Codata.stream.stream.eq,
     Codata.stream.tl.eq,
     Codata.streamEq.obsEq.unfold)
-iterShiftObsEq = λa. λf. λx. ⋆ (λn. ⋆)
+iterShiftObsEq = λa f x. ⋆ (λn. ⋆)

@@ -69,7 +69,7 @@ leQBoundTwo =
 -- ===== a + (b − a) ≡ b =====
 qAddSubCancelL : (a b : Q) → a + (b + qNeg a) ≡ b using (Rat.Q.unfold)
 qAddSubCancelL =
-  λa. λb. a + (b + qNeg a)
+  λa b. a + (b + qNeg a)
     ≡⟨ cong (λw. Q) (λw. a + w) (qAddComm b (qNeg a)) ⟩ a + (qNeg a + b)
     ≡⟨ sym _ _ (qAddAssoc a (qNeg a) b) ⟩ a + qNeg a + b
     ≡⟨ cong (λw. Q) (λw. w + b) (qAddNegR a) ⟩ qZero + b
@@ -88,7 +88,7 @@ bndSeqBound : (p : RSeq) (n : ℕ) → Bnd (qOfNat (seqBound p)) (seqOf p n)
     Real.bound.seqBound.eq,
     Real.neg.seqOf.eq)
 bndSeqBound =
-  λp. λn. bndWeaken
+  λp n. bndWeaken
     _
     _
     _

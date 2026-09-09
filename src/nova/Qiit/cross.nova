@@ -16,12 +16,12 @@ data [a : 𝕌]
 -- 2. elimination INTO a QIIT: bag append — the motive is the Bag code
 --    itself, and the coherence is exactly the swap lemma
 bapp : {a : 𝕌} → Bag a → Bag a → Bag a using (bswp, Qiit.cross.Bag.unfold, Qiit.cross.bins.eq)
-bapp = λa. λm. λn. BagElim a (λw. Bag a) n (λx. λr. λih. bins a x ih) (λx. λy. λr. λih. ⋆) m
+bapp = λa m n. BagElim a (λw. Bag a) n (λx r ih. bins a x ih) (λx y r ih. ⋆) m
 
 -- 3. a map BETWEEN QIITs: the order-forgetting quotient map L → Bag ℕ
 toBag : L → Bag ℕ
   using (Qiit.cross.Bag.eq, Qiit.cross.Bag.unfold, Qiit.cross.L.eq, Qiit.cross.L.unfold)
-toBag = λt. LElim (λw. Bag ℕ) (bnil ℕ) (λx. λr. λih. bins ℕ x ih) t
+toBag = λt. LElim (λw. Bag ℕ) (bnil ℕ) (λx r ih. bins ℕ x ih) t
 
 -- toBag coequalizes adjacent transpositions (the universal property's
 -- defining triangle, at the generators): by β + the swap lemma
@@ -34,7 +34,7 @@ toBagSwap : (x y : ℕ) (t : L) → toBag (lcons x (lcons y t)) ≡ toBag (lcons
     Qiit.cross.bins.eq,
     Qiit.cross.lcons.eq,
     Qiit.cross.toBag.eq)
-toBagSwap = λx. λy. λt. ⋆
+toBagSwap = λx y t. ⋆
 
 -- 4. a QIIT whose signature EMBEDS a previous QIIT's reflection: trees
 --    with bag-of-naturals labels ((Bag ℕ) is an external domain
@@ -47,7 +47,7 @@ data
 -- flatten a tree by appending its bags — elimination whose methods use
 -- the previous eliminator-derived function
 flatten : P → Bag ℕ using (Qiit.cross.Bag.unfold, Qiit.cross.P.unfold)
-flatten = λp. PElim (λw. Bag ℕ) (λb. b) (λl. λihl. λr. λihr. bapp ihl ihr) p
+flatten = λp. PElim (λw. Bag ℕ) (λb. b) (λl ihl r ihr. bapp ihl ihr) p
 
 -- computation across all three QIITs at once
 two : Bag ℕ using (Qiit.cross.Bag.eq, Qiit.cross.Bag.unfold)

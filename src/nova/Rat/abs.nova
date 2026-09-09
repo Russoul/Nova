@@ -34,7 +34,7 @@ sgnQNegOfNeg : {u : Q} → Id _ (sgnQ u) sNeg → sgnQ (qNeg u) ≡ sPos
     Rat.order.sgnFlip.eq,
     Rat.Q.unfold)
 sgnQNegOfNeg =
-  λu. λhn. trans
+  λu hn. trans
     _
     _
     _
@@ -82,7 +82,7 @@ absLeOfBnd : {b u : Q} → Bnd b u → qAbs u ≤ b
     Rat.+.eq,
     Rat.qNeg.eq)
 absLeOfBnd =
-  λb. λu. λh. ⊎-elim
+  λb u h. ⊎-elim
     w. ⊎-elim (nn. u) (hn. qNeg u) w ≤ b
     nn. h .π₂
     hn. bndNeg _ _ h .π₂
@@ -90,7 +90,7 @@ absLeOfBnd =
 
 -- ...and the converse: a bound on |u| is a two-sided bound on u
 bndOfAbsLe : {b u : Q} → qAbs u ≤ b → Bnd b u using (Rat.bound.Bnd.unfold)
-bndOfAbsLe = λb. λu. λle. bndWeaken _ _ _ le (bndAbs u)
+bndOfAbsLe = λb u le. bndWeaken _ _ _ le (bndAbs u)
 
 -- ===== the laws =====
 leQZeroAbs : (u : Q) → qZero ≤ qAbs u
@@ -123,12 +123,12 @@ qAbsNeg =
 -- the triangle inequality is bndAdd, read through leastness
 qAbsTriangle : (u v : Q) → qAbs (u + v) ≤ qAbs u + qAbs v
   using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
-qAbsTriangle = λu. λv. absLeOfBnd (bndAdd (bndAbs u) (bndAbs v))
+qAbsTriangle = λu v. absLeOfBnd (bndAdd (bndAbs u) (bndAbs v))
 
 -- (a + b) − b ≡ a — the mirror of rationalOrder's qPlusNegCancelR
 qAddSubCancel : {a b : Q} → a + b + qNeg b ≡ a using (Rat.Q.unfold)
 qAddSubCancel =
-  λa. λb. a + b + qNeg b
+  λa b. a + b + qNeg b
     ≡⟨ qAddAssoc a b (qNeg b) ⟩ a + (b + qNeg b)
     ≡⟨ cong (λw. Q) (λw. a + w) (qAddNegR b) ⟩ a + qZero
     ≡⟨ qAddZeroR a ⟩ a
@@ -137,7 +137,7 @@ qAddSubCancel =
 leQSubOfLeAdd : {a b c : Q} → a ≤ b + c → a + qNeg c ≤ b
   using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 leQSubOfLeAdd =
-  λa. λb. λc. λle. transport
+  λa b c le. transport
     λw. a + qNeg c ≤ w
     {b + c + qNeg c}
     {b}
@@ -149,7 +149,7 @@ leQSubOfLeAdd =
 qAbsSubLe : (u v : Q) → qAbs u + qNeg (qAbs v) ≤ qAbs (u + qNeg v)
   using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 qAbsSubLe =
-  λu. λv. leQSubOfLeAdd
+  λu v. leQSubOfLeAdd
     transport
       λw. qAbs w ≤ qAbs (u + qNeg v) + qAbs v
       qPlusNegCancelR u v
@@ -160,7 +160,7 @@ qAbsSubLe =
 bndAbsSub : (b u v : Q) → Bnd b (u + qNeg v) → Bnd b (qAbs u + qNeg (qAbs v))
   using (Rat.bound.Bnd.unfold)
 bndAbsSub =
-  λb. λu. λv. λh. bndWeaken
+  λb u v h. bndWeaken
     _
     _
     _
@@ -181,10 +181,10 @@ bndAbsSub =
 
 -- ===== a nonnegative rational is its own absolute value =====
 bndSelfOfNonNeg : {u : Q} → qZero ≤ u → Bnd u u using (Rat.bound.Bnd.unfold)
-bndSelfOfNonNeg = λu. λnn. leQTrans _ _ _ (bndZero _ nn .π₁) nn, leQRefl _
+bndSelfOfNonNeg = λu nn. leQTrans _ _ _ (bndZero _ nn .π₁) nn, leQRefl _
 
 qAbsOfNonNeg : {u : Q} → qZero ≤ u → qAbs u ≡ u using (Rat.bound.Bnd.unfold)
-qAbsOfNonNeg = λu. λnn. leQAntisym (absLeOfBnd (bndSelfOfNonNeg nn)) (bndAbs u .π₂)
+qAbsOfNonNeg = λu nn. leQAntisym (absLeOfBnd (bndSelfOfNonNeg nn)) (bndAbs u .π₂)
 
 qAbsAbs : (u : Q) → qAbs (qAbs u) ≡ qAbs u
 qAbsAbs = λu. qAbsOfNonNeg (leQZeroAbs u)
@@ -199,20 +199,19 @@ qAbsZero = qAbsOfNonNeg (leQRefl qZero)
 -- case analysis then happens once, on the two factors, and never on
 -- the product.
 qAbsEqOfNonNeg : {z : Q} (w : Q) → qZero ≤ w → (w ≡ z) → qAbs z ≡ w
-qAbsEqOfNonNeg =
-  λz. λw. λnn. λe. trans _ _ _ (cong (λt. Q) (λt. qAbs t) (sym _ _ e)) (qAbsOfNonNeg nn)
+qAbsEqOfNonNeg = λz w nn e. trans _ _ _ (cong (λt. Q) (λt. qAbs t) (sym _ _ e)) (qAbsOfNonNeg nn)
 
 qAbsEqOfNonNegNeg : {z : Q} (w : Q) → qZero ≤ w → (w ≡ qNeg z) → qAbs z ≡ w
-qAbsEqOfNonNegNeg = λz. λw. λnn. λe. trans _ _ _ (sym _ _ (qAbsNeg z)) (qAbsEqOfNonNeg _ nn e)
+qAbsEqOfNonNegNeg = λz w nn e. trans _ _ _ (sym _ _ (qAbsNeg z)) (qAbsEqOfNonNeg _ nn e)
 
 leQZeroMul : {a b : Q} → qZero ≤ a → qZero ≤ b → qZero ≤ a * b
   using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 leQZeroMul =
-  λa. λb. λha. λhb. transport (λw. w ≤ a * b) {qZero * b} {qZero} qMulZeroL (leQMulMono _ _ ha hb)
+  λa b ha hb. transport (λw. w ≤ a * b) {qZero * b} {qZero} qMulZeroL (leQMulMono _ _ ha hb)
 
 qNegMulR : (x c : Q) → x * qNeg c ≡ qNeg (x * c)
 qNegMulR =
-  λx. λc. trans
+  λx c. trans
     _
     _
     _
@@ -229,7 +228,7 @@ qAbsMul : (u v : Q) → qAbs (u * v) ≡ qAbs u * qAbs v
     Rat.*.eq,
     Rat.qNeg.eq)
 qAbsMul =
-  λu. λv. ⊎-elim
+  λu v. ⊎-elim
     w. qAbs (u * v) ≡ ⊎-elim (nn. u) (hn. qNeg u) w * qAbs v
     nu. ⊎-elim
       w. qAbs (u * v) ≡ u * ⊎-elim (nn. v) (hn. qNeg v) w
@@ -261,7 +260,7 @@ qAbsMul =
 bndMul : {a b u v : Q} → qZero ≤ a → qZero ≤ b → Bnd a u → Bnd b v → Bnd (a * b) (u * v)
   using (Rat.bound.Bnd.unfold)
 bndMul =
-  λa. λb. λu. λv. λha. λhb. λhu. λhv. bndOfAbsLe
+  λa b u v ha hb hu hv. bndOfAbsLe
     transport
       λw. w ≤ a * b
       sym _ _ (qAbsMul u v)

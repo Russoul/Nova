@@ -49,7 +49,7 @@ nzOfIntAt : {z : Int}
   → ((e : NZ) × nzToInt e ≡ z) ⊎ (z ≡ intZero)
   using (classPairEta, Int.Int.unfold)
 nzOfIntAt =
-  λz. λp. λhz. λhab. ⊎-elim
+  λz p hz hab. ⊎-elim
     u. inj₁ (u .π₁, trans _ _ _ (u .π₂) (trans _ _ _ (classPairEta p) hz))
     u. inj₂ (trans _ _ _ (sym _ _ (trans _ _ _ (classPairEta p) hz)) u)
     nzOfPairD _ _ hab
@@ -64,7 +64,7 @@ nzOfInt = λz. nzOfIntAt _ (intCanonClass z) (intCanonProdZero z)
 -- now the class equation hands IntR back directly.
 intNeqOfNotRel : {p q : ℕ × ℕ} (k : IntR p q → 𝟘) → ¬ (class p ≡ class q ∈ Int)
   using (Int.Int.unfold, Core.prop.¬.unfold, Core.prop.⊃.unfold, Core.prop.⊥.unfold)
-intNeqOfNotRel = λp. λq. λk. notIntro _ (λh. ⋆ (k (intEffective h)))
+intNeqOfNotRel = λp q k. notIntro _ (λh. ⋆ (k (intEffective h)))
 
 -- IntR (S n , Z) (Z , Z) reduces to S n ≡ Z, and IntR (Z , S n) (Z , Z)
 -- to Z ≡ S n — both refuted by Natural/eq.nova's zNotS
@@ -87,7 +87,7 @@ nzToIntNonZero =
 -- whether x is zero, so the argument is a case split, not a refutation.
 intNoZeroDiv : {x : Int} (y : Int) (hxy : x * y ≡ intZero) (hy : ¬ (y ≡ intZero)) → x ≡ intZero
 intNoZeroDiv =
-  λx. λy. λhxy. λhy. ⊎-elim
+  λx y hxy hy. ⊎-elim
     ex. ⊎-elim
       ey. absurdP
         _

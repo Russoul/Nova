@@ -7,7 +7,7 @@ data
   s : El N → El N
 
 plusQ : N → N → N using (Qiit.nat.N.unfold)
-plusQ = λa. λb. NElim (λn. N) b (λn. λih. s ih) a
+plusQ = λa b. NElim (λn. N) b (λn ih. s ih) a
 
 plusQzl : (b : N) → plusQ z b ≡ b
   using (Qiit.nat.N.eq,
@@ -20,7 +20,7 @@ plusQzl = λb. ⋆
 
 plusQsl : (a b : N) → plusQ (s a) b ≡ s (plusQ a b)
   using (Qiit.nat.N.eq, Qiit.nat.N.unfold, Qiit.nat.NElim.eq, Qiit.nat.plusQ.eq, Qiit.nat.s.eq)
-plusQsl = λa. λb. ⋆
+plusQsl = λa b. ⋆
 
 -- induction: plusQ a z ≡ a, by NElimP at the equality PROP motive
 -- (equality is Ω-valued: the prop-flavored eliminator carries Ω-valued
@@ -33,4 +33,4 @@ plusQzr : (a : N) → plusQ a z ≡ a
     Qiit.nat.plusQ.eq,
     Qiit.nat.s.eq,
     Qiit.nat.z.eq)
-plusQzr = λa. NElimP (λn. plusQ n z ≡ n) ⋆ (λn. λih. ⋆) a
+plusQzr = λa. NElimP (λn. plusQ n z ≡ n) ⋆ (λn ih. ⋆) a

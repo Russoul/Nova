@@ -47,7 +47,7 @@ reqStep : (x y z : RSeq)
     Real.rBound.eq,
     Real.eq.qtr.eq)
 reqStep =
-  λx. λy. λz. λu. λv. λn. λk. bndWeaken
+  λx y z u v n k. bndWeaken
     _
     _
     _
@@ -103,7 +103,7 @@ reqTrans : {x : RSeq} (y : RSeq) {z : RSeq} → REq x y → REq y z → REq x z
     Real.rBound.eq,
     Real.neg.seqOf.eq)
 reqTrans =
-  λx. λy. λz. λhxy. λhyz. squash-elim
+  λx y z hxy hyz. squash-elim
     hxy
     u. squash-elim
       hyz
@@ -112,4 +112,4 @@ reqTrans =
 -- ...so REq-related representatives name the same real, and the
 -- quotient is by an honest equivalence
 realEqTrans : (x y z : RSeq) → REq x y → REq y z → class x ≡ class z ∈ Real using (Real.Real.unfold)
-realEqTrans = λx. λy. λz. λh1. λh2. realEqOfREq _ _ (reqTrans _ h1 h2)
+realEqTrans = λx y z h1 h2. realEqOfREq _ _ (reqTrans _ h1 h2)

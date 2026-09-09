@@ -1,0 +1,4 @@
+Lam x (Lam y (Lam z (Pair (x@2) (Pair (y@1) (z@0)))))
+Lam x (Lam y (Lam z (Pair (x@2) (Pair (y@1) (z@0)))))
+Lam x (Lam y (x@1))
+SigmaC _ (ℕc) (ℕc)

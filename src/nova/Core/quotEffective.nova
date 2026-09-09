@@ -20,7 +20,7 @@ import Core.prop (rClosure, rClosureContains, rClosureRefl, rClosureSymm, rClosu
 import Core.equality (transportP, sym, trans)
 
 classEqOfRel : {A : 𝕌} (r : A → A → Ω) (x y : A) → r x y → class x ≡ class y ∈ A / (u v. r u v)
-classEqOfRel = λA. λr. λx. λy. λh. ⋆ h
+classEqOfRel = λA r x y h. ⋆ h
 
 -- ⟸ : class equality is an equivalence relation containing r, and r⁺ is
 -- the LEAST such, so r⁺ implies it. No quotient elimination here —
@@ -30,13 +30,13 @@ classEqOfClosure : {A : 𝕌}
   (a b : A)
   → rClosure r a b → class a ≡ class b ∈ A / (u v. r u v)
 classEqOfClosure =
-  λA. λr. rClosureLeast
+  λA r. rClosureLeast
     r
-    λx. λy. class x ≡ class y ∈ A / (u v. r u v)
-    λx. λy. λh. classEqOfRel r _ _ h
+    λx y. class x ≡ class y ∈ A / (u v. r u v)
+    λx y h. classEqOfRel r _ _ h
     λx. ⋆
-    λx. λy. λz. λh1. λh2. trans _ _ _ h1 h2
-    λx. λy. λh. sym _ _ h
+    λx y z h1 h2. trans _ _ _ h1 h2
+    λx y h. sym _ _ h
 
 -- r⁺ a ⋅ respects r, so it factors through the class map. The
 -- well-definedness goal is an Ω-EQUATION between two closure
@@ -45,14 +45,14 @@ classEqOfClosure =
 clsRelWd : {A : 𝕌} (r : A → A → Ω) (a : A) {x y : A} → r x y → rClosure r a x ≡ rClosure r a y
   using (Core.prop.rClosure.eq, Core.prop.rClosure.unfold)
 clsRelWd =
-  λA. λr. λa. λx. λy. λh. propExt
+  λA r a x y h. propExt
     λk. rClosureTrans k (rClosureContains _ _ _ h)
     λk. rClosureTrans k (rClosureSymm (rClosureContains _ _ _ h))
 
 -- the descent itself: quot-elim at the CONSTANT MOTIVE Ω. clsRelWd
 -- above discharges its well-definedness obligation
 clsRel : {A : 𝕌} (r : A → A → Ω) (a : A) → (A / (u v. r u v)) → Ω using (clsRelWd)
-clsRel = λA. λr. λa. λq. quot-elim (x. rClosure r a x) q
+clsRel = λA r a q. quot-elim (x. rClosure r a x) q
 
 -- ⟹ : EFFECTIVITY. clsRel a (class a) ≜ r⁺ a a holds by reflexivity of
 -- the closure, and the class equation transports it to b — el-quot-beta
@@ -62,14 +62,14 @@ effective : {A : 𝕌}
   (a b : A)
   → (class a ≡ class b ∈ A / (u v. r u v)) → rClosure r a b
   using (Core.prop.rClosure.eq, Core.prop.rClosure.unfold, Core.quotEffective.clsRel.eq)
-effective = λA. λr. λa. λb. λh. transportP (clsRel r a) h (rClosureRefl r a)
+effective = λA r a b h. transportP (clsRel r a) h (rClosureRefl r a)
 
 -- the characterization: quotient equality is exactly r⁺
 classEqIff : {A : 𝕌}
   (r : A → A → Ω)
   (a b : A)
   → (class a ≡ class b ∈ A / (u v. r u v)) ↔ rClosure r a b
-classEqIff = λA. λr. λa. λb. iffIntro (effective r a b) (classEqOfClosure r a b)
+classEqIff = λA r a b. iffIntro (effective r a b) (classEqOfClosure r a b)
 
 -- COROLLARY: at an equivalence relation, effectivity on the nose — r
 -- itself is an equivalence containing r, so leastness collapses r⁺ into
@@ -80,10 +80,10 @@ effectiveAtEquiv : {A : 𝕌}
     → ((x y z : A) → r x y → r y z → r x z)
       → ((x y : A) → r x y → r y x) → (a b : A) → (class a ≡ class b ∈ A / (u v. r u v)) → r a b
 effectiveAtEquiv =
-  λA. λr. λrRefl. λrTrans. λrSymm. λa. λb. λh. rClosureLeast
+  λA r rRefl rTrans rSymm a b h. rClosureLeast
     _
     r
-    λx. λy. λk. k
+    λx y k. k
     rRefl
     rTrans
     rSymm
@@ -95,11 +95,11 @@ effectiveAtEquiv =
 -- equivalence premises are each one ⋆ — reflection makes them
 -- judgemental
 natEq : ℕ → ℕ → Ω
-natEq = λx. λy. x ≡ y
+natEq = λx y. x ≡ y
 
 natEqEffective : {a b : ℕ} → (class a ≡ class b ∈ ℕ / (u v. natEq u v)) → a ≡ b
   using (hyp.rw, Core.quotEffective.natEq.eq, Core.quotEffective.natEq.unfold)
-natEqEffective = effectiveAtEquiv natEq (λx. ⋆) (λx. λy. λz. λh1. λh2. ⋆) (λx. λy. λh. ⋆)
+natEqEffective = effectiveAtEquiv natEq (λx. ⋆) (λx y z h1 h2. ⋆) (λx y h. ⋆)
 
 -- and the refutation, kept as evidence: at the successor graph — not an
 -- equivalence — the one-hop equation holds by el-quot-eq, the two-hop

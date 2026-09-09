@@ -15,7 +15,7 @@ normPairSucZero : (n : ℕ) → normPair (S n) Z ≡ (S n, Z) using (Int.normali
 normPairSucZero = λn. ⋆
 
 normPairSucSuc : (n m : ℕ) → normPair (S n) (S m) ≡ normPair n m using (Int.normalize.normPair.eq)
-normPairSucSuc = λn. λm. ⋆
+normPairSucSuc = λn m. ⋆
 
 -- normPair a b is R-related to (a, b)
 normSound : (a b : ℕ) → normPair a b .π₁ + b ≡ normPair a b .π₂ + a
@@ -36,7 +36,7 @@ normSound = λa. ℕ-elim (λb. ⋆) (n ih. λb. ℕ-elim ⋆ (m ihb. ⋆) b) a
 
 -- at the quotient, normalization is invisible
 normClass : (a b : ℕ) → class (normPair a b) ≡ class (a, b) ∈ Int using (Int.Int.unfold, normSound)
-normClass = λa. λb. ⋆
+normClass = λa b. ⋆
 
 intNormalize : Int → Int using (hyp.rw, Int.Int.unfold, normClass, normClass.rw)
 intNormalize = λz. quot-elim (rep. class (normPair (rep .π₁) (rep .π₂))) z

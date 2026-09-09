@@ -16,7 +16,7 @@ f : P .π₁ → P .π₁
 f = λx. x
 
 Vec : {a : 𝕌} → ℕ → 𝕌
-Vec = λa. λn. ℕ
+Vec = λa n. ℕ
 
 g : Vec {ℕ} 3 → ℕ using (Vec.eq)
 g = λx. x
@@ -24,7 +24,7 @@ g = λx. x
 -- an operator application needs no parentheses either: with the type
 -- and term grammars merged there is no level between them to lose
 ≤ : ℕ → ℕ → 𝕌
-(≤) = λa. λb. ℕ
+(≤) = λa b. ℕ
 
 h : Z ≤ Z → ℕ using (≤.eq)
 h = λx. x

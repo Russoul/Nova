@@ -13,7 +13,7 @@ import Core.equality (trans, sym, cong, transport)
 import Core.id (Id, eqToId, idToEq)
 
 qMax : Q → Q → Q using (Rat.Q.unfold)
-qMax = λu. λv. ⊎-elim (nn. v) (hn. u) (sgnCases (sgnQ (v + qNeg u)))
+qMax = λu v. ⊎-elim (nn. v) (hn. u) (sgnCases (sgnQ (v + qNeg u)))
 
 -- ===== the lattice characterisation =====
 leQMaxL : (u v : Q) → u ≤ qMax u v
@@ -30,7 +30,7 @@ leQMaxL : (u v : Q) → u ≤ qMax u v
     Rat.+.eq,
     Rat.qNeg.eq)
 leQMaxL =
-  λu. λv. ⊎-elim
+  λu v. ⊎-elim
     w. u ≤ ⊎-elim (nn. v) (hn. u) w
     nn. nn
     hn. leQRefl _
@@ -52,7 +52,7 @@ leQMaxR : (u v : Q) → v ≤ qMax u v
     Rat.+.eq,
     Rat.qNeg.eq)
 leQMaxR =
-  λu. λv. ⊎-elim
+  λu v. ⊎-elim
     w. v ≤ ⊎-elim (nn. v) (hn. u) w
     nn. leQRefl _
     hn. inj₂
@@ -81,7 +81,7 @@ qMaxLub : {u v w : Q} → u ≤ w → v ≤ w → qMax u v ≤ w
     Rat.+.eq,
     Rat.qNeg.eq)
 qMaxLub =
-  λu. λv. λw. λh1. λh2. ⊎-elim
+  λu v w h1 h2. ⊎-elim
     t. ⊎-elim (nn. v) (hn. u) t ≤ w
     nn. h2
     hn. h1
@@ -91,13 +91,13 @@ qMaxLub =
 -- a two-sided bound on a difference is a pair of shifted ≤'s
 leQAddOfBnd : {b u v : Q} → Bnd b (u + qNeg v) → u ≤ v + b
   using (Rat.bound.Bnd.unfold, Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
-leQAddOfBnd = λb. λu. λv. λh. leQAddShift _ (h .π₂)
+leQAddOfBnd = λb u v h. leQAddShift _ (h .π₂)
 
 bndMaxSub : (b a c a' c' : Q)
   → Bnd b (a + qNeg c) → Bnd b (a' + qNeg c') → Bnd b (qMax a a' + qNeg (qMax c c'))
   using (Rat.bound.Bnd.unfold)
 bndMaxSub =
-  λb. λa. λc. λa'. λc'. λh1. λh2. bndOfBothLe
+  λb a c a' c' h1 h2. bndOfBothLe
     _
     _
     leQSubShift
@@ -118,11 +118,11 @@ qMaxSelf = λu. leQAntisym (qMaxLub (leQRefl u) (leQRefl u)) (leQMaxL u u)
 
 qMaxComm : (u v : Q) → qMax u v ≡ qMax v u
 qMaxComm =
-  λu. λv. leQAntisym (qMaxLub (leQMaxR v u) (leQMaxL v u)) (qMaxLub (leQMaxR u v) (leQMaxL u v))
+  λu v. leQAntisym (qMaxLub (leQMaxR v u) (leQMaxL v u)) (qMaxLub (leQMaxR u v) (leQMaxL u v))
 
 -- ===== the dual =====
 qMin : Q → Q → Q using (Rat.Q.unfold)
-qMin = λu. λv. qNeg (qMax (qNeg u) (qNeg v))
+qMin = λu v. qNeg (qMax (qNeg u) (qNeg v))
 
 leQMinL : (u v : Q) → qMin u v ≤ u
   using (Core.id.Id.eq,
@@ -138,7 +138,7 @@ leQMinL : (u v : Q) → qMin u v ≤ u
     Rat.+.eq,
     Rat.qNeg.eq)
 leQMinL =
-  λu. λv. transport (λw. qMin u v ≤ w) (qNegNeg u) (leQNegFlip _ _ (leQMaxL (qNeg u) (qNeg v)))
+  λu v. transport (λw. qMin u v ≤ w) (qNegNeg u) (leQNegFlip _ _ (leQMaxL (qNeg u) (qNeg v)))
 
 leQMinR : (u v : Q) → qMin u v ≤ v
   using (Core.id.Id.eq,
@@ -154,7 +154,7 @@ leQMinR : (u v : Q) → qMin u v ≤ v
     Rat.+.eq,
     Rat.qNeg.eq)
 leQMinR =
-  λu. λv. transport (λw. qMin u v ≤ w) (qNegNeg v) (leQNegFlip _ _ (leQMaxR (qNeg u) (qNeg v)))
+  λu v. transport (λw. qMin u v ≤ w) (qNegNeg v) (leQNegFlip _ _ (leQMaxR (qNeg u) (qNeg v)))
 
 qMinGlb : {u v w : Q} → w ≤ u → w ≤ v → w ≤ qMin u v
   using (Core.id.Id.eq,
@@ -170,18 +170,18 @@ qMinGlb : {u v w : Q} → w ≤ u → w ≤ v → w ≤ qMin u v
     Rat.+.eq,
     Rat.qNeg.eq)
 qMinGlb =
-  λu. λv. λw. λh1. λh2. transport
+  λu v w h1 h2. transport
     λt. t ≤ qMin u v
     qNegNeg w
     leQNegFlip _ _ (qMaxLub (leQNegFlip _ _ h1) (leQNegFlip _ _ h2))
 
 qMinComm : (u v : Q) → qMin u v ≡ qMin v u
   using (Rat.max.qMax.eq, Rat.max.qMin.eq, Rat.Q.unfold, Rat.qNeg.eq)
-qMinComm = λu. λv. cong (λw. Q) (λw. qNeg w) (qMaxComm (qNeg u) (qNeg v))
+qMinComm = λu v. cong (λw. Q) (λw. qNeg w) (qMaxComm (qNeg u) (qNeg v))
 
 -- (−a) − (−c) ≡ c − a : the difference of negations is reversed
 qNegDiff : (a c : Q) → qNeg a + qNeg (qNeg c) ≡ c + qNeg a
-qNegDiff = λa. λc. trans _ _ _ (cong (λw. Q) (λw. qNeg a + w) (qNegNeg c)) (qAddComm (qNeg a) c)
+qNegDiff = λa c. trans _ _ _ (cong (λw. Q) (λw. qNeg a + w) (qNegNeg c)) (qAddComm (qNeg a) c)
 
 -- min is 1-Lipschitz because max is: the negations cancel
 bndMinSub : (b a c a' c' : Q)
@@ -195,7 +195,7 @@ bndMinSub : (b a c a' c' : Q)
     Rat.+.eq,
     Rat.qNeg.eq)
 bndMinSub =
-  λb. λa. λc. λa'. λc'. λh1. λh2. bndEq
+  λb a c a' c' h1 h2. bndEq
     _
     _
     trans
@@ -222,7 +222,7 @@ bndMinSub =
 qMinGlbShift : (a b w r : Q) → w ≤ a + r → w ≤ b + r → w ≤ qMin a b + r
   using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 qMinGlbShift =
-  λa. λb. λw. λr. λh1. λh2. transport
+  λa b w r h1 h2. transport
     λt. t ≤ qMin a b + r
     qPlusNegCancelR w r
     leQPlusMono r (qMinGlb (leQSubOfLeAdd h1) (leQSubOfLeAdd h2))

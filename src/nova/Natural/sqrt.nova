@@ -26,7 +26,7 @@ import Core.id (Id, idToEq, eqToId)
 
 leSplit : {b a : ℕ} → b ≤ a → a ≤ b ⊎ S b ≤ a using (Natural.order.≤.unfold)
 leSplit =
-  λb. λa. λh. ℕ-elim
+  λb a h. ℕ-elim
     k. (b + k ≡ a) → a ≤ b ⊎ S b ≤ a
     λe. inj₁ (leOfEq (sym _ _ (trans _ _ _ (sym _ _ (plusZeroId b)) e)))
     j rec. λe. inj₂
@@ -35,12 +35,12 @@ leSplit =
     idToEq _ _ _ (h .π₂)
 
 natCompare : (a b : ℕ) → a ≤ b ⊎ S b ≤ a
-natCompare = λa. λb. ⊎-elim (h. inj₁ h) (h. leSplit h) (leTotal a b)
+natCompare = λa b. ⊎-elim (h. inj₁ h) (h. leSplit h) (leTotal a b)
 
 -- ===== squares are monotone =====
 leMultMono : {a b c d : ℕ} → a ≤ b → c ≤ d → a * c ≤ b * d using (Natural.order.≤.unfold)
 leMultMono =
-  λa. λb. λc. λd. λh1. λh2. leTrans
+  λa b c d h1 h2. leTrans
     _
     _
     _
@@ -51,7 +51,7 @@ leMultMono =
       transport (λw. w ≤ d * b) (multComm b c) (leMultMonoR b h2)
 
 leSquare : {a b : ℕ} → a ≤ b → a * a ≤ b * b
-leSquare = λa. λb. λh. leMultMono h h
+leSquare = λa b h. leMultMono h h
 
 -- a positive number is at most its own square, which is why searching
 -- up to m is enough
@@ -60,7 +60,7 @@ leSelfSquare = λj. j * S j, eqToId _ _ (sym _ _ (sucMult j (S j)))
 
 -- ===== the search =====
 isqrtAux : ℕ → ℕ → ℕ
-isqrtAux = λm. λf. ℕ-elim Z (f' ih. natCase (S f') (λw. ih) (S f' * S f' ∸ m)) f
+isqrtAux = λm f. ℕ-elim Z (f' ih. natCase (S f') (λw. ih) (S f' * S f' ∸ m)) f
 
 isqrt : ℕ → ℕ
 isqrt = λm. isqrtAux m m
@@ -68,7 +68,7 @@ isqrt = λm. isqrtAux m m
 -- ===== it is a lower approximant =====
 isqrtAuxLe : {m f : ℕ} → isqrtAux m f * isqrtAux m f ≤ m using (isqrtAux.eq, Natural.*.eq)
 isqrtAuxLe =
-  λm. λf. ℕ-elim
+  λm f. ℕ-elim
     leZero m
     f' ih. natCaseElimEqD
       _
@@ -77,22 +77,22 @@ isqrtAuxLe =
       λw. isqrtAux m f'
       S f' * S f' ∸ m
       λe. leOfMonusZero e
-      λj. λe. ih
+      λj e. ih
     f
 
 -- ===== ...and the largest one =====
 isqrtAuxMax : {m f k : ℕ} → k * k ≤ m → k ≤ f → k ≤ isqrtAux m f using (isqrtAux.eq)
 isqrtAuxMax =
-  λm. λf. ℕ-elim
-    λk. λhk. λhf. hf
-    f' ih. λk. λhk. λhf. natCaseElimEqD
+  λm f. ℕ-elim
+    λk hk hf. hf
+    f' ih. λk hk hf. natCaseElimEqD
       _
       λr. k ≤ r
       S f'
       λw. isqrtAux m f'
       S f' * S f' ∸ m
       λe. hf
-      λj. λe. ⊎-elim
+      λj e. ⊎-elim
         w. k ≤ isqrtAux m f'
         h. ih k hk h
         h. 𝟘-elim
@@ -104,7 +104,7 @@ isqrtLe : (m : ℕ) → isqrt m * isqrt m ≤ m using (isqrt.eq)
 isqrtLe = λm. isqrtAuxLe
 
 isqrtMax : {m k : ℕ} → k * k ≤ m → k ≤ m → k ≤ isqrt m using (isqrt.eq)
-isqrtMax = λm. λk. λh1. λh2. isqrtAuxMax h1 h2
+isqrtMax = λm k h1 h2. isqrtAuxMax h1 h2
 
 -- the upper bound: if S (isqrt m) squared still fit under m, isqrt m
 -- would have found it, and would be at least its own successor
@@ -129,7 +129,7 @@ ltSqSuc = λy. leTrans _ _ _ (leSucMono (leMultMono (leRefl y) (leSucSelf y))) (
 
 leOfSqLe : {x y : ℕ} → x * x ≤ y * y → x ≤ y
 leOfSqLe =
-  λx. λy. λh. ⊎-elim
+  λx y h. ⊎-elim
     le. le
     lt. 𝟘-elim (leSucNotSelf _ (leTrans _ _ _ (leTrans _ _ _ (ltSqSuc y) (leSquare lt)) h))
     natCompare x y
@@ -137,7 +137,7 @@ leOfSqLe =
 -- ===== a square that overshoots by T overshoots by isqrt T =====
 plus4Swap : {a b p q : ℕ} → a + b + (p + q) ≡ a + p + (q + b)
 plus4Swap =
-  λa. λb. λp. λq. a + b + (p + q)
+  λa b p q. a + b + (p + q)
     ≡⟨ plusAssoc a b (p + q) ⟩ a + (b + (p + q))
     ≡⟨ cong (λw. ℕ) (λw. a + w) (sym _ _ (plusAssoc b p q)) ⟩ a + (b + p + q)
     ≡⟨ cong (λw. ℕ) (λw. a + (w + q)) (plusComm p b) ⟩ a + (p + b + q)
@@ -147,7 +147,7 @@ plus4Swap =
 
 sqExpand : (y c : ℕ) → (y + c) * (y + c) ≡ y * y + y * c + (y * c + c * c)
 sqExpand =
-  λy. λc. (y + c) * (y + c)
+  λy c. (y + c) * (y + c)
     ≡⟨ multDistribR (y + c) y c ⟩ y * (y + c) + c * (y + c)
     ≡⟨ cong (λw. ℕ) (λw. w + c * (y + c)) (multDistrib y y c) ⟩ y * y + y * c + c * (y + c)
     ≡⟨ cong (λw. ℕ) (λw. y * y + y * c + w) (multDistrib c y c) ⟩ y * y + y * c + (c * y + c * c)
@@ -156,13 +156,13 @@ sqExpand =
 
 sqSumLe : (y c : ℕ) → y * y + c * c ≤ (y + c) * (y + c) using (Natural.order.≤.unfold)
 sqSumLe =
-  λy. λc. (,)
+  λy c. (,)
     y * c + y * c
     eqToId _ _ (trans (y * y + c * c + (y * c + y * c)) _ _ plus4Swap (sym _ _ (sqExpand y c)))
 
 sqrtStepN : {x y T : ℕ} → x * x ≤ y * y + T → x ≤ y + S (isqrt T)
 sqrtStepN =
-  λx. λy. λT. λh. leOfSqLe
+  λx y T h. leOfSqLe
     leTrans
       _
       _
@@ -178,7 +178,7 @@ sqrtStepN =
 -- ===== isqrt is strictly under any c whose square overshoots =====
 isqrtLtOfLt : (T : ℕ) {c : ℕ} → S T ≤ c * c → S (isqrt T) ≤ c
 isqrtLtOfLt =
-  λT. λc. λh. ⊎-elim
+  λT c h. ⊎-elim
     le. 𝟘-elim (leSucNotSelf _ (leTrans _ _ _ h (leTrans _ _ _ (leSquare le) (isqrtLe T))))
     lt. lt
     natCompare c (isqrt T)
@@ -187,7 +187,7 @@ isqrtLtOfLt =
 -- the sum, which is what makes isqrt of the error term fit
 plus4Mid : (a p q b : ℕ) → a + p + (q + b) ≡ a + b + (p + q)
 plus4Mid =
-  λa. λp. λq. λb. a + p + (q + b)
+  λa p q b. a + p + (q + b)
     ≡⟨ plusAssoc a p (q + b) ⟩ a + (p + (q + b))
     ≡⟨ cong (λw. ℕ) (λw. a + w) (sym _ _ (plusAssoc p q b)) ⟩ a + (p + q + b)
     ≡⟨ cong (λw. ℕ) (λw. a + w) (plusComm b (p + q)) ⟩ a + (b + (p + q))
@@ -195,12 +195,12 @@ plus4Mid =
 
 sucMultSuc : (x y : ℕ) → S x * S y ≡ S (x + S x * y)
 sucMultSuc =
-  λx. λy. S x * S y ≡⟨ multSucId (S x) y ⟩ S x + S x * y ≡⟨ sucPlus x (S x * y) ⟩ S (x + S x * y)
+  λx y. S x * S y ≡⟨ multSucId (S x) y ⟩ S x + S x * y ≡⟨ sucPlus x (S x * y) ⟩ S (x + S x * y)
 
 sqSumStrict : (x y : ℕ) → S (S x * S x + S y * S y) ≤ (S x + S y) * (S x + S y)
   using (Natural.order.≤.unfold)
 sqSumStrict =
-  λx. λy. (,)
+  λx y. (,)
     x + S x * y + S (x + S x * y)
     eqToId
       _

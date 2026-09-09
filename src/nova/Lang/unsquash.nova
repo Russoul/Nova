@@ -21,14 +21,14 @@
 import Natural (+)
 
 halves : (n : ℕ) (w : ∥(k : ℕ) × n ≡ k + k∥) → ∥(k : ℕ) × n + Z ≡ k + k∥ using (Natural.plusZeroId)
-halves = λn. λw. unsquash (x. ⋆ x) w
+halves = λn w. unsquash (x. ⋆ x) w
 
 -- entries stand on both sides of the variable, and none names it, so
 -- every one of them survives the trade
 keeps : (n : ℕ) (w : ∥ℕ∥) (h : n ≡ n) → n ≡ n
-keeps = λn. λw. λh. unsquash (x. h) w
+keeps = λn w h. unsquash (x. h) w
 
 -- squashed disjunction: the witness is a ⊎, and sum-elim takes it
 -- from there
 orComm : (a b : Ω) (w : ∥a ⊎ b∥) → ∥b ⊎ a∥
-orComm = λa. λb. λw. unsquash (x. ⋆ (sum-elim (l. inj₂ l) (r. inj₁ r) x)) w
+orComm = λa b w. unsquash (x. ⋆ (sum-elim (l. inj₂ l) (r. inj₁ r) x)) w

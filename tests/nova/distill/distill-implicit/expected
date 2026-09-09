@@ -5,7 +5,7 @@ two : ℕ
 two = 2
 
 id2 : {A : 𝕌} (a : A) → A
-id2 = λA. λa. a
+id2 = λA a. a
 
 useId : ℕ
 useId = id2 two
@@ -17,10 +17,10 @@ constF : ℕ → ℕ
 constF = id2 (λx. x)
 
 sym2 : {A : 𝕌} {a b : A} → (a ≡ b) → b ≡ a
-sym2 = λA. λa. λb. λh. ⋆
+sym2 = λA a b h. ⋆
 
 flip2 : (C : 𝕌) (x y : C) → (x ≡ y) → y ≡ x
-flip2 = λC. λx. λy. λh. sym2 h
+flip2 = λC x y h. sym2 h
 
 flipFlip : (C : 𝕌) (x y : C) → (x ≡ y) → x ≡ y
-flipFlip = λC. λx. λy. λh. sym2 (sym2 h)
+flipFlip = λC x y h. sym2 (sym2 h)

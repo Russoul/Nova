@@ -56,10 +56,10 @@ nzOfPair : (a b : ℕ)
     zeroMult)
 nzOfPair =
   λa. ℕ-elim
-    λb. ℕ-elim (λhab. λhnz. absurdP _ (impApply hnz ⋆)) (j ihb. λhab. λhnz. ⋆ (nzNeg j, ⋆)) b
+    λb. ℕ-elim (λhab hnz. absurdP _ (impApply hnz ⋆)) (j ihb. λhab hnz. ⋆ (nzNeg j, ⋆)) b
     k ih. λb. ℕ-elim
-      λhab. λhnz. ⋆ (nzPos k, ⋆)
-      j ihb. λhab. λhnz. 𝟘-elim
+      λhab hnz. ⋆ (nzPos k, ⋆)
+      j ihb. λhab hnz. 𝟘-elim
         zNotS (trans _ _ _ (sym _ _ hab) (trans _ _ _ (multSucId (S k) j) (sucPlus k (S k * j))))
       b
     a
@@ -68,10 +68,10 @@ nzOfPair =
 -- convert between ¬ p and p ⊃ ⊥ (the engine handles that conversion
 -- badly once the terms get large)
 notIntro : (p : Ω) → (p → ⊥) → ¬ p using (Core.prop.¬.unfold, Core.prop.⊃.unfold)
-notIntro = λp. λf. ⋆ f
+notIntro = λp f. ⋆ f
 
 notApply : (p : Ω) → ¬ p → p → ⊥ using (Core.prop.¬.unfold, Core.prop.⊃.unfold, Core.prop.⊥.unfold)
-notApply = λp. λh. λe. squash-elim h (g. g e)
+notApply = λp h e. squash-elim h (g. g e)
 
 -- The view, with the representative kept ABSTRACT — and taken as a
 -- PAIR, not as two projections. Both matter: inside this lemma every
@@ -90,7 +90,7 @@ intNZViewAt : {z : Int}
   → ∥(e : NZ) × nzToInt e ≡ z∥
   using (classPairEta, Int.Int.unfold)
 intNZViewAt =
-  λz. λp. λhz. λhab. λhnz. squash-elim
+  λz p hz hab hnz. squash-elim
     nzOfPair
       _
       _
@@ -101,7 +101,7 @@ intNZViewAt =
     w. ⋆ (w .π₁, trans _ _ _ (w .π₂) (trans _ _ _ (classPairEta p) hz))
 
 intNZView : (z : Int) (hnz : ¬ (z ≡ intZero)) → ∥(e : NZ) × nzToInt e ≡ z∥ using (intCanonProdZero)
-intNZView = λz. λhnz. intNZViewAt _ (intCanonClass z) (intCanonProdZero z) hnz
+intNZView = λz hnz. intNZViewAt _ (intCanonClass z) (intCanonProdZero z) hnz
 
 -- ===== transferring non-zeroness to the numerator =====
 -- the easy direction of effectivity (el-quot-eq): a zero numerator
@@ -130,7 +130,7 @@ ratZeroOfNumZero : (p : Rat) (h : num p ≡ intZero) → class p ≡ qZero
     Rat.qZero.eq,
     Rat.qcls.eq)
 ratZeroOfNumZero =
-  λp. λh. clsEqOfRel
+  λp h. clsEqOfRel
     _
     ratZero
     trans
@@ -142,7 +142,7 @@ ratZeroOfNumZero =
 
 numNonZero : {p : Rat} (h : ¬ (class p ≡ qZero)) → ¬ (num p ≡ intZero)
   using (Core.prop.¬.unfold, Core.prop.⊃.unfold, Rat.Q.unfold)
-numNonZero = λp. λh. notIntro _ (λe. notApply _ h (ratZeroOfNumZero _ e))
+numNonZero = λp h. notIntro _ (λe. notApply _ h (ratZeroOfNumZero _ e))
 
 -- ===== every non-zero rational is qOfNzq of something =====
 qNonZeroIsNzq : {u : Q} (h : ¬ (u ≡ qZero)) → ∥(x : NZQ) × qOfNzq x ≡ u∥
@@ -178,7 +178,7 @@ qNonZeroIsNzq =
 -- ===== the theorem =====
 qInvExists : {u : Q} (h : ¬ (u ≡ qZero)) → ∥(v : Q) × u * v ≡ qOne∥
 qInvExists =
-  λu. λh. squash-elim
+  λu h. squash-elim
     qNonZeroIsNzq h
     w. ⋆
       (,)

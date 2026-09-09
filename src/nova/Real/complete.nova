@@ -56,7 +56,7 @@ qInvQuarter =
 -- (a+b) + ((a+b) + (b+b)) ≡ (a+a) + ((b+b) + (b+b)) : both are 2a + 4b
 qSum6 : (a b : Q) → a + b + (a + b + (b + b)) ≡ a + a + (b + b + (b + b)) using (Rat.Q.unfold)
 qSum6 =
-  λa. λb. a + b + (a + b + (b + b))
+  λa b. a + b + (a + b + (b + b))
     ≡⟨ sym _ _ (qAddAssoc (a + b) (a + b) (b + b)) ⟩ a + b + (a + b) + (b + b)
     ≡⟨ cong (λw. Q) (λw. w + (b + b)) (qPairSwap a b a b) ⟩ a + a + (b + b) + (b + b)
     ≡⟨ qAddAssoc (a + a) (b + b) (b + b) ⟩ a + a + (b + b + (b + b))
@@ -80,7 +80,7 @@ leQQuarterSum : (m n : ℕ)
     Real.rBound.eq,
     Real.eq.qtr.eq)
 leQQuarterSum =
-  λm. λn. transport
+  λm n. transport
     λw. qInvNat (qtr m) + qInvNat (qtr m)
       + (qInvNat (qtr n) + qInvNat (qtr n) + (qInvNat (qtr n) + qInvNat (qtr n)))
       ≤ w + qInvNat n
@@ -116,7 +116,7 @@ RegSeqR = λx. (m n j : ℕ) → Bnd (rBound m n + rBound j j) (seqOf (x m) j + 
 
 -- ===== the limit =====
 limSeq : (ℕ → RSeq) → ℕ → Q using (Rat.Q.unfold)
-limSeq = λx. λj. seqOf (x (qtr j)) (qtr j)
+limSeq = λx j. seqOf (x (qtr j)) (qtr j)
 
 -- |L m − L n| ≤ |x_qm(qm) − x_qm(qn)| + |x_qm(qn) − x_qn(qn)|
 --             ≤ (αm + αn)            + ((αm + αn) + (αn + αn))
@@ -139,8 +139,8 @@ limReg : {x : ℕ → RSeq} → RegSeqR x → Regular (limSeq x)
     Real.eq.qtr.eq,
     Real.neg.seqOf.eq)
 limReg =
-  λx. λh. bndReg
-    λm. λn. bndWeaken
+  λx h. bndReg
+    λm n. bndWeaken
       _
       _
       _
@@ -161,17 +161,17 @@ limReg =
           h (qtr m) (qtr n) (qtr n)
 
 rLim : (x : ℕ → RSeq) → RegSeqR x → RSeq using (Real.RSeq.unfold)
-rLim = λx. λh. limSeq x, limReg h
+rLim = λx h. limSeq x, limReg h
 
 realLim : (x : ℕ → RSeq) → RegSeqR x → Real using (Real.Real.unfold)
-realLim = λx. λh. class (rLim _ h)
+realLim = λx h. class (rLim _ h)
 
 -- ===== convergence =====
 -- (b+a) + ((g+a) + (a+a)) ≡ g + (b + ((a+a)+(a+a))) : both are
 -- b + g + 4a, with the four quarter-fractions collected on the right
 qSum7 : (b g a : Q) → b + a + (g + a + (a + a)) ≡ g + (b + (a + a + (a + a))) using (Rat.Q.unfold)
 qSum7 =
-  λb. λg. λa. b + a + (g + a + (a + a))
+  λb g a. b + a + (g + a + (a + a))
     ≡⟨ sym _ _ (qAddAssoc (b + a) (g + a) (a + a)) ⟩ b + a + (g + a) + (a + a)
     ≡⟨ cong (λw. Q) (λw. w + (a + a)) (qPairSwap b a g a) ⟩ b + g + (a + a) + (a + a)
     ≡⟨ qAddAssoc (b + g) (a + a) (a + a) ⟩ b + g + (a + a + (a + a))
@@ -202,7 +202,7 @@ limClose : (x : ℕ → RSeq)
     Real.eq.qtr.eq,
     Real.neg.seqOf.eq)
 limClose =
-  λx. λh. λn. λj. bndEqB
+  λx h n j. bndEqB
     _
     _
     _
@@ -237,7 +237,7 @@ realLimClose : (x : ℕ → RSeq)
     Real.neg.seqOf.eq,
     Real.order.≤.eq)
 realLimClose =
-  λx. λh. λn. transportP
+  λx h n. transportP
     {Real}
     λv. v ≤ realOfQ (qInvNat n)
     {class (rAbs (rAdd (x n) (rNeg (rLim _ h))))}
@@ -268,7 +268,7 @@ regSeqRSound : (x : ℕ → RSeq)
     Real.order.≤.eq,
     Real.complete.RegSeqR.unfold)
 regSeqRSound =
-  λx. λh. λm. λn. transportP
+  λx h m n. transportP
     {Real}
     λv. v ≤ realOfQ (rBound m n)
     {class (rAbs (rAdd (x m) (rNeg (x n))))}

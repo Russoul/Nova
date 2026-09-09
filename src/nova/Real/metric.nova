@@ -114,7 +114,7 @@ leRNegAbsSelf =
 -- ...so a vanishing absolute value names zero
 realAbsZeroInv : (u : Real) → (realAbs u ≡ realZero) → u ≡ realZero
 realAbsZeroInv =
-  λu. λh. leRAntisym
+  λu h. leRAntisym
     transportP (λw. u ≤ w) h leRAbsSelf
     transportP
       λw. w ≤ u
@@ -123,7 +123,7 @@ realAbsZeroInv =
 
 -- ===== the distance =====
 realDist : Real → Real → Real using (Real.Real.unfold)
-realDist = λu. λv. realAbs (u - v)
+realDist = λu v. realAbs (u - v)
 
 -- THE BRIDGE. d on classes IS the representative-level |p − q|, and
 -- naming it once is what keeps its users cheap.
@@ -142,7 +142,7 @@ realDistCls : (p q : RSeq) → realDist (class p) (class q) ≡ class (rAbs (rAd
     Real.RSeq.unfold,
     Real.Regular.unfold)
 realDistCls =
-  λp. λq. trans
+  λp q. trans
     realAbs (class p + realNeg (class q))
     _
     _
@@ -176,10 +176,7 @@ rleOfAbsSub : {p : RSeq}
     Real.neg.seqOf.eq,
     Real.order.RLeP.eq)
 rleOfAbsSub =
-  λp. λq. λb. λf. rleOf
-    _
-    _
-    λj. leQSubShift (qAbs (seqOf p (dbl j) + qNeg (seqOf q (dbl j)))) b (f j)
+  λp q b f. rleOf _ _ (λj. leQSubShift (qAbs (seqOf p (dbl j) + qNeg (seqOf q (dbl j)))) b (f j))
 
 realDistSelf : (u : Real) → realDist u u ≡ realZero
   using (Real.Real.unfold, Real.abs.realAbs.eq, Real.group.-.eq, Real.metric.realDist.eq)
@@ -189,7 +186,7 @@ realDistSelf =
 realDistSym : (u v : Real) → realDist u v ≡ realDist v u
   using (Real.Real.unfold, Real.abs.realAbs.eq, Real.group.-.eq, Real.metric.realDist.eq)
 realDistSym =
-  λu. λv. trans
+  λu v. trans
     _
     realAbs (realNeg (u - v))
     _
@@ -210,12 +207,12 @@ leRZeroDist : (u v : Real) → realZero ≤ realDist u v
     Real.metric.realDist.unfold,
     Real.order.≤.eq,
     Real.order.≤.unfold)
-leRZeroDist = λu. λv. leRZeroAbs (u - v)
+leRZeroDist = λu v. leRZeroAbs (u - v)
 
 -- identity of indiscernibles, via realAbsZeroInv and the group law
 realDistZeroInv : (u v : Real) → (realDist u v ≡ realZero) → u ≡ v
   using (Real.Real.unfold, Real.abs.realAbs.eq, Real.group.-.eq, Real.metric.realDist.eq)
-realDistZeroInv = λu. λv. λh. realSubZeroInv (realAbsZeroInv (u - v) h)
+realDistZeroInv = λu v h. realSubZeroInv (realAbsZeroInv (u - v) h)
 
 -- the triangle inequality: |·| adds along the three-term split
 realDistTriangle : (u v w : Real) → realDist u w ≤ realDist u v + realDist v w
@@ -230,7 +227,7 @@ realDistTriangle : (u v w : Real) → realDist u w ≤ realDist u v + realDist v
     Real.metric.realDist.unfold,
     Real.order.≤.unfold)
 realDistTriangle =
-  λu. λv. λw. transportP
+  λu v w. transportP
     λt. t ≤ realAbs (u - v) + realAbs (v - w)
     {realAbs (u - v + (v - w))}
     {realDist u w}

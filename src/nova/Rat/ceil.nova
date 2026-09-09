@@ -50,7 +50,7 @@ crossAbs : (p p' : Rat)
     Rat.RatR.unfold,
     Rat.dInt.eq)
 crossAbs =
-  λp. λp'. λh. trans
+  λp p' h. trans
     _
     _
     _
@@ -95,7 +95,7 @@ qFloorWD : {N : Int}
     Rat.frac.nzToInt.eq,
     Rat.RatR.eq,
     Rat.dInt.eq)
-qFloorWD = λN. λd. λN'. λd'. λh. divNUnique (crossAbs (mkRat N d) (mkRat N' d') h)
+qFloorWD = λN d N' d' h. divNUnique (crossAbs (mkRat N d) (mkRat N' d') h)
 
 -- the same fact, restated over whole representatives: this is the
 -- vocabulary the quot-elim well-definedness goal is phrased in
@@ -109,7 +109,7 @@ qFloorRepWD : (p p' : Rat)
     Rat.RatR.eq,
     Rat.RatR.unfold,
     Rat.dInt.eq)
-qFloorRepWD = λp. λp'. λh. qFloorWD h
+qFloorRepWD = λp p' h. qFloorWD h
 
 qFloor : Q → ℕ
   using (Int.Int.unfold,
@@ -197,7 +197,7 @@ intSgnMulPos : {z : Int} {k : ℕ} → intSgn (z * nzToInt (nzPos k)) ≡ intSgn
     Rat.order.sNeg.eq,
     Rat.order.sPos.eq)
 intSgnMulPos =
-  λz. λk. ⊎-elim
+  λz k. ⊎-elim
     e. trans
       _
       _
@@ -264,7 +264,7 @@ sgnQFracPos : {N : Int} {b : ℕ} → sgnQ (qcls (mkRat N (nzPos b))) ≡ intSgn
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.qcls.eq)
-sgnQFracPos = λN. λb. intSgnMulPos
+sgnQFracPos = λN b. intSgnMulPos
 
 -- ===== a nonnegative integer is its own magnitude =====
 intOfNatMagNonNeg : {z : Int} → NonNegS (intSgn z) → intOfNat (intMag z) ≡ z
@@ -280,7 +280,7 @@ intOfNatMagNonNeg : {z : Int} → NonNegS (intSgn z) → intOfNat (intMag z) ≡
     Rat.frac.nzToInt.eq,
     Rat.order.NonNegS.unfold)
 intOfNatMagNonNeg =
-  λz. λnn. ⊎-elim
+  λz nn. ⊎-elim
     e. ⊎-elim
       w. (nzToInt w ≡ z) → intOfNat (intMag z) ≡ z
       n. λhe. trans
@@ -354,7 +354,7 @@ qDiffNatFrac : {m b K : ℕ}
     Rat.qcls.eq,
     zeroPlusId.rw)
 qDiffNatFrac =
-  λm. λb. λK. trans
+  λm b K. trans
     _
     qcls (mkRat (intScale (nzPos b) (intOfNat K) + intNeg (intOfNat m)) (nzMul nzOne (nzPos b)))
     _
@@ -383,7 +383,7 @@ leQFracOfNat : {m b K : ℕ} → m ≤ K * S b → qcls (mkRat (intOfNat m) (nzP
     Rat.order.≤.unfold,
     Rat.order.NonNegS.unfold)
 leQFracOfNat =
-  λm. λb. λK. λle. transport
+  λm b K le. transport
     NonNegS
     sym
       _
@@ -451,7 +451,7 @@ leQBoundPos : {M : Int}
     Rat.qNeg.eq,
     Rat.qcls.eq)
 leQBoundPos =
-  λM. λb. ⊎-elim
+  λM b. ⊎-elim
     w. qcls (mkRat M (nzPos b)) ≤ qOfNat (S (divN (intMag M) b))
     e. ⊎-elim
       w. (nzToInt w ≡ M) → qcls (mkRat M (nzPos b)) ≤ qOfNat (S (divN (intMag M) b))
@@ -531,7 +531,7 @@ leQBoundPos =
 leQBoundAt : (N : Int) (d : NZ) → qcls (mkRat N d) ≤ qOfNat (qNatBound (qcls (mkRat N d)))
   using (Rat.arch.PosDenView.unfold, Rat.order.≤.unfold, Rat.order.NonNegS.unfold)
 leQBoundAt =
-  λN. λd. let v = qPosDenView N d
+  λN d. let v = qPosDenView N d
     in transport (λw. w ≤ qOfNat (qNatBound w)) (idToEq _ _ _ (v .π₂ .π₂)) leQBoundPos
 
 -- squashed first, so the descent is free; then unsquashed, because ≤

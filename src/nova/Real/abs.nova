@@ -23,7 +23,7 @@ import Real.order (RLeP, rleOf, ≤, leQSubZero)
 import Core.equality (trans, sym, cong, transport)
 
 absSeq : (ℕ → Q) → ℕ → Q using (Rat.Q.unfold)
-absSeq = λf. λn. qAbs (f n)
+absSeq = λf n. qAbs (f n)
 
 absReg : {f : ℕ → Q} → Regular f → Regular (absSeq f)
   using (Core.id.Id.eq,
@@ -39,7 +39,7 @@ absReg : {f : ℕ → Q} → Regular f → Regular (absSeq f)
     Real.Regular.unfold,
     Real.rBound.eq,
     Real.abs.absSeq.eq)
-absReg = λf. λh. bndReg (λm. λn. bndAbsSub _ _ _ (regBnd _ h m n))
+absReg = λf h. bndReg (λm n. bndAbsSub _ _ _ (regBnd _ h m n))
 
 rAbs : RSeq → RSeq using (Real.RSeq.unfold)
 rAbs = λx. absSeq (seqOf x), absReg (regOf x)
@@ -68,13 +68,11 @@ rAbsWD : {x y : RSeq} → REq x y → REq (rAbs x) (rAbs y)
     Real.abs.rAbs.eq,
     Real.neg.seqOf.eq)
 rAbsWD =
-  λx. λy. λh. squash-elim
-    h
-    u. reqOf _ _ (λn. bndAbsSub (rBound n n) (seqOf x n) (seqOf y n) (u n))
+  λx y h. squash-elim h (u. reqOf _ _ (λn. bndAbsSub (rBound n n) (seqOf x n) (seqOf y n) (u n)))
 
 rAbsWDCls : (x y : RSeq) (h : REq x y) → class (rAbs x) ≡ class (rAbs y) ∈ Real
   using (Real.Real.unfold)
-rAbsWDCls = λx. λy. λh. realEqOfREq _ _ (rAbsWD h)
+rAbsWDCls = λx y h. realEqOfREq _ _ (rAbsWD h)
 
 realAbs : Real → Real
   using (rAbsWDCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
@@ -267,7 +265,7 @@ rleAbsTriangle : {x y : RSeq} → RLeP (rAbs (rAdd x y)) (rAdd (rAbs x) (rAbs y)
     Real.neg.seqOf.eq,
     Real.order.RLeP.unfold)
 rleAbsTriangle =
-  λx. λy. rleOf
+  λx y. rleOf
     _
     _
     λn. leQTrans
@@ -292,4 +290,4 @@ leRAbsTriangle : {u v : Real} → realAbs (u + v) ≤ realAbs u + realAbs v
     Real.order.≤.eq,
     Real.order.≤.unfold,
     Real.order.RLeP.eq)
-leRAbsTriangle = λu. λv. quot-elim (x. quot-elim (y. rleAbsTriangle) v) u
+leRAbsTriangle = λu v. quot-elim (x. quot-elim (y. rleAbsTriangle) v) u

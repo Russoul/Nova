@@ -287,7 +287,9 @@ on the line while it fits and otherwise puts it bare on an argument
 line, like any spine's; a keyword form heading an application prints
 bare (`ℕ-elim m z s n x` — its arity is fixed, so the spine's own
 arguments simply follow its slots), the ⋆ family excepted, whose
-optional witness makes `(⋆) x` and `(⋆ w) x` necessary; signatures print keyword-free,
+optional witness makes `(⋆) x` and `(⋆ w) x` necessary; a run of λs
+prints as one binder list, `λx y. b`, as a telescope run prints as one
+group; signatures print keyword-free,
 clauses at column 0, a data literal's entries as a block at +2, one
 per line. Every other break the engine makes is layout-safe: a break
 inside a nest lands at ≥ the line's indent + 2, and the breaks that

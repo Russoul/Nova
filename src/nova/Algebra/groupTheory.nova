@@ -29,35 +29,35 @@ import Core.equality (trans, sym, cong)
 
 gop : {G : 𝕌} (g : IsGroup G) → G → G → G
   using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold)
-gop = λG. λg. g .π₁ .π₁
+gop = λG g. g .π₁ .π₁
 
 ge : {G : 𝕌} (g : IsGroup G) → G
   using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold)
-ge = λG. λg. g .π₁ .π₂ .π₁
+ge = λG g. g .π₁ .π₂ .π₁
 
 ginv : {G : 𝕌} (g : IsGroup G) → G → G using (Algebra.group.IsGroup.unfold)
-ginv = λG. λg. g .π₂ .π₁
+ginv = λG g. g .π₂ .π₁
 
 -- ===== the five laws, as ≡-equations =====
 gAssoc : {G : 𝕌} (g : IsGroup G) (x y z : G) → gop g (gop g x y) z ≡ gop g x (gop g y z)
   using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold, gop.eq)
-gAssoc = λG. λg. λx. λy. λz. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₁ x y z)
+gAssoc = λG g x y z. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₁ x y z)
 
 gUnitL : {G : 𝕌} (g : IsGroup G) (x : G) → gop g (ge g) x ≡ x
   using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold, gop.eq, ge.eq)
-gUnitL = λG. λg. λx. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₂ .π₁ x)
+gUnitL = λG g x. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₂ .π₁ x)
 
 gUnitR : {G : 𝕌} (g : IsGroup G) (x : G) → gop g x (ge g) ≡ x
   using (Algebra.group.IsGroup.unfold, Algebra.monoid.IsMonoid.unfold, gop.eq, ge.eq)
-gUnitR = λG. λg. λx. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₂ .π₂ x)
+gUnitR = λG g x. idToEq _ _ _ (g .π₁ .π₂ .π₂ .π₂ .π₂ x)
 
 gInvL : {G : 𝕌} (g : IsGroup G) (x : G) → gop g (ginv g x) x ≡ ge g
   using (Algebra.group.IsGroup.unfold, gop.eq, ge.eq, ginv.eq)
-gInvL = λG. λg. λx. idToEq _ _ _ (g .π₂ .π₂ .π₁ x)
+gInvL = λG g x. idToEq _ _ _ (g .π₂ .π₂ .π₁ x)
 
 gInvR : {G : 𝕌} (g : IsGroup G) (x : G) → gop g x (ginv g x) ≡ ge g
   using (Algebra.group.IsGroup.unfold, gop.eq, ge.eq, ginv.eq)
-gInvR = λG. λg. λx. idToEq _ _ _ (g .π₂ .π₂ .π₂ x)
+gInvR = λG g x. idToEq _ _ _ (g .π₂ .π₂ .π₂ x)
 
 -- ===== cancellation of an adjacent inverse =====
 --
@@ -74,28 +74,28 @@ gInvR = λG. λg. λx. idToEq _ _ _ (g .π₂ .π₂ .π₂ x)
 -- the congruence step, which is unconstrained by orientation.
 gCancelInner : {G : 𝕌} (g : IsGroup G) (a b : G) → gop g a (gop g (ginv g a) b) ≡ b
 gCancelInner =
-  λG. λg. λa. λb. gop g a (gop g (ginv g a) b)
+  λG g a b. gop g a (gop g (ginv g a) b)
     ≡⟨ sym _ _ (gAssoc g a (ginv g a) b) ⟩ gop g (gop g a (ginv g a)) b
     ≡⟨ cong (λw. G) (λw. gop g w b) (gInvR g a) ⟩ gop g (ge g) b
     ≡⟨ gUnitL g b ⟩ b
 
 gCancelInnerInv : {G : 𝕌} (g : IsGroup G) (a b : G) → gop g (ginv g a) (gop g a b) ≡ b
 gCancelInnerInv =
-  λG. λg. λa. λb. gop g (ginv g a) (gop g a b)
+  λG g a b. gop g (ginv g a) (gop g a b)
     ≡⟨ sym _ _ (gAssoc g (ginv g a) a b) ⟩ gop g (gop g (ginv g a) a) b
     ≡⟨ cong (λw. G) (λw. gop g w b) (gInvL g a) ⟩ gop g (ge g) b
     ≡⟨ gUnitL g b ⟩ b
 
 gCancelOuter : {G : 𝕌} (g : IsGroup G) (a b : G) → gop g (gop g b a) (ginv g a) ≡ b
 gCancelOuter =
-  λG. λg. λa. λb. gop g (gop g b a) (ginv g a)
+  λG g a b. gop g (gop g b a) (ginv g a)
     ≡⟨ gAssoc g b a (ginv g a) ⟩ gop g b (gop g a (ginv g a))
     ≡⟨ cong (λw. G) (λw. gop g b w) (gInvR g a) ⟩ gop g b (ge g)
     ≡⟨ gUnitR g b ⟩ b
 
 gCancelOuterInv : {G : 𝕌} (g : IsGroup G) (a b : G) → gop g (gop g b (ginv g a)) a ≡ b
 gCancelOuterInv =
-  λG. λg. λa. λb. gop g (gop g b (ginv g a)) a
+  λG g a b. gop g (gop g b (ginv g a)) a
     ≡⟨ gAssoc g b (ginv g a) a ⟩ gop g b (gop g (ginv g a) a)
     ≡⟨ cong (λw. G) (λw. gop g b w) (gInvL g a) ⟩ gop g b (ge g)
     ≡⟨ gUnitR g b ⟩ b
@@ -103,23 +103,23 @@ gCancelOuterInv =
 -- ===== uniqueness of inverses, and its three corollaries =====
 gInvUniq : {G : 𝕌} {g : IsGroup G} {x y : G} → (gop g x y ≡ ge g) → ginv g x ≡ y
 gInvUniq =
-  λG. λg. λx. λy. λh. ginv g x
+  λG g x y h. ginv g x
     ≡⟨ sym _ _ (gUnitR g (ginv g x)) ⟩ gop g (ginv g x) (ge g)
     ≡⟨ cong (λw. G) (λw. gop g (ginv g x) w) (sym _ _ h) ⟩ gop g (ginv g x) (gop g x y)
     ≡⟨ gCancelInnerInv g x y ⟩ y
 
 gInvInv : {G : 𝕌} (g : IsGroup G) (x : G) → ginv g (ginv g x) ≡ x
-gInvInv = λG. λg. λx. gInvUniq (gInvL g x)
+gInvInv = λG g x. gInvUniq (gInvL g x)
 
 gInvUnit : {G : 𝕌} (g : IsGroup G) → ginv g (ge g) ≡ ge g
-gInvUnit = λG. λg. gInvUniq (gUnitL g (ge g))
+gInvUnit = λG g. gInvUniq (gUnitL g (ge g))
 
 -- the anti-homomorphism law: (x·y)⁻¹ = y⁻¹·x⁻¹, from uniqueness plus
 -- the computation (x·y)·(y⁻¹·x⁻¹) = e, which is one re-association and
 -- two cancellations
 gOpInv : {G : 𝕌} (g : IsGroup G) (x y : G) → ginv g (gop g x y) ≡ gop g (ginv g y) (ginv g x)
 gOpInv =
-  λG. λg. λx. λy. gInvUniq
+  λG g x y. gInvUniq
     gop g (gop g x y) (gop g (ginv g y) (ginv g x))
       ≡⟨ gAssoc g x y (gop g (ginv g y) (ginv g x)) ⟩
         gop g x (gop g y (gop g (ginv g y) (ginv g x)))
@@ -131,7 +131,7 @@ gOpInv =
 -- turns into an equation of representatives
 gEqOfOpInvUnit : {G : 𝕌} (g : IsGroup G) {x y : G} → (gop g x (ginv g y) ≡ ge g) → x ≡ y
 gEqOfOpInvUnit =
-  λG. λg. λx. λy. λh. x
+  λG g x y h. x
     ≡⟨ sym _ _ (gInvInv g x) ⟩ ginv g (ginv g x)
     ≡⟨ cong (λw. G) (ginv g) (gInvUniq h) ⟩ ginv g (ginv g y)
     ≡⟨ gInvInv g y ⟩ y
@@ -139,14 +139,14 @@ gEqOfOpInvUnit =
 -- ===== cancellation =====
 gCancelL : {G : 𝕌} (g : IsGroup G) (x : G) {y z : G} → (gop g x y ≡ gop g x z) → y ≡ z
 gCancelL =
-  λG. λg. λx. λy. λz. λh. y
+  λG g x y z h. y
     ≡⟨ sym _ _ (gCancelInnerInv g x y) ⟩ gop g (ginv g x) (gop g x y)
     ≡⟨ cong (λw. G) (λw. gop g (ginv g x) w) h ⟩ gop g (ginv g x) (gop g x z)
     ≡⟨ gCancelInnerInv g x z ⟩ z
 
 gCancelR : {G : 𝕌} (g : IsGroup G) (x y z : G) → (gop g y x ≡ gop g z x) → y ≡ z
 gCancelR =
-  λG. λg. λx. λy. λz. λh. y
+  λG g x y z h. y
     ≡⟨ sym _ _ (gCancelOuter g x y) ⟩ gop g (gop g y x) (ginv g x)
     ≡⟨ cong (λw. G) (λw. gop g w (ginv g x)) h ⟩ gop g (gop g z x) (ginv g x)
     ≡⟨ gCancelOuter g x z ⟩ z

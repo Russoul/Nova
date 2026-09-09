@@ -26,7 +26,7 @@ import Natural.eq (EqN, eqNRefl, eqNSound, eqNComplete, predEq)
 
 classEqOfRel : {p q : ℕ × ℕ} → IntR p q → class p ≡ class q ∈ Int
   using (Int.Int.unfold, Int.IntR.unfold)
-classEqOfRel = λp. λq. λh. ⋆
+classEqOfRel = λp q h. ⋆
 
 -- normPair's own representative is IntR-related to its input (that's
 -- normSound), so its class is the same Int
@@ -47,7 +47,7 @@ intNormalizeId : (z : Int) → intNormalize z ≡ z
 intNormalizeId = λz. quot-elim (p. classNormPairEq) z
 
 EqI : Int → Int → Ω
-EqI = λz1. λz2. intNormalize z1 ≡ intNormalize z2
+EqI = λz1 z2. intNormalize z1 ≡ intNormalize z2
 
 eqIRefl : (z : Int) → EqI z z using (Int.eq.EqI.unfold, intNormalizeId)
 eqIRefl = λz. ⋆
@@ -62,7 +62,7 @@ eqISound : {z1 z2 : Int} → EqI z1 z2 → z1 ≡ z2
     Int.Int.unfold,
     Int.normalize.intNormalize.eq)
 eqISound =
-  λz1. λz2. λh. trans
+  λz1 z2 h. trans
     _
     _
     _
@@ -73,20 +73,20 @@ eqISound =
 -- z2 are the same term — the evident-≡-shape squashee bare ⋆ handles
 eqIComplete : {z1 z2 : Int} → (z1 ≡ z2) → EqI z1 z2
   using (Int.eq.EqI.unfold, intNormalizeId, Int.Int.unfold)
-eqIComplete = λz1. λz2. λh. ⋆
+eqIComplete = λz1 z2 h. ⋆
 
 -- the logical equivalence, packaged with Core/prop.nova's ↔ against the
 -- squashed built-in equality
 eqISoundP : {z1 z2 : Int} → EqI z1 z2 → z1 ≡ z2 using (intNormalizeId)
-eqISoundP = λz1. λz2. λh. eqISound h
+eqISoundP = λz1 z2 h. eqISound h
 
 -- ∥p∥ ≐ p (code-squash-idem): h already proves the equation
 eqICompleteP : {z1 z2 : Int} → (z1 ≡ z2) → EqI z1 z2 using (Int.eq.EqI.unfold, intNormalizeId)
-eqICompleteP = λz1. λz2. λh. eqIComplete h
+eqICompleteP = λz1 z2 h. eqIComplete h
 
 eqIIff : {z1 z2 : Int} → EqI z1 z2 ↔ (z1 ≡ z2)
   using (intNormalizeId, Core.prop.↔.unfold, Core.prop.∧.unfold)
-eqIIff = λz1. λz2. iffIntro eqISoundP eqICompleteP
+eqIIff = λz1 z2. iffIntro eqISoundP eqICompleteP
 
 -- ===== observational equality, the computing one =====
 --
@@ -117,12 +117,12 @@ normPairZR = λn. ℕ-elim ⋆ (k ih. ⋆) n
 -- normPair c (b + c) ≡ (Z , b): the successors cancel pairwise
 normPairLeftZ : (b c : ℕ) → normPair c (b + c) ≡ (Z, b)
   using (Int.normalize.normPair.eq, Natural.+.eq, Natural.plusZeroId)
-normPairLeftZ = λb. λc. ℕ-elim ⋆ (k ih. ⋆) c
+normPairLeftZ = λb c. ℕ-elim ⋆ (k ih. ⋆) c
 
 -- normPair (n + d) d ≡ (n , Z)
 normPairRightZ : (n d : ℕ) → normPair (n + d) d ≡ (n, Z)
   using (Int.normalize.normPair.eq, Natural.+.eq, normPairZR)
-normPairRightZ = λn. λd. ℕ-elim normPairZR (k ih. ⋆) d
+normPairRightZ = λn d. ℕ-elim normPairZR (k ih. ⋆) d
 
 normPairWD : (a b c d : ℕ) (h : a + d ≡ b + c) → normPair a b ≡ normPair c d
   using (Int.eq.normPairZR,
@@ -133,7 +133,7 @@ normPairWD : (a b c d : ℕ) (h : a + d ≡ b + c) → normPair a b ≡ normPair
     zeroPlusId)
 normPairWD =
   λa. ℕ-elim
-    λb. λc. λd. λh. trans
+    λb c d h. trans
       _
       _
       _
@@ -145,7 +145,7 @@ normPairWD =
         sym _ _ (normPairLeftZ b c)
         cong (λu. ℕ × ℕ) (λx. normPair c x) (sym _ _ (trans _ _ _ (sym _ _ (zeroPlusId d)) h))
     a' ih. λb. ℕ-elim
-      λc. λd. λh. trans
+      λc d h. trans
         _
         _
         _
@@ -156,7 +156,7 @@ normPairWD =
           _
           sym _ _ (normPairRightZ (S a') d)
           cong (λu. ℕ × ℕ) (λx. normPair x d) (trans _ _ _ h (zeroPlusId c))
-      b' ihb. λc. λd. λh. ih
+      b' ihb. λc d h. ih
         b'
         c
         d
@@ -198,7 +198,7 @@ intCanonZero = ⋆
 
 -- ===== EqZ: equality that computes =====
 EqZ : Int → Int → Ω
-EqZ = λz1. λz2. EqN (intCanon z1 .π₁) (intCanon z2 .π₁) ∧ EqN (intCanon z1 .π₂) (intCanon z2 .π₂)
+EqZ = λz1 z2. EqN (intCanon z1 .π₁) (intCanon z2 .π₁) ∧ EqN (intCanon z1 .π₂) (intCanon z2 .π₂)
 
 eqZRefl : (z : Int) → EqZ z z
   using (Int.eq.EqZ.eq,
@@ -211,7 +211,7 @@ eqZRefl = λz. andIntro (eqNRefl (intCanon z .π₁)) (eqNRefl (intCanon z .π�
 
 eqZSound : {z1 z2 : Int} → EqZ z1 z2 → z1 ≡ z2 using (Int.eq.EqZ.eq)
 eqZSound =
-  λz1. λz2. λh. trans
+  λz1 z2 h. trans
     _
     _
     _
@@ -231,22 +231,22 @@ eqZComplete : {z1 z2 : Int} → (z1 ≡ z2) → EqZ z1 z2
     Int.Int.unfold,
     Core.prop.∧.unfold)
 eqZComplete =
-  λz1. λz2. λh. andIntro
+  λz1 z2 h. andIntro
     eqNComplete (cong (λu. ℕ) (λz. intCanon z .π₁) h)
     eqNComplete (cong (λu. ℕ) (λz. intCanon z .π₂) h)
 
 eqZSoundP : {z1 z2 : Int} → EqZ z1 z2 → z1 ≡ z2
-eqZSoundP = λz1. λz2. λh. eqZSound h
+eqZSoundP = λz1 z2 h. eqZSound h
 
 eqZCompleteP : {z1 z2 : Int} → (z1 ≡ z2) → EqZ z1 z2 using (Int.eq.EqZ.unfold, Core.prop.∧.unfold)
-eqZCompleteP = λz1. λz2. λh. eqZComplete h
+eqZCompleteP = λz1 z2 h. eqZComplete h
 
 eqZIff : (z1 z2 : Int) → EqZ z1 z2 ↔ (z1 ≡ z2) using (Core.prop.↔.unfold, Core.prop.∧.unfold)
-eqZIff = λz1. λz2. iffIntro eqZSoundP eqZCompleteP
+eqZIff = λz1 z2. iffIntro eqZSoundP eqZCompleteP
 
 -- ===== NeqZ: disequality that computes =====
 NeqZ : Int → Int → Ω
-NeqZ = λz1. λz2. ¬ (EqZ z1 z2)
+NeqZ = λz1 z2. ¬ (EqZ z1 z2)
 
 neqZSound : {z1 z2 : Int} → NeqZ z1 z2 → ¬ (z1 ≡ z2)
   using (Int.eq.EqZ.eq,
@@ -263,7 +263,7 @@ neqZSound : {z1 z2 : Int} → NeqZ z1 z2 → ¬ (z1 ≡ z2)
     Core.prop.⊃.eq,
     Core.prop.⊃.unfold,
     Core.prop.⊥.eq)
-neqZSound = λz1. λz2. λh. impIntro {z1 ≡ z2} {∥𝟘∥} (λe. impApply h (eqZCompleteP e))
+neqZSound = λz1 z2 h. impIntro {z1 ≡ z2} {∥𝟘∥} (λe. impApply h (eqZCompleteP e))
 
 neqZComplete : {z1 z2 : Int} → ¬ (z1 ≡ z2) → NeqZ z1 z2
   using (Int.eq.EqZ.eq,
@@ -283,10 +283,10 @@ neqZComplete : {z1 z2 : Int} → ¬ (z1 ≡ z2) → NeqZ z1 z2
     Core.prop.⊃.unfold,
     Core.prop.⊤.eq,
     Core.prop.⊥.eq)
-neqZComplete = λz1. λz2. λh. impIntro {EqZ z1 z2} {∥𝟘∥} (λe. impApply h (eqZSoundP e))
+neqZComplete = λz1 z2 h. impIntro {EqZ z1 z2} {∥𝟘∥} (λe. impApply h (eqZSoundP e))
 
 neqZIff : (z1 z2 : Int) → NeqZ z1 z2 ↔ ¬ (z1 ≡ z2) using (Core.prop.↔.unfold, Core.prop.∧.unfold)
-neqZIff = λz1. λz2. iffIntro neqZSound neqZComplete
+neqZIff = λz1 z2. iffIntro neqZSound neqZComplete
 
 -- ===== the payoff: an actual disequality =====
 --

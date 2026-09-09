@@ -48,15 +48,15 @@ import Core.id (Id, idToEq, eqToId)
 import Core.equality (trans, sym, cong, transport, transportP)
 
 reqCongR : (p y y' : RSeq) → REq y y' → REq p y ≡ REq p y'
-reqCongR = λp. λy. λy'. λh. propExt (λa. reqTrans _ a h) (λa. reqTrans _ a (reqSym h))
+reqCongR = λp y y' h. propExt (λa. reqTrans _ a h) (λa. reqTrans _ a (reqSym h))
 
 reqAt : RSeq → Real → Ω
   using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold, reqCongR)
-reqAt = λp. λz. quot-elim (y. REq p y) z
+reqAt = λp z. quot-elim (y. REq p y) z
 
 reqOfClassEq : {p p' : RSeq} → (class p ≡ class p' ∈ Real) → REq p p'
   using (Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold, Real.REq.unfold, reqAt.eq)
-reqOfClassEq = λp. λp'. λe. transportP (λz. reqAt p z) e reqRefl
+reqOfClassEq = λp p' e. transportP (λz. reqAt p z) e reqRefl
 
 -- THE WITNESS. It carries a representative as well as the modulus.
 -- Not decoration: without it the descent needs a quot-elim on x whose
@@ -71,32 +71,32 @@ PosR = λx. Br (PosPayload x)
 
 posMk : (x : Real) (p : RSeq) (k : ℕ) → (class p ≡ x) → realOfQ (qInvNat k) ≤ x → PosR x
   using (PosPayload.unfold, PosR.eq, Real.Real.unfold, Real.RSeq.unfold, Real.Regular.unfold)
-posMk = λx. λp. λk. λe. λh. br (p, k, prfIntro h, eqToId _ _ e)
+posMk = λx p k e h. br (p, k, prfIntro h, eqToId _ _ e)
 
 posRep : (x : Real) → PosPayload x → RSeq using (PosPayload.unfold)
-posRep = λx. λd. d .π₁
+posRep = λx d. d .π₁
 
 posK : (x : Real) → PosPayload x → ℕ using (PosPayload.unfold)
-posK = λx. λd. d .π₂ .π₁
+posK = λx d. d .π₂ .π₁
 
 posBound : {x : Real} {d : PosPayload x} → realOfQ (qInvNat (posK _ d)) ≤ x
   using (PosPayload.unfold, posK.eq)
-posBound = λx. λd. prfElim (realOfQ (qInvNat (d .π₂ .π₁)) ≤ x) (d .π₂ .π₂ .π₁)
+posBound = λx d. prfElim (realOfQ (qInvNat (d .π₂ .π₁)) ≤ x) (d .π₂ .π₂ .π₁)
 
 posRepEq : (x : Real) (d : PosPayload x) → class (posRep _ d) ≡ x
   using (PosPayload.unfold, posRep.eq, Real.Real.unfold, Real.RSeq.unfold, Real.Regular.unfold)
-posRepEq = λx. λd. idToEq _ (class (d .π₁)) _ (d .π₂ .π₂ .π₂)
+posRepEq = λx d. idToEq _ (class (d .π₁)) _ (d .π₂ .π₂ .π₂)
 
 -- the bound, read at the payload's own representative
 posBoundRep : (x : Real) (d : PosPayload x) → realOfQ (qInvNat (posK _ d)) ≤ class (posRep _ d)
   using (Real.Real.unfold, Real.RSeq.unfold, Real.Regular.unfold)
 posBoundRep =
-  λx. λd. transportP (λv. realOfQ (qInvNat (posK _ d)) ≤ v) (sym _ _ (posRepEq _ d)) posBound
+  λx d. transportP (λv. realOfQ (qInvNat (posK _ d)) ≤ v) (sym _ _ (posRepEq _ d)) posBound
 
 -- the bracket implies the squash — one way only
 posToLt : (x : Real) → PosR x → realZero < x using (PosPayload.unfold, PosR.eq, posK.eq)
 posToLt =
-  λx. λw. squash-elim
+  λx w. squash-elim
     brToSquash w
     d. ltROf
       _
@@ -107,7 +107,7 @@ posToLt =
 -- ===== turning the modulus into a ℚ-level fact, as DATA =====
 leQZeroOfSubLe : (a u : Q) → a + qNeg u ≤ a → qZero ≤ u
 leQZeroOfSubLe =
-  λa. λu. λh. transport
+  λa u h. transport
     λw. w ≤ u
     qAddNegR a
     leQSubShift
@@ -144,7 +144,7 @@ leQOneInv =
 rBoundDeepEq : (k i : ℕ) → rBound (mulIdx (dbl k) i) (mulIdx (dbl k) i) ≡ qInvNat k * qInvNat i
   using (Real.rBound.eq)
 rBoundDeepEq =
-  λk. λi. trans
+  λk i. trans
     qInvNat (mulIdx (dbl k) i) + qInvNat (mulIdx (dbl k) i)
     _
     _
@@ -163,7 +163,7 @@ rBoundDeepEq =
 
 leQRBoundDeep : (k i : ℕ) → rBound (mulIdx (dbl k) i) (mulIdx (dbl k) i) ≤ qInvNat k
 leQRBoundDeep =
-  λk. λi. transport
+  λk i. transport
     λw. w ≤ qInvNat k
     sym _ _ (rBoundDeepEq k i)
     transport
@@ -189,7 +189,7 @@ posSampleNN : (p : RSeq)
     Real.order.RLeP.eq,
     Real.neg.seqOf.eq)
 posSampleNN =
-  λp. λk. λh. λi. leQUnsquash
+  λp k h i. leQUnsquash
     _
     squash-elim
       h
@@ -225,20 +225,20 @@ NonNegR : Real → 𝕌
 NonNegR = λx. Br (NonNegPayload x)
 
 nnRep : (x : Real) → NonNegPayload x → RSeq using (NonNegPayload.unfold)
-nnRep = λx. λd. d .π₁
+nnRep = λx d. d .π₁
 
 nnAt : (x : Real) (d : NonNegPayload x) (n : ℕ) → qZero ≤ seqOf (nnRep _ d) n
   using (NonNegPayload.unfold, nnRep.eq)
-nnAt = λx. λd. λn. d .π₂ .π₁ n
+nnAt = λx d n. d .π₂ .π₁ n
 
 nnRepEq : (x : Real) (d : NonNegPayload x) → class (nnRep _ d) ≡ x
   using (NonNegPayload.unfold, nnRep.eq, Real.Real.unfold, Real.RSeq.unfold, Real.Regular.unfold)
-nnRepEq = λx. λd. idToEq _ (class (d .π₁)) _ (d .π₂ .π₂)
+nnRepEq = λx d. idToEq _ (class (d .π₁)) _ (d .π₂ .π₂)
 
 -- ===== the clamp =====
 bndClamp : (b u : Q) → qZero ≤ b → qNeg b ≤ u → Bnd b (qMax u qZero + qNeg u)
 bndClamp =
-  λb. λu. λhb. λhu. bndOfBothLe
+  λb u hb hu. bndOfBothLe
     _
     _
     leQSubShift
@@ -249,25 +249,25 @@ bndClamp =
 
 bndZeroSub : {b : Q} → qZero ≤ b → Bnd b (qZero + qNeg qZero)
 bndZeroSub =
-  λb. λhb. bndEq
+  λb hb. bndEq
     _
     _
     sym _ _ (trans _ _ _ (cong (λw. Q) (λw. qZero + w) qNegZeroQ) (qAddZeroR qZero))
     bndZero _ hb
 
 clampSeq : RSeq → ℕ → Q
-clampSeq = λp. λn. qMax (seqOf p n) qZero
+clampSeq = λp n. qMax (seqOf p n) qZero
 
 clampReg : {p : RSeq} → Regular (clampSeq p) using (clampSeq.eq)
 clampReg =
-  λp. bndReg (λm. λn. bndMaxSub _ _ _ _ _ (regBnd _ (regOf p) m n) (bndZeroSub (leQZeroBound m n)))
+  λp. bndReg (λm n. bndMaxSub _ _ _ _ _ (regBnd _ (regOf p) m n) (bndZeroSub (leQZeroBound m n)))
 
 clampRSeq : RSeq → RSeq using (Real.RSeq.unfold)
 clampRSeq = λp. clampSeq p, clampReg
 
 clampNN : (p : RSeq) (n : ℕ) → qZero ≤ seqOf (clampRSeq p) n
   using (Real.RSeq.unfold, clampRSeq.eq, clampSeq.eq, Real.neg.seqOf.eq)
-clampNN = λp. λn. leQMaxR (seqOf p n) qZero
+clampNN = λp n. leQMaxR (seqOf p n) qZero
 
 -- the clamp changes nothing, precisely because x ≥ 0
 clampREq : {p : RSeq} → realZero ≤ class p → REq (clampRSeq p) p
@@ -284,7 +284,7 @@ clampREq : {p : RSeq} → realZero ≤ class p → REq (clampRSeq p) p
     clampRSeq.eq,
     clampSeq.eq)
 clampREq =
-  λp. λh. squash-elim
+  λp h. squash-elim
     h
     u. reqOf
       _
@@ -301,7 +301,7 @@ clampREq =
 nonNegMk : (x : Real) (p : RSeq) → (class p ≡ x) → realZero ≤ x → NonNegR x
   using (NonNegPayload.unfold, NonNegR.eq, Real.Real.unfold, Real.RSeq.unfold, Real.Regular.unfold)
 nonNegMk =
-  λx. λp. λe. λh. br
+  λx p e h. br
     (,)
       clampRSeq p
       clampNN p

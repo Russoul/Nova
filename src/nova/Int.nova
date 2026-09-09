@@ -13,7 +13,7 @@ Int = ℕ × ℕ / (p q. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁)
 -- witness for it gives equal classes (el-quot-eq), and effectivity gives
 -- it back (Int/effective.nova)
 IntR : ℕ × ℕ → ℕ × ℕ → Ω
-IntR = λp. λq. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁
+IntR = λp q. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁
 
 toInt : ℕ × ℕ → Int using (Int.Int.unfold)
 toInt = λr. class r

@@ -6,38 +6,38 @@ import Core.equality (sym, cong, trans)
 
 infixl 6 +
 + : ℕ → ℕ → ℕ
-(+) = λx. λy. ℕ-elim x (n ih. S ih) y
+(+) = λx y. ℕ-elim x (n ih. S ih) y
 
 infixl 7 *
 * : ℕ → ℕ → ℕ
-(*) = λx. λy. ℕ-elim Z (n ih. x + ih) y
+(*) = λx y. ℕ-elim Z (n ih. x + ih) y
 
 plusZeroId : (n : ℕ) → n + Z ≡ n using (Natural.+.eq)
 plusZeroId = λn. ⋆
 
 plusSucId : (n m : ℕ) → n + S m ≡ S (n + m) using (Natural.+.eq)
-plusSucId = λn. λm. ⋆
+plusSucId = λn m. ⋆
 
 zeroPlusId : (n : ℕ) → Z + n ≡ n using (+.eq, Natural.plusZeroId)
 zeroPlusId = λn. ℕ-elim ⋆ (k ih. ⋆) n
 
 sucPlus : (n m : ℕ) → S n + m ≡ S (n + m) using (Natural.+.eq)
-sucPlus = λn. λm. ℕ-elim ⋆ (k ih. ⋆) m
+sucPlus = λn m. ℕ-elim ⋆ (k ih. ⋆) m
 
 plusComm : (n m : ℕ) → m + n ≡ n + m
 plusComm =
-  λn. λm. ℕ-elim
+  λn m. ℕ-elim
     Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n ⟩ n + Z
     k ih. S k + n ≡⟨ sucPlus k n ⟩ S (k + n) ≡⟨ ih ⟩ S (n + k) ≡⟨ plusSucId n k ⟩ n + S k
     m
 
 plusAssoc : (n m k : ℕ) → n + m + k ≡ n + (m + k) using (Natural.+.eq)
-plusAssoc = λn. λm. λk. ℕ-elim ⋆ (j ih. ⋆) k
+plusAssoc = λn m k. ℕ-elim ⋆ (j ih. ⋆) k
 
 -- a + (b + c) ≡ b + (a + c) — permutative, used by whole-equation match
 swapLeft : (a b c : ℕ) → a + (b + c) ≡ b + (a + c) using (plusComm)
 swapLeft =
-  λa. λb. λc. ℕ-elim
+  λa b c. ℕ-elim
     a + (b + Z) ≡⟨ plusZeroId b ⟩ a + b ≡⟨ plusComm b a ⟩ b + a ≡⟨ plusZeroId a ⟩ b + (a + Z)
     k ih. ⋆ using (Natural.+.eq)
     c
@@ -45,16 +45,16 @@ swapLeft =
 -- congruence in each summand — one ⋆ each: reflecting the hypothesis
 -- makes the two sides the same term
 plusCongL : {a b : ℕ} (c : ℕ) → (a ≡ b) → a + c ≡ b + c
-plusCongL = λa. λb. λc. λh. cong (λu. ℕ) (λu. u + c) h
+plusCongL = λa b c h. cong (λu. ℕ) (λu. u + c) h
 
 plusCongR : (a : ℕ) {b c : ℕ} → (b ≡ c) → a + b ≡ a + c
-plusCongR = λa. λb. λc. λh. ⋆
+plusCongR = λa b c h. ⋆
 
 -- (x+y)+(z+w) ≡ (x+w)+(z+y) — the inner summands swap. Discharged by
 -- whole-equation matching against plusAssoc/plusComm/swapLeft above
 swapMid : {x y z w : ℕ} → x + y + (z + w) ≡ x + w + (z + y)
 swapMid =
-  λx. λy. λz. λw. x + y + (z + w)
+  λx y z w. x + y + (z + w)
     ≡⟨ plusAssoc x y (z + w) ⟩ x + (y + (z + w))
     ≡⟨ swapLeft y z w ⟩ x + (z + (y + w))
     ≡⟨ plusComm w y ⟩ x + (z + (w + y))
@@ -65,19 +65,19 @@ swapMid =
 -- the hypothesis gives S n ≐ S m, whose suc-component the selector
 -- reads off (docs/NovaKernel.txt §5)
 sucInj : (n m : ℕ) → (S n ≡ S m) → n ≡ m
-sucInj = λn. λm. λh. ⋆
+sucInj = λn m h. ⋆
 
 -- CANCELLATION: (· + k) is injective, i.e. a common right summand
 -- cancels. Induction on the cancelled summand — each step peels one
 -- successor off both sides (n + S j ≜ S (n + j)) and hands it to sucInj
 plusCancel : (n m k : ℕ) → (n + k ≡ m + k) → n ≡ m using (+.eq, Natural.plusSucId)
-plusCancel = λn. λm. λk. ℕ-elim (λh. ⋆) (j ih. λh. ih (sucInj _ _ h)) k
+plusCancel = λn m k. ℕ-elim (λh. ⋆) (j ih. λh. ih (sucInj _ _ h)) k
 
 multZeroId : (n : ℕ) → n * Z ≡ Z using (Natural.*.eq)
 multZeroId = λn. ⋆
 
 multSucId : (n m : ℕ) → n * S m ≡ n + n * m using (Natural.*.eq, Natural.+.eq)
-multSucId = λn. λm. ⋆
+multSucId = λn m. ⋆
 
 zeroMult : (n : ℕ) → Z * n ≡ Z using (Natural.multZeroId)
 zeroMult =
@@ -85,7 +85,7 @@ zeroMult =
 
 sucMult : (n m : ℕ) → S n * m ≡ m + n * m
 sucMult =
-  λn. λm. ℕ-elim
+  λn m. ℕ-elim
     S n * Z ≡⟨ multZeroId (S n) ⟩ Z ≡⟨ multZeroId n ⟩ n * Z ≡⟨ zeroPlusId (n * Z) ⟩ Z + n * Z
     k ih. S n * S k
       ≡⟨ multSucId (S n) k ⟩ S n + S n * k
@@ -99,14 +99,14 @@ sucMult =
 
 multComm : (n m : ℕ) → m * n ≡ n * m
 multComm =
-  λn. λm. ℕ-elim
+  λn m. ℕ-elim
     Z * n ≡⟨ zeroMult n ⟩ Z ≡⟨ multZeroId n ⟩ n * Z
     k ih. S k * n ≡⟨ sucMult k n ⟩ n + k * n ≡⟨ ih ⟩ n + n * k ≡⟨ multSucId n k ⟩ n * S k
     m
 
 multDistrib : (n m k : ℕ) → n * (m + k) ≡ n * m + n * k
 multDistrib =
-  λn. λm. λk. ℕ-elim
+  λn m k. ℕ-elim
     n * (m + Z)
       ≡⟨ plusZeroId m ⟩ n * m
       ≡⟨ plusZeroId (n * m) ⟩ n * m + Z
@@ -121,7 +121,7 @@ multDistrib =
 
 multAssoc : (n m k : ℕ) → n * m * k ≡ n * (m * k)
 multAssoc =
-  λn. λm. λk. ℕ-elim
+  λn m k. ℕ-elim
     n * m * Z ≡⟨ multZeroId (n * m) ⟩ Z ≡⟨ multZeroId n ⟩ n * Z ≡⟨ multZeroId m ⟩ n * (m * Z)
     j ih. n * m * S j
       ≡⟨ multSucId (n * m) j ⟩ n * m + n * m * j

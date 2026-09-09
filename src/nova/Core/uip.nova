@@ -13,13 +13,13 @@ import Core.equality (sym, trans)
 idCanon : {a : 𝕌} {x y : a} (p : Id _ x y) (h : x ≡ y) → p ≡ refl a x
   using (hyp.rw, Core.id.Id.eq, Core.id.Id.unfold, Core.id.refl.eq)
 idCanon =
-  λa. λx. λy. λp. λh. squash-elim
-    IdElimP a (λu. λv. λw. ∥(k : u ≡ v) → w ≡ refl a u ∈ Id _ u v∥) (λu. ⋆ (λk. ⋆)) x y p
+  λa x y p h. squash-elim
+    IdElimP a (λu v w. ∥(k : u ≡ v) → w ≡ refl a u ∈ Id _ u v∥) (λu. ⋆ (λk. ⋆)) x y p
     f. f h
 
 -- uniqueness of identity proofs: both are refl, by canonicity.
 uip : {a : 𝕌} {x y : a} {p q : Id _ x y} → p ≡ q
   using (hyp.rw, Core.id.Id.eq, Core.id.Id.unfold, Core.id.idToEq.eq)
 uip =
-  λa. λx. λy. λp. λq. let h = idToEq _ _ _ p
+  λa x y p q. let h = idToEq _ _ _ p
     in trans _ (refl a x) _ (idCanon p h) (sym _ (refl a x) (idCanon q h))

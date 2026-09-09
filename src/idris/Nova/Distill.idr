@@ -356,7 +356,11 @@ mutual
           flat = pe tbl LNoComma False u <-> txt ", " <-> pe tbl LPair tr v
           broken = txt "(,)" <-> DNest 2 (concatDoc (map (\c => DLine <-> argDoc tbl c) comps))
       in DGroup (DAlt flat broken)
-    SLam (x, _) b => txt "λ\{x}. " <-> pe tbl LPair tr b
+    -- a run of λs prints as one binder list, λx y. b — the twin of the
+    -- binder group's coalescing (the parser desugars it back)
+    SLam (x, _) b =>
+      let (xs, body) = lamRun b in
+      txt "λ\{joinBy " " (x :: xs)}. " <-> pe tbl LPair tr body
     -- an ascribed definiens prints in the annotated-let form (the two
     -- spellings parse to the same AST). The seams before ≔ and `in`
     -- are soft breaks: a broken type or definiens puts the next piece
@@ -503,6 +507,11 @@ mutual
 
   concatDoc : List Doc -> Doc
   concatDoc = foldr DCat DNil
+
+  ||| The binders of a λ-run below a λ, and the body under them all.
+  lamRun : SElem -> (List String, SElem)
+  lamRun (SLam (y, _) b) = let (ys, body) = lamRun b in (y :: ys, body)
+  lamRun t = ([], t)
 
   ||| The right-nested chain of a pair: `a, b, c` is Pair a (Pair b c),
   ||| and its components are [a, b, c] — the arguments of the (,) head

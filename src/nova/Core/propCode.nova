@@ -35,15 +35,15 @@ prfC : Ω → 𝕌
 prfC = λr. Id (ℕ / (x y. r)) (class Z) (class (S Z))
 
 prfIntro : {r : Ω} → r → prfC r using (prfC.eq)
-prfIntro = λr. λh. eqToId (class Z) (class (S Z)) (⋆ h)
+prfIntro = λr h. eqToId (class Z) (class (S Z)) (⋆ h)
 
 -- assuming r, everything implies r, so all the fibres agree
 impConst : (r p q : Ω) → r → p ⊃ r ≡ q ⊃ r
-impConst = λr. λp. λq. λh. propExt (λu. impIntro {q} {r} (λv. h)) (λu. impIntro {p} {r} (λv. h))
+impConst = λr p q h. propExt (λu. impIntro {q} {r} (λv. h)) (λu. impIntro {p} {r} (λv. h))
 
 -- effectivity, along  n ↦ ¬(n ≡ Z) ⊃ r
 effMap : (r : Ω) → (ℕ / (x y. r)) → Ω using (impConst)
-effMap = λr. λv. quot-elim (n. ¬ (n ≡ Z) ⊃ r) v
+effMap = λr v. quot-elim (n. ¬ (n ≡ Z) ⊃ r) v
 
 effZero : {r : Ω} → effMap r (class Z) using (effMap.eq, Core.prop.¬.eq)
 effZero = λr. impIntro {¬ (Z ≡ Z)} {r} (λh. absurdP r (impApply h ⋆))
@@ -52,4 +52,4 @@ notSZ : ¬ (S Z ≡ Z) using (Core.prop.¬.eq)
 notSZ = impIntro {S Z ≡ Z} {⊥} (λh. 𝟘-elim (zNotS (sym _ _ h)))
 
 prfElim : (r : Ω) → prfC r → r using (effMap.eq, prfC.eq)
-prfElim = λr. λw. impApply (transportP (λv. effMap _ v) (idToEq _ _ _ w) effZero) notSZ
+prfElim = λr w. impApply (transportP (λv. effMap _ v) (idToEq _ _ _ w) effZero) notSZ

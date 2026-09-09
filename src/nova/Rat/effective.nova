@@ -25,17 +25,17 @@ import Core.quotEffective (effectiveAtEquiv)
 import Core.equality (trans, sym, cong)
 
 addCongL : {x y z : Int} → (x ≡ y) → x + z ≡ y + z using (Int.Int.unfold, Int.mul.intAddCong2)
-addCongL = λx. λy. λz. λh. ⋆
+addCongL = λx y z h. ⋆
 
 addCongR : {x y z : Int} → (y ≡ z) → x + y ≡ x + z using (Int.Int.unfold, Int.mul.intAddCong2)
-addCongR = λx. λy. λz. λh. ⋆
+addCongR = λx y z h. ⋆
 
 -- x·d ≡ y·d with d ≠ 0 gives x ≡ y: the difference times d is zero,
 -- so the difference is zero
 intMulCancel : (x y d : Int) (h : x * d ≡ y * d) (hd : ¬ (d ≡ intZero)) → x ≡ y
   using (intAddNegL, intMulNegL, intAddZeroL, intAddZeroR)
 intMulCancel =
-  λx. λy. λd. λh. λhd. sym
+  λx y d h hd. sym
     _
     _
     trans
@@ -75,7 +75,7 @@ intMulCancel =
 -- named link, no holes
 mulSwapRight : {a b c : Int} → a * b * c ≡ a * c * b using (Int.Int.unfold)
 mulSwapRight =
-  λa. λb. λc. a * b * c
+  λa b c. a * b * c
     ≡⟨ intMulAssoc a b c ⟩ a * (b * c)
     ≡⟨ mulCongR a _ _ (intMulComm b c) ⟩ a * (c * b)
     ≡⟨ intMulAssoc a c b ⟩ a * c * b
@@ -93,7 +93,7 @@ ratRSymm : (p q : Rat) → RatR p q → RatR q p
     Rat.RatR.eq,
     Rat.RatR.unfold,
     Rat.dInt.eq)
-ratRSymm = λp. λq. λh. sym {Int} (num p * dInt q) (num q * dInt p) h
+ratRSymm = λp q h. sym {Int} (num p * dInt q) (num q * dInt p) h
 
 -- multiply the goal through by the middle denominator, walk it across
 -- the two hypotheses, and cancel — the middle denominator is non-zero
@@ -112,7 +112,7 @@ ratRTrans : (p q r : Rat) → RatR p q → RatR q r → RatR p r
     Rat.RatR.unfold,
     Rat.dInt.eq)
 ratRTrans =
-  λp. λq. λr. λh1. λh2. intMulCancel
+  λp q r h1 h2. intMulCancel
     _
     _
     _
@@ -170,7 +170,7 @@ numZeroOfRatZero : (p : Rat) (h : class p ≡ qZero) → num p ≡ intZero
     Rat.qZero.eq,
     Rat.qcls.eq)
 numZeroOfRatZero =
-  λp. λh. trans
+  λp h. trans
     _
     num p * dInt ratZero
     _

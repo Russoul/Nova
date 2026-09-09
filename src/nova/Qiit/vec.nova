@@ -12,17 +12,17 @@ data [a : 𝕌]
 -- every result code
 vfold : (a : 𝕌) {b : 𝕌} (z : b) (c : a → b → b) (n : ℕ) → V a n → b
   using (Qiit.vec.V.eq, Qiit.vec.V.unfold)
-vfold = λa. λb. λz. λc. λn. λv. VElim a (λm. λw. b) z (λm. λx. λxs. λih. c x ih) n v
+vfold = λa b z c n v. VElim a (λm w. b) z (λm x xs ih. c x ih) n v
 
 -- generic length and an instance-level sum, both folds
 vlen : (a : 𝕌) (n : ℕ) → V a n → ℕ
-vlen = λa. λn. λv. vfold _ Z (λx. λih. S ih) _ v
+vlen = λa n v. vfold _ Z (λx ih. S ih) _ v
 
 plusV : ℕ → ℕ → ℕ
-plusV = λx. λy. ℕ-elim y (n ih. S ih) x
+plusV = λx y. ℕ-elim y (n ih. S ih) x
 
 vsum : (n : ℕ) → V ℕ n → ℕ
-vsum = λn. λv. vfold _ Z (λx. λih. plusV x ih) _ v
+vsum = λn v. vfold _ Z (λx ih. plusV x ih) _ v
 
 single : V ℕ (S Z) using (Qiit.vec.V.eq, Qiit.vec.V.unfold)
 single = vcons ℕ Z 3 (vnil ℕ)
