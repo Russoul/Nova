@@ -1,0 +1,29 @@
+-- Part 1 — LIVE. Natural numbers from nothing.
+-- Save the file: the language server re-checks it and shows every
+-- open goal (hover a ?hole) and every open obligation (with a hint).
+
+def plus : ℕ → ℕ → ℕ
+  | plus Z m ≔ m
+  | plus (S n) m ≔ S (plus n m)
+
+def times : ℕ → ℕ → ℕ
+  | times Z m ≔ Z
+  | times (S n) m ≔ plus m (times n m)
+
+-- 1. it computes. ⋆ proves every true proposition; there is no refl.
+--    Save → obligation "plus 2 3 ≐ 5", hint: cite plus.eq. Add
+--    `using (plus.eq)` before ≔.
+def twoPlusThree : plus 2 3 ≡ 5 ≔ ⋆
+
+-- 2. a proof by induction, interactively:
+--    hover ?goal · code action "eliminate n : ℕ" · fill both new
+--    holes with ⋆ · read the hint · add `using (plus.eq)`
+def plusZr : (n : ℕ) → plus n Z ≡ n ≔ λn. ?zr
+
+-- 3. exercise for the audience: same recipe
+def plusSr : (n m : ℕ) → plus n (S m) ≡ S (plus n m) ≔ λn. λm. ?sr
+
+-- 4. commutativity: hover the two holes, then write each as an
+--    equational chain  a ≡⟨ proof ⟩ b ≡⟨ proof ⟩ c
+def plusComm : (n m : ℕ) → plus n m ≡ plus m n ≔
+  λn. λm. ℕ-elim ?base (k ih. ?step) n

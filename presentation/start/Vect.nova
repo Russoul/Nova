@@ -1,0 +1,57 @@
+-- Part 2 — LIVE. Length-indexed vectors: correct by construction.
+
+import Arith (plus, plusZ, plusS, plusZr, plusSr, plusComm, plusAssoc)
+
+data [a : 𝕌] ( V : ℕ → U
+     ; vnil : El (V Z)
+     ; vcons : (n : ℕ) → a → El (V n) → El (V (S n)) )
+
+-- 1. head of a NON-EMPTY vector (given): the motive sends length Z to
+--    𝟙, so the vnil case is trivially () and can never be reached at S n
+def vhead : {a : 𝕌} {n : ℕ} → V a (S n) → a using (V.unfold) ≔
+  λa. λn. λv. VElim a (λm. λw. ℕ-elim 𝟙 (k ih. a) m) () (λm. λx. λxs. λih. x) (S n) v
+
+-- 2. append (given): the result length is computed
+def vappend : {a : 𝕌} {n m : ℕ} → V a n → V a m → V a (plus n m) using (V.unfold, plus.eq) ≔
+  λa. λn. λm. λv. λw. VElim a (λk. λu. V a (plus k m)) w (λk. λx. λxs. λih. vcons a (plus k m) x ih) n v
+
+-- 3. reverse with an accumulator. Fill the two cases (hover them):
+--      nil:  acc
+--      cons: ih (S m) (vcons a m x acc)
+--    Save. Three obligations appear — the three subst's Agda would
+--    make you write. Cite: plusZ.rw, plusS.rw, plusSr.rw
+def vrevAcc : {a : 𝕌} {n : ℕ} → V a n → {m : ℕ} → V a m → V a (plus n m) using (V.unfold) ≔
+  λa. λn. λv. VElim a (λk. λu. (m : ℕ) → V a m → V a (plus k m))
+    (λm. λacc. ?acc)
+    (λk. λx. λxs. λih. λm. λacc. ?consCase)
+    n v
+
+-- 4. reverse: vrevAcc v (vnil a). One obligation: plus n Z ≐ n. Cite plusZr.rw
+def vreverse : {a : 𝕌} {n : ℕ} → V a n → V a n using (V.unfold) ≔ λa. λn. λv. ?rev
+
+-- 5. it runs (given)
+def v123 : V ℕ 3 using (V.unfold) ≔ vcons ℕ 2 1 (vcons ℕ 1 2 (vcons ℕ 0 3 (vnil ℕ)))
+
+def v321 : V ℕ 3 using (V.unfold) ≔ vcons ℕ 2 3 (vcons ℕ 1 2 (vcons ℕ 0 1 (vnil ℕ)))
+
+def reverseTest : vreverse v123 ≡ v321 ∈ V ℕ 3
+  using (vreverse.eq, vrevAcc.eq, v123.eq, v321.eq, V.eq, VElim.eq, vcons.eq, vnil.eq, plus.eq) ≔
+  ⋆
+
+-- 6. the computation rules of vappend as lemmas (given)
+def vappendNilL : {a : 𝕌} {m : ℕ} (w : V a m) → vappend {a} {Z} {m} (vnil a) w ≡ w ∈ V a m
+  using (vappend.eq, V.eq, VElim.eq, vnil.eq, plus.eq) ≔
+  λa. λm. λw. ⋆
+
+def vappendCons : {a : 𝕌} {n m : ℕ} (x : a) (xs : V a n) (w : V a m)
+  → vappend {a} {S n} {m} (vcons a n x xs) w ≡ vcons a (plus n m) x (vappend {a} {n} {m} xs w) ∈ V a (S (plus n m))
+  using (vappend.eq, V.eq, VElim.eq, vcons.eq, plus.eq) ≔
+  λa. λn. λm. λx. λxs. λw. ⋆
+
+-- 7. THE statement Agda cannot write: the two sides have types
+--    V a (plus n Z) and V a n. Save: one obligation on the STATEMENT
+--    itself, with a hint. Then prove it by induction on v:
+--      VElimP a (λk. λu. vappend {a} {k} {Z} u (vnil a) ≡ u ∈ V a k) ⋆ (λk. λx. λxs. λih. ⋆) n v
+--    and cite: hyp.rw, V.eq, V.unfold, VElim.eq, vnil.eq, vcons.eq, vappend.eq, plusZr.rw, plusZ.rw, plusS.rw
+def vappendNil : {a : 𝕌} {n : ℕ} (v : V a n) → vappend {a} {n} {Z} v (vnil a) ≡ v ∈ V a n ≔
+  λa. λn. λv. ?appendNil

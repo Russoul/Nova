@@ -1,0 +1,71 @@
+-- Part 5 — infinite data: streams, and EQUALITY of infinite behaviours.
+--
+-- A stream is an element of a coinductive type ν (K a × 𝕏): the one
+-- thing you can do with it is observe it (out), which yields a head
+-- and a tail. corec builds one from a state and a step function — the
+-- shape of every event loop, signal, or generator you have written.
+-- Two streams are equal when they are bisimilar (coind), and that
+-- equality is the ordinary ≡: it rewrites, it transports, it needs no
+-- separate "≈" with its own congruence lemmas.
+
+import Arith (plus, times)
+
+def stream : 𝕌 → 𝕌 ≔ λa. ν (K a × 𝕏)
+
+def hd : {a : 𝕌} → stream a → a using (stream.unfold) ≔ λa. λs. out s .π₁
+
+def tl : {a : 𝕌} → stream a → stream a using (stream.unfold) ≔ λa. λs. out s .π₂
+
+-- iterate f x = x, f x, f (f x), …  — state: the current element
+def iterate : {a : 𝕌} → (a → a) → a → stream a using (stream.unfold) ≔
+  λa. λf. λx. corec (s : a. s, f s) x
+
+def nats : stream ℕ ≔ iterate (λn. S n) Z
+
+-- map, by corecursion on the source stream itself
+def map : {a b : 𝕌} → (a → b) → stream a → stream b using (stream.unfold) ≔
+  λa. λb. λf. λs. corec (t : stream a. f (hd t), tl t) s
+
+def evens : stream ℕ ≔ map (λn. times 2 n) nats
+
+-- observations compute: the third even number is 4
+def evens2 : hd (tl (tl evens)) ≡ 4
+  using (evens.eq, nats.eq, map.eq, iterate.eq, hd.eq, tl.eq, times.eq, plus.eq, stream.unfold) ≔
+  ⋆
+
+def id : {a : 𝕌} → a → a ≔ λa. λx. x
+
+-- map id s ≡ s: an EQUALITY between two infinite objects, proved by
+-- coinduction. The invariant relates u and v when u is map id of some
+-- w and v is that w; it holds at the start (w ≔ s), and one
+-- observation step preserves it (heads agree by computation; tails
+-- are related through w's tail). coind then hands back s ≡ t.
+--
+-- Agda: streams are records with a coinductive field; ≡ between two
+-- streams is useless (it never holds unless they are syntactically
+-- equal), so you define a bisimilarity record ≈, prove map-id : map id
+-- s ≈ s, and then prove separately, for every function f you ever
+-- write, that f respects ≈. And ≈ is still not ≡: nothing rewrites.
+def mapId : {a : 𝕌} (s : stream a) → map (id {a}) s ≡ s
+  using (map.eq, hd.eq, tl.eq, id.eq, stream.unfold, hyp.rw) ≔
+  λa. λs. coind (u v. ∥(w : stream a) × (u ≡ map (id {a}) w ∈ stream a) × (v ≡ w ∈ stream a)∥)
+    (⋆ (s, ⋆, ⋆))
+    (u v h. squash-elim h (w. ⋆ (⋆, ⋆ (tl (w .π₁), ⋆, ⋆))))
+
+-- map fusion, the same way: the invariant is the graph of the two
+-- sides over a shared source
+infixr 9 ∘
+def ∘ : {a b c : 𝕌} → (b → c) → (a → b) → a → c ≔ λa. λb. λc. λg. λf. λx. g (f x)
+
+def mapFuse : {a b c : 𝕌} (f : a → b) (g : b → c) (s : stream a) → map g (map f s) ≡ map (g ∘ f) s
+  using (map.eq, hd.eq, tl.eq, ∘.eq, stream.unfold, hyp.rw) ≔
+  λa. λb. λc. λf. λg. λs. coind (u v. ∥(w : stream a) × (u ≡ map g (map f w) ∈ stream c) × (v ≡ map (g ∘ f) w ∈ stream c)∥)
+    (⋆ (s, ⋆, ⋆))
+    (u v h. squash-elim h (w. ⋆ (⋆, ⋆ (tl (w .π₁), ⋆, ⋆))))
+
+-- and because it is an equality, it rewrites anywhere — no congruence lemma for evens needed
+def suc : ℕ → ℕ ≔ λn. S n
+
+def dbl : ℕ → ℕ ≔ λn. times 2 n
+
+def evensFused : (s : stream ℕ) → map suc (map dbl s) ≡ map (suc ∘ dbl) s using (mapFuse) ≔ λs. ⋆
