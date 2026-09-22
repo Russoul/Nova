@@ -1752,6 +1752,9 @@ mutual
   exposeT st t@(NatElim _ _ _) = case exposeE st t of
     t'@(NatElim _ _ _) => t'
     t' => exposeT st t'
+  -- el-let-beta in TYPE position: a let is always a redex, so its
+  -- contraction is whnf-δ, never lemma rewriting
+  exposeT st t@(Let _ _) = exposeT st (exposeE st t)
   exposeT st t = t
 
 ||| The engine normalizer for EQUATION-SIDE positions: δ-free
