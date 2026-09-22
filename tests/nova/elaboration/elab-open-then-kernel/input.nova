@@ -35,4 +35,4 @@ infSucc : cinf ≡ csucc cinf using (cinf.eq, csucc.eq, hyp.rw, conat.unfold)
 infSucc =
   coind (x y. ∥(x ≡ cinf ∈ conat) × (y ≡ csucc cinf ∈ conat)∥)
         (⋆ (⋆, ⋆))
-        (x y h. squash-elim h (w. ⋆ (⋆, ⋆)))
+        (x y h. squash-elim h (w. (⋆ (⋆, ⋆) : ∥(cinf ≡ cinf ∈ conat) × (csucc cinf ≡ csucc cinf ∈ conat)∥)))

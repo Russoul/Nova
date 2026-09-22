@@ -3597,53 +3597,38 @@ preferPi : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
 preferPi st ctx (PiTy a b) = Just (a, b, Nothing)
 preferPi st ctx ty = case exposeHead st ty of
                        tyX@(PiTy a b) => Just (a, b, Just (tyX, MkECert [] FBeta))
-                       _ => case rwNfTy st ctx ty of
-                              tyX@(PiTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
-                              _ => Nothing
+                       _ => Nothing
 
 preferSigma : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
 preferSigma st ctx (SigmaTy a b) = Just (a, b, Nothing)
 preferSigma st ctx ty = case exposeHead st ty of
                           tyX@(SigmaTy a b) => Just (a, b, Just (tyX, MkECert [] FBeta))
-                          _ => case rwNfTy st ctx ty of
-                                 tyX@(SigmaTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
-                                 _ => Nothing
+                          _ => Nothing
 
 preferSum : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
 preferSum st ctx (SumTy a b) = Just (a, b, Nothing)
 preferSum st ctx ty = case exposeHead st ty of
                         tyX@(SumTy a b) => Just (a, b, Just (tyX, MkECert [] FBeta))
-                        _ => case rwNfTy st ctx ty of
-                               tyX@(SumTy a b) => (\e => (a, b, Just e)) <$> exposeCert st ctx ty tyX
-                               _ => Nothing
+                        _ => Nothing
 
-||| A prop stuck only up to hypothesis rewriting (e.g. the relator's
-||| ⊎-elim at neutral observations, unstuck by a variable-definition
-||| hypothesis): rewrite it and bridge with an exposure certificate
-||| from the ORIGINAL expected type.
+||| Prop-code exposure at a checking position is whnf-δ only: a prop
+||| stuck up to hypothesis rewriting is NOT unstuck here — the author
+||| writes the exposed prop as an ascription, and the switch's
+||| constraint carries the rewriting (syntax-directed elaboration).
 exposeProp : ElabSt -> Ctx -> Ty -> Elem -> (Elem, Maybe (Ty, ECert))
-exposeProp st ctx ty p =
-  let pR = rwNfElem st ctx p in
-  if pR == p then audit "EXPOSEPROP no-rewrite (eqScope \{show st.eqScope})" (p, Nothing)
-  else case exposeCert st ctx ty pR of
-         Just e2 => (pR, Just e2)
-         Nothing => audit "EXPOSEPROP bridge-fail" (p, Nothing)
+exposeProp st ctx ty p = (p, Nothing)
 
 preferNu : ElabSt -> Ctx -> Ty -> Maybe (Poly, Maybe (Ty, ECert))
 preferNu st ctx (NuTy f) = Just (f, Nothing)
 preferNu st ctx ty = case exposeHead st ty of
                        tyX@(NuTy f) => Just (f, Just (tyX, MkECert [] FBeta))
-                       _ => case rwNfTy st ctx ty of
-                              tyX@(NuTy f) => (\e => (f, Just e)) <$> exposeCert st ctx ty tyX
-                              _ => Nothing
+                       _ => Nothing
 
 preferQuot : ElabSt -> Ctx -> Ty -> Maybe (Ty, Elem, Maybe (Ty, ECert))
 preferQuot st ctx (QuotTy a r) = Just (a, r, Nothing)
 preferQuot st ctx ty = case exposeHead st ty of
                          tyX@(QuotTy a r) => Just (a, r, Just (tyX, MkECert [] FBeta))
-                         _ => case rwNfTy st ctx ty of
-                                tyX@(QuotTy a r) => (\e => (a, r, Just e)) <$> exposeCert st ctx ty tyX
-                                _ => Nothing
+                         _ => Nothing
 
 ||| The expected type AS a proposition (Prf retired: the prop IS the
 ||| type). Syntax-directed at the Ω formers, through exposure; a
@@ -3660,10 +3645,7 @@ preferPrf st ctx ty = if kIsPropB st.kernelSig kernelFuel ctx ty
   else case exposeHead st ty of
          tyX@(Elem.EqTy _ _ _) => Just (tyX, Just (tyX, MkECert [] FBeta))
          tyX@(Squash _) => Just (tyX, Just (tyX, MkECert [] FBeta))
-         _ => case rwNfTy st ctx ty of
-                tyX@(Elem.EqTy _ _ _) => (\e => (tyX, Just e)) <$> exposeCert st ctx ty tyX
-                tyX@(Squash _) => (\e => (tyX, Just e)) <$> exposeCert st ctx ty tyX
-                _ => Nothing
+         _ => Nothing
 
 ||| they cannot be accepted anyway.
 ||| CLEAN IS THIS ITEM'S PROPERTY, NOT THE RUN'S. An item that left
@@ -5111,9 +5093,7 @@ mutual
           Elem.EqTy l rhs ety => do
             let fM = case exposeT st ety of
                        NuTy f => Just f
-                       _ => case rwNfTy st ctx ety of
-                              NuTy f => Just f
-                              _ => Nothing
+                       _ => Nothing
             case fM of
               Nothing => throwShape site env "coind proves an equation over" ety "a ν type"
               Just f => do

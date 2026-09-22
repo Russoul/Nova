@@ -3,7 +3,7 @@ import Lang.vectByInd (vect)
 
 vappend : (n : ℕ) {A : 𝕌} (m : ℕ) → vect n A → vect m A → vect (n + m) A
   using (Natural.+.unfold, sucPlus.rw, vect.eq, Lang.vectByInd.vect.unfold, zeroPlusId.rw)
-vappend = λn A m. ℕ-elim (λv w. w) (k ih. λv w. v .π₁, ih (v .π₂) w) n
+vappend = λn A m. ℕ-elim (λv w. w) (k ih. λv w. (v .π₁, ih (v .π₂) w : A × vect (k + m) A)) n
 
 -- This equation holds by direct computation
 vappendZ : (A : 𝕌) (n : ℕ) (v : vect Z A) (w : vect n A) → vappend _ _ v w ≡ w ∈ vect n A
@@ -22,7 +22,7 @@ vappendS : (n : ℕ)
   (m : ℕ)
   (v : vect (S n) A)
   (w : vect m A)
-  → vappend _ _ v w ≡ (v .π₁, vappend _ _ (v .π₂) w)
+  → vappend _ _ v w ≡ (v .π₁, vappend _ _ (v .π₂) w : A × vect (n + m) A)
   using (hyp.rw,
     Natural.+.unfold,
     sucPlus,

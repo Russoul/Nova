@@ -1491,11 +1491,18 @@ whnf-shape(position) = F(A₁ … Aₙ)        each Aᵢ undetermined
 # error.
 
 # Introduction forms check against the whnf of the expected type.
+# whnf here is whnf-δ — the computation rules (let contraction
+# included) and definition unfolding — and NOTHING ELSE: elaboration
+# never rewrites an expected type by lemmas or hypotheses to find its
+# shape, so the core term is a function of the surface text alone and
+# every equation elaboration needs is a constraint, never a search.
 # A rigid shape mismatch here (λ against a non-Π, class against a
 # non-quotient, ...) is a structural error, not an obligation: if the
 # expected type is secretly Π only up to an unproven equation, the user
 # states that intent with an ascription, which moves the equation to
-# e-switch where it belongs.
+# e-switch where it belongs. (The same holds for a ⋆ checked at a prop
+# that is evident only after rewriting by hypotheses — the relator's
+# stuck ⊎-elim in a coinduction closure: ascribe the exposed prop.)
 
 whnf(C) = A → B        Γ ▷ x:A ⊢ t ⇐ B ⇝ t̂
 -------------------------------------------- (e-lam)          # (λ f)

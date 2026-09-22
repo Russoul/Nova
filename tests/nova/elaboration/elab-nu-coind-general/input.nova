@@ -10,7 +10,7 @@ infSucc : cinf ≡ csucc cinf ∈ conat using (hyp.rw, conat.unfold, conat.eq, c
 infSucc =
   coind (x y. ∥(x ≡ cinf ∈ conat) × (y ≡ csucc cinf ∈ conat)∥)
         (⋆ ((⋆ , ⋆)))
-        (x y h. squash-elim h (w. ⋆ ((⋆ , ⋆))))
+        (x y h. squash-elim h (w. (⋆ ((⋆ , ⋆)) : ∥(cinf ≡ cinf ∈ conat) × (csucc cinf ≡ csucc cinf ∈ conat)∥)))
 
 -- exponent clause: Moore machines, constant machines over two carriers
 moore : 𝕌
