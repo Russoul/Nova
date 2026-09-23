@@ -4183,7 +4183,16 @@ mutual
                                                 reSkelE st ctx x a])
       Nothing => Nd [] []
     ZeroElim t => Nd [] [reSkelE st ctx t ZeroTy]
-    _ => reSkelI st ctx e
+    -- a non-intro term at a type spelled otherwise than the one it
+    -- infers to: the switch proof (a δ bridge) rides along, since the
+    -- kernel's switch-less fallthrough compares by β only
+    _ => let (sk, mty) = reSkelIT (openExp st) ctx e in
+         case mty of
+           Just t => if compTy t == compTy ty then sk
+                     else case deltaJoinC st t ty >>= (\c => either (const Nothing) Just (toPrfTy st.sig ctx c t ty)) of
+                            Just p => addPayload (PSwitch p) sk
+                            Nothing => sk
+           Nothing => sk
 
   reSkelI : ElabSt -> Ctx -> Elem -> Skel
   reSkelI st0 ctx e = fst (reSkelIT (openExp st0) ctx e)
@@ -5658,8 +5667,11 @@ mutual
             case mcert of
               Just cert => pure (Star, withExpose exp (Nd [PReflEq cert] []))
               Nothing => do
-                (w', _) <- checkElem ctx env site w pN
-                pure (Star, withExpose exp (Nd [PReflEq (PRefl w')] []))
+                (w', wSk) <- checkElem ctx env site w pN
+                -- the witness reflected: a spine states its type; any
+                -- other form is the checked reflexivity at the prop
+                let wPrf = fromMaybe (PRefl (PChk w' pN wSk)) (prfOfElem st.sig ctx w')
+                pure (Star, withExpose exp (Nd [PReflEq wPrf] []))
           _ => throwShape site env "⋆ ⟨witness⟩ checked against" ty "an evident proposition"
   checkElemAt ctx env site (SSquashElim e xn body) ty = do
     st <- getSt
@@ -7426,7 +7438,10 @@ elabItemGo irng (SData params decls) = do
                     let dlen = length dtel
                     let hIdx = minus nH (S j) + nI + 1 + dlen
                     let dVars = map CtxVar (reverse (upto dlen))
-                    pure (PRefl (applyChain (CtxVar hIdx) dVars)))
+                    -- the hypothesis applied to the ᴰ-context's variables,
+                    -- as a typed neutral: self leaves under application
+                    -- nodes (the binder's type is a Π chain as written)
+                    pure (PRefl (foldl (\p, v => CPiApp p (PSelf v)) (PSelf (CtxVar hIdx)) dVars)))
                 (zipWithIndex 0 eqPs)
     -- the motives ride in the skeleton (the core eliminator carries
     -- only what β reads: the methods), each a binder variable here

@@ -126,9 +126,19 @@ mutual
   public export
   data Prf : Type where
     -- ----- leaves that synthesise their equation -----
-    ||| reflection: a proof element whose type is (or whnf-exposes) an
+    ||| SELF: a variable or a signature reference as its own
+    ||| reflexivity, at its DECLARED type — the base of a typed neutral
+    ||| (a reference's spine is checked against its context; the
+    ||| canonical closed forms Z, (), 𝟘, 𝟙, ℕ are included at theirs)
+    PSelf : Elem -> Prf
+    ||| CHECKED reflexivity: the term checked at the ascribed type with
+    ||| its skeleton (an introduction form as a proof argument: a class,
+    ||| a λ, a pair at the domain a lemma expects) — states t ≐ t : T
+    PChk : Elem -> Ty -> Skel -> Prf
+    ||| reflection: a proof STATED by a synthesising proof (a typed
+    ||| spine over self leaves, ascribed where a shape hides) at an
     ||| equality prop l ≡ r ∈ A — the licensed equation l ≐ r : A
-    PRefl : Elem -> Prf
+    PRefl : Prf -> Prf
     ||| el-qiit-path: an imposed equation of the carried signature at
     ||| entry k and argument spine θ
     PPath : QSig -> Nat -> SubNorm -> Prf
@@ -139,14 +149,10 @@ mutual
     PDelta : String -> SubNorm -> Prf
     ||| a component of the equation below, by a selector
     PSel : Sel -> Prf -> Prf
-    ||| reflection with the proof element's type CONVERTED: p at type
-    ||| P′ (β-whnf an equality prop) by πᵀ ▷ ⇒ᵖ(p) ≐ P′ at 𝕍 — the
-    ||| sketch's ascription (t : T by α); how an equality hidden
-    ||| behind a definition is read without the kernel unfolding it
-    PReflAt : Elem -> Ty -> Prf -> Prf
-    ||| the stated equation of π at type T′, by πᵀ ▷ A ≐ T′ at 𝕍 — a
-    ||| conversion of a STATED equation (the positional match at a
-    ||| type spelled otherwise)
+    ||| the stated equation of π at type T′, by πᵀ ▷ A ≐ T′ at 𝕍 — the
+    ||| ASCRIPTION (π : T′ by πᵀ): a conversion of a stated equation
+    ||| (the positional match at a type spelled otherwise; a hidden Π
+    ||| at a spine's head; a hidden ≡ at a proof's type)
     PAt : Prf -> Ty -> Prf -> Prf
     -- ----- structure -----
     ||| reflexivity: the sides join under β
@@ -227,11 +233,6 @@ mutual
     CQElim : QSig -> Nat -> Maybe (List Ty) -> List Prf -> List Prf -> Prf -> Prf
     COut : Prf -> Prf
     CCorec : Poly -> Prf -> Prf -> Prf -> Prf
-    ||| an ELIMINATION node read with its scrutinee's type EXPOSED: the
-    ||| head's inferred type converted to T′ by πᵀ, the node below
-    ||| (app, π₁/π₂, out, ⊎-elim, quot-elim) typing its children from
-    ||| T′ — the proof-level twin of the item level's PScrut
-    CScrut : Ty -> Prf -> Prf -> Prf
 
 ||| Smart transitivity/symmetry: reflexivity is the unit.
 public export
@@ -252,10 +253,11 @@ pSym p = PSym p
 public export
 covering
 substPrf : Prf -> Sub -> Prf
-substPrf (PRefl p) s = PRefl (substElem p s)
+substPrf (PSelf t) s = PSelf (substElem t s)
+substPrf (PChk t ty sk) s = PChk (substElem t s) (substTy ty s) sk
+substPrf (PRefl p) s = PRefl (substPrf p s)
 substPrf (PPath sg k th) s = PPath (substQSig sg s) k (substSubNorm th s)
 substPrf (PDelta x es) s = PDelta x (substSubNorm es s)
-substPrf (PReflAt p ty pt) s = PReflAt (substElem p s) (substTy ty s) (substPrf pt s)
 substPrf (PAt q ty pt) s = PAt (substPrf q s) (substTy ty s) (substPrf pt s)
 substPrf (PSel sel p) s = PSel (substSel sel) (substPrf p s)
  where
@@ -307,7 +309,6 @@ substPrf (CQElim sg k ms qs ps w) s =
          (map (\p => substPrf p s) qs) (map (\p => substPrf p s) ps) (substPrf w s)
 substPrf (COut p) s = COut (substPrf p s)
 substPrf (CCorec pf a f x) s = CCorec (substPoly pf s) (substPrf a s) (substPrf f (under s)) (substPrf x s)
-substPrf (CScrut ty pt q) s = CScrut (substTy ty s) (substPrf pt s) (substPrf q s)
 
 -- Diagnostics only: a proof's shape (skeletons elided).
 export
@@ -327,56 +328,118 @@ motive : Maybe Ty -> String
 motive Nothing = ""
 motive (Just m) = "{\{show m}}"
 
+-- Proofs print in the CORE'S OWN SYNTAX: a congruence node prints as
+-- the former it is the congruence of (α β for an application, α .π₂
+-- for a projection, λ α, (α, β), inj₁ α, class α, α → β, …), the
+-- leaves in brackets. A term-shaped proof reads like the term it
+-- proves something about.
+atomicPrf : Prf -> Bool
+atomicPrf (PSelf _) = True
+atomicPrf (PChk _ _ _) = True
+atomicPrf (PRefl _) = True
+atomicPrf PReflx = True
+atomicPrf (PDeltaAll _) = True
+atomicPrf PIrrel = True
+atomicPrf (PSym _) = True
+atomicPrf (PSel _ _) = True
+atomicPrf (PAt _ _ _) = True
+atomicPrf (PConv _ _ _) = True
+atomicPrf (PTransAt _ _ _) = True
+atomicPrf (CSigmaElim1 _) = True
+atomicPrf (CSigmaElim2 _) = True
+atomicPrf (CSigmaIntro _ _) = True
+atomicPrf (CSigVar _ _) = True
+atomicPrf (CQSort _ _ _) = True
+atomicPrf (CQCtor _ _ _) = True
+atomicPrf (CSquash _) = True
+atomicPrf (PEtaPi _) = True
+atomicPrf (PEtaSigma _ _) = True
+atomicPrf (PQuotWit _) = True
+atomicPrf (PQuotWitPrf _ _) = True
+atomicPrf (PInj _) = True
+atomicPrf (PPropExt _ _ _ _) = True
+atomicPrf (PPrfCong _) = True
+atomicPrf _ = False
+
+motiveP : Maybe Ty -> String
+motiveP Nothing = ""
+motiveP (Just m) = "{\{show m}}"
+
+mutual
+  ||| an argument position: atoms bare, anything else parenthesised
+  covering
+  argP : Prf -> String
+  argP p = if atomicPrf p then showPrf p else "(" ++ showPrf p ++ ")"
+
+  ||| a head position (the function of an application): applications
+  ||| chain to the left without parentheses
+  covering
+  hdP : Prf -> String
+  hdP p@(CPiApp _ _) = showPrf p
+  hdP p = argP p
+
+  covering
+  argsP : List Prf -> String
+  argsP ps = concat (intersperse ", " (map showPrf ps))
+
+  export
+  covering
+  showPrf : Prf -> String
+  -- leaves
+  showPrf (PSelf t) = "[\{show t}]"
+  showPrf (PChk t ty _) = "[\{show t} : \{show ty}]"
+  showPrf (PRefl p) = "⟨\{showPrf p}⟩"
+  showPrf (PPath _ k th) = "path \{show k} \{show th}"
+  showPrf (PDelta x es) = "\{x}-δ \{show es}"
+  showPrf (PDeltaAll ns) = "δ-all \{show ns}"
+  showPrf PReflx = "refl"
+  showPrf PIrrel = "irrel"
+  -- structure
+  showPrf (PSel sel p) = "\{show sel}(\{showPrf p})"
+  showPrf (PSym p) = "\{argP p}⁻¹"
+  showPrf (PTrans p q) = "\{showPrf p} ; \{showPrf q}"
+  showPrf (PTransAt p m q) = "(\{showPrf p} ; [\{show m}] ; \{showPrf q})"
+  showPrf (PAt q ty pt) = "(\{showPrf q} : \{show ty} by \{showPrf pt})"
+  showPrf (PConv pt ty p) = "(\{showPrf p} ∷ \{show ty} by \{showPrf pt})"
+  -- type-directed leaves
+  showPrf (PEtaPi p) = "η→(\{showPrf p})"
+  showPrf (PEtaSigma p q) = "η×(\{showPrf p}, \{showPrf q})"
+  showPrf (PQuotWit mp) = "quot-wit(\{maybe "" showPrf mp})"
+  showPrf (PQuotWitPrf w _) = "quot-wit[\{show w}]"
+  showPrf (PInj p) = "inj(\{showPrf p})"
+  showPrf (PPropExt f _ g _) = "propext[\{show f}, \{show g}]"
+  showPrf (PPrfCong p) = "prop-lift(\{showPrf p})"
+  -- congruences, in the core's syntax
+  showPrf (CZeroElim p) = "𝟘-elim \{argP p}"
+  showPrf (CNatIntro1 p) = "S \{argP p}"
+  showPrf (CNatElim m z st n) = "ℕ-elim\{motiveP m} \{argP z} \{argP st} \{argP n}"
+  showPrf (CPiIntro p) = "λ \{showPrf p}"
+  showPrf (CPiApp f a) = "\{hdP f} \{argP a}"
+  showPrf (CSigmaIntro u v) = "(\{showPrf u}, \{showPrf v})"
+  showPrf (CSigmaElim1 p) = "\{argP p} .π₁"
+  showPrf (CSigmaElim2 p) = "\{argP p} .π₂"
+  showPrf (CInj1 p) = "inj₁ \{argP p}"
+  showPrf (CInj2 p) = "inj₂ \{argP p}"
+  showPrf (CSumElim m l r t) = "⊎-elim\{motiveP m} \{argP l} \{argP r} \{argP t}"
+  showPrf (CPiTy a b) = "\{argP a} → \{argP b}"
+  showPrf (CSigmaTy a b) = "\{argP a} × \{argP b}"
+  showPrf (CSumTy a b) = "\{argP a} ⊎ \{argP b}"
+  showPrf (CEqTy l r t) = "\{argP l} ≡ \{argP r} ∈ \{argP t}"
+  showPrf (CQuotTy a r) = "\{argP a} / \{argP r}"
+  showPrf (CSigVar x ps) = "\{x}[\{argsP ps}]"
+  showPrf (CClass p) = "class \{argP p}"
+  showPrf (CQuotElim m f q) = "quot-elim\{motiveP m} \{argP f} \{argP q}"
+  showPrf (CSquash p) = "∥\{showPrf p}∥"
+  showPrf (CQSort _ k ps) = "𝒮.\{show k}[\{argsP ps}]"
+  showPrf (CQCtor _ k ps) = "𝒮.\{show k}[\{argsP ps}]"
+  showPrf (CQElim _ k m qs ps w) = "𝒮.\{show k}-elim\{if isJust m then "{…}" else ""} [\{argsP qs}] [\{argsP ps}] \{argP w}"
+  showPrf (COut p) = "out \{argP p}"
+  showPrf (CCorec _ a f x) = "corec \{argP a} \{argP f} \{argP x}"
+
 export
 covering
 Show Prf where
-  show (PRefl p) = "⟨\{show p}⟩"
-  show (PPath _ k th) = "path \{show k} \{show th}"
-  show (PDelta x es) = "\{x}-δ \{show es}"
-  show (PSel sel p) = "\{show sel}(\{show p})"
-  show (PReflAt p ty pt) = "⟨\{show p} : \{show ty} by \{show pt}⟩"
-  show (PAt q ty pt) = "(\{show q} at \{show ty} by \{show pt})"
-  show PReflx = "refl"
-  show (PSym p) = "(\{show p})⁻¹"
-  show (PTrans p q) = "(\{show p} ; \{show q})"
-  show (PTransAt p m q) = "(\{show p} ; [\{show m}] ; \{show q})"
-  show (PConv pt ty p) = "(conv \{show pt} ⇒ \{show ty} in \{show p})"
-  show (PDeltaAll ns) = "δ-all \{show ns}"
-  show PIrrel = "irrel"
-  show (PEtaPi p) = "η→(\{show p})"
-  show (PEtaSigma p q) = "η×(\{show p}, \{show q})"
-  show (PQuotWit mp) = "quot-wit(\{show mp})"
-  show (PQuotWitPrf w _) = "quot-wit-prf(\{show w})"
-  show (PInj p) = "inj(\{show p})"
-  show (PPropExt f _ g _) = "propext(\{show f}, \{show g})"
-  show (PPrfCong p) = "prop-lift(\{show p})"
-  show (CZeroElim p) = "𝟘-elim[\{show p}]"
-  show (CNatIntro1 p) = "S[\{show p}]"
-  show (CNatElim m z s n) = "ℕ-elim\{motive m}[\{show z}; \{show s}; \{show n}]"
-  show (CPiIntro p) = "λ[\{show p}]"
-  show (CPiApp f a) = "app[\{show f}; \{show a}]"
-  show (CSigmaIntro u v) = "pair[\{show u}; \{show v}]"
-  show (CSigmaElim1 p) = "π₁[\{show p}]"
-  show (CSigmaElim2 p) = "π₂[\{show p}]"
-  show (CInj1 p) = "inj₁[\{show p}]"
-  show (CInj2 p) = "inj₂[\{show p}]"
-  show (CSumElim m l r t) = "⊎-elim\{motive m}[\{show l}; \{show r}; \{show t}]"
-  show (CPiTy a b) = "Π[\{show a}; \{show b}]"
-  show (CSigmaTy a b) = "Σ[\{show a}; \{show b}]"
-  show (CSumTy a b) = "⊎[\{show a}; \{show b}]"
-  show (CEqTy l r t) = "≡[\{show l}; \{show r}; \{show t}]"
-  show (CQuotTy a r) = "quot[\{show a}; \{show r}]"
-  show (CSigVar x ps) = "\{x}[\{show ps}]"
-  show (CClass p) = "class[\{show p}]"
-  show (CQuotElim m f q) = "quot-elim\{motive m}[\{show f}; \{show q}]"
-  show (CSquash p) = "∥\{show p}∥"
-  show (CQSort _ k ps) = "sort\{show k}[\{show ps}]"
-  show (CQCtor _ k ps) = "ctor\{show k}[\{show ps}]"
-  show (CQElim _ k m qs ps w) = "qelim\{show k}\{if isJust m then "{…}" else ""}[\{show qs}; \{show ps}; \{show w}]"
-  show (COut p) = "out[\{show p}]"
-  show (CCorec _ a f x) = "corec[\{show a}; \{show f}; \{show x}]"
-  show (CScrut ty pt q) = "(scrut \{show pt} ⇒ \{show ty} in \{show q})"
--- ===== Fuel monad =====
+  show = showPrf
 
 public export
 KErr : Type
@@ -1431,21 +1494,44 @@ congChildren (CQCtor _ _ ps) = Just ps
 congChildren (CQElim _ _ _ qs ps w) = Just (qs ++ ps ++ [w])
 congChildren (COut p) = Just [p]
 congChildren (CCorec _ a f x) = Just [a, f, x]
-congChildren (CScrut _ _ q) = congChildren q
 congChildren _ = Nothing
 
 mutual
   ||| ⇒: does the proof state its own equation (sides and type)?
   synthP : Prf -> Bool
-  synthP (PRefl _) = True
+  synthP (PSelf _) = True
+  synthP (PChk _ _ _) = True
+  synthP (PRefl p) = synthP p
   synthP (PPath _ _ _) = True
   synthP (PDelta _ _) = True
-  synthP (PReflAt _ _ _) = True
   synthP (PAt _ _ _) = True
   synthP (PSel _ p) = synthP p
   synthP (PSym p) = synthP p
   synthP (PTrans p q) = (synthP p && dirP True q) || (synthP q && dirP False p)
+  -- a TYPED SPINE: elimination nodes state their equation when their
+  -- head is a typed neutral (and, for an application, its argument
+  -- states an equation)
+  synthP (CPiApp f a) = typedP f && synthP a
+  synthP (CSigmaElim1 p) = typedP p
+  synthP (CSigmaElim2 p) = typedP p
+  synthP (COut p) = typedP p
+  synthP (CNatIntro1 p) = synthP p
   synthP _ = False
+
+  ||| A TYPED NEUTRAL: a self or checked leaf, an ascription, or an
+  ||| elimination over one — a proof whose stated type has the shape
+  ||| the elimination above it needs, or is ascribed to it. (A δ leaf
+  ||| or a reflection also states an equation, but at a type nothing
+  ||| has exposed: a spine over one is read by decomposition.)
+  typedP : Prf -> Bool
+  typedP (PSelf _) = True
+  typedP (PChk _ _ _) = True
+  typedP (PAt _ _ _) = True
+  typedP (CPiApp f a) = typedP f && synthP a
+  typedP (CSigmaElim1 p) = typedP p
+  typedP (CSigmaElim2 p) = typedP p
+  typedP (COut p) = typedP p
+  typedP _ = False
 
   ||| →: given one side, can the proof produce the other? (True: the
   ||| left side is given, the right produced.)
@@ -1458,7 +1544,6 @@ mutual
          else (dirP False q && dirP False p) || synthP p
   dirP d (PTransAt p _ q) = if d then dirP True q else dirP False p
   dirP d (PConv _ _ p) = dirP d p
-  dirP d (CScrut _ _ p) = dirP d p
   dirP d p =
     if synthP p then True
       else case congChildren p of
@@ -1478,7 +1563,7 @@ inferHead sig ctx (PiApp f e) = do
   mf <- inferHead sig ctx f
   case mf of
     Just fTy => do
-      t <- kWhnfDelta sig fTy
+      t <- kWhnfT sig fTy
       case t of
         PiTy _ b => pure (Just (substTy b (Ext Id e)))
         _ => pure Nothing
@@ -1487,7 +1572,7 @@ inferHead sig ctx (SigmaElim1 t) = do
   mt <- inferHead sig ctx t
   case mt of
     Just tTy => do
-      t' <- kWhnfDelta sig tTy
+      t' <- kWhnfT sig tTy
       case t' of
         SigmaTy a _ => pure (Just a)
         _ => pure Nothing
@@ -1496,7 +1581,7 @@ inferHead sig ctx (SigmaElim2 t) = do
   mt <- inferHead sig ctx t
   case mt of
     Just tTy => do
-      t' <- kWhnfDelta sig tTy
+      t' <- kWhnfT sig tTy
       case t' of
         SigmaTy _ b => pure (Just (substTy b (Ext Id (SigmaElim1 t))))
         _ => pure Nothing
@@ -1505,7 +1590,7 @@ inferHead sig ctx (Out t) = do
   mt <- inferHead sig ctx t
   case mt of
     Just tTy => do
-      t' <- kWhnfDelta sig tTy
+      t' <- kWhnfT sig tTy
       case t' of
         NuTy f => pure (Just (reflectPoly f (Elem.NuTy f)))
         _ => pure Nothing
@@ -1764,11 +1849,72 @@ mutual
   ||| ⇒: the equation (with its type) a synthesising proof states.
   export
   kPrfS : Sig -> Ctx -> Prf -> KM (Elem, Elem, Ty)
+  -- self: the declared type, no unfolding (a reference's spine
+  -- checked against its context, β-only, bare skeletons)
+  kPrfS sig ctx (PSelf t) = case t of
+    CtxVar i => case ctxLookup ctx i of
+      Just ty => pure (t, t, ty)
+      Nothing => kerr "kernel: self leaf: variable out of bounds"
+    SigVar x es => kSigLookup sig x >>= \entryX => case entryX of
+      Just (SigDef delta _ _ ty) => do
+        kCheckSubstK sig ctx (toList es) (toList delta) (map (const (Nd [] [])) (toList es))
+        pure (t, t, substTy ty (embed es))
+      Just (SigDecl delta _ ty) => do
+        kCheckSubstK sig ctx (toList es) (toList delta) (map (const (Nd [] [])) (toList es))
+        pure (t, t, substTy ty (embed es))
+      _ => kerr "kernel: self leaf: bad signature reference '\{x}'"
+    NatIntro0 => pure (t, t, NatTy)
+    OneIntro => pure (t, t, OneTy)
+    Elem.ZeroTy => pure (t, t, UniverseTy)
+    Elem.OneTy => pure (t, t, UniverseTy)
+    Elem.NatTy => pure (t, t, UniverseTy)
+    _ => kerr "kernel: self leaf at a term with no declared type [\{show t}]"
+  -- checked reflexivity: the term at its ascribed type, with skeleton
+  kPrfS sig ctx (PChk t ty sk) = do
+    kCheckE sig ctx t ty sk
+    pure (t, t, ty)
+  -- reflection: the stated proof's type is (β-whnf) an equality prop
   kPrfS sig ctx (PRefl p) = do
-    pty <- inferP sig ctx p >>= kWhnfT sig
-    case pty of
+    (_, _, pty) <- kPrfS sig ctx p
+    pty' <- kWhnfT sig pty
+    case pty' of
       Elem.EqTy l r t => pure (l, r, t)
-      _ => kerr "kernel: proof leaf is not an equality [\{show p} : \{show pty}]"
+      _ => kerr "kernel: reflected proof is not at an equality [\{show p} : \{show pty}]"
+  -- typed spines: the head states its type, the elimination follows
+  -- it (β-whnf for the shape — a hidden one arrives ascribed)
+  kPrfS sig ctx (CPiApp qf qa) = do
+    (f0, f1, fTy) <- kPrfS sig ctx qf
+    fTy' <- kWhnfT sig fTy
+    case fTy' of
+      PiTy dom cod => do
+        (a0, a1, aTy) <- kPrfS sig ctx qa
+        ok <- tyAgree sig dom aTy
+        if ok then pure (PiApp f0 a0, PiApp f1 a1, substTy cod (Ext Id a0))
+          else kerr "kernel: spine argument at the wrong type [expected \{show dom}; stated \{show aTy}]"
+      _ => kerr "kernel: spine applies a non-function [\{show f0} : \{show fTy'}]"
+  kPrfS sig ctx (CSigmaElim1 q) = do
+    (t0, t1, tTy) <- kPrfS sig ctx q
+    tTy' <- kWhnfT sig tTy
+    case tTy' of
+      SigmaTy a _ => pure (SigmaElim1 t0, SigmaElim1 t1, a)
+      _ => kerr "kernel: spine projects a non-pair [\{show t0} : \{show tTy'}]"
+  kPrfS sig ctx (CSigmaElim2 q) = do
+    (t0, t1, tTy) <- kPrfS sig ctx q
+    tTy' <- kWhnfT sig tTy
+    case tTy' of
+      SigmaTy _ b => pure (SigmaElim2 t0, SigmaElim2 t1, substTy b (Ext Id (SigmaElim1 t0)))
+      _ => kerr "kernel: spine projects a non-pair [\{show t0} : \{show tTy'}]"
+  kPrfS sig ctx (COut q) = do
+    (t0, t1, tTy) <- kPrfS sig ctx q
+    tTy' <- kWhnfT sig tTy
+    case tTy' of
+      NuTy f => pure (Out t0, Out t1, reflectPoly f (Elem.NuTy f))
+      _ => kerr "kernel: spine observes a non-ν element [\{show t0} : \{show tTy'}]"
+  kPrfS sig ctx (CNatIntro1 q) = do
+    (t0, t1, tTy) <- kPrfS sig ctx q
+    ok <- tyAgree sig NatTy tTy
+    if ok then pure (NatIntro1 t0, NatIntro1 t1, NatTy)
+      else kerr "kernel: S of a non-numeral"
   -- x-δ, stated: the spine is checked against the definition's
   -- context, and the equation is x[ē] ≐ t[ē] at T[ē]
   kPrfS sig ctx (PDelta x es) =
@@ -1821,13 +1967,6 @@ mutual
         Just ty => checkP sig ctx e ty
         Nothing => kerr "kernel: path leaf telescope mismatch"
       checkTelArgs (S i) rest tel
-  kPrfS sig ctx (PReflAt p ty pt) = do
-    pty <- inferP sig ctx p
-    kEqTy sig ctx pt pty ty
-    ty' <- kWhnfT sig ty
-    case ty' of
-      Elem.EqTy l r t => pure (l, r, t)
-      _ => kerr "kernel: ascribed proof leaf is not at an equality [\{show p} : \{show ty}]"
   kPrfS sig ctx (PAt q ty pt) = do
     (l, r, t) <- kPrfS sig ctx q
     kEqTy sig ctx pt t ty
@@ -1929,32 +2068,12 @@ mutual
       then kOrElse (do x <- kPrfGo sig ctx prf (GDir True l) mty
                        sameB sig x r
                        pure l)
-                   (kPrfGoAt sig ctx Nothing prf goal mty)
-      else kPrfGoAt sig ctx Nothing prf goal mty
-  kPrfGo sig ctx prf goal mty = kPrfGoAt sig ctx Nothing prf goal mty
+                   (kPrfGoAt sig ctx prf goal mty)
+      else kPrfGoAt sig ctx prf goal mty
+  kPrfGo sig ctx prf goal mty = kPrfGoAt sig ctx prf goal mty
 
-  ||| The scrutinee of an elimination node's LEFT side.
-  scrutPart : Prf -> Elem -> KM Elem
-  scrutPart q x = case (q, x) of
-    (CPiApp _ _, PiApp f _) => pure f
-    (CSigmaElim1 _, SigmaElim1 u) => pure u
-    (CSigmaElim2 _, SigmaElim2 u) => pure u
-    (COut _, Out u) => pure u
-    (CSumElim _ _ _ _, SumElim _ _ t) => pure t
-    (CQuotElim _ _ _, QuotElim _ u) => pure u
-    _ => kerr "kernel: scrutinee exposure at a non-elimination node [\{show x}]"
-
-  ||| `hov`: the scrutinee's type, when a CScrut above exposed it.
-  kPrfGoAt : Sig -> Ctx -> Maybe Ty -> Prf -> Goal -> Maybe Ty -> KM Elem
-  kPrfGoAt sig ctx hov prf goal mty = case (prf, goal) of
-    (CScrut tyX pt q, _) => do
-      hd <- scrutPart q (goalLeft goal)
-      hTy <- inferHead sig ctx hd
-      case hTy of
-        Just h => do
-          kEqTy sig ctx pt h tyX
-          kPrfGoAt sig ctx (Just tyX) q goal mty
-        Nothing => kerr "kernel: scrutinee exposure at a head with no inferable type [\{show hd}]"
+  kPrfGoAt : Sig -> Ctx -> Prf -> Goal -> Maybe Ty -> KM Elem
+  kPrfGoAt sig ctx prf goal mty = case (prf, goal) of
     -- ----- structure -----
     (PReflx, GDir _ x) => pure x
     (PReflx, GChk l r) => do sameB sig l r; pure l
@@ -2147,8 +2266,9 @@ mutual
             Just _ => kerr "kernel: δ leaf at a declaration '\{x}'"
             Nothing => kerr "kernel: δ leaf names unknown definition '\{x}'"
         _ => kerr "kernel: δ leaf at a non-reference [at \{show u}]"
+    (PSelf _, _) => synthLeaf
+    (PChk _ _ _, _) => synthLeaf
     (PRefl _, _) => synthLeaf
-    (PReflAt _ _ _, _) => synthLeaf
     (PAt _ _ _, _) => synthLeaf
     (PPath _ _ _, _) => synthLeaf
     (PDelta _ _, _) => synthLeaf
@@ -2186,7 +2306,7 @@ mutual
     (CPiApp qf qa, _) =>
       let kids : List Elem -> KM (List (Ctx, Maybe Ty))
           kids [f, a] = do
-            fTy <- headTy f
+            fTy <- headTy qf f
             aTy <- the (KM (Maybe Ty)) $ case fTy of
               Just t => do
                 t' <- kWhnfT sig t
@@ -2213,13 +2333,13 @@ mutual
       node sig ctx goal (\x => case x of SigmaElim1 u => Just [u]; _ => Nothing)
            (\xs => case xs of [u] => Just (SigmaElim1 u); _ => Nothing)
            (\xs => case xs of
-                     [u] => do mt <- headTy u; pure [(ctx, mt)]
+                     [u] => do mt <- headTy q u; pure [(ctx, mt)]
                      _ => kerr "kernel: proof node arity") [q]
     (CSigmaElim2 q, _) =>
       node sig ctx goal (\x => case x of SigmaElim2 u => Just [u]; _ => Nothing)
            (\xs => case xs of [u] => Just (SigmaElim2 u); _ => Nothing)
            (\xs => case xs of
-                     [u] => do mt <- headTy u; pure [(ctx, mt)]
+                     [u] => do mt <- headTy q u; pure [(ctx, mt)]
                      _ => kerr "kernel: proof node arity") [q]
     (CInj1 q, _) => do
       ty <- needTy mty "inj₁ congruence"
@@ -2236,7 +2356,7 @@ mutual
     (CSumElim m ql qr qt, _) =>
       let kids : List Elem -> KM (List (Ctx, Maybe Ty))
           kids [l, r, t] = do
-            tTy <- headTy t
+            tTy <- headTy qt t
             (a, b) <- the (KM (Ty, Ty)) $ case tTy of
               Just x => do
                 x' <- kWhnfT sig x
@@ -2309,7 +2429,7 @@ mutual
     (CQuotElim m qf qq, _) =>
       let kids : List Elem -> KM (List (Ctx, Maybe Ty))
           kids [f, q] = do
-            qTy <- headTy q
+            qTy <- headTy qq q
             (a, r) <- the (KM (Ty, Ty)) $ case qTy of
               Just x => do
                 x' <- kWhnfT sig x
@@ -2373,7 +2493,7 @@ mutual
       node sig ctx goal (\x => case x of Out u => Just [u]; _ => Nothing)
            (\xs => case xs of [u] => Just (Out u); _ => Nothing)
            (\xs => case xs of
-                     [u] => do mt <- headTy u; pure [(ctx, mt)]
+                     [u] => do mt <- headTy q u; pure [(ctx, mt)]
                      _ => kerr "kernel: proof node arity") [q]
     -- corec: the carrier is a code, the seed sits at it; the body is
     -- carrier-dependent (undetermined, like ⊎-elim's cases)
@@ -2386,11 +2506,15 @@ mutual
                      [a, _, _] => pure [(ctx, Just UniverseTy), (ctx :< a, Nothing), (ctx, Just a)]
                      _ => kerr "kernel: proof node arity") [qa, qf, qx]
    where
-    ||| the scrutinee's type: as exposed by a CScrut above, else inferred
-    headTy : Elem -> KM (Maybe Ty)
-    headTy u = case hov of
-      Just t => pure (Just t)
-      Nothing => inferHead sig ctx u
+    ||| the scrutinee's type: STATED by its proof when that proof
+    ||| synthesises (a typed neutral: a spine over self leaves, ascribed
+    ||| where a definition hides the shape), else the head's declared
+    ||| type read off the side, β-only
+    headTy : Prf -> Elem -> KM (Maybe Ty)
+    headTy q u =
+      if typedP q
+        then do (_, _, t) <- kPrfS sig ctx q; pure (Just t)
+        else inferHead sig ctx u
 
     needBoth : KM Elem
     needBoth = kerr "kernel: a type-directed proof needs both sides [\{show prf}]"
@@ -2639,6 +2763,11 @@ mutual
                   else kerr "kernel: constructor indices do not match the type"
               _ => kerr "kernel: constructor checked at a non-QIIT type"
           _ => do
+            -- no switch payload: inferred and expected compared by full
+            -- δβ — the item level's residue (a QIIT eliminator's motive
+            -- instance against the declared codomain of its Elim
+            -- definition, say); a reconstructed skeleton ships a switch
+            -- proof where it can (docs/NovaKernel.txt §9)
             inferred <- kInferE sig ctx e sk
             i' <- kTy sig inferred
             t' <- kTy sig ty

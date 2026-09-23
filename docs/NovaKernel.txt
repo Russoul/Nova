@@ -151,38 +151,56 @@ names):
       suc | dom | cod u | suml | sumr | qdom | qrel u v | qidx i
                                                    (§5)
 
+  Proofs are written IN THE CORE'S OWN SYNTAX: a congruence node is
+  spelled as the former it is the congruence of, with proofs in the
+  children's places, and a term-shaped proof reads like the term it
+  is about. α, β, … range over proofs.
+
   π ::=                                            (Prf)
     -- leaves that STATE their equation (⇒, §4)
-      ⟨p⟩               reflection: a proof element     (PRefl)
+      [t]               SELF: a variable or a signature reference as
+                        its own reflexivity, at its declared type;
+                        also Z, (), 𝟘, 𝟙, ℕ at theirs   (PSelf)
+    | [t : T]           CHECKED reflexivity: t checked at T (with a
+                        skeleton), stating t ≐ t : T      (PChk)
+    | ⟨α⟩               reflection: α states its equation at an
+                        equality prop l ≡ r ∈ A — the licensed
+                        equation l ≐ r : A              (PRefl)
     | qpath 𝕔 θ         an imposed QIIT equation        (PPath)
     | x-δ ē             x[ē] ≐ t[ē] for (Δ ⊦ x ≔ t : T)  (PDelta)
-    | ⟨p : P′ by πᵀ⟩    reflection through a CONVERTED type:
-                        πᵀ ▷ ⇒ᵖ(p) ≐ P′, P′ an equality prop
-                        (the sketch's ascription)        (PReflAt)
-    | π at T′ by πᵀ     the stated equation at T′,
-                        πᵀ ▷ A ≐ T′                      (PAt)
-    | sel π             a component, by a selector      (PSel)
+    | (α : T′ by β)     ASCRIPTION: the stated equation of α at T′,
+                        β ▷ A ≐ T′                       (PAt)
+    | sel α             a component, by a selector      (PSel)
     -- structure
     | refl              the sides join under β          (PReflx)
-    | π⁻¹                                               (PSym)
-    | π ; π             transitivity, middle COMPUTED   (PTrans)
-    | π ; [m] ; π       transitivity, middle STATED     (PTransAt)
-    | conv πᵀ T′ π      the equation at T′, πᵀ ▷ T ≐ T′  (PConv)
+    | α⁻¹                                               (PSym)
+    | α ; β             transitivity, middle COMPUTED   (PTrans)
+    | α ; [m] ; β       transitivity, middle STATED     (PTransAt)
+    | (α ∷ T′ by β)     the equation's TYPE converted: β ▷ T ≐ T′,
+                        α read at T′                    (PConv)
     | δ-all x̄           every addressable occurrence of the named
                         definitions unfolded at once   (PDeltaAll)
     -- type-directed leaves (⇐ only, §7)
-    | irrel | η→ π | η× π π | quot-wit π? | quot-wit-prf w ⟨sk⟩
-    | inj π | propext s ⟨sk⟩ t ⟨sk⟩ | prop-lift π
-    -- congruences (§6): the former's name, a proof per child;
-    -- eliminators carry an OPTIONAL motive
-      𝟘-elim[π]  S[π]  ℕ-elim{M?}[π; π; π]  λ[π]  app[π; π]
-      pair[π; π]  π₁[π]  π₂[π]  inj₁[π]  inj₂[π]  ⊎-elim{M?}[π; π; π]
-      Π[π; π]  Σ[π; π]  ⊎[π; π]  ≡[π; π; π]  quot[π; π]  x[π̄]
-      class[π]  quot-elim{M?}[π; π]  ∥π∥  𝒮.𝕤[π̄]  𝒮.𝕔[π̄]
-      𝒮.𝕤-elim{C̄?}[π̄; π̄; π]  out[π]  corec 𝔽[π; π; π]
-    | scrut T′ πᵀ [node]  an elimination node (app, π₁/π₂, out,
-                        ⊎-elim, quot-elim) read with its scrutinee's
-                        type CONVERTED: πᵀ ▷ ⇒ᴺ(head) ≐ T′ (CScrut)
+    | irrel | η→(α) | η×(α, β) | quot-wit(α?) | quot-wit[w ⟨sk⟩]
+    | inj(α) | propext[s ⟨sk⟩, t ⟨sk⟩] | prop-lift(α)
+    -- congruences (§6), spelled as the formers; eliminators carry an
+    -- OPTIONAL motive in braces
+      𝟘-elim α   S α   ℕ-elim{M?} α β γ   λ α   α β   (α, β)
+      α .π₁   α .π₂   inj₁ α   inj₂ α   ⊎-elim{M?} α β γ
+      α → β   α × β   α ⊎ β   α ≡ β ∈ γ   α / β   x[ᾱ]
+      class α   quot-elim{M?} α β   ∥α∥   𝒮.𝕤[ᾱ]   𝒮.𝕔[ᾱ]
+      𝒮.𝕤-elim{C̄?} [ᾱ] [β̄] γ   out α   corec 𝔽 α β γ
+
+  A TYPED NEUTRAL is a spine of elimination nodes over a self or
+  checked leaf, ascribed wherever a definition hides the shape the
+  next elimination needs:  ([a] : A × (A → A) by α) .π₂  types the
+  head a.π₂ as A → A from a's declared type IsNatAlgebra A, opened by
+  the recorded δ proof α. Such a proof STATES its equation (⇒), so a
+  node above it takes the type it states instead of reading one off
+  the side. A proof element — a lemma applied to arguments — is the
+  same thing: [sym] [ℕ] [x] [y] [h], arguments that are spines as
+  typed neutrals ascribed to the domain where spelled otherwise, any
+  other argument as [t : A] checked at the domain.
 
 Substitution acts on a proof as on a term (every element it carries
 — proof elements, spines, stated middles, converted types, motives —
@@ -242,8 +260,14 @@ paths and skeletons (§8) — binders crossed in parentheses:
 
 ////////// 3. Proof spines: Σ; Γ ⊦ p ⇒ᵖ T //////////
 
-A proof leaf's element is an ELIMINATION SPINE over context variables
-and signature references (for the other leaf forms see §4).
+A proof ELEMENT — the lemma instantiation behind a reflection leaf —
+is no longer typed here: it arrives as a TYPED NEUTRAL (§2, §4), a
+proof term that states its own type, and the kernel reads it by the
+⇒ rules of §4 and §7 with no unfolding. The tiny checker below
+remains for the ELEMENTS a proof term still carries bare: a
+selector's instantiation element (§5), the spine of a δ or path
+leaf (§4), and the prop-ness test (kIsProp). It opens a head by a
+liberal whnf and compares types by nf — the residue of §9.
 Inference implements Foundation's el-var, el-sig-var, el-pi-e,
 el-sigma-e₁/₂ and the ℕ/𝟙 introductions:
 
@@ -357,34 +381,40 @@ item level checks lets directly (§8).
 ////////// 4. What a leaf licenses (⇒) //////////
 
 A stating leaf licenses one equation, derived — never assumed — from
-its licence. For a proof leaf ⟨p⟩:
+its licence. The base of every typed neutral is a SELF leaf, at the
+declared type, no unfolding (a reference's spine checked against its
+context, β-only):
 
-  Σ; Γ ⊦ p ⇒ᵖ T    nf(T) ⇓ (l ≡ r ∈ A)
-  ------------------------------------------------------------
-  ⟨p⟩ ⇒  l ≐ r : A
+  Γ‖ᵢ = T                    Σ ∋ (Δ ⊦ x ≔ a : A)   Σ; Γ ⊦ e˲ ⇐ Δ
+  ------------------         -------------------------------------
+  [☐ᵢ] ⇒ ☐ᵢ ≐ ☐ᵢ : T          [x[e˲]] ⇒ x[e˲] ≐ x[e˲] : A[e˲]
 
-This is equality reflection (el-reflect) read certificate-side: the
-proof element is checked, its type — the equality prop itself, Prf
-retired — exposed, and the judgemental equation extracted. Equality
-is Ω-valued, so this is the ONE pathway — squashed spellings
-normalize to the prop by code-squash-idem's instances. Any other
-proof type is rejected. Γ is the context AT THE LEAF: the binders the
-congruence nodes above it crossed are in scope (a proof spelled at
-the root arrives weakened, §2).
+  Σ; Γ ⊦ t ⇐ T ⟨sk⟩           # the item-level checker (§8): an intro
+  ------------------------    # form as a proof argument, at the
+  [t : T] ⇒ t ≐ t : T         # domain, with its skeleton
 
-  ⟨p : P′ by πᵀ⟩ :  Σ; Γ ⊦ p ⇒ᵖ P    Σ; Γ ⊦ πᵀ ▷ P ≐ P′ : 𝕍
-                    nf_β(P′) ⇓ (l ≡ r ∈ A)
-                    ------------------------------------------
-                    ⟨p : P′ by πᵀ⟩ ⇒  l ≐ r : A
-  # the kernel's whnf is β-only: an equality hidden behind a
-  # definition is read through the recorded conversion, never by the
-  # kernel unfolding the proof's type
+Reflection (el-reflect read certificate-side): the proof is a stated
+equation at an equality prop — the equality prop itself, Prf retired
+— and the judgemental equation is extracted:
 
-  π at T′ by πᵀ :   π ⇒ l ≐ r : A    πᵀ ▷ A ≐ T′ : 𝕍
+  α ⇒ p₀ ≐ p₁ : P    nf_β(P) ⇓ (l ≡ r ∈ A)
+  ------------------------------------------
+  ⟨α⟩ ⇒  l ≐ r : A
+
+Equality is Ω-valued, so this is the ONE pathway — squashed spellings
+normalize to the prop by code-squash-idem's instances. Any other type
+is rejected. nf_β is the β-whnf: an equality hidden behind a
+definition arrives ascribed, ⟨(α : l ≡ r ∈ A by β)⟩. Γ is the context
+AT THE LEAF: the binders the congruence nodes above it crossed are in
+scope (a proof spelled at the root arrives weakened, §2).
+
+  (α : T′ by β) :   α ⇒ l ≐ r : A    β ▷ A ≐ T′ : 𝕍
                     ------------------------------------
-                    π at T′ by πᵀ ⇒  l ≐ r : T′
-  # equal types have equal PERs; how a stated equation meets a
-  # position spelled otherwise (§7, the positional check is β-only)
+                    (α : T′ by β) ⇒  l ≐ r : T′
+  # equal types have equal PERs; the ASCRIPTION — how a stated
+  # equation meets a position spelled otherwise (§7, the positional
+  # check is β-only), how a spine's head shows the Π the next
+  # application needs, how a proof's type shows its ≡
 
 A PATH leaf  qpath 𝕔 θ  cites an imposed equation of its carried
 signature: the kernel demands 𝒮(𝕔) = 𝔄 ending in El (l ≡ r), checks
@@ -654,7 +684,29 @@ consumer joins):
                 the node rebuilt from the results
   type-directed leaves: reject (they need both sides)
 
-The ⇒ reading is §4.
+The ⇒ reading is §4 for the leaves; a TYPED NEUTRAL extends it to
+the elimination nodes over them (the head β-whnf'd for its shape — a
+hidden one arrives ascribed, §4):
+
+  α ⇒ f₀ ≐ f₁ : F   nf_β(F) ⇓ A → B   β ⇒ a₀ ≐ a₁ : A′   A′ ≐ A (β)
+  ------------------------------------------------------------------
+  α β ⇒ f₀ a₀ ≐ f₁ a₁ : B[id, a₀]
+
+  α ⇒ t₀ ≐ t₁ : F   nf_β(F) ⇓ A × B         α ⇒ t₀ ≐ t₁ : F   nf_β(F) ⇓ ν 𝔽
+  ----------------------------------        -------------------------------
+  α .π₁ ⇒ t₀.π₁ ≐ t₁.π₁ : A                 out α ⇒ out t₀ ≐ out t₁ : ⌊𝔽⌋(ν 𝔽)
+  α .π₂ ⇒ t₀.π₂ ≐ t₁.π₂ : B[id, t₀.π₁]
+
+  α ⇒ n₀ ≐ n₁ : ℕ
+  -------------------------
+  S α ⇒ S n₀ ≐ S n₁ : ℕ
+
+A node states its equation only when its head is a typed neutral
+(typedP: a self or checked leaf, an ascription, or such a node); a
+node over a δ or reflection leaf is read by decomposition, as any
+congruence. Under → and ⇐ an elimination node whose head child is
+typed takes the head's STATED type for its children instead of
+reading one off the side (§6).
 
 POSITIONAL TYPE CHECK, A ≐ E: join-syntactic, or cumulativity (a
 licence at 𝕌 at a position typed 𝕍 — code-lift-eq). Nothing else: a
@@ -1042,24 +1094,29 @@ the ascribed leaves inside a proof (§2, §4, §7). The producer records
 them from its own exposure (the engine's whitelist governs matching,
 not shapes: a value the elaborator never elaborated — a solved hole,
 a synthesized type — has its skeleton RECONSTRUCTED with the
-whitelist open). What remains of kernel-initiated δ is the typing of
-BARE SPINES, which have no place for an ascription:
+whitelist open). Proof elements and the neutrals a rewrite sits under
+are TYPED NEUTRALS (§2, §4, §7): spines of elimination nodes over self
+leaves, ascribed where a definition hides a shape — so proof-spine
+typing and neutral-spine typing (⇒ᴺ, §6) are β-only. What remains
+of kernel-initiated δ:
 
-  * proof-spine typing (§3: inferP/checkP) opens a head by δ where
-    the spine's shape demands it (an application's Π, a projection's
-    Σ) and compares a proof argument's type with the expected one by
-    full δβ (kTy);
-  * neutral-spine typing (⇒ᴺ, §6) opens the heads along a spine by δ
-    (head only, never the whole type);
+  * the tiny checker (§3: inferP/checkP) on the ELEMENTS a proof still
+    carries bare — a selector's instantiation element, a δ or path
+    leaf's spine, the prop-ness test — opens a head by a liberal whnf
+    and compares types by nf;
   * the item level's checking fallthrough (a non-intro term with no
-    switch payload) compares inferred and expected by kTy;
+    switch payload) compares inferred and expected by kTy (a QIIT
+    Elim definition's body against its declared codomain; a
+    reconstructed skeleton ships a switch proof where a δ bridge
+    exists);
   * the engine-facing services (kInferBare: typing a hole's value)
     run a LIBERAL whnf — never a verdict path.
 
-All four go together with ascribed spines (a core ascription form,
-or the Church-style core of docs/NovaKernelRewrite.txt), the next
-migration step. The kernel state carries the liberal flag explicitly
-(KSt.liberal), so a verdict path cannot inherit it by accident.
+The first two go with ascribing those elements too (the same
+grammar, at a selector's element and a leaf's spine; a switch at
+every reconstructed position). The kernel state carries the liberal
+flag explicitly (KSt.liberal), so a verdict path cannot inherit it
+by accident.
 
 Two structural caveats restated from docs/NovaPipeline.txt: an
 annotation (motive, ascription, exposure target) is a REPRESENTATIVE,

@@ -369,20 +369,220 @@ deltaPrf sig a0 b0 = do
             if a' == a && b' == b then pure Nothing
               else go k' (seen ++ ns) a' b' (PDeltaAll ns :: la) (PDeltaAll ns :: lb)
 
-||| An elimination's scrutinee type, exposed by recorded δ: the exposed
-||| type (Nothing when the head is not inferable) and the wrapper that
-||| tells the kernel about the exposure (CScrut; the identity when β
-||| alone reached the head).
-headExposed : Sig -> Ctx -> Elem -> KM (Maybe Ty, Prf -> Prf)
-headExposed sig ctx hd = do
+||| Is the term a SPINE — typable from its head's declared type by
+||| eliminations alone (self leaves and elimination nodes)?
+isSpine : Elem -> Bool
+isSpine (CtxVar _) = True
+isSpine (SigVar _ _) = True
+isSpine (PiApp f _) = isSpine f
+isSpine (SigmaElim1 t) = isSpine t
+isSpine (SigmaElim2 t) = isSpine t
+isSpine (Out t) = isSpine t
+isSpine NatIntro0 = True
+isSpine OneIntro = True
+isSpine Elem.ZeroTy = True
+isSpine Elem.OneTy = True
+isSpine Elem.NatTy = True
+isSpine _ = False
+
+mutual
+  ||| A SKELETON for a term checked at a type, built from the kernel's
+  ||| own exposure: the head exposures at intro forms (PExpose) and at
+  ||| eliminations (PScrut) that a β-only checker cannot reach on its
+  ||| own — the translator's twin of the elaborator's reconstruction.
+  chkSkel : Sig -> Ctx -> Elem -> Ty -> KM Skel
+  chkSkel sig ctx e ty = case e of
+    PiIntro f => shaped (\t => case t of PiTy a b => Just (a, b); _ => Nothing) $ \(a, b) =>
+      (\sk => Nd [] [sk]) <$> chkSkel sig (ctx :< a) f b
+    SigmaIntro u v => shaped (\t => case t of SigmaTy a b => Just (a, b); _ => Nothing) $ \(a, b) =>
+      [| (\su, sv => Nd [] [su, sv]) (chkSkel sig ctx u a) (chkSkel sig ctx v (substTy b (Ext Id u))) |]
+    Inj1 a => shaped (\t => case t of SumTy d _ => Just d; _ => Nothing) $ \d =>
+      (\sk => Nd [] [sk]) <$> chkSkel sig ctx a d
+    Inj2 b => shaped (\t => case t of SumTy _ c => Just c; _ => Nothing) $ \c =>
+      (\sk => Nd [] [sk]) <$> chkSkel sig ctx b c
+    Class a => shaped (\t => case t of QuotTy d _ => Just d; _ => Nothing) $ \d =>
+      (\sk => Nd [] [sk]) <$> chkSkel sig ctx a d
+    Corec p a f x => shaped (\t => case t of NuTy pf => Just pf; _ => Nothing) $ \pf =>
+      [| (\sa, sf, sx => Nd [] [sa, sf, sx]) (chkSkel sig ctx a UniverseTy)
+                                              (chkSkel sig (ctx :< a) f (substTy (reflectPoly pf a) Wk))
+                                              (chkSkel sig ctx x a) |]
+    -- ⋆ at an EVIDENT prop: a squashed 𝟙, or an equation the join closes
+    Star => do
+      (tyX, pt) <- exposeK sig ty
+      ty' <- kWhnfT sig tyX
+      case ty' of
+        Squash sq => do
+          sq' <- kWhnfT sig sq
+          pure (case sq' of
+                  OneTy => withExp pt tyX (Nd [PSquashWit OneIntro (Nd [] [])] [])
+                  _ => withExp pt tyX (Nd [] []))
+        Elem.EqTy _ _ _ => pure (withExp pt tyX (Nd [PReflEq PReflx] []))
+        _ => pure (Nd [] [])
+    ZeroElim t => (\sk => Nd [] [sk]) <$> chkSkel sig ctx t ZeroTy
+    -- a QIIT eliminator checked at a type: the CONSTANT-MOTIVE instance
+    -- (every sort's motive the expected type, weakened into the sort's
+    -- context), the coherences by β (docs/NovaKernel.txt, A1/A4)
+    QElim sg k mths es w => do
+      sg' <- kQSig sig sg
+      let sortPs = qPositions QKSort sg'
+      let pointPs = qPositions QKPoint sg'
+      let eqPs = qPositions QKEq sg'
+      mots <- traverse (\sj => do
+                sjE <- case qEntry sg' sj of
+                         Just x => pure x
+                         Nothing => kerr "certificate: sort out of range"
+                (tel, _, _) <- liftQ (reflTel sg' (qwAt sj) sjE)
+                pure (substTy ty (wkN (S (length tel))))) sortPs
+      mSks <- traverse (\(cj, m) => do
+                mty <- liftQ (methodTy sg' mots cj)
+                chkSkel sig ctx m mty) (zip pointPs mths)
+      let esL = toList es
+      eSks <- traverse (\(i, x) => case qSpineChildTy sg' k es i of
+                          Just t => chkSkel sig ctx x t
+                          Nothing => pure (Nd [] [])) (zip (indices esL) esL)
+      wSk <- chkSkel sig ctx w (QSort sg' k es)
+      pure (Nd [PQMotives mots (map (const (Nd [] [])) mots), PQCoh (map (const PReflx) eqPs)]
+               (mSks ++ eSks ++ [wSk]))
+    _ => fst <$> infSkel sig ctx e
+   where
+    indices : List a -> List Nat
+    indices xs = go 0 xs
+     where
+      go : Nat -> List a -> List Nat
+      go _ [] = []
+      go i (_ :: rest) = i :: go (S i) rest
+    withExp : Prf -> Ty -> Skel -> Skel
+    withExp PReflx _ sk = sk
+    withExp pt tyX (Nd ps cs) = Nd (PExpose tyX pt :: ps) cs
+    shaped : (Ty -> Maybe a) -> (a -> KM Skel) -> KM Skel
+    shaped pick k = do
+      (tyX, pt) <- exposeK sig ty
+      ty' <- kWhnfT sig tyX
+      case pick ty' of
+        Just parts => withExp pt tyX <$> k parts
+        Nothing => pure (Nd [] [])
+
+  ||| Inference position: the skeleton and the type it infers to
+  ||| (Nothing when structure alone does not determine it).
+  infSkel : Sig -> Ctx -> Elem -> KM (Skel, Maybe Ty)
+  infSkel sig ctx e = case e of
+    PiApp f a => do
+      (fSk, fTy) <- infSkel sig ctx f
+      case fTy of
+        Just t => do
+          (tX, pt) <- exposeK sig t
+          t' <- kWhnfT sig tX
+          case t' of
+            PiTy dom cod => do
+              aSk <- chkSkel sig ctx a dom
+              pure (withScrutK pt tX (Nd [] [fSk, aSk]), Just (substTy cod (Ext Id a)))
+            _ => pure (Nd [] [fSk, Nd [] []], Nothing)
+        Nothing => pure (Nd [] [fSk, Nd [] []], Nothing)
+    SigmaElim1 t => scrut t (\t' => case t' of SigmaTy a _ => Just a; _ => Nothing)
+    SigmaElim2 t => scrut t (\t' => case t' of SigmaTy _ b => Just (substTy b (Ext Id (SigmaElim1 t))); _ => Nothing)
+    Out t => scrut t (\t' => case t' of NuTy f => Just (reflectPoly f (Elem.NuTy f)); _ => Nothing)
+    NatIntro1 t => (\sk => (Nd [] [sk], Just NatTy)) <$> chkSkel sig ctx t NatTy
+    Elem.EqTy l r t => do
+      sl <- chkSkel sig ctx l t
+      sr <- chkSkel sig ctx r t
+      (st, _) <- infSkel sig ctx t
+      pure (Nd [] [sl, sr, st], Just PropTy)
+    Squash t => (\(sk, _) => (Nd [] [sk], Just PropTy)) <$> infSkel sig ctx t
+    _ => do
+      mt <- inferHead sig ctx e
+      pure (Nd [] [], mt)
+   where
+    withScrutK : Prf -> Ty -> Skel -> Skel
+    withScrutK PReflx _ sk = sk
+    withScrutK pt tyX (Nd ps cs) = Nd (PScrut tyX pt :: ps) cs
+    scrut : Elem -> (Ty -> Maybe Ty) -> KM (Skel, Maybe Ty)
+    scrut t pick = do
+      (tSk, tTy) <- infSkel sig ctx t
+      case tTy of
+        Just x => do
+          (xX, pt) <- exposeK sig x
+          x' <- kWhnfT sig xX
+          pure (withScrutK pt xX (Nd [] [tSk]), pick x')
+        Nothing => pure (Nd [] [tSk], Nothing)
+
+  ||| A TYPED NEUTRAL: the spine as a synthesising proof — self leaves
+  ||| at the head, elimination nodes above, an ascription (PAt with a
+  ||| δ proof) wherever a definition hides the shape the next
+  ||| elimination needs — and the type it states.
+  elemToPrf : Sig -> Ctx -> Elem -> KM (Prf, Ty)
+  elemToPrf sig ctx e = case e of
+    PiApp f a => do
+      (pf, fTy) <- elemToPrf sig ctx f
+      (fTyX, pt) <- exposeK sig fTy
+      fTy' <- kWhnfT sig fTyX
+      case fTy' of
+        PiTy dom cod => do
+          pa <- argPrf sig ctx a dom
+          pure (CPiApp (ascribe pf fTyX pt) pa, substTy cod (Ext Id a))
+        _ => kerr "certificate: typed neutral applies a non-function [\{show f} : \{show fTy'}]"
+    SigmaElim1 t => do
+      (pt', tTy) <- elemToPrf sig ctx t
+      (tTyX, pt) <- exposeK sig tTy
+      tTy' <- kWhnfT sig tTyX
+      case tTy' of
+        SigmaTy a _ => pure (CSigmaElim1 (ascribe pt' tTyX pt), a)
+        _ => kerr "certificate: typed neutral projects a non-pair [\{show t} : \{show tTy'}]"
+    SigmaElim2 t => do
+      (pt', tTy) <- elemToPrf sig ctx t
+      (tTyX, pt) <- exposeK sig tTy
+      tTy' <- kWhnfT sig tTyX
+      case tTy' of
+        SigmaTy _ b => pure (CSigmaElim2 (ascribe pt' tTyX pt), substTy b (Ext Id (SigmaElim1 t)))
+        _ => kerr "certificate: typed neutral projects a non-pair [\{show t} : \{show tTy'}]"
+    Out t => do
+      (pt', tTy) <- elemToPrf sig ctx t
+      (tTyX, pt) <- exposeK sig tTy
+      tTy' <- kWhnfT sig tTyX
+      case tTy' of
+        NuTy f => pure (COut (ascribe pt' tTyX pt), reflectPoly f (Elem.NuTy f))
+        _ => kerr "certificate: typed neutral observes a non-ν element [\{show t} : \{show tTy'}]"
+    _ => do
+      (_, _, ty) <- kPrfS sig ctx (PSelf e)
+      pure (PSelf e, ty)
+   where
+    ascribe : Prf -> Ty -> Prf -> Prf
+    ascribe p _ PReflx = p
+    ascribe p tyX pt = PAt p tyX pt
+
+  ||| A proof ARGUMENT at the domain the head demands: a spine states
+  ||| its type and is ascribed to the domain when spelled otherwise; any
+  ||| other form is checked at the domain (PChk, with its skeleton).
+  argPrf : Sig -> Ctx -> Elem -> Ty -> KM Prf
+  argPrf sig ctx a dom =
+    if isSpine a
+      then do
+        (pa, aTy) <- elemToPrf sig ctx a
+        ok <- tyAgreeB sig dom aTy
+        if ok then pure pa else do
+          md <- deltaPrf sig aTy dom
+          case md of
+            Just pt => pure (PAt pa dom pt)
+            Nothing => kerr "certificate: proof argument at the wrong type [stated: \{show aTy}; expected: \{show dom}]"
+      else do
+        sk <- chkSkel sig ctx a dom
+        pure (PChk a dom sk)
+
+||| The head of an elimination as a proof child: reflexivity when its
+||| declared type already shows the shape the node needs (β), else the
+||| typed neutral that states it. Returns the (exposed) type as well.
+headPrf : Sig -> Ctx -> Elem -> KM (Maybe Ty, Prf)
+headPrf sig ctx hd = do
   hTy <- inferHead sig ctx hd
   case hTy of
-    Nothing => pure (Nothing, id)
+    Nothing =>
+      if isSpine hd
+        then do (p, t) <- elemToPrf sig ctx hd; pure (Just t, p)
+        else pure (Nothing, PReflx)
     Just t => do
       (tX, pt) <- exposeK sig t
-      pure (Just tX, case pt of
-                       PReflx => id
-                       _ => CScrut tX pt)
+      case pt of
+        PReflx => pure (Just t, PReflx)
+        _ => do (p, t') <- elemToPrf sig ctx hd; pure (Just t', p)
 
 ||| The classifier a shared former's components sit at, as the kernel
 ||| reads it (compClassifier).
@@ -438,18 +638,18 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
       shaped "λ-congruence" (\t => case t of PiTy a c => Just (a, c); _ => Nothing) $ \((a, c), conv) =>
         (\(q, f') => (conv (CPiIntro q), PiIntro f')) <$> go (ctx :< a) (Just c) (1 + b) f
     (PiApp f e, 0) => do
-      (fTy, wrap) <- headExposed sig ctx f
-      (\(q, f') => (wrap (CPiApp q PReflx), PiApp f' e)) <$> go ctx fTy b f
+      fTy <- inferHead sig ctx f
+      (\(q, f') => (CPiApp q PReflx, PiApp f' e)) <$> go ctx fTy b f
     (PiApp f e, 1) => do
-      (fTy, wrap) <- headExposed sig ctx f
+      (fTy, pf) <- headPrf sig ctx f
       aTy <- domOf sig fTy
-      (\(q, e') => (wrap (CPiApp PReflx q), PiApp f e')) <$> go ctx aTy b e
+      (\(q, e') => (CPiApp pf q, PiApp f e')) <$> go ctx aTy b e
     (SigmaElim1 t, 0) => do
-      (tTy, wrap) <- headExposed sig ctx t
-      (\(q, t') => (wrap (CSigmaElim1 q), SigmaElim1 t')) <$> go ctx tTy b t
+      tTy <- inferHead sig ctx t
+      (\(q, t') => (CSigmaElim1 q, SigmaElim1 t')) <$> go ctx tTy b t
     (SigmaElim2 t, 0) => do
-      (tTy, wrap) <- headExposed sig ctx t
-      (\(q, t') => (wrap (CSigmaElim2 q), SigmaElim2 t')) <$> go ctx tTy b t
+      tTy <- inferHead sig ctx t
+      (\(q, t') => (CSigmaElim2 q, SigmaElim2 t')) <$> go ctx tTy b t
     (Inj1 t, 0) =>
       shaped "inj₁ congruence" (\ty => case ty of SumTy a _ => Just a; _ => Nothing) $ \(a, conv) =>
         (\(q, t') => (conv (CInj1 q), Inj1 t')) <$> go ctx (Just a) b t
@@ -457,14 +657,14 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
       shaped "inj₂ congruence" (\ty => case ty of SumTy _ c => Just c; _ => Nothing) $ \(c, conv) =>
         (\(q, t') => (conv (CInj2 q), Inj2 t')) <$> go ctx (Just c) b t
     (SumElim l r t, 0) => do
-      ((a, _), wrap) <- sumParts t
-      (\(q, l') => (wrap (CSumElim Nothing q PReflx PReflx), SumElim l' r t)) <$> go (ctx :< a) Nothing (1 + b) l
+      ((a, _), pt) <- sumParts t
+      (\(q, l') => (CSumElim Nothing q PReflx pt, SumElim l' r t)) <$> go (ctx :< a) Nothing (1 + b) l
     (SumElim l r t, 1) => do
-      ((_, c), wrap) <- sumParts t
-      (\(q, r') => (wrap (CSumElim Nothing PReflx q PReflx), SumElim l r' t)) <$> go (ctx :< c) Nothing (1 + b) r
+      ((_, c), pt) <- sumParts t
+      (\(q, r') => (CSumElim Nothing PReflx q pt, SumElim l r' t)) <$> go (ctx :< c) Nothing (1 + b) r
     (SumElim l r t, 2) => do
-      (tTy, wrap) <- headExposed sig ctx t
-      (\(q, t') => (wrap (CSumElim Nothing PReflx PReflx q), SumElim l r t')) <$> go ctx tTy b t
+      tTy <- inferHead sig ctx t
+      (\(q, t') => (CSumElim Nothing PReflx PReflx q, SumElim l r t')) <$> go ctx tTy b t
     (SigmaIntro x y, 0) =>
       shaped "pair congruence" (\ty => case ty of SigmaTy a c => Just (a, c); _ => Nothing) $ \((a, c), conv) =>
         (\(q, x') => (conv (CSigmaIntro q PReflx), SigmaIntro x' y)) <$> go ctx (Just a) b x
@@ -504,17 +704,17 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
       shaped "class congruence" (\ty => case ty of QuotTy dom _ => Just dom; _ => Nothing) $ \(dom, conv) =>
         (\(q, a') => (conv (CClass q), Class a')) <$> go ctx (Just dom) b a
     (Out t, 0) => do
-      (tTy, wrap) <- headExposed sig ctx t
-      (\(q, t') => (wrap (COut q), Out t')) <$> go ctx tTy b t
+      tTy <- inferHead sig ctx t
+      (\(q, t') => (COut q, Out t')) <$> go ctx tTy b t
     (Corec pf a f x, 0) => (\(q, a') => (CCorec pf q PReflx PReflx, Corec pf a' f x)) <$> go ctx (Just UniverseTy) b a
     (Corec pf a f x, 1) => (\(q, f') => (CCorec pf PReflx q PReflx, Corec pf a f' x)) <$> go (ctx :< a) Nothing (1 + b) f
     (Corec pf a f x, 2) => (\(q, x') => (CCorec pf PReflx PReflx q, Corec pf a f x')) <$> go ctx (Just a) b x
     (QuotElim f q0, 0) => do
-      ((a, _), wrap) <- quotParts q0
-      (\(q, f') => (wrap (CQuotElim Nothing q PReflx), QuotElim f' q0)) <$> go (ctx :< a) Nothing (1 + b) f
+      ((a, _), pq) <- quotParts q0
+      (\(q, f') => (CQuotElim Nothing q pq, QuotElim f' q0)) <$> go (ctx :< a) Nothing (1 + b) f
     (QuotElim f q0, 1) => do
-      (qTy, wrap) <- headExposed sig ctx q0
-      (\(q, q0') => (wrap (CQuotElim Nothing PReflx q), QuotElim f q0')) <$> go ctx qTy b q0
+      qTy <- inferHead sig ctx q0
+      (\(q, q0') => (CQuotElim Nothing PReflx q, QuotElim f q0')) <$> go ctx qTy b q0
     (Squash t, 0) => (\(q, t') => (CSquash q, Squash t')) <$> go ctx (Just TopTy) b t
     (QSort sg k es, _) =>
       (\(qs, es') => (CQSort sg k qs, QSort sg k es')) <$> spineWrap i es (go ctx (qSpineChildTy sg k es i) b)
@@ -528,26 +728,28 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
                <$> spineWrap i es (go ctx (qSpineChildTy sg k es i) b)
     _ => kerr "certificate: bad path [i=\{show i}, at \{show u}]"
  where
-  sumParts : Elem -> KM ((Ty, Ty), Prf -> Prf)
+  -- the scrutinee as a proof child (a typed neutral when its declared
+  -- type hides the shape) and the shape's parts
+  sumParts : Elem -> KM ((Ty, Ty), Prf)
   sumParts t = do
-    (tTy, wrap) <- headExposed sig ctx t
+    (tTy, pt) <- headPrf sig ctx t
     case tTy of
       Just x => do
         x' <- kWhnfT sig x
         pure (case x' of
-                SumTy a c => ((a, c), wrap)
-                _ => ((TopTy, TopTy), wrap))
-      Nothing => pure ((TopTy, TopTy), wrap)
-  quotParts : Elem -> KM ((Ty, Ty), Prf -> Prf)
+                SumTy a c => ((a, c), pt)
+                _ => ((TopTy, TopTy), pt))
+      Nothing => pure ((TopTy, TopTy), pt)
+  quotParts : Elem -> KM ((Ty, Ty), Prf)
   quotParts q = do
-    (qTy, wrap) <- headExposed sig ctx q
+    (qTy, pq) <- headPrf sig ctx q
     case qTy of
       Just x => do
         x' <- kWhnfT sig x
         pure (case x' of
-                QuotTy a r => ((a, r), wrap)
-                _ => ((TopTy, TopTy), wrap))
-      Nothing => pure ((TopTy, TopTy), wrap)
+                QuotTy a r => ((a, r), pq)
+                _ => ((TopTy, TopTy), pq))
+      Nothing => pure ((TopTy, TopTy), pq)
 
 mutual
   ||| The steps applied in order to a β-joined side: the proof (a
@@ -607,13 +809,14 @@ mutual
   leafOf sig ctx step = do
     base <- case step.lic of
       LProof p => do
-        -- the proof's type exposed to its ≡ by recorded δ: an ascribed
-        -- leaf where the kernel's β-whnf would not reach the prop
-        pty <- inferP sig ctx p
+        -- the proof element as a TYPED NEUTRAL (self leaves, elimination
+        -- nodes, ascriptions where a definition hides a shape), its type
+        -- exposed to its ≡ by recorded δ — an ascription again
+        (pp, pty) <- elemToPrf sig ctx p
         (ptyX, pt) <- exposeK sig pty
         pure (case pt of
-                PReflx => PRefl p
-                _ => PReflAt p ptyX pt)
+                PReflx => PRefl pp
+                _ => PRefl (PAt pp ptyX pt))
       LPath sg k th => pure (PPath sg k th)
       LUnfold x es => pure (PDelta x es)
       LUnfoldAll _ => kerr "certificate: an unfold-all step is forward-only, at the root"
@@ -739,6 +942,19 @@ mutual
 export
 certFuel : Nat
 certFuel = 1000000
+
+||| A proof element as a reflected typed neutral (for the elaborator's
+||| own proof leaves).
+export
+prfOfElem : Sig -> Ctx -> Elem -> Maybe Prf
+prfOfElem sig ctx p =
+  case runKM (do (pp, pty) <- elemToPrf sig ctx p
+                 (ptyX, pt) <- exposeK sig pty
+                 pure (case pt of
+                         PReflx => PRefl pp
+                         _ => PRefl (PAt pp ptyX pt))) certFuel of
+    Right (q, _) => Just q
+    Left _ => Nothing
 
 ||| Translate a certificate for Γ ⊢ l ≐ r : ty; Left = the certificate
 ||| does not even replay engine-side (the same signal a kernel

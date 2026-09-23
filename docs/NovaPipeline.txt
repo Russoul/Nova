@@ -178,14 +178,18 @@ a stated equation sits at — reaches the kernel as a recorded
 conversion (an expose/scrut payload at the item level, a conv/scrut
 node or an ascribed leaf inside a proof), produced by the engine's
 own exposure; a value the elaborator never elaborated (a solved
-hole, a synthesized type) has its skeleton reconstructed. What still
-unfolds on the kernel's own initiative is the typing of BARE SPINES
-— proof-spine and neutral-spine typing open heads by δ, and the item
-level's switch-less fallthrough compares types by full δβ — which
-have no place for an ascription; that goes with ascribed spines, the
-next migration step (docs/NovaKernel.txt §9). The floor in every
-variant: α-comparison and substitution stay trusted — no kernel
-design knows less than that.
+hole, a synthesized type) has its skeleton reconstructed. A proof
+element, and the neutral a rewrite sits under, is a TYPED NEUTRAL:
+the spine written as a proof term over self leaves, ascribed where a
+definition hides a shape, so it states its own type and the kernel
+unfolds nothing to type it. Proof terms are written in the core's
+own syntax ((x : T by α) .π₂ y reads as the term it is about). What
+still unfolds on the kernel's own initiative is confined to the few
+elements a proof carries bare — a selector's instantiation element, a
+δ leaf's spine — and the item level's switch-less fallthrough
+(docs/NovaKernel.txt §9). The floor in every variant: α-comparison
+and substitution stay trusted — no kernel design knows less than
+that.
 
 ////////// Who produces what: the two tactic layers //////////
 
