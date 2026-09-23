@@ -186,8 +186,10 @@ unfolds nothing to type it. Proof terms are written in the core's
 own syntax ((x : T by α) .π₂ y reads as the term it is about). What
 still unfolds on the kernel's own initiative is confined to the few
 elements a proof carries bare — a selector's instantiation element, a
-δ leaf's spine — and the item level's switch-less fallthrough
-(docs/NovaKernel.txt §9). The floor in every variant: α-comparison
+δ leaf's spine — and to the identity of carried QIIT signatures,
+compared after normalization (docs/NovaKernel.txt §9); the item
+level's switch-less fallthrough compares by β alone, every δ-apart
+position carrying its switch proof. The floor in every variant: α-comparison
 and substitution stay trusted — no kernel design knows less than
 that.
 

@@ -4044,22 +4044,6 @@ freeName sig item role (S f) n =
     Nothing => q
     Just _ => freeName sig item role f (S n)
 
-emitInlineDef : Site -> (role : String) -> Ctx -> Ty -> Skel -> Elem -> Skel -> ElabM String
-emitInlineDef site role ctx ty tySk body bodySk = do
-  st <- getSt
-  let item = if st.modPrefix == "" then st.curItem else "\{st.modPrefix}.\{st.curItem}"
-  let pfx = "\{item}#\{role}"
-  let n = length (filter (\e => maybe False (isPrefixOf pfx) (sigEntryName e)) (toList st.sig))
-  let q = freeName st.sig item role 64 n
-  let k = length ctx
-  let cty = piClose ctx ty
-  let cbody = wrapLams k body
-  kernelAccept "\{site} \{q}"
-    (\ksig => kCheckDefItem ksig kernelFuel
-                (MkKDefArt q [] cty (nestPiSkelN k tySk) cbody (nestSkel k bodySk)))
-  modifySt $ { sig $= (:< SigDef [<] q cbody cty), transp $= (q ::) }
-  pure q
-
 -- ===== Σ-variable elimination (e-sigmaelim) =====
 --
 -- The context surgery `sigma-elim` runs on. Everything here is index
@@ -4183,6 +4167,11 @@ mutual
                                                 reSkelE st ctx x a])
       Nothing => Nd [] []
     ZeroElim t => Nd [] [reSkelE st ctx t ZeroTy]
+    -- a constructor's argument spine, each entry at the reflected
+    -- telescope's type (an external domain written as a definition
+    -- meets it unfolded: the entry's switch rides along)
+    QCtor sg k es => Nd [] (qSpineSkels st ctx sg k es)
+    QSort sg k es => Nd [] (qSpineSkels st ctx sg k es)
     -- a non-intro term at a type spelled otherwise than the one it
     -- infers to: the switch proof (a δ bridge) rides along, since the
     -- kernel's switch-less fallthrough compares by β only
@@ -4196,6 +4185,22 @@ mutual
 
   reSkelI : ElabSt -> Ctx -> Elem -> Skel
   reSkelI st0 ctx e = fst (reSkelIT (openExp st0) ctx e)
+
+  ||| A QIIT spine's entry skeletons, each at its reflected telescope type.
+  qSpineSkels : ElabSt -> Ctx -> QSig -> Nat -> SubNorm -> List Skel
+  qSpineSkels st ctx sg0 k es = go 0 (toList es)
+   where
+    -- the signature as the KERNEL spells it (embedded pieces in nf):
+    -- entry types come from there, so a binder declared at the
+    -- written spelling meets its switch
+    sg : QSig
+    sg = fromMaybe sg0 (kQSigB st.kernelSig kernelFuel sg0)
+    go : Nat -> List Elem -> List Skel
+    go i [] = []
+    go i (x :: rest) =
+      (case qSpineChildTy sg k es i of
+         Just t => reSkelE st ctx x t
+         Nothing => reSkelI st ctx x) :: go (S i) rest
 
   ||| Inference position: the skeleton AND the term's type, computed
   ||| once, bottom-up (a spine's head is typed once, not once per
@@ -4242,6 +4247,8 @@ mutual
     Elem.EqTy l r t => (Nd [] [reSkelE st ctx l t, reSkelE st ctx r t, reSkelI st ctx t], Just PropTy)
     QuotTy a r => (Nd [] [reSkelI st ctx a, reSkelI st (ctx :< a :< substTy a Wk) r], Just UniverseTy)
     Squash t => (Nd [] [reSkelI st ctx t], Just PropTy)
+    QCtor sg k es => (Nd [] (qSpineSkels st ctx sg k es), Nothing)
+    QSort sg k es => (Nd [] (qSpineSkels st ctx sg k es), Nothing)
     -- a ⊎-elim in a TYPE (a relator instance): its scrutinee typed
     -- and exposed, the cases at Ω under the summands
     SumElim l r t =>
@@ -4268,6 +4275,29 @@ mutual
 
 tySkelK : ElabSt -> Ctx -> Ty -> Skel
 tySkelK st ctx ty = reSkelI st ctx ty
+
+emitInlineDef : Site -> (role : String) -> Ctx -> Ty -> Skel -> Elem -> Skel -> ElabM String
+emitInlineDef site role ctx ty tySk body bodySk = do
+  st <- getSt
+  let item = if st.modPrefix == "" then st.curItem else "\{st.modPrefix}.\{st.curItem}"
+  let pfx = "\{item}#\{role}"
+  let n = length (filter (\e => maybe False (isPrefixOf pfx) (sigEntryName e)) (toList st.sig))
+  let q = freeName st.sig item role 64 n
+  let k = length ctx
+  let cty = piClose ctx ty
+  let cbody = wrapLams k body
+  -- the Π-closure's binder types carry reconstructed skeletons: a
+  -- context entry spelled at a definition-hidden shape (a hypothesis
+  -- at u ≡ cinf ∈ conat with u bound at the exposed ν) needs its
+  -- switch, since the kernel's switch-less fallthrough is β-only
+  let closeSk : Ctx -> Skel -> Skel
+      closeSk [<] sk = sk
+      closeSk (c :< a) sk = closeSk c (Nd [] [tySkelK st c a, sk])
+  kernelAccept "\{site} \{q}"
+    (\ksig => kCheckDefItem ksig kernelFuel
+                (MkKDefArt q [] cty (closeSk ctx tySk) cbody (nestSkel k bodySk)))
+  modifySt $ { sig $= (:< SigDef [<] q cbody cty), transp $= (q ::) }
+  pure q
 
 ||| A proposition p — the expected type ty exposed so far by exp —
 ||| taken to its ≡/∥·∥ head by LOGGED δ, the exposure proof extended
@@ -7275,7 +7305,7 @@ elabItemGo irng (SData params decls) = do
       then do
         let ty = wrapParams ptys (foldr PiTy UniverseTy tel)
         let body = wrapLams (np + n) (QSort (sgAt sg n) k (varSpine n))
-        emitCoreDef site nm ty (Nd [] []) body (Nd [] [])
+        emitCoreDef site nm ty (tySkelK st [<] ty) body (reSkelE st [<] body ty)
       else if n == 0 && np == 0
         then emitCoreTyDef site nm (QSort sg k [<]) (Nd [] [])
         else throwAt site.srange "\{site}: an indexed or parameterized sort of a LARGE signature has no closed-item spelling (make the signature small)"
@@ -7287,7 +7317,12 @@ elabItemGo irng (SData params decls) = do
     ty0 <- liftQE site (reflQTy sg (qwAt k) entry)
     let n = qtyBinders entry
     let body = wrapLams (np + n) (QCtor (sgAt sg n) k (varSpine n))
-    emitCoreDef site nm (wrapParams ptys ty0) (Nd [] []) body (Nd [] [])
+    -- skeletons RECONSTRUCTED: a constructor argument declared at an
+    -- external domain as written meets the telescope entry the kernel
+    -- reflects from the normalized signature — the switch rides along
+    st <- getSt
+    let ty = wrapParams ptys ty0
+    emitCoreDef site nm ty (tySkelK st [<] ty) body (reSkelE st [<] body ty)
 
   ||| An equation constructor: a ⋆-lemma (typed at the equality
   ||| prop), licensed by
@@ -7307,7 +7342,8 @@ elabItemGo irng (SData params decls) = do
     let ty = wrapParams ptys (foldr PiTy (Elem.EqTy lE rE uT) tel)
     let body = wrapLams (np + n) Star
     let cert = PPath (sgAt sg n) k (varSpine n)
-    emitCoreDef site nm ty (Nd [] []) body (nestSkel (np + n) (Nd [PReflEq cert] []))
+    st <- getSt
+    emitCoreDef site nm ty (tySkelK st [<] ty) body (nestSkel (np + n) (Nd [PReflEq cert] []))
 
   ||| The eliminator def for sort s: motives (code-valued), methods,
   ||| COHERENCES AS HYPOTHESES (≡-typed arguments — extensionality's
@@ -7414,10 +7450,19 @@ elabItemGo irng (SData params decls) = do
     let resTy = wrapMot (PiApp (applyChain (CtxVar cS) idxAtEnd) (CtxVar 0))
     let defTy = wrapParams ptys
                   (foldr PiTy resTy (cTys ++ mTys ++ hTys ++ sTel ++ [wTy]))
-    let emptySk = the Skel (Nd [] [])
+    -- each binder type's skeleton, reconstructed in its prefix context
+    -- (a method type mentions the sort through the carried signature
+    -- while the binder spells an external domain as a definition:
+    -- the reconstruction ships the switch); the coherence binders
+    -- keep the skeletons built for them above
+    st0 <- getSt
+    let telSks : Ctx -> List (Ty, Maybe Skel) -> List Skel
+        telSks c [] = []
+        telSks c ((t, ov) :: rest) = fromMaybe (tySkelK st0 c t) ov :: telSks (c :< t) rest
     let defTySk = nestPiSkel np (piChainSkel
-                    (map (const emptySk) cTys ++ map (const emptySk) mTys ++
-                     hSks ++ map (const emptySk) sTel ++ [emptySk]))
+                    (telSks ([<] <>< ptys)
+                       (map (\t => (t, Nothing)) cTys ++ map (\t => (t, Nothing)) mTys ++
+                        zip hTys (map Just hSks) ++ map (\t => (t, Nothing)) sTel ++ [(wTy, Nothing)])))
     -- body: λ^N (𝒮.s-elim ℰ ē w)
     let endExtra = nM + nH + nI + 1
     motsEnd <- motTysAt endExtra
@@ -7444,8 +7489,31 @@ elabItemGo irng (SData params decls) = do
                     pure (PRefl (foldl (\p, v => CPiApp p (PSelf v)) (PSelf (CtxVar hIdx)) dVars)))
                 (zipWithIndex 0 eqPs)
     -- the motives ride in the skeleton (the core eliminator carries
-    -- only what β reads: the methods), each a binder variable here
-    let bodySk = nestSkel (np + bigN) (Nd [PQMotives motsEnd (map (const (Nd [] [])) motsEnd), PQCoh cohCerts] [])
+    -- only what β reads: the methods), each a binder variable here.
+    -- A method or eliminee binder whose declared type spells the
+    -- kernel's displayed type otherwise (an external domain written
+    -- as a definition, unfolded inside the carried signature) carries
+    -- a SWITCH proof at its child position — the kernel's switch-less
+    -- fallthrough compares by β only
+    st <- getSt
+    let switchAt : Ty -> Ty -> Skel
+        switchAt declared expected =
+          if compTy declared == compTy expected then Nd [] []
+            else case deltaJoinC st declared expected >>= (\c => either (const Nothing) Just (toPrfTy st.sig [<] c declared expected)) of
+                   Just p => Nd [PSwitch p] []
+                   Nothing => Nd [] []
+    -- the expected types as the KERNEL spells them: from the carried
+    -- signature with its embedded pieces normalized (kQSig)
+    let sgK = fromMaybe (sgAt sg bigN) (kQSigB st.kernelSig kernelFuel (sgAt sg bigN))
+    let mSks = map (\(i, cj) =>
+                 let k = minus endExtra (S i) in
+                 case (getAt i mTys, methodTy sgK motsEnd cj) of
+                   (Just mTy, Right expected) => switchAt (substTy mTy (wkN (S k))) expected
+                   _ => Nd [] []) (zipWithIndex 0 pointPs)
+    let wSk = switchAt (substTy wTy Wk) (QSort sgK s (cast idxAtEnd))
+    let bodySk = nestSkel (np + bigN)
+                   (Nd [PQMotives motsEnd (map (const (Nd [] [])) motsEnd), PQCoh cohCerts]
+                       (mSks ++ replicate nI (Nd [] []) ++ [wSk]))
     emitCoreDef site (nm ++ (if prop then "ElimP" else "Elim")) defTy defTySk body bodySk
    where
     upto : Nat -> List Nat

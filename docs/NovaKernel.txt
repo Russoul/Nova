@@ -1104,17 +1104,23 @@ of kernel-initiated δ:
     carries bare — a selector's instantiation element, a δ or path
     leaf's spine, the prop-ness test — opens a head by a liberal whnf
     and compares types by nf;
-  * the item level's checking fallthrough (a non-intro term with no
-    switch payload) compares inferred and expected by kTy (a QIIT
-    Elim definition's body against its declared codomain; a
-    reconstructed skeleton ships a switch proof where a δ bridge
-    exists);
+  * CARRIED SIGNATURES: two sorts at one position and spine agree
+    when their carried signatures normalize alike (tyAgree, §7) — the
+    structural identity el-qiit-beta already fires on (A3: a carrier
+    is inert syntax, compared after nf, never a proof position);
   * the engine-facing services (kInferBare: typing a hole's value)
     run a LIBERAL whnf — never a verdict path.
 
-The first two go with ascribing those elements too (the same
-grammar, at a selector's element and a leaf's spine; a switch at
-every reconstructed position). The kernel state carries the liberal
+The item level's checking fallthrough (a non-intro term with no
+switch payload) compares inferred and expected by β and cumulativity
+ONLY: every position whose spelling is δ-apart carries a switch proof
+— from elaboration, from a reconstructed skeleton (a solved hole, a
+synthesized type, an inline definition's Π-closure), or from the
+data-item emission (a constructor's or eliminator's binder declared at
+an external domain as written, meeting the telescope entry the kernel
+reflects from the normalized signature). The first residue goes with
+ascribing those elements too (the same grammar, at a selector's
+element and a leaf's spine). The kernel state carries the liberal
 flag explicitly (KSt.liberal), so a verdict path cannot inherit it
 by accident.
 

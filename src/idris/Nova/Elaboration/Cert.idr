@@ -419,6 +419,9 @@ mutual
         Elem.EqTy _ _ _ => pure (withExp pt tyX (Nd [PReflEq PReflx] []))
         _ => pure (Nd [] [])
     ZeroElim t => (\sk => Nd [] [sk]) <$> chkSkel sig ctx t ZeroTy
+    -- a constructor's or sort's spine, each entry at its telescope type
+    QCtor sg k es => Nd [] <$> spineSkels sg k es
+    QSort sg k es => Nd [] <$> spineSkels sg k es
     -- a QIIT eliminator checked at a type: the CONSTANT-MOTIVE instance
     -- (every sort's motive the expected type, weakened into the sort's
     -- context), the coherences by β (docs/NovaKernel.txt, A1/A4)
@@ -443,7 +446,20 @@ mutual
       wSk <- chkSkel sig ctx w (QSort sg' k es)
       pure (Nd [PQMotives mots (map (const (Nd [] [])) mots), PQCoh (map (const PReflx) eqPs)]
                (mSks ++ eSks ++ [wSk]))
-    _ => fst <$> infSkel sig ctx e
+    -- a non-intro term at a type spelled otherwise than the one it
+    -- infers to: the switch proof (a δ bridge) rides along, since the
+    -- kernel's switch-less fallthrough compares by β only
+    _ => do
+      (sk, mty) <- infSkel sig ctx e
+      case mty of
+        Just t => do
+          ok <- tyAgreeB sig ty t
+          if ok then pure sk else do
+            md <- deltaPrf sig t ty
+            pure (case (md, sk) of
+                    (Just p, Nd ps cs) => Nd (PSwitch p :: ps) cs
+                    (Nothing, _) => sk)
+        Nothing => pure sk
    where
     indices : List a -> List Nat
     indices xs = go 0 xs
@@ -451,6 +467,13 @@ mutual
       go : Nat -> List a -> List Nat
       go _ [] = []
       go i (_ :: rest) = i :: go (S i) rest
+    spineSkels : QSig -> Nat -> SubNorm -> KM (List Skel)
+    spineSkels sg k es = do
+      sg' <- kQSig sig sg
+      let esL = toList es
+      traverse (\(i, x) => case qSpineChildTy sg' k es i of
+                             Just t => chkSkel sig ctx x t
+                             Nothing => fst <$> infSkel sig ctx x) (zip (indices esL) esL)
     withExp : Prf -> Ty -> Skel -> Skel
     withExp PReflx _ sk = sk
     withExp pt tyX (Nd ps cs) = Nd (PExpose tyX pt :: ps) cs

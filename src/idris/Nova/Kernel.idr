@@ -1823,7 +1823,22 @@ mutual
   tyAgree sig exp got = do
     expN <- kJoinTy sig exp
     gotN <- kJoinTy sig got
-    pure (expN == gotN || (expN == TopTy && gotN == UniverseTy))
+    if expN == gotN || (expN == TopTy && gotN == UniverseTy)
+      then pure True
+      else case (expN, gotN) of
+        -- a CARRIED SIGNATURE is inert syntax compared after
+        -- normalization (structural identity, as el-qiit-beta fires):
+        -- two sorts at one position and spine agree when their carried
+        -- signatures normalize alike — the one place δ still acts, inside
+        -- a carrier (A3, §9)
+        (QSort sg0 k0 es0, QSort sg1 k1 es1) =>
+          if k0 == k1 && es0 == es1
+            then do
+              n0 <- kQSig sig sg0
+              n1 <- kQSig sig sg1
+              pure (n0 == n1)
+            else pure False
+        _ => pure False
 
   ||| POSITIONAL TYPE CHECK: a leaf's equation is at the type of the
   ||| position it sits at — the type flowing down, or, where the node
@@ -2763,15 +2778,14 @@ mutual
                   else kerr "kernel: constructor indices do not match the type"
               _ => kerr "kernel: constructor checked at a non-QIIT type"
           _ => do
-            -- no switch payload: inferred and expected compared by full
-            -- δβ — the item level's residue (a QIIT eliminator's motive
-            -- instance against the declared codomain of its Elim
-            -- definition, say); a reconstructed skeleton ships a switch
-            -- proof where it can (docs/NovaKernel.txt §9)
+            -- no switch payload: inferred and expected agree under β
+            -- (or by cumulativity). A δ-apart spelling arrives with a
+            -- switch proof — from elaboration, from a reconstructed
+            -- skeleton, or from the eliminator emission's method and
+            -- eliminee binders
             inferred <- kInferE sig ctx e sk
-            i' <- kTy sig inferred
-            t' <- kTy sig ty
-            if i' == t' then pure () else kerr "kernel: type mismatch without a switch certificate\n  inferred: \{show i'}\n  expected: \{show t'}"
+            ok <- tyAgree sig ty inferred
+            if ok then pure () else kerr "kernel: type mismatch without a switch certificate [\{show e}; skeleton payloads \{show (length (skelPayloads sk))}]\n  inferred: \{show inferred}\n  expected: \{show ty}"
 
   ||| Γ ⊢ e ⇒ A, kernel-side.
   export
@@ -2929,13 +2943,18 @@ mutual
                       kCheckTyK sig (mctx :< selfTy) mot motSk
                       goMotives sjs rest
                     goMotives _ _ = kerr "kernel: motive count mismatch"
-                let goMethods : List Nat -> List Elem -> KM ()
-                    goMethods [] [] = pure ()
-                    goMethods (cj :: cjs) (m :: rest) = do
+                -- the node's child skeletons: the methods, then the
+                -- index spine, then the eliminee (a method that is a
+                -- variable whose declared type spells the displayed
+                -- type otherwise carries its switch there)
+                let nM = length pointPs
+                let goMethods : Nat -> List Nat -> List Elem -> KM ()
+                    goMethods j [] [] = pure ()
+                    goMethods j (cj :: cjs) (m :: rest) = do
                       mty <- liftQ (methodTy sg mots cj)
-                      kCheckE sig ctx m mty (Nd [] [])
-                      goMethods cjs rest
-                    goMethods _ _ = kerr "kernel: method count mismatch"
+                      kCheckE sig ctx m mty (skelChild j sk')
+                      goMethods (S j) cjs rest
+                    goMethods _ _ _ = kerr "kernel: method count mismatch"
                 let goCoherences : List Nat -> List Prf -> KM ()
                     goCoherences [] [] = pure ()
                     goCoherences (ej :: ejs) (coh :: rest) = do
@@ -2944,10 +2963,12 @@ mutual
                       goCoherences ejs rest
                     goCoherences _ _ = kerr "kernel: coherence count mismatch"
                 goMotives sortPs (zip mots (motSks ++ replicate (length mots) (Nd [] [])))
-                goMethods pointPs mths
+                goMethods 0 pointPs mths
                 goCoherences eqPs cohs
-                kQSortSpine sig ctx sg k es sk'
-                kCheckE sig ctx w (QSort sg k es) (skelChild (length (toList es)) sk')
+                let skRest = case sk' of
+                               Nd ps cs => Nd ps (drop nM cs)
+                kQSortSpine sig ctx sg k es skRest
+                kCheckE sig ctx w (QSort sg k es) (skelChild (length (toList es)) skRest)
                 o <- case qOrdinal QKSort sg k of
                        Just x => pure x
                        Nothing => kerr "kernel: eliminator sort ordinal"
@@ -3318,6 +3339,16 @@ kTele sig ctx ((ty, sk) :: rest) = do
 ||| (the elaborator's preferPrf/isPropTy): True iff the type is a
 ||| PROPOSITION — kIsProp's discipline, raw checkP-at-Ω first (which
 ||| covers ⊎-elim's constant-motive checking clause), then whnf.
+||| A carried signature as the kernel normalizes it (its embedded
+||| Nova pieces in nf): the engine's reconstruction reflects telescope
+||| entry types from THIS spelling, the one the kernel checks against.
+export
+kQSigB : Sig -> Nat -> QSig -> Maybe QSig
+kQSigB sig fuel sg =
+  case runKM (kQSig sig sg) fuel of
+    Right (sg', _) => Just sg'
+    Left _ => Nothing
+
 export
 kIsPropB : Sig -> Nat -> Ctx -> Ty -> Bool
 kIsPropB sig fuel ctx t =
