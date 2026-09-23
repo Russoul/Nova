@@ -10,7 +10,43 @@
 ē ⇐ (Γ ⇒ Δ norm)              // spine checking, entrywise: eᵢ ⇐ Δ∥ᵢ[id, e₀ … eᵢ₋₁]
 [ᾱ] ē₀ ≐ ē₁ ⇐ (Γ ⇒ Δ norm)    // spine equation, entrywise, at the type instantiated by ē₁'s prefix
 
-// Non-linear metavariable occurrence or pattern means equality modulo substitution and β.
+// CONVENTIONS.
+// * A metavariable names a SURFACE spelling in a rule's conclusion and its
+//   CORE elaboration in the premises; the judgements elaborate as they check.
+// * A non-linear metavariable occurrence, or a former pattern (A → B, A × B,
+//   t₀ ≡ t₁ ∈ T, …) in an input position, means equality modulo substitution
+//   and β — weak-head β for a pattern, full β for a comparison. "β" is every
+//   computation rule: β, the ι-rules, let-β, ν-β, QIIT-β. NEVER δ:
+//   definitions unfold only through the proof former x-δ. Every comparison
+//   runs under a FUEL budget (equality reflection makes β-normalisation of a
+//   well-typed term diverge under an inconsistent hypothesis); exhaustion is
+//   rejection, so the checker is total.
+// * NO δ FOR EXPOSURE EITHER. A pattern input (λ against a Π, a quot-elim
+//   scrutinee against a quotient, ⋆ against a prop) is matched after
+//   weak-head β only; a reference at the head is STUCK, and the term is
+//   rejected unless an ascription (t : T by α) exposes the shape, α a chain
+//   of x-δ leaves naming each unfolding at its path. The reason: whnf-δ in
+//   the checker would fix ONE unfolding strategy in the trusted base — the
+//   producer would have to predict it step for step, its spellings would
+//   leak into every downstream type and report, and its one wasteful case
+//   (unfolding a scrutinee that then fails to make ι fire, leaving a larger
+//   stuck term) could never be improved without changing what the checker
+//   accepts. With δ explicit, over-normalisation is a PRODUCER quality —
+//   visible as proof size, fixable by a better strategy or a lemma, never a
+//   checker semantics. The producer should unfold PROGRESS-ONLY: the head
+//   while it yields a former, a scrutinee only if ι then fires, rolled back
+//   otherwise; the emitted chain is the shortest δ-sequence to the shape.
+//   Without δ, β-normal forms are bounded by the written term's own redexes:
+//   every blow-up the corpus shows is δ, and it now happens on the untrusted
+//   side and is recorded.
+// * PROOFS ARE TERMS WITH PROOF LEAVES: the proof grammar is the term grammar
+//   ([Z], [S α], [λ α], [α, β], [α β], [α .π₁], [☐ᵢ], [x ᾱ], [ℕ-elim A α β τ], …)
+//   plus the proof-only forms ; ⁻¹ reflect x-δ lift restrict (_ : A by _) and
+//   the leaves (η→ η× irrel quot-eq propext squash-eq ην coind, the path
+//   leaf, the selectors). A term with no proof leaf is the reflexivity proof
+//   of itself, so `refl t` is `t` read as a proof; refl survives only where a
+//   proof is checked against given sides and has no term to name
+//   ([refl] ⇐ T₀ ≐ T₁ type).
 
 Γ ▷ A ⊦ f ⇐ B
 ------------------
