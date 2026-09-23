@@ -154,6 +154,7 @@ mutual
   substQSig : QSig -> Sub -> QSig
   substQSig sg sigma = map (\t => substQTy t sigma) sg
 
+
   ||| 𝔽[σ] — σ on the embedded Nova pieces, lifted under the binding
   ||| formers; the hole is inert.
   export
@@ -391,3 +392,21 @@ liftPoly (PPi a f)    r u v =
               (substElem r (under (under Wk)))
               (PiApp (substElem u Wk) (CtxVar 0))
               (PiApp (substElem v Wk) (CtxVar 0))))
+
+||| A carried signature's embedded Nova pieces, traversed in order (the
+||| external domains and the arguments of applications and equations);
+||| the ToS skeleton is inert.
+export
+traverseQSig : Monad m => (Elem -> m Elem) -> QSig -> m QSig
+traverseQSig f = traverse goTy
+ where
+  goTm : QTm -> m QTm
+  goTm (QVar i) = pure (QVar i)
+  goTm (QAppE g e) = [| QAppE (goTm g) (f e) |]
+  goTm (QAppI g a) = [| QAppI (goTm g) (goTm a) |]
+  goTm (QEqC l r u) = [| QEqC (goTm l) (goTm r) (goTm u) |]
+  goTy : QTy -> m QTy
+  goTy QU = pure QU
+  goTy (QEl t) = QEl <$> goTm t
+  goTy (QPiExt a b) = [| QPiExt (f a) (goTy b) |]
+  goTy (QPiInd u b) = [| QPiInd (goTm u) (goTy b) |]

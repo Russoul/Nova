@@ -49,6 +49,8 @@ import Nova.Kernel.Parser
 import Nova.Kernel
 import Nova.Elaboration.Cert
 
+import Control.Monad.State
+
 import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
 import Nova.Elaboration.Named
@@ -88,9 +90,9 @@ substLic (LUnfold x es) sigma = LUnfold x (substSubNorm es sigma)
 substLic (LUnfoldAll ns) sigma = LUnfoldAll ns
 substLic (LPath sg k theta) sigma = LPath (substQSig sg sigma) k (substSubNorm theta sigma)
 
-substSel : Sub -> Sel -> Sel
-substSel sigma (SelCod u) = SelCod (substElem u sigma)
-substSel sigma (SelQRel u v) = SelQRel (substElem u sigma) (substElem v sigma)
+substSel : Sub -> ESel -> ESel
+substSel sigma (ESelCod u) = ESelCod (substElem u sigma)
+substSel sigma (ESelQRel u v) = ESelQRel (substElem u sigma) (substElem v sigma)
 substSel sigma sel = sel
 
 ||| A step over one context, moved by a substitution — its licence,
@@ -116,7 +118,7 @@ record Cand where
   ||| since the candidate was built (extendCS wraps it) — the closure
   ||| shifts its Γ-fixed parts by it, while bindings (already
   ||| extended-context elements) pass through untouched.
-  emit : Nat -> List (Nat, Elem) -> Maybe (Elem, List Sel)
+  emit : Nat -> List (Nat, Elem) -> Maybe (Elem, List ESel)
   ||| lemma-normalization steps for the lhs (to be INVERTED at replay:
   ||| they turned the raw side into the stored pattern) and the rhs
   preL : List PStep
@@ -1469,11 +1471,13 @@ mutual
   refsE (QuotElim f q) acc = refsE q (refsE f acc)
   refsE (Squash t) acc = refsT t acc
   refsE Star acc = acc
-  refsE (QSort _ _ es) acc = foldl (\a, e => refsE e a) acc es
-  refsE (QCtor _ _ es) acc = foldl (\a, e => refsE e a) acc es
-  refsE (QElim _ _ fs es w) acc =
+  -- carried signatures: their embedded Nova pieces count (a
+  -- definition inside a carrier is unfolded by δ-all as well)
+  refsE (QSort sg _ es) acc = foldl (\a, e => refsE e a) acc (piecesOf sg ++ toList es)
+  refsE (QCtor sg _ es) acc = foldl (\a, e => refsE e a) acc (piecesOf sg ++ toList es)
+  refsE (QElim sg _ fs es w) acc =
     refsE w (foldl (\a, e => refsE e a)
-              (foldl (\a, e => refsE e a) acc fs) es)
+              (foldl (\a, e => refsE e a) acc (piecesOf sg ++ fs)) es)
   refsE (Elem.NuTy _) acc = acc
   refsE (Out t) acc = refsE t acc
   refsE (Corec _ a f x) acc = refsE x (refsE f (refsE a acc))
@@ -1635,6 +1639,19 @@ mapAccumSN f (es :< e) a =
   let (es', a1) = mapAccumSN f es a
       (e', a2) = f e a1 in (es' :< e', a2)
 
+||| A carried signature's embedded pieces threaded through an
+||| accumulating rewrite.
+mapAccumQSig : (Elem -> acc -> (Elem, acc)) -> QSig -> acc -> (QSig, acc)
+mapAccumQSig f sg a0 =
+  let step : Elem -> State acc Elem
+      step e = do
+        a <- get
+        let (e', a') = f e a
+        put a'
+        pure e'
+  in case runState a0 (traverseQSig step sg) of
+       (a1, sg') => (sg', a1)
+
 unfoldAllE : Sig -> List String -> Elem -> (Elem, SnocList String)
 unfoldAllE sig unfs t0 = go t0 [<]
  where
@@ -1683,11 +1700,19 @@ unfoldAllE sig unfs t0 = go t0 [<]
   go (QuotElim f q) used = let (f', u1) = go f used
                                (q', u2) = go q u1 in (QuotElim f' q', u2)
   go (Squash u) used = let (u', u1) = go u used in (Squash u', u1)
-  go (QSort sg k es) used = let (es', u1) = mapAccumSN go es used in (QSort sg k es', u1)
-  go (QCtor sg k es) used = let (es', u1) = mapAccumSN go es used in (QCtor sg k es', u1)
+  -- carried signatures: their embedded Nova pieces unfold too (as the
+  -- kernel's δ-all does), so a definition applied inside a carrier
+  -- meets its unfolding on the other side
+  go (QSort sg k es) used =
+    let (sg', u0) = mapAccumQSig go sg used
+        (es', u1) = mapAccumSN go es u0 in (QSort sg' k es', u1)
+  go (QCtor sg k es) used =
+    let (sg', u0) = mapAccumQSig go sg used
+        (es', u1) = mapAccumSN go es u0 in (QCtor sg' k es', u1)
   go (QElim sg k fs es w) used =
-    let (es', u1) = mapAccumSN go es used
-        (w', u2) = go w u1 in (QElim sg k fs es' w', u2)
+    let (sg', u0) = mapAccumQSig go sg used
+        (es', u1) = mapAccumSN go es u0
+        (w', u2) = go w u1 in (QElim sg' k fs es' w', u2)
   go (Out u) used = let (u', u1) = go u used in (Out u', u1)
   go (Corec p a f x) used =
     let (a', u1) = go a used
@@ -1992,6 +2017,10 @@ engNfT st t = compTy t
 ||| play), through exposure; a NEUTRAL type is a prop exactly when
 ||| its kernel-inferred type is Ω. UNTRUSTED like everything here —
 ||| the kernel's kIsProp re-establishes prop-ness at replay.
+||| (Forward declaration — defined with the skeleton reconstruction
+||| below; a prop-ness question needs the type's skeleton.)
+reSkelI : ElabSt -> Ctx -> Elem -> Skel
+
 isPropTy : ElabSt -> Ctx -> Ty -> Bool
 isPropTy st ctx t = case t of
   Elem.EqTy _ _ _ => True
@@ -1999,12 +2028,13 @@ isPropTy st ctx t = case t of
   -- the RAW spelling first: a neutral spine (≤ x y) checks at Ω AS
   -- WRITTEN, while its exposure may be a stuck eliminator whose type
   -- nothing can recover (kIsPropB also covers ⊎-elim's
-  -- constant-motive checking — the relator's stuck props)
-  _ => kIsPropB st.kernelSig kernelFuel ctx t
+  -- constant-motive checking — the relator's stuck props); each
+  -- spelling through its reconstructed skeleton
+  _ => kIsPropB st.kernelSig kernelFuel ctx t (reSkelI st ctx t)
        || (case exposeT st t of
              Elem.EqTy _ _ _ => True
              Squash _ => True
-             t' => kIsPropB st.kernelSig kernelFuel ctx t')
+             t' => kIsPropB st.kernelSig kernelFuel ctx t' (reSkelI st ctx t'))
 
 ||| Blocked head exposures as an obligation hint (peeked, not drained —
 ||| an item's obligations share the notes).
@@ -2052,9 +2082,9 @@ peelNf st ty = exposePisT st ty
 
 -- ===== Candidates in scope =====
 
-selArity : Sel -> Nat
-selArity (SelCod _) = 1
-selArity (SelQRel _ _) = 2
+selArity : ESel -> Nat
+selArity (ESelCod _) = 1
+selArity (ESelQRel _ _) = 2
 selArity _ = 0
 
 ordered : List Cand -> List Cand
@@ -2100,7 +2130,7 @@ closeCand c =
     then [c]
     else c :: go c.lhs c.rhs
  where
-  child : (mk : Bindings -> Maybe Sel) -> (n : Nat) -> List Ty -> Elem -> Elem -> Cand
+  child : (mk : Bindings -> Maybe ESel) -> (n : Nat) -> List Ty -> Elem -> Elem -> Cand
   child mk n tys l r =
     { params $= (+ n)
     , paramTys $= (++ tys)
@@ -2112,23 +2142,23 @@ closeCand c =
         pure (p, sels ++ [sel])
     } c
 
-  comp : Sel -> Elem -> Elem -> List Cand
+  comp : ESel -> Elem -> Elem -> List Cand
   comp s l r = closeCand (child (\_ => Just s) 0 [] l r)
 
   go : Elem -> Elem -> List Cand
-  go (NatIntro1 x) (NatIntro1 y) = comp SelSuc x y
+  go (NatIntro1 x) (NatIntro1 y) = comp ESelSuc x y
   go (Elem.PiTy a0 b0) (Elem.PiTy a1 b1) =
-    comp SelDom a0 a1
-    ++ closeCand (child (\bs => SelCod <$> lookup 0 bs) 1 [a1] b0 b1)
+    comp ESelDom a0 a1
+    ++ closeCand (child (\bs => ESelCod <$> lookup 0 bs) 1 [a1] b0 b1)
   go (Elem.SigmaTy a0 b0) (Elem.SigmaTy a1 b1) =
-    comp SelDom a0 a1
-    ++ closeCand (child (\bs => SelCod <$> lookup 0 bs) 1 [a1] b0 b1)
+    comp ESelDom a0 a1
+    ++ closeCand (child (\bs => ESelCod <$> lookup 0 bs) 1 [a1] b0 b1)
   go (Elem.SumTy a0 b0) (Elem.SumTy a1 b1) =
     -- code-sum-inj: both components at 𝕌, neither under a binder
-    comp SelSumL a0 a1 ++ comp SelSumR b0 b1
+    comp ESelSumL a0 a1 ++ comp ESelSumR b0 b1
   go (QuotTy a0 r0) (QuotTy a1 r1) =
-    comp SelQDom a0 a1
-    ++ closeCand (child (\bs => [| SelQRel (lookup 1 bs) (lookup 0 bs) |]) 2
+    comp ESelQDom a0 a1
+    ++ closeCand (child (\bs => [| ESelQRel (lookup 1 bs) (lookup 0 bs) |]) 2
                         [a1, substTy a1 Wk] r0 r1)
   go _ _ = []
 
@@ -2161,11 +2191,11 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
     let k = minus (length ctx') (length ctx)
     case eqShape peeled of
       Just (l, r, t) =>
-        let mk : Nat -> Bindings -> Maybe (Elem, List Sel)
+        let mk : Nat -> Bindings -> Maybe (Elem, List ESel)
             mk = \wk, bs => do
               args <- traverse (\p => lookup p bs)
                         (the (List Nat) (if k == 0 then [] else reverse [0 .. minus k 1]))
-              pure (foldl PiApp (CtxVar (i + wk)) args, the (List Sel) [])
+              pure (foldl PiApp (CtxVar (i + wk)) args, the (List ESel) [])
         in if k == 0
              then let (l1, lSteps) = rwNfElemS st.sig (unfsOf st) lemmaRw True (engNfE st l)
                       (r1, rSteps) = rwNfElemS st.sig (unfsOf st) lemmaRw True (engNfE st r)
@@ -2313,8 +2343,8 @@ extendCS cs = MkCandSet (map wk cs.all) (map wk cs.rw) (map wk cs.hops)
   liftK Z = Wk
   liftK (S n) = under (liftK n)
 
-  wkSel : Nat -> Sel -> Sel
-  wkSel n (SelCod u) = SelCod (substElem u (liftK n))
+  wkSel : Nat -> ESel -> ESel
+  wkSel n (ESelCod u) = ESelCod (substElem u (liftK n))
   wkSel n s = s
 
   wkP : Nat -> PStep -> PStep
@@ -3869,7 +3899,7 @@ preferQuot st ctx ty = case exposeTLog st True [] ty of
 preferPrf : ElabSt -> Ctx -> Ty -> Maybe (Elem, Maybe (Ty, Prf))
 preferPrf st ctx p@(Elem.EqTy _ _ _) = Just (p, Nothing)
 preferPrf st ctx p@(Squash _) = Just (p, Nothing)
-preferPrf st ctx ty = if kIsPropB st.kernelSig kernelFuel ctx ty
+preferPrf st ctx ty = if kIsPropB st.kernelSig kernelFuel ctx ty (reSkelI st ctx ty)
   -- a kernel-checkable Ω-neutral stays AS WRITTEN (no exposure — the
   -- callers expose for themselves exactly where a shape is needed,
   -- and downstream types keep the user's spelling)
@@ -4170,8 +4200,8 @@ mutual
     -- a constructor's argument spine, each entry at the reflected
     -- telescope's type (an external domain written as a definition
     -- meets it unfolded: the entry's switch rides along)
-    QCtor sg k es => Nd [] (qSpineSkels st ctx sg k es)
-    QSort sg k es => Nd [] (qSpineSkels st ctx sg k es)
+    QCtor sg k es => Nd [] (qSpineSkels st ctx True sg k es)
+    QSort sg k es => Nd [] (qSpineSkels st ctx False sg k es)
     -- a non-intro term at a type spelled otherwise than the one it
     -- infers to: the switch proof (a δ bridge) rides along, since the
     -- kernel's switch-less fallthrough compares by β only
@@ -4183,18 +4213,19 @@ mutual
                             Nothing => sk
            Nothing => sk
 
-  reSkelI : ElabSt -> Ctx -> Elem -> Skel
   reSkelI st0 ctx e = fst (reSkelIT (openExp st0) ctx e)
 
-  ||| A QIIT spine's entry skeletons, each at its reflected telescope type.
-  qSpineSkels : ElabSt -> Ctx -> QSig -> Nat -> SubNorm -> List Skel
-  qSpineSkels st ctx sg0 k es = go 0 (toList es)
+  ||| A QIIT spine's entry skeletons, each at its reflected telescope
+  ||| type — spelled as the KERNEL's rule reflects it: a constructor's
+  ||| from the normalized signature (el-qiit-intro compares carriers
+  ||| in nf and walks the normalized telescope), a sort's from the raw
+  ||| one (its rule reads the carried signature as written); a binder
+  ||| declared at the other spelling meets its switch there
+  qSpineSkels : ElabSt -> Ctx -> (norm : Bool) -> QSig -> Nat -> SubNorm -> List Skel
+  qSpineSkels st ctx norm sg0 k es = go 0 (toList es)
    where
-    -- the signature as the KERNEL spells it (embedded pieces in nf):
-    -- entry types come from there, so a binder declared at the
-    -- written spelling meets its switch
     sg : QSig
-    sg = fromMaybe sg0 (kQSigB st.kernelSig kernelFuel sg0)
+    sg = if norm then fromMaybe sg0 (kQSigB st.kernelSig kernelFuel sg0) else sg0
     go : Nat -> List Elem -> List Skel
     go i [] = []
     go i (x :: rest) =
@@ -4247,8 +4278,8 @@ mutual
     Elem.EqTy l r t => (Nd [] [reSkelE st ctx l t, reSkelE st ctx r t, reSkelI st ctx t], Just PropTy)
     QuotTy a r => (Nd [] [reSkelI st ctx a, reSkelI st (ctx :< a :< substTy a Wk) r], Just UniverseTy)
     Squash t => (Nd [] [reSkelI st ctx t], Just PropTy)
-    QCtor sg k es => (Nd [] (qSpineSkels st ctx sg k es), Nothing)
-    QSort sg k es => (Nd [] (qSpineSkels st ctx sg k es), Nothing)
+    QCtor sg k es => (Nd [] (qSpineSkels st ctx True sg k es), Nothing)
+    QSort sg k es => (Nd [] (qSpineSkels st ctx False sg k es), Nothing)
     -- a ⊎-elim in a TYPE (a relator instance): its scrutinee typed
     -- and exposed, the cases at Ω under the summands
     SumElim l r t =>
@@ -4686,7 +4717,7 @@ mutual
         let wk3 = Chain Wk (Chain Wk Wk)
         st2 <- getSt
         wd <- if isPropTy st2 (ctx :< QuotTy a r) motTy
-          then pure (Just PIrrel)
+          then pure (Just (PIrrel (Nd [] [])))
           else convElem (ctx :< a :< substTy a Wk :< r) (env :< an :< (an ++ "'") :< "h")
             (sub site "\{site}: well-definedness of quot-elim case") Nothing
             (substElem f' (Ext wk3 (CtxVar 2)))
@@ -5723,7 +5754,7 @@ mutual
           Just (q, exp) => do
             recordBinder (snd xn) ctx env (fst xn) a
             (body', bodySk) <- checkElem (ctx :< a) (env :< fst xn) site body (substTy q Wk)
-            pure (Star, withExpose exp (Nd [PSquashElim e' eSk eExp body' bodySk] []))
+            pure (Star, withExpose exp (Nd [PSquashElim e' eSk eExp body' bodySk (reSkelI st ctx q)] []))
       _ => throwShape site env "squash-elim scrutinee has type" eTy "a ∥∥ proposition"
   checkElemAt ctx env site (SUnsquash nx b w) ty =
     elabUnsquash ctx env site nx b w ty
@@ -5867,7 +5898,7 @@ mutual
         let wk3 = Chain Wk (Chain Wk Wk)
         st2 <- getSt
         wd <- if isPropTy st2 (ctx :< QuotTy a rel) motTy
-          then pure (Just PIrrel)
+          then pure (Just (PIrrel (Nd [] [])))
           else convElem (ctx :< a :< substTy a Wk :< rel) (env :< an :< (an ++ "'") :< "h")
             (sub site "\{site}: well-definedness of quot-elim case") Nothing
             (substElem f' (Ext wk3 (CtxVar 2)))
@@ -6950,13 +6981,13 @@ addLemma name delta ty = withEqScope ["exp:*"] $ do
           k = length delta'
           teleLen = length delta
           peeledN = minus k teleLen
-          mk : Nat -> Bindings -> Maybe (Elem, List Sel)
+          mk : Nat -> Bindings -> Maybe (Elem, List ESel)
           mk = \wk, bs => do
             teleArgs <- traverse (\p => lookup p bs)
                           (the (List Nat) (if teleLen == 0 then [] else reverse [peeledN .. minus k 1]))
             peeledArgs <- traverse (\p => lookup p bs)
                             (the (List Nat) (if peeledN == 0 then [] else reverse [0 .. minus peeledN 1]))
-            pure (foldl PiApp (SigVar name (cast teleArgs)) peeledArgs, the (List Sel) [])
+            pure (foldl PiApp (SigVar name (cast teleArgs)) peeledArgs, the (List ESel) [])
           lRes = rwNfElemS st.sig [] lemmaRw True (engNfE st l)
           rRes = rwNfElemS st.sig [] lemmaRw True (engNfE st r)
       in modifySt $ \st' =>
@@ -7341,7 +7372,7 @@ elabItemGo irng (SData params decls) = do
     let n = length tel
     let ty = wrapParams ptys (foldr PiTy (Elem.EqTy lE rE uT) tel)
     let body = wrapLams (np + n) Star
-    let cert = PPath (sgAt sg n) k (varSpine n)
+    let cert = PPath (sgAt sg n) k (map PSelf (toList (varSpine n)))
     st <- getSt
     emitCoreDef site nm ty (tySkelK st [<] ty) body (nestSkel (np + n) (Nd [PReflEq cert] []))
 
@@ -7427,7 +7458,7 @@ elabItemGo irng (SData params decls) = do
                 -- the rhs argument of the (bare, El retired) motive
                 -- application C ī ⌊r⌋, rewritten by the path equation
                 -- read right to left
-                let swc = CPiApp PReflx (PSym (PPath (sgAt sgJ dlen) ej spineArgs))
+                let swc = CPiApp PReflx (PSym (PPath (sgAt sgJ dlen) ej (map PSelf (toList spineArgs))))
                 -- the ≡-TYPE IS the eq-prop (Prf retired): children
                 -- l, r and the carried type
                 let eqSk = Nd [] [Nd [] [], Nd [PSwitch swc] [], Nd [] []]
@@ -7476,7 +7507,7 @@ elabItemGo irng (SData params decls) = do
     -- Ω-valued motive, so proof irrelevance closes them outright
     -- (FProp).
     cohCerts <- if prop
-      then pure (map (const PIrrel) eqPs)
+      then pure (map (const (PIrrel (Nd [] []))) eqPs)
       else traverse (\p => case p of
                   (j, ej) => do
                     (dtel, _, _, _, _) <- liftQE site (coherenceAt (sgAt sg bigN) motsEnd mthsEnd ej)
@@ -7502,9 +7533,10 @@ elabItemGo irng (SData params decls) = do
             else case deltaJoinC st declared expected >>= (\c => either (const Nothing) Just (toPrfTy st.sig [<] c declared expected)) of
                    Just p => Nd [PSwitch p] []
                    Nothing => Nd [] []
-    -- the expected types as the KERNEL spells them: from the carried
-    -- signature with its embedded pieces normalized (kQSig)
-    let sgK = fromMaybe (sgAt sg bigN) (kQSigB st.kernelSig kernelFuel (sgAt sg bigN))
+    -- the expected types as the KERNEL spells them: the eliminator
+    -- rule reflects method and eliminee types from the carried
+    -- signature AS WRITTEN (raw; only el-qiit-intro normalizes first)
+    let sgK = sgAt sg bigN
     let mSks = map (\(i, cj) =>
                  let k = minus endExtra (S i) in
                  case (getAt i mTys, methodTy sgK motsEnd cj) of

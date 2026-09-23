@@ -17,6 +17,7 @@ module Nova.Elaboration.Cert
 import Data.List
 import Data.Maybe
 import Data.SnocList
+import Control.Monad.State
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
@@ -24,6 +25,32 @@ import Nova.Kernel.QIIT
 import Nova.Kernel
 
 %default covering
+
+||| The ENGINE's selectors: as the kernel's (Nova.Kernel.Sel) but with
+||| the instantiation ELEMENTS a match binds; the translation states
+||| each as a proof at the domain the licence's sides show.
+public export
+data ESel : Type where
+  ESelSuc : ESel
+  ESelDom : ESel
+  ESelCod : Elem -> ESel
+  ESelSumL : ESel
+  ESelSumR : ESel
+  ESelQDom : ESel
+  ESelQRel : Elem -> Elem -> ESel
+  ESelQIdx : Nat -> ESel
+
+export
+covering
+Show ESel where
+  show ESelSuc = "suc"
+  show ESelDom = "dom"
+  show (ESelCod u) = "cod(\{show u})"
+  show ESelSumL = "inl"
+  show ESelSumR = "inr"
+  show ESelQDom = "qdom"
+  show (ESelQRel u v) = "qrel(\{show u},\{show v})"
+  show (ESelQIdx i) = "idx\{show i}"
 
 ||| A step's LICENSE: a proof element whose type exposes an ≡-type
 ||| (equality reflection read certificate-side), or a PATH LICENSE —
@@ -54,7 +81,7 @@ record Step where
   onLhs : Bool
   path : List Nat
   lic : StepLic
-  sels : List Sel
+  sels : List ESel
   flip : Bool
   ||| Steps NORMALIZING the licensed equation's OWN sides before it is
   ||| used (onLhs selects the licence's lhs or rhs): applied to the
@@ -198,92 +225,6 @@ congOf : Prf -> Prf -> Prf
 congOf PReflx _ = PReflx
 congOf _ node = node
 
-||| Head exposure with its δ RECORDED: the term taken to its β-whnf
-||| with every definition unfolded on the way to the head as a δ leaf
-||| inside the congruence skeleton of its position — and the proof of
-||| t ≐ exposed (reflexivity when β alone reached it, which the
-||| kernel's own whnf does).
-exposeK : Sig -> Elem -> KM (Elem, Prf)
-exposeK sig t = go t
- where
-  go : Elem -> KM (Elem, Prf)
-  go (SigVar x es) =
-    kSigLookup sig x >>= \entryX => case entryX of
-      Just (SigDef _ _ a _) => do
-        (r, p) <- go (substElem a (embed es))
-        pure (r, pTrans (PDelta x es) p)
-      _ => pure (SigVar x es, PReflx)
-  go (PiApp f e) = do
-    (f', p1) <- go f
-    case f' of
-      PiIntro g => do
-        (r, p2) <- go (substElem g (Ext Id e))
-        pure (r, pTrans (congOf p1 (CPiApp p1 PReflx)) p2)
-      _ => pure (PiApp f' e, congOf p1 (CPiApp p1 PReflx))
-  go (Let a b) = go (substElem b (Ext (Ext Id a) Star))
-  go (NatElim z s t) = do
-    (t', p1) <- go t
-    let node = congOf p1 (CNatElim Nothing PReflx PReflx p1)
-    case t' of
-      NatIntro0 => do (r, p2) <- go z; pure (r, pTrans node p2)
-      NatIntro1 n => do (r, p2) <- go (substElem s (Ext (Ext Id n) (NatElim z s n))); pure (r, pTrans node p2)
-      _ => pure (NatElim z s t', node)
-  go (SigmaElim1 t) = do
-    (t', p1) <- go t
-    case t' of
-      SigmaIntro a _ => do (r, p2) <- go a; pure (r, pTrans (congOf p1 (CSigmaElim1 p1)) p2)
-      _ => pure (SigmaElim1 t', congOf p1 (CSigmaElim1 p1))
-  go (SigmaElim2 t) = do
-    (t', p1) <- go t
-    case t' of
-      SigmaIntro _ b => do (r, p2) <- go b; pure (r, pTrans (congOf p1 (CSigmaElim2 p1)) p2)
-      _ => pure (SigmaElim2 t', congOf p1 (CSigmaElim2 p1))
-  go (SumElim l r t) = do
-    (t', p1) <- go t
-    let node = congOf p1 (CSumElim Nothing PReflx PReflx p1)
-    case t' of
-      Inj1 a => do (r', p2) <- go (substElem l (Ext Id a)); pure (r', pTrans node p2)
-      Inj2 b => do (r', p2) <- go (substElem r (Ext Id b)); pure (r', pTrans node p2)
-      _ => pure (SumElim l r t', node)
-  go (QuotElim f q) = do
-    (q', p1) <- go q
-    case q' of
-      Class a => do (r, p2) <- go (substElem f (Ext Id a)); pure (r, pTrans (congOf p1 (CQuotElim Nothing PReflx p1)) p2)
-      _ => pure (QuotElim f q', congOf p1 (CQuotElim Nothing PReflx p1))
-  go (Out t) = do
-    (t', p1) <- go t
-    case t' of
-      Corec p a f x => do
-        (r, p2) <- go (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
-        pure (r, pTrans (congOf p1 (COut p1)) p2)
-      _ => pure (Out t', congOf p1 (COut p1))
-  go (QElim sg k fs es w) = do
-    (w', p1) <- go w
-    let node = congOf p1 (CQElim sg k Nothing (map (const PReflx) fs) (map (const PReflx) (toList es)) p1)
-    case w' of
-      QCtor sgW c theta =>
-        if sgW == sg
-          then case qElimBetaRhs sg fs c theta of
-                 Right rhs => do (r, p2) <- go rhs; pure (r, pTrans node p2)
-                 Left _ => pure (QElim sg k fs es w', node)
-          else pure (QElim sg k fs es w', node)
-      _ => pure (QElim sg k fs es w', node)
-  -- the squashee exposed inside its ∥·∥; a squashee that exposes to a
-  -- prop collapses (code-squash-idem's instance, a β-rule of the join)
-  go (Squash t) = do
-    (t', p1) <- go t
-    let node = congOf p1 (CSquash p1)
-    pure (case t' of
-            Elem.EqTy _ _ _ => (t', node)
-            Squash _ => (t', node)
-            _ => (Squash t', node))
-  go e = pure (e, PReflx)
-
-||| Expose a position's type, when known.
-exposeMaybe : Sig -> Maybe Ty -> KM (Maybe (Ty, Prf))
-exposeMaybe sig Nothing = pure Nothing
-exposeMaybe sig (Just t) = Just <$> exposeK sig t
-
 ||| Wrap a proof at a position whose type was exposed by δ in the
 ||| conversion to the exposed spelling.
 convWrap : Prf -> Ty -> Prf -> Prf
@@ -298,6 +239,11 @@ tyAgreeB sig a b = do
   pure (aN == bN || (aN == TopTy && bN == UniverseTy))
 
 ||| Definition names occurring in a term.
+||| The embedded Nova pieces of a carried signature.
+export
+piecesOf : QSig -> List Elem
+piecesOf g = fst (runState [] (traverseQSig (\e => do modify (e ::); pure e) g))
+
 defNames : Sig -> Elem -> KM (List String)
 defNames sig t = do
   ns <- traverse isDef (nub (names t []))
@@ -329,9 +275,9 @@ defNames sig t = do
   names (Class a) acc = names a acc
   names (QuotElim f q) acc = names f (names q acc)
   names (Squash u) acc = names u acc
-  names (QSort _ _ es) acc = foldl (\a, e => names e a) acc (toList es)
-  names (QCtor _ _ es) acc = foldl (\a, e => names e a) acc (toList es)
-  names (QElim _ _ _ es w) acc = foldl (\a, e => names e a) (names w acc) (toList es)
+  names (QSort sg _ es) acc = foldl (\a, e => names e a) acc (piecesOf sg ++ toList es)
+  names (QCtor sg _ es) acc = foldl (\a, e => names e a) acc (piecesOf sg ++ toList es)
+  names (QElim sg _ _ es w) acc = foldl (\a, e => names e a) (names w acc) (piecesOf sg ++ toList es)
   names (Out u) acc = names u acc
   names (Corec _ a f x) acc = names a (names f (names x acc))
   names _ acc = acc
@@ -386,6 +332,140 @@ isSpine Elem.NatTy = True
 isSpine _ = False
 
 mutual
+  ||| Head exposure with its δ RECORDED: the term taken to its β-whnf
+  ||| with every definition unfolded on the way to the head as a δ leaf
+  ||| inside the congruence skeleton of its position — and the proof of
+  ||| t ≐ exposed (reflexivity when β alone reached it, which the
+  ||| kernel's own whnf does).
+  exposeK : Sig -> Ctx -> Elem -> KM (Elem, Prf)
+  exposeK sig ctx t = go t
+   where
+    go : Elem -> KM (Elem, Prf)
+    go (SigVar x es) =
+      kSigLookup sig x >>= \entryX => case entryX of
+        Just (SigDef _ _ a _) => do
+          qs <- deltaArgs sig ctx x es
+          (r, p) <- go (substElem a (embed es))
+          pure (r, pTrans (PDelta x qs) p)
+        _ => pure (SigVar x es, PReflx)
+    go (PiApp f e) = do
+      (f', p1) <- go f
+      case f' of
+        PiIntro g => do
+          (r, p2) <- go (substElem g (Ext Id e))
+          pure (r, pTrans (congOf p1 (CPiApp p1 PReflx)) p2)
+        _ => pure (PiApp f' e, congOf p1 (CPiApp p1 PReflx))
+    go (Let a b) = go (substElem b (Ext (Ext Id a) Star))
+    go (NatElim z s t) = do
+      (t', p1) <- go t
+      let node = congOf p1 (CNatElim Nothing PReflx PReflx p1)
+      case t' of
+        NatIntro0 => do (r, p2) <- go z; pure (r, pTrans node p2)
+        NatIntro1 n => do (r, p2) <- go (substElem s (Ext (Ext Id n) (NatElim z s n))); pure (r, pTrans node p2)
+        _ => pure (NatElim z s t', node)
+    go (SigmaElim1 t) = do
+      (t', p1) <- go t
+      case t' of
+        SigmaIntro a _ => do (r, p2) <- go a; pure (r, pTrans (congOf p1 (CSigmaElim1 p1)) p2)
+        _ => pure (SigmaElim1 t', congOf p1 (CSigmaElim1 p1))
+    go (SigmaElim2 t) = do
+      (t', p1) <- go t
+      case t' of
+        SigmaIntro _ b => do (r, p2) <- go b; pure (r, pTrans (congOf p1 (CSigmaElim2 p1)) p2)
+        _ => pure (SigmaElim2 t', congOf p1 (CSigmaElim2 p1))
+    go (SumElim l r t) = do
+      (t', p1) <- go t
+      let node = congOf p1 (CSumElim Nothing PReflx PReflx p1)
+      case t' of
+        Inj1 a => do (r', p2) <- go (substElem l (Ext Id a)); pure (r', pTrans node p2)
+        Inj2 b => do (r', p2) <- go (substElem r (Ext Id b)); pure (r', pTrans node p2)
+        _ => pure (SumElim l r t', node)
+    go (QuotElim f q) = do
+      (q', p1) <- go q
+      case q' of
+        Class a => do (r, p2) <- go (substElem f (Ext Id a)); pure (r, pTrans (congOf p1 (CQuotElim Nothing PReflx p1)) p2)
+        _ => pure (QuotElim f q', congOf p1 (CQuotElim Nothing PReflx p1))
+    go (Out t) = do
+      (t', p1) <- go t
+      case t' of
+        Corec p a f x => do
+          (r, p2) <- go (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+          pure (r, pTrans (congOf p1 (COut p1)) p2)
+        _ => pure (Out t', congOf p1 (COut p1))
+    go (QElim sg k fs es w) = do
+      (w', p1) <- go w
+      let node = congOf p1 (CQElim sg k Nothing (map (const PReflx) fs) (map (const PReflx) (toList es)) p1)
+      case w' of
+        QCtor sgW c theta =>
+          if sgW == sg
+            then case qElimBetaRhs sg fs c theta of
+                   Right rhs => do (r, p2) <- go rhs; pure (r, pTrans node p2)
+                   Left _ => pure (QElim sg k fs es w', node)
+            else pure (QElim sg k fs es w', node)
+        _ => pure (QElim sg k fs es w', node)
+    -- the squashee exposed inside its ∥·∥; a squashee that exposes to a
+    -- prop collapses (code-squash-idem's instance, a β-rule of the join)
+    go (Squash t) = do
+      (t', p1) <- go t
+      let node = congOf p1 (CSquash p1)
+      pure (case t' of
+              Elem.EqTy _ _ _ => (t', node)
+              Squash _ => (t', node)
+              _ => (Squash t', node))
+    go e = pure (e, PReflx)
+
+  ||| Expose a position's type, when known.
+  exposeMaybe : Sig -> Ctx -> Maybe Ty -> KM (Maybe (Ty, Prf))
+  exposeMaybe sig ctx Nothing = pure Nothing
+  exposeMaybe sig ctx (Just t) = Just <$> exposeK sig ctx t
+
+  ||| The spine of a δ leaf stated entrywise: proof i at Δ's entry type
+  ||| instantiated by the earlier entries.
+  deltaArgs : Sig -> Ctx -> String -> SubNorm -> KM (List Prf)
+  deltaArgs sig ctx x es =
+    kSigLookup sig x >>= \entryX => case entryX of
+      Just (SigDef delta _ _ _) =>
+        let entryTy : Nat -> List Elem -> Maybe Ty
+            entryTy i pre = case getAt i (toList delta) of
+              Just t => Just (substTy t (embed (cast pre)))
+              Nothing => Nothing
+        in statedArgs entryTy (toList es)
+      _ => kerr "certificate: δ leaf at a non-definition '\{x}'"
+   where
+    statedArgs : (Nat -> List Elem -> Maybe Ty) -> List Elem -> KM (List Prf)
+    statedArgs entryTy xs = go 0 xs []
+     where
+      go : Nat -> List Elem -> List Elem -> KM (List Prf)
+      go i [] acc = pure []
+      go i (e :: rest) acc = do
+        ty <- case entryTy i (reverse acc) of
+                Just t => pure t
+                Nothing => kerr "certificate: spine entry type undetermined"
+        q <- argPrf sig ctx e ty
+        qs <- go (S i) rest (e :: acc)
+        pure (q :: qs)
+
+  ||| The spine of a path leaf stated entrywise at the reflected
+  ||| telescope.
+  pathArgs : Sig -> Ctx -> QSig -> Nat -> SubNorm -> KM (List Prf)
+  pathArgs sig ctx sg k th = do
+    sg' <- kQSig sig sg
+    entry <- case qEntry sg' k of
+               Just e => pure e
+               Nothing => kerr "certificate: path leaf entry out of range"
+    (tel, _, _) <- liftQ (reflTel sg' (qwAt k) entry)
+    go tel 0 (toList th) []
+   where
+    go : List Ty -> Nat -> List Elem -> List Elem -> KM (List Prf)
+    go tel i [] acc = pure []
+    go tel i (e :: rest) acc = do
+      ty <- case telInst tel i (reverse acc) of
+              Just t => pure t
+              Nothing => kerr "certificate: path leaf telescope mismatch"
+      q <- argPrf sig ctx e ty
+      qs <- go tel (S i) rest (e :: acc)
+      pure (q :: qs)
+
   ||| A SKELETON for a term checked at a type, built from the kernel's
   ||| own exposure: the head exposures at intro forms (PExpose) and at
   ||| eliminations (PScrut) that a β-only checker cannot reach on its
@@ -408,7 +488,7 @@ mutual
                                               (chkSkel sig ctx x a) |]
     -- ⋆ at an EVIDENT prop: a squashed 𝟙, or an equation the join closes
     Star => do
-      (tyX, pt) <- exposeK sig ty
+      (tyX, pt) <- exposeK sig ctx ty
       ty' <- kWhnfT sig tyX
       case ty' of
         Squash sq => do
@@ -479,7 +559,7 @@ mutual
     withExp pt tyX (Nd ps cs) = Nd (PExpose tyX pt :: ps) cs
     shaped : (Ty -> Maybe a) -> (a -> KM Skel) -> KM Skel
     shaped pick k = do
-      (tyX, pt) <- exposeK sig ty
+      (tyX, pt) <- exposeK sig ctx ty
       ty' <- kWhnfT sig tyX
       case pick ty' of
         Just parts => withExp pt tyX <$> k parts
@@ -493,7 +573,7 @@ mutual
       (fSk, fTy) <- infSkel sig ctx f
       case fTy of
         Just t => do
-          (tX, pt) <- exposeK sig t
+          (tX, pt) <- exposeK sig ctx t
           t' <- kWhnfT sig tX
           case t' of
             PiTy dom cod => do
@@ -523,7 +603,7 @@ mutual
       (tSk, tTy) <- infSkel sig ctx t
       case tTy of
         Just x => do
-          (xX, pt) <- exposeK sig x
+          (xX, pt) <- exposeK sig ctx x
           x' <- kWhnfT sig xX
           pure (withScrutK pt xX (Nd [] [tSk]), pick x')
         Nothing => pure (Nd [] [tSk], Nothing)
@@ -536,7 +616,7 @@ mutual
   elemToPrf sig ctx e = case e of
     PiApp f a => do
       (pf, fTy) <- elemToPrf sig ctx f
-      (fTyX, pt) <- exposeK sig fTy
+      (fTyX, pt) <- exposeK sig ctx fTy
       fTy' <- kWhnfT sig fTyX
       case fTy' of
         PiTy dom cod => do
@@ -545,21 +625,21 @@ mutual
         _ => kerr "certificate: typed neutral applies a non-function [\{show f} : \{show fTy'}]"
     SigmaElim1 t => do
       (pt', tTy) <- elemToPrf sig ctx t
-      (tTyX, pt) <- exposeK sig tTy
+      (tTyX, pt) <- exposeK sig ctx tTy
       tTy' <- kWhnfT sig tTyX
       case tTy' of
         SigmaTy a _ => pure (CSigmaElim1 (ascribe pt' tTyX pt), a)
         _ => kerr "certificate: typed neutral projects a non-pair [\{show t} : \{show tTy'}]"
     SigmaElim2 t => do
       (pt', tTy) <- elemToPrf sig ctx t
-      (tTyX, pt) <- exposeK sig tTy
+      (tTyX, pt) <- exposeK sig ctx tTy
       tTy' <- kWhnfT sig tTyX
       case tTy' of
         SigmaTy _ b => pure (CSigmaElim2 (ascribe pt' tTyX pt), substTy b (Ext Id (SigmaElim1 t)))
         _ => kerr "certificate: typed neutral projects a non-pair [\{show t} : \{show tTy'}]"
     Out t => do
       (pt', tTy) <- elemToPrf sig ctx t
-      (tTyX, pt) <- exposeK sig tTy
+      (tTyX, pt) <- exposeK sig ctx tTy
       tTy' <- kWhnfT sig tTyX
       case tTy' of
         NuTy f => pure (COut (ascribe pt' tTyX pt), reflectPoly f (Elem.NuTy f))
@@ -602,7 +682,7 @@ headPrf sig ctx hd = do
         then do (p, t) <- elemToPrf sig ctx hd; pure (Just t, p)
         else pure (Nothing, PReflx)
     Just t => do
-      (tX, pt) <- exposeK sig t
+      (tX, pt) <- exposeK sig ctx t
       case pt of
         PReflx => pure (Just t, PReflx)
         _ => do (p, t') <- elemToPrf sig ctx hd; pure (Just t', p)
@@ -644,7 +724,7 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
         ty <- case mty of
                 Just t => pure t
                 Nothing => kerr "certificate: \{what} at a type-undetermined position"
-        (tyX, pt) <- exposeK sig ty
+        (tyX, pt) <- exposeK sig ctx ty
         tyW <- kWhnfT sig tyX
         case pick tyW of
           Just parts => k (parts, convWrap pt tyX)
@@ -803,7 +883,9 @@ mutual
           Just (SigDef _ _ body _) =>
             wrapAt sig ctx (Just tyRoot) 0 t path (\_, _, b, u => case u of
                 SigVar y es' =>
-                  if y == x then pure (PDelta x es, substElem body (embed es'))
+                  if y == x then do
+                      qs <- deltaArgs sig ctx x es
+                      pure (PDelta x qs, substElem body (embed es'))
                     else kerr "certificate: unfold step at a reference to '\{y}', licensed for '\{x}'"
                 _ => kerr "certificate: unfold step at a non-reference")
           _ => kerr "certificate: unfold step at a non-definition '\{x}'"
@@ -836,23 +918,25 @@ mutual
         -- nodes, ascriptions where a definition hides a shape), its type
         -- exposed to its ≡ by recorded δ — an ascription again
         (pp, pty) <- elemToPrf sig ctx p
-        (ptyX, pt) <- exposeK sig pty
+        (ptyX, pt) <- exposeK sig ctx pty
         pure (case pt of
                 PReflx => PRefl pp
                 _ => PRefl (PAt pp ptyX pt))
-      LPath sg k th => pure (PPath sg k th)
-      LUnfold x es => pure (PDelta x es)
+      LPath sg k th => PPath sg k <$> pathArgs sig ctx sg k th
+      LUnfold x es => PDelta x <$> deltaArgs sig ctx x es
       LUnfoldAll _ => kerr "certificate: an unfold-all step is forward-only, at the root"
     -- selectors match heads on the β-joined sides: a side whose head
-    -- δ hides arrives exposed, by transitivity over the leaf
+    -- δ hides arrives exposed, by transitivity over the leaf; a
+    -- selector's instantiation element is stated at the domain the
+    -- current sides show
     base' <- case step.sels of
       [] => pure base
       _ => do
         (l0, r0, _) <- kPrfS sig ctx base
-        (_, pl) <- exposeK sig l0
-        (_, pr) <- exposeK sig r0
+        (_, pl) <- exposeK sig ctx l0
+        (_, pr) <- exposeK sig ctx r0
         pure (pTrans (pSym pl) (pTrans base pr))
-    let leaf0 = foldl (\q, sel => PSel sel q) base' step.sels
+    leaf0 <- selectors sig ctx base' step.sels
     (l, r, lty) <- kPrfS sig ctx leaf0
     lJ <- kJoinElem sig l
     rJ <- kJoinElem sig r
@@ -861,17 +945,47 @@ mutual
     let leaf = pTrans (pSym pL) (pTrans leaf0 pR)
     pure (if step.flip then (pSym leaf, rN, lN, lty) else (leaf, lN, rN, lty))
 
+  ||| The selectors applied in order, each instantiation element stated
+  ||| (a typed neutral or a checked leaf) at the domain of the sides the
+  ||| selectors so far leave.
+  selectors : Sig -> Ctx -> Prf -> List ESel -> KM Prf
+  selectors sig ctx q [] = pure q
+  selectors sig ctx q (sel :: rest) = do
+    (l, r, _) <- kPrfS sig ctx q
+    r' <- kJoinElem sig r
+    ksel <- case sel of
+      ESelSuc => pure SelSuc
+      ESelDom => pure SelDom
+      ESelSumL => pure SelSumL
+      ESelSumR => pure SelSumR
+      ESelQDom => pure SelQDom
+      ESelQIdx i => pure (SelQIdx i)
+      ESelCod u => case r' of
+        Elem.PiTy a1 _ => SelCod <$> argPrf sig ctx u a1
+        Elem.SigmaTy a1 _ => SelCod <$> argPrf sig ctx u a1
+        _ => kerr "certificate: codomain selector at a non-binder equation"
+      ESelQRel u v => case r' of
+        QuotTy a1 _ => [| SelQRel (argPrf sig ctx u a1) (argPrf sig ctx v a1) |]
+        _ => kerr "certificate: relation selector at a non-quotient equation"
+    selectors sig ctx (PSel ksel q) rest
+
+  ||| A type's reconstructed skeleton — for a prop-ness question the
+  ||| kernel answers by inference (bare where nothing reconstructs).
+  tySkel : Sig -> Ctx -> Ty -> KM Skel
+  tySkel sig ctx t = kOrElse (fst <$> infSkel sig ctx t) (pure (Nd [] []))
+
   ||| The final as a proof at the rewritten sides.
   finalPrf : Sig -> Ctx -> Final -> Elem -> Elem -> Ty -> KM Prf
   finalPrf sig ctx FBeta l r ty = pure PReflx
   finalPrf sig ctx FProp l r ty = do
-    (tyX, pt) <- exposeK sig ty
-    pure (convWrap pt tyX PIrrel)
+    (tyX, pt) <- exposeK sig ctx ty
+    sk <- tySkel sig ctx tyX
+    pure (convWrap pt tyX (PIrrel sk))
   finalPrf sig ctx (FWitness Nothing) l r ty = do
-    (tyX, pt) <- exposeK sig ty
+    (tyX, pt) <- exposeK sig ctx ty
     pure (convWrap pt tyX (PQuotWit Nothing))
   finalPrf sig ctx (FWitness (Just c)) l r ty = do
-    (tyX, pt) <- exposeK sig ty
+    (tyX, pt) <- exposeK sig ctx ty
     ty' <- kWhnfT sig tyX
     case (l, r, ty') of
       (Class a, Class b, QuotTy _ rel) => do
@@ -881,17 +995,17 @@ mutual
           _ => pure (convWrap pt tyX (PQuotWit Nothing))
       _ => kerr "certificate: witness final at a non-class equation"
   finalPrf sig ctx (FWitnessPrf w sk) l r ty = do
-    (tyX, pt) <- exposeK sig ty
+    (tyX, pt) <- exposeK sig ctx ty
     pure (convWrap pt tyX (PQuotWitPrf w sk))
   finalPrf sig ctx (FInj c) l r ty = do
-    (tyX, pt) <- exposeK sig ty
+    (tyX, pt) <- exposeK sig ctx ty
     ty' <- kWhnfT sig tyX
     case (l, r, ty') of
       (Inj1 x, Inj1 y, SumTy a _) => convWrap pt tyX . PInj <$> toPrfK sig ctx c x y a
       (Inj2 x, Inj2 y, SumTy _ b) => convWrap pt tyX . PInj <$> toPrfK sig ctx c x y b
       _ => kerr "certificate: injection final at a non-matching equation"
   finalPrf sig ctx (FEtaPi c) l r ty = do
-    (tyX, pt) <- exposeK sig ty
+    (tyX, pt) <- exposeK sig ctx ty
     ty' <- kWhnfT sig tyX
     case ty' of
       PiTy dom cod =>
@@ -900,7 +1014,7 @@ mutual
                      (PiApp (substElem r Wk) (CtxVar 0)) cod
       _ => kerr "certificate: Π-η final at a non-Π type"
   finalPrf sig ctx (FEtaSigma c1 c2) l r ty = do
-    (tyX, pt) <- exposeK sig ty
+    (tyX, pt) <- exposeK sig ctx ty
     ty' <- kWhnfT sig tyX
     case ty' of
       SigmaTy dom cod =>
@@ -909,9 +1023,10 @@ mutual
                        (toPrfK sig ctx c2 (SigmaElim2 l) (SigmaElim2 r) (substTy cod (Ext Id (SigmaElim1 l)))) |]
       _ => kerr "certificate: Σ-η final at a non-Σ type"
   finalPrf sig ctx (FPropExt f fs g gs) l r ty = do
-    (tyX, pt) <- exposeK sig ty
+    (tyX, pt) <- exposeK sig ctx ty
     pure (convWrap pt tyX (PPropExt f fs g gs))
-  finalPrf sig ctx (FPrfCong c) l r ty = PPrfCong <$> toPrfK sig ctx c l r PropTy
+  finalPrf sig ctx (FPrfCong c) l r ty =
+    [| PPrfCong (tySkel sig ctx l) (tySkel sig ctx r) (toPrfK sig ctx c l r PropTy) |]
   finalPrf sig ctx (FQuotCong c) l r ty =
     case (l, r) of
       (QuotTy d0 r0, QuotTy d1 r1) =>
@@ -966,13 +1081,21 @@ export
 certFuel : Nat
 certFuel = 1000000
 
+||| A path leaf's spine stated (for the elaborator's own path leaves).
+export
+pathArgsB : Sig -> Ctx -> QSig -> Nat -> SubNorm -> Maybe (List Prf)
+pathArgsB sig ctx sg k th =
+  case runKM (pathArgs sig ctx sg k th) certFuel of
+    Right (qs, _) => Just qs
+    Left _ => Nothing
+
 ||| A proof element as a reflected typed neutral (for the elaborator's
 ||| own proof leaves).
 export
 prfOfElem : Sig -> Ctx -> Elem -> Maybe Prf
 prfOfElem sig ctx p =
   case runKM (do (pp, pty) <- elemToPrf sig ctx p
-                 (ptyX, pt) <- exposeK sig pty
+                 (ptyX, pt) <- exposeK sig ctx pty
                  pure (case pt of
                          PReflx => PRefl pp
                          _ => PRefl (PAt pp ptyX pt))) certFuel of

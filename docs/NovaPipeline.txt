@@ -183,13 +183,15 @@ element, and the neutral a rewrite sits under, is a TYPED NEUTRAL:
 the spine written as a proof term over self leaves, ascribed where a
 definition hides a shape, so it states its own type and the kernel
 unfolds nothing to type it. Proof terms are written in the core's
-own syntax ((x : T by α) .π₂ y reads as the term it is about). What
-still unfolds on the kernel's own initiative is confined to the few
-elements a proof carries bare — a selector's instantiation element, a
-δ leaf's spine — and to the identity of carried QIIT signatures,
-compared after normalization (docs/NovaKernel.txt §9); the item
-level's switch-less fallthrough compares by β alone, every δ-apart
-position carrying its switch proof. The floor in every variant: α-comparison
+own syntax ((x : T by α) .π₂ y reads as the term it is about), and
+every element a proof carries — a selector's instantiation, a δ or
+path leaf's spine — is itself a proof naming that element, so no
+second checker types anything bare. What still unfolds on the
+kernel's own initiative is confined to the identity of carried QIIT
+signatures, compared after normalization, and to a bare spine's head
+type at a position nothing else determines (docs/NovaKernel.txt §9);
+the item level's switch-less fallthrough compares by β alone, every
+δ-apart position carrying its switch proof. The floor in every variant: α-comparison
 and substitution stay trusted — no kernel design knows less than
 that.
 
@@ -270,8 +272,8 @@ imports resolved by transitive re-elaboration, qualified names as flat
 docs/NovaElaboration.txt, "Modules"); the EQUATION KERNEL with the demotion of
 engine verdicts to proposals — Nova.Kernel provides
 fuel-bounded normalization (mirroring the ≜ rules clause for clause,
-exhaustion = reject), proof-element inference/checking for elimination
-spines and intro forms, injectivity selectors, PROOF-TERM CHECKING
+exhaustion = reject), stated spines (every element a proof carries is
+a proof naming it), injectivity selectors, PROOF-TERM CHECKING
 (every leaf's licensed equation is verified against its position's
 type, computed by the congruence nodes above it — a sibling needs no
 type, a leaf at an undetermined position is typed by its own neutral
