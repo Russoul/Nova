@@ -225,15 +225,18 @@ only reading the type-directed leaves have. Which readings a proof
 supports is decided from its SHAPE before any check (synthP, dirP in
 the implementation): the kernel never guesses a direction.
 
-The engine's own certificate language (Nova.Elaboration.Cert: steps
-at paths with licences, selectors, orientation and licence
-normalization; a type bridge; a final) is UNTRUSTED and never reaches
-the kernel: at the boundary it is TRANSLATED into a proof term by an
-engine-side replay of its own steps (each step becomes the congruence
-skeleton along its path around the licence's leaf, the steps of one
-side a right-nested chain ending in refl, the two sides' chains
-joined through the final's leaf, the bridge a conv). What the item's
-skeleton carries, and what the kernel checks, is the proof term.
+The engine WRITES proof terms as it searches (Nova.Elaboration.Proof,
+its proof library, untrusted): a licence applied at a position
+becomes its reflection leaf inside the congruence skeleton along the
+path (typed as the nodes of §6 type their children — a conversion
+where a shape is δ-hidden, a typed neutral for a scrutinee, a checked
+leaf for an argument), a δ-round a δ-all leaf, a closing step by the
+type's shape its type-directed leaf, the rewrites of one side a
+right-nested chain ending in refl, the two sides' chains joined
+through the closing leaf, an equation proved at an exposed type a
+conv around the whole. There is no intermediate language: what the
+search returns, what the item's skeleton carries, and what the kernel
+checks is the proof term.
 
 Child indexing, shared by the congruence nodes (§6), the engine's
 paths and skeletons (§8) — binders crossed in parentheses:
@@ -284,8 +287,8 @@ reflexivity u ≐ u : U, and the element it names is u, at U.
   Σ; Γ ⊦ ᾱ ⇐ˢ Δ ⇝ ū
 
 "agrees" is §7's type agreement (tyAgree): β-join, cumulativity (a 𝕌
-code at a 𝕍 position) and the identity of carried signatures modulo
-their normalization (A3, §9) — never δ. The two sides must be
+or Ω code at a 𝕍 position) and the identity of carried signatures
+modulo their β-join (A3, §9) — never δ. The two sides must be
 syntactically ONE element (the reading of a self leaf [t], a checked
 leaf [t : T], an ascription, or an elimination spine over them; a
 proof that states an equation between two spellings names no
@@ -647,7 +650,9 @@ typed takes the head's STATED type for its children instead of
 reading one off the side (§6).
 
 POSITIONAL TYPE CHECK, A ≐ E: join-syntactic, or cumulativity (a
-licence at 𝕌 at a position typed 𝕍 — code-lift-eq). Nothing else: a
+licence at 𝕌 at a position typed 𝕍 — code-lift-eq; a licence at Ω
+there — prop-lift-eq, its side condition established by the
+statement: a stated Ω equation's sides are props). Nothing else: a
 stated equation whose type is spelled otherwise than its position's
 (by unfoldings no leaf addresses — type indices, a hypothesis at the
 quotient's definition) arrives CONVERTED, `π at E by πᵀ` (§4), the

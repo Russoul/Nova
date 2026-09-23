@@ -166,10 +166,13 @@ at a position spelled otherwise (a hypothesis k + Z ≡ k at an
 occurrence of ℕ-elim … k Z) is transitivity over the leaf with the
 δ chains that normalized it — never an inversion onto the goal, where
 an unfolded body that has β-reduced away leaves no position to
-refold. The engine's own step-and-path traces are translated into
-proof terms at the boundary (Nova.Elaboration.Cert), by an untrusted
-replay of its own steps; the kernel sees the proof term and nothing
-else.
+refold. The engine writes the proof term AS IT SEARCHES
+(Nova.Elaboration.Proof, its untrusted proof library): a rewrite it
+performs is emitted as the licence's leaf inside the congruence
+skeleton of the position at once, a closing step as its leaf, and
+the search returns the finished proof — there is no certificate
+language between the engine and the kernel, no translation at the
+boundary; the kernel sees the proof term and nothing else.
 
 NO δ FOR EXPOSURE: the kernel's weak-head normalizer is β-only.
 A shape a definition hides — the Π of a checked λ, the quotient of a
@@ -280,16 +283,20 @@ type, computed by the congruence nodes above it — a sibling needs no
 type, a leaf at an undetermined position is typed by its own neutral
 side, the NEUTRAL-SUBTERM rule of the kernel spec's §6), and the
 type-directed leaves (el-zero-prop/el-one-prop, quotient witnesses,
-el-pi-eta/el-sigma-eta). The discharge engine emits certificates for
-every discharge (rewrite traces with parametric-context normalization
-bridging, whole-equation matches with condition witnesses, hop
-chains, injectivity-selector components), translated into proof
-terms at the boundary, and convElem/convTy count a discharge ONLY if
-its proof checks — a failure is reported on the resulting obligation. Both historical exploits are
-golden tests that now END IN OBLIGATIONS (elab-reject-prop-solvent,
-elab-reject-cross-quotient): the parametric 𝟙-lemma dies at proof
-argument checking, the cross-quotient transport dies at the positional
-type check.
+el-pi-eta/el-sigma-eta). The discharge engine writes a proof term for
+every discharge (rewrites with the stored candidate's normalization
+bridged by transitivity, whole-equation matches with condition
+witnesses, hop chains, injectivity-selector components), and
+convElem/convTy count a discharge ONLY if its proof checks — a
+kernel rejection is reported on the resulting obligation. A route the
+engine matched but cannot WRITE the proof of (a licence's element at
+the wrong type, a stated type no δ converts to the position's) is
+dropped inside the search — audited as PROOF-FAIL — and the search
+goes on with its other routes. Both historical exploits are golden
+tests that END IN OBLIGATIONS (elab-reject-prop-solvent,
+elab-reject-cross-quotient): the parametric 𝟙-lemma dies writing its
+proof argument, the cross-quotient transport dies at the positional
+type of its leaf.
 
 The ITEM-LEVEL kernel is implemented: bidirectional re-checking of
 whole core items over ANNOTATION SKELETONS — trees positionally

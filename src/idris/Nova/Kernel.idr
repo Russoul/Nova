@@ -981,6 +981,7 @@ ctxLookup (rest :< ty) (S n) = map (\t => substTy t Wk) (ctxLookup rest n)
 
 ||| The children of a congruence node (Nothing at a leaf or a
 ||| structural form).
+export
 congChildren : Prf -> Maybe (List Prf)
 congChildren (CZeroElim p) = Just [p]
 congChildren (CNatIntro1 p) = Just [p]
@@ -1337,7 +1338,10 @@ mutual
   tyAgree sig exp got = do
     expN <- kJoinTy sig exp
     gotN <- kJoinTy sig got
-    if expN == gotN || (expN == TopTy && gotN == UniverseTy)
+    -- cumulativity at 𝕍: a 𝕌 code (code-lift-eq) or an Ω code
+    -- (prop-lift-eq — a stated Ω equation's sides ARE props, the
+    -- lift's side condition established by the statement itself)
+    if expN == gotN || (expN == TopTy && (gotN == UniverseTy || gotN == PropTy))
       then pure True
       else case (expN, gotN) of
         -- a CARRIED SIGNATURE is inert syntax compared after the
