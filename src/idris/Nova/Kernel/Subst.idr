@@ -111,9 +111,8 @@ mutual
   substElem Star               sigma = Star
   substElem (QSort sg k es)    sigma = QSort (substQSig sg sigma) k (substSubNorm es sigma)
   substElem (QCtor sg k es)    sigma = QCtor (substQSig sg sigma) k (substSubNorm es sigma)
-  substElem (QElim sg k ms fs es w) sigma =
-    QElim (substQSig sg sigma) k
-      (substMotives sg ms sigma) (map (\f => substElem f sigma) fs)
+  substElem (QElim sg k fs es w) sigma =
+    QElim (substQSig sg sigma) k (map (\f => substElem f sigma) fs)
       (substSubNorm es sigma) (substElem w sigma)
   substElem (Elem.NuTy f)      sigma = Elem.NuTy (substPoly f sigma)
   substElem (Out t)            sigma = Out (substElem t sigma)
@@ -233,17 +232,10 @@ mutual
   strengthenElem d Star               = Just Star
   strengthenElem d (QSort sg k es)    = QSort <$> strengthenQSig d sg <*> Just k <*> strengthenSubNorm d es
   strengthenElem d (QCtor sg k es)    = QCtor <$> strengthenQSig d sg <*> Just k <*> strengthenSubNorm d es
-  strengthenElem d (QElim sg k ms fs es w) =
+  strengthenElem d (QElim sg k fs es w) =
     QElim <$> strengthenQSig d sg <*> Just k
-          <*> goMs (qPositions QKSort sg) ms
           <*> traverse (strengthenElem d) fs
           <*> strengthenSubNorm d es <*> strengthenElem d w
-   where
-    goMs : List Nat -> List Ty -> Maybe (List Ty)
-    goMs _ [] = Just []
-    goMs [] (m :: rest) = Nothing
-    goMs (kk :: ks) (m :: rest) =
-      [| strengthenTy (d + S (qArityLen sg kk)) m :: goMs ks rest |]
   strengthenElem d (Elem.NuTy f)      = Elem.NuTy <$> strengthenPoly d f
   strengthenElem d (Out t)            = Out <$> strengthenElem d t
   strengthenElem d (Corec p a f x)    =

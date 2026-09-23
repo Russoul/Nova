@@ -68,7 +68,7 @@ of fuel, are exactly:
                                                     # expand by Foundation's
                                                     # ≜-clauses at contraction
                                                     # time (one fuel unit)
-  𝒮.𝕤-elim ℰ ē (𝒮′.𝕔 θ) ≜ m_𝕔 θ⟨φᵉˡ⟩               # el-qiit-beta; fires
+  𝒮.𝕤-elim m̄ ē (𝒮′.𝕔 θ) ≜ m_𝕔 θ⟨φᵉˡ⟩               # el-qiit-beta; fires
                                                     # only when 𝒮 and 𝒮′ are
                                                     # IDENTICAL after nf
   x[e˲]              ≜  a[e˲]      (Σ ∋ Γ ⊦ x ≔ a : A)   # el-sig-beta
@@ -179,7 +179,7 @@ names):
       pair[π; π]  π₁[π]  π₂[π]  inj₁[π]  inj₂[π]  ⊎-elim{M?}[π; π; π]
       Π[π; π]  Σ[π; π]  ⊎[π; π]  ≡[π; π; π]  quot[π; π]  x[π̄]
       class[π]  quot-elim{M?}[π; π]  ∥π∥  𝒮.𝕤[π̄]  𝒮.𝕔[π̄]
-      𝒮.𝕤-elim ℰ[π̄; π]  out[π]  corec 𝔽[π; π; π]
+      𝒮.𝕤-elim{C̄?}[π̄; π̄; π]  out[π]  corec 𝔽[π; π; π]
     | scrut T′ πᵀ [node]  an elimination node (app, π₁/π₂, out,
                         ⊎-elim, quot-elim) read with its scrutinee's
                         type CONVERTED: πᵀ ▷ ⇒ᴺ(head) ≐ T′ (CScrut)
@@ -224,7 +224,9 @@ paths and skeletons (§8) — binders crossed in parentheses:
              ∥T∥ → 0ᵗ
              𝒮.𝕤 ē (code) → 0.. (the index spine)
              𝒮.𝕔 θ → 0.. (the argument spine)
-             𝒮.𝕤-elim ℰ ē w → 0..n-1 (the index spine), n (the eliminee)
+             𝒮.𝕤-elim m̄ ē w → 0..n-1 (the index spine), n (the eliminee)
+                              (the methods m̄ are proof positions of
+                               the congruence node, not path children)
              out t → 0               corec 𝔽 a f x → 0, 1(1), 2
              ν 𝔽 (code) → (none)
   types:     A → B → 0, 1(1)         A × B → 0, 1(1)
@@ -522,7 +524,9 @@ its part at the child's expected type, computed from the node:
   ∥π∥             child : 𝕍
   𝒮.𝕤[π̄], 𝒮.𝕔[π̄]  child i : entry i of the reflected telescope,
                   instantiated by the preceding children
-  𝒮.𝕤-elim ℰ[π̄; πw]
+  𝒮.𝕤-elim{C̄?}[π̄m; π̄; πw]
+                  methods: no motives — UNDETERMINED; motives C̄
+                  (C_𝕤[ē, w] ≐ E): m_𝕔 : 𝔄ᴰ⟨𝒮.𝕔 δ⟩ at C̄;
                   spine as above; w : 𝒮.𝕤 ē
   out[π]          child : ⇒ᴺ(t)
   corec 𝔽[πa; πf; πx]
@@ -695,6 +699,10 @@ payloads:
         b ⟨skb⟩                       (inhabiting ∥A∥) and a body b
                                       proving q[↑] under the raw
                                       squashee A
+    | qmotives C̄ ⟨sk̄⟩     (PQMotives) QIIT eliminator MOTIVES, one type
+                                      per sort entry of the carried
+                                      signature (the core eliminator
+                                      carries only the methods)
     | qcoh π₁ … πₖ        (PQCoh)    QIIT eliminator coherences, one
                                       proof per equation entry
                                       of the carried signature
@@ -892,7 +900,10 @@ Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
      Σ; Γ ⊦ ēᵢ ⇐ (entry i of ⌊𝔎⌋ᵗ)[ē prefix] ⟨sk.i⟩ (entrywise)
      Σ; Γ ⊦ w ⇐ 𝒮.𝕤 ē ⟨sk.n⟩
      ------------------------------------------------------------
-     Σ; Γ ⊦ 𝒮.𝕤-elim ℰ ē w ⇒ C_𝕤[ē, w]               # el-qiit-elim
+     Σ; Γ ⊦ 𝒮.𝕤-elim m̄ ē w ⇒ C_𝕤[ē, w]               # el-qiit-elim
+     # the core carries the methods m̄ only; the motives C̄ (with their
+     # skeletons skC.j) arrive in the node's qmotives payload, the
+     # coherences in its qcoh payload — the term carries what β reads
 
   ⌊·⌋, ⌊·⌋ᵗ, ·ᴰ⟨·⟩, ·ᴰᵗ, ⟦·⟧, θ⟨φ⟩ and πᴰ are Foundation's QIIT
   meta-operations, implemented as (trusted) kernel functions; the
@@ -963,7 +974,12 @@ EQUATION REPLAY (A1, A2), and three added by the QIIT extension
 
   A1  CONSTANT MOTIVE. In proof-argument checking (§3) an ℕ-elim
       argument is checked by the el-nat-e instance whose motive is
-      T[↑], and a ⊎-elim argument by the el-sum-e instance likewise;
+      T[↑], a ⊎-elim argument by the el-sum-e instance likewise, and
+      a QIIT eliminator argument by the el-qiit-elim instance whose
+      every sort motive is T weakened into the sort's context (the
+      core carries no motives; in INFERENCE position a bare QIIT
+      eliminator has no type at all — a spine references its Elim
+      definition folded);
       a congruence node without a carried motive (§6) types the z/s
       positions of an ℕ-elim by the same reading (a ⊎-elim's and a
       quot-elim's case positions stay undetermined). A node MAY carry
@@ -988,9 +1004,10 @@ EQUATION REPLAY (A1, A2), and three added by the QIIT extension
       the whole former, via conv or expose.
 
   A4  β-ONLY COHERENCES IN SPINES. Proof-spine checking (§3) accepts
-      𝒮.𝕔 θ introductions, universe and sort codes, and eliminator
-      chains — but no proof terms travel inside a proof leaf, so
-      a spine eliminator's coherences are verified by pure β alone.
+      𝒮.𝕔 θ introductions, universe and sort codes, and eliminators
+      in ARGUMENT position (A1's constant reading) — but no proof
+      terms travel inside a proof leaf, so a spine eliminator's
+      coherences are verified by pure β alone.
       An eliminator whose coherences need real replay is referenced
       through Σ, where the item level carries the full apparatus
       (coherences as PQCoh proofs, §8).

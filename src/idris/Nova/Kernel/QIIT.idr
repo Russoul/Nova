@@ -256,9 +256,9 @@ motApp sg mots base s idx self = do
 ||| spine at φᵉˡ — each inductive argument contributes its value AND a
 ||| recursive eliminator call at its own sort and indices.
 export
-qElimBetaRhs : QSig -> (motives : List Ty) -> (methods : List Elem)
+qElimBetaRhs : QSig -> (methods : List Elem)
             -> (ctorPos : Nat) -> (theta : SubNorm) -> Either QErr Elem
-qElimBetaRhs sg mots mths k theta = do
+qElimBetaRhs sg mths k theta = do
   entry <- maybe (Left "qiit: ctor out of range") Right (qEntry sg k)
   o <- maybe (Left "qiit: not a point-constructor position") Right (qOrdinal QKPoint sg k)
   m <- maybe (Left "qiit: method missing") Right (getAt o mths)
@@ -269,21 +269,21 @@ qElimBetaRhs sg mots mths k theta = do
   go acc w (QPiInd u b) (v :: vs) = do
     (s, args) <- codeSort sg w u
     idx <- reflArgs sg w args
-    let rec = QElim sg s mots mths idx v
+    let rec = QElim sg s mths idx v
     go (PiApp (PiApp acc v) rec) (crossIndVal v w) b vs
   go acc _ (QEl _) [] = Right acc
   go _ _ _ _ = Left "qiit: β constructor spine mismatch"
 
 ||| m_𝕔 θ⟨h⟩ at an arbitrary SECTION CANDIDATE family (one element
 ||| per sort, each over the sort's reflected telescope plus itself):
-||| qElimBetaRhs with the recursive positions materialized as h-calls
+||| qElimBetaRhs with recursive positions materialized as h-calls
 ||| instead of eliminator calls (Foundation's ·⟨·⟩ at h — el-qiit-eta's
 ||| method images).
 export
-qSectRhs : QSig -> (motives : List Ty) -> (methods : List Elem)
+qSectRhs : QSig -> (methods : List Elem)
         -> (sects : List Elem)
         -> (ctorPos : Nat) -> (theta : SubNorm) -> Either QErr Elem
-qSectRhs sg mots mths hs k theta = do
+qSectRhs sg mths hs k theta = do
   entry <- maybe (Left "qiit: ctor out of range") Right (qEntry sg k)
   o <- maybe (Left "qiit: not a point-constructor position") Right (qOrdinal QKPoint sg k)
   m <- maybe (Left "qiit: method missing") Right (getAt o mths)

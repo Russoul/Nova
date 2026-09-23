@@ -2174,7 +2174,7 @@ conclude env sig ctx (DQSect dMot ds) = do
 conclude env sig ctx (DQElim k dEP dSp dW) = do
   (sg, mots, mths) <- conclude env sig ctx dEP >>= needEProb
   (es, w, motK) <- qElimEnd env sig ctx sg mots k dSp dW
-  pure (JEl (QElim sg k mots mths (cast es) w)
+  pure (JEl (QElim sg k mths (cast es) w)
             (substTy motK (Ext (foldl Ext Id es) w)))
 conclude env sig ctx (DQEta k dEP dSect dAgs dSp dW) = do
   (sg, mots, mths) <- conclude env sig ctx dEP >>= needEProb
@@ -2190,7 +2190,7 @@ conclude env sig ctx (DQEta k dEP dSect dAgs dSp dW) = do
           Just h => pure h
           Nothing => kerr "derivation: el-qiit-eta: candidate missing"
   pure (JElEq (substElem hK (Ext (foldl Ext Id es) w))
-              (QElim sg k mots mths (cast es) w)
+              (QElim sg k mths (cast es) w)
               (substTy motK (Ext (foldl Ext Id es) w)))
  where
   goAgrees : QSig -> List Ty -> List Elem -> List Elem -> List Nat -> List Deriv -> KM ()
@@ -2213,7 +2213,7 @@ conclude env sig ctx (DQEta k dEP dSect dAgs dSp dW) = do
               Nothing => kerr "derivation: el-qiit-eta: motive missing"
     let ctor = QCtor sg cj (varSpine (length tel))
     let inst = Ext (foldl Ext Id (toList idx)) ctor
-    rhs <- liftQE (qSectRhs sg mots mths hs cj (varSpine (length tel)))
+    rhs <- liftQE (qSectRhs sg mths hs cj (varSpine (length tel)))
     (l, r, ety) <- conclude env sig cctx d >>= needElEq
     alphaEl "el-qiit-eta (agreement l)" l (substElem hS inst)
     alphaEl "el-qiit-eta (agreement r)" r rhs

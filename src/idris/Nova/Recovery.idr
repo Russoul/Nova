@@ -65,7 +65,7 @@ holeView nm = case unpack nm of
 -- ships with an empty skeleton, so it may not contain STUCK
 -- ELIMINATORS — bare core ℕ-elim/⊎-elim/quot-elim need kernel
 -- payloads (motives, well-definedness) an empty skeleton cannot
--- carry. (QElim and Corec carry their annotations inline in core and
+-- carry. (QElim and Corec their annotations inline in core and
 -- are fine.) Elision verdicts and the elided rules both require this.
 
 mutual
@@ -105,8 +105,8 @@ mutual
     Star => True
     QSort _ _ sp => all skelFreeE (toList sp)
     QCtor _ _ sp => all skelFreeE (toList sp)
-    QElim _ _ mots mths sp w =>
-      all skelFreeT mots && all skelFreeE mths && all skelFreeE (toList sp) && skelFreeE w
+    QElim _ _ mths sp w =>
+      all skelFreeE mths && all skelFreeE (toList sp) && skelFreeE w
     NuTy p => skelFreeP p
     Out t => skelFreeE t
     Corec p a f x => skelFreeP p && skelFreeE a && skelFreeE f && skelFreeE x
@@ -186,12 +186,11 @@ mutual
     Star => Just e
     QSort sig j sp => map (QSort sig j) (varMapSp vf c sp)
     QCtor sig j sp => map (QCtor sig j) (varMapSp vf c sp)
-    QElim sig j mots mths sp w =>
-      do mots' <- traverse (varMapT vf c) mots
-         mths' <- traverse (varMapE vf c) mths
+    QElim sig j mths sp w =>
+      do mths' <- traverse (varMapE vf c) mths
          sp' <- varMapSp vf c sp
          w' <- varMapE vf c w
-         pure (QElim sig j mots' mths' sp' w')
+         pure (QElim sig j mths' sp' w')
     NuTy pl => map NuTy (varMapP vf c pl)
     Out t => map Out (varMapE vf c t)
     Corec pl a f x =>
@@ -410,11 +409,11 @@ mutual
       QCtor sig' j' sp' =>
         if j == j' && show sig == show sig' then mSubP pats k sp sp' sols else Nothing
       _ => Nothing
-  mElemP pats app k (QElim sig j mots mths sp w) g sols =
+  mElemP pats app k (QElim sig j mths sp w) g sols =
     case g of
-      QElim sig' j' mots' mths' sp' w' =>
+      QElim sig' j' mths' sp' w' =>
         if j == j' && show sig == show sig'
-          then mTys pats k mots mots' sols >>= mElems pats k mths mths' >>= mSubP pats k sp sp' >>= mElemP pats False k w w'
+          then mElems pats k mths mths' sols >>= mSubP pats k sp sp' >>= mElemP pats False k w w'
           else Nothing
       _ => Nothing
   mElemP pats app k (NuTy p) g sols =
@@ -644,9 +643,8 @@ mutual
     Star => acc
     QSort _ _ sp => foldl (\a, x => walkE True x a) acc (toList sp)
     QCtor _ _ sp => foldl (\a, x => walkE True x a) acc (toList sp)
-    QElim _ _ mots mths sp w =>
-      let acc1 = foldl (\a, t => walkT t a) acc mots
-          acc2 = foldl (\a, m => walkE True m a) acc1 mths
+    QElim _ _ mths sp w =>
+      let acc2 = foldl (\a, m => walkE True m a) acc mths
           acc3 = foldl (\a, x => walkE True x a) acc2 (toList sp)
       in walkE True w acc3
     NuTy p => walkP p acc
@@ -815,8 +813,8 @@ mutual
     Star => False
     QSort _ _ sp => any (anySigNameE p) (toList sp)
     QCtor _ _ sp => any (anySigNameE p) (toList sp)
-    QElim _ _ mots mths sp w =>
-      any (anySigNameE p) mots || any (anySigNameE p) mths
+    QElim _ _ mths sp w =>
+      any (anySigNameE p) mths
         || any (anySigNameE p) (toList sp) || anySigNameE p w
     NuTy poly => anySigNameP p poly
     Out t => anySigNameE p t
@@ -869,8 +867,8 @@ mutual
     Star => False
     QSort _ _ sp => any hasHolesE (toList sp)
     QCtor _ _ sp => any hasHolesE (toList sp)
-    QElim _ _ mots mths sp w =>
-      any hasHolesT mots || any hasHolesE mths || any hasHolesE (toList sp) || hasHolesE w
+    QElim _ _ mths sp w =>
+      any hasHolesE mths || any hasHolesE (toList sp) || hasHolesE w
     NuTy p => hasHolesP p
     Out t => hasHolesE t
     Corec p a f x => hasHolesP p || hasHolesE a || hasHolesE f || hasHolesE x
@@ -963,8 +961,8 @@ mutual
       Star => e
       QSort sig k sp => QSort sig k (map (absE c sc) sp)
       QCtor sig k sp => QCtor sig k (map (absE c sc) sp)
-      QElim sig k mots mths sp w =>
-        QElim sig k (map (absT c sc) mots) (map (absE c sc) mths)
+      QElim sig k mths sp w =>
+        QElim sig k (map (absE c sc) mths)
               (map (absE c sc) sp) (absE c sc w)
       NuTy p => NuTy (absP c sc p)
       Out t => Out (absE c sc t)

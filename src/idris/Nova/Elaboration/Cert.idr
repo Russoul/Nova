@@ -257,17 +257,17 @@ exposeK sig t = go t
         (r, p2) <- go (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
         pure (r, pTrans (congOf p1 (COut p1)) p2)
       _ => pure (Out t', congOf p1 (COut p1))
-  go (QElim sg k ms fs es w) = do
+  go (QElim sg k fs es w) = do
     (w', p1) <- go w
-    let node = congOf p1 (CQElim sg k ms fs (map (const PReflx) (toList es)) p1)
+    let node = congOf p1 (CQElim sg k Nothing (map (const PReflx) fs) (map (const PReflx) (toList es)) p1)
     case w' of
       QCtor sgW c theta =>
         if sgW == sg
-          then case qElimBetaRhs sg ms fs c theta of
+          then case qElimBetaRhs sg fs c theta of
                  Right rhs => do (r, p2) <- go rhs; pure (r, pTrans node p2)
-                 Left _ => pure (QElim sg k ms fs es w', node)
-          else pure (QElim sg k ms fs es w', node)
-      _ => pure (QElim sg k ms fs es w', node)
+                 Left _ => pure (QElim sg k fs es w', node)
+          else pure (QElim sg k fs es w', node)
+      _ => pure (QElim sg k fs es w', node)
   -- the squashee exposed inside its ∥·∥; a squashee that exposes to a
   -- prop collapses (code-squash-idem's instance, a β-rule of the join)
   go (Squash t) = do
@@ -331,7 +331,7 @@ defNames sig t = do
   names (Squash u) acc = names u acc
   names (QSort _ _ es) acc = foldl (\a, e => names e a) acc (toList es)
   names (QCtor _ _ es) acc = foldl (\a, e => names e a) acc (toList es)
-  names (QElim _ _ _ _ es w) acc = foldl (\a, e => names e a) (names w acc) (toList es)
+  names (QElim _ _ _ es w) acc = foldl (\a, e => names e a) (names w acc) (toList es)
   names (Out u) acc = names u acc
   names (Corec _ a f x) acc = names a (names f (names x acc))
   names _ acc = acc
@@ -520,11 +520,11 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
       (\(qs, es') => (CQSort sg k qs, QSort sg k es')) <$> spineWrap i es (go ctx (qSpineChildTy sg k es i) b)
     (QCtor sg k es, _) =>
       (\(qs, es') => (CQCtor sg k qs, QCtor sg k es')) <$> spineWrap i es (go ctx (qSpineChildTy sg k es i) b)
-    (QElim sg k ms fs es w, _) =>
+    (QElim sg k fs es w, _) =>
       if i == length (toList es)
-        then (\(q, w') => (CQElim sg k ms fs (map (const PReflx) (toList es)) q, QElim sg k ms fs es w'))
+        then (\(q, w') => (CQElim sg k Nothing (map (const PReflx) fs) (map (const PReflx) (toList es)) q, QElim sg k fs es w'))
                <$> go ctx (Just (QSort sg k es)) b w
-        else (\(qs, es') => (CQElim sg k ms fs qs PReflx, QElim sg k ms fs es' w))
+        else (\(qs, es') => (CQElim sg k Nothing (map (const PReflx) fs) qs PReflx, QElim sg k fs es' w))
                <$> spineWrap i es (go ctx (qSpineChildTy sg k es i) b)
     _ => kerr "certificate: bad path [i=\{show i}, at \{show u}]"
  where

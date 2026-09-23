@@ -147,19 +147,18 @@ mutual
   compElem Star               = Star
   compElem (QSort sg k es)   = QSort (compQSig sg) k (compSubNorm es)
   compElem (QCtor sg k es)    = QCtor (compQSig sg) k (compSubNorm es)
-  compElem (QElim sg k ms fs es w) =
+  compElem (QElim sg k fs es w) =
     let sg' = compQSig sg
-        ms' = map compTy ms
         fs' = map compElem fs
         es' = compSubNorm es
     in case compElem w of
          QCtor sgW c theta =>
            if sgW == sg'
-             then case qElimBetaRhs sg' ms' fs' c theta of
+             then case qElimBetaRhs sg' fs' c theta of
                     Right rhs => compElem rhs
-                    Left _ => QElim sg' k ms' fs' es' (QCtor sgW c theta)
-             else QElim sg' k ms' fs' es' (QCtor sgW c theta)
-         w' => QElim sg' k ms' fs' es' w'
+                    Left _ => QElim sg' k fs' es' (QCtor sgW c theta)
+             else QElim sg' k fs' es' (QCtor sgW c theta)
+         w' => QElim sg' k fs' es' w'
   compElem (Elem.NuTy f)      = Elem.NuTy (compPoly f)
   compElem (Out t) =
     case compElem t of

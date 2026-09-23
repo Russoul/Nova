@@ -248,8 +248,8 @@ mutual
     Star => e
     QSort sg k sp => QSort (rcQSig f sg) k (map (rcE f) sp)
     QCtor sg k sp => QCtor (rcQSig f sg) k (map (rcE f) sp)
-    QElim sg k mots mths sp w =>
-      QElim (rcQSig f sg) k (map (rcT f) mots) (map (rcE f) mths)
+    QElim sg k mths sp w =>
+      QElim (rcQSig f sg) k (map (rcE f) mths)
             (map (rcE f) sp) (rcE f w)
     NuTy p => NuTy (rcP f p)
     Out t => Out (rcE f t)

@@ -289,12 +289,9 @@ mutual
   usesIndexElem k Star = False
   usesIndexElem k (QSort sg j es) = usesIndexQSig k sg || usesIndexSubNorm k es
   usesIndexElem k (QCtor sg j es) = usesIndexQSig k sg || usesIndexSubNorm k es
-  usesIndexElem k (QElim sg j ms fs es w) =
-    usesIndexQSig k sg || any (usesIndexMotive) (zip (qPositions QKSort sg) ms)
+  usesIndexElem k (QElim sg j fs es w) =
+    usesIndexQSig k sg
       || any (usesIndexElem k) fs || usesIndexSubNorm k es || usesIndexElem k w
-   where
-    usesIndexMotive : (Nat, Ty) -> Bool
-    usesIndexMotive (sj, m) = usesIndexTy (k + S (qArityLen sg sj)) m
   usesIndexElem k (Elem.NuTy f) = usesIndexPoly k f
   usesIndexElem k (Out t) = usesIndexElem k t
   usesIndexElem k (Corec p a f x) =
@@ -509,7 +506,7 @@ mutual
       else sigRefN x ++ "[" ++ prettySubNormN imps tbl env es ++ "]"
   prettyElemAtomN imps tbl env (QSort sg k es) = prettyQSortN imps tbl env sg k es
   prettyElemAtomN imps tbl env (QCtor sg k es) = "𝒮." ++ show k ++ "[" ++ prettySubNormN imps tbl env es ++ "]"
-  prettyElemAtomN imps tbl env (QElim sg k ms fs es w) =
+  prettyElemAtomN imps tbl env (QElim sg k fs es w) =
     "𝒮." ++ show k ++ "-elim[" ++ prettySubNormN imps tbl env es ++ "](" ++ prettyElemN imps tbl env w ++ ")"
   prettyElemAtomN imps tbl env e = "(" ++ prettyElemN imps tbl env e ++ ")"
 

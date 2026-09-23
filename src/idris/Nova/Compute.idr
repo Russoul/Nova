@@ -57,7 +57,7 @@ module Nova.Compute
 --   NatElim z s t           — Γ⊦z, Γ⊦t (recursed), Γ▷ℕ▷A⊦s (left alone).
 --   QuotElim f q            — Γ⊦q (recursed), Γ▷A⊦f (left alone).
 --   QuotTy/QuotTy A R  — Γ⊦A (recursed), Γ▷A▷A[↑]⊦R (left alone).
---   QSort/QCtor/QElim      — Γ⊦es : the argument/index spine (recursed
+--   QSort/QCtor/QElim      — Γ⊦es the argument/index spine (recursed
 --     sg _ es / … es w       — it lives at Γ, no binder); sg itself
 --                             (and, for QElim, its motives/methods) is
 --                             inherently a bundle of binder telescopes
@@ -184,10 +184,10 @@ mutual
       _ => assert_total $ idris_crash "whnfElem: out scrutinee is not a corec head (impossible for a closed, well-typed term)"
   whnfElem sig (QSort sg k es)   = QSort sg k es
   whnfElem sig (QCtor sg k es)    = QCtor sg k es
-  whnfElem sig (QElim sg k ms fs es w) =
+  whnfElem sig (QElim sg k fs es w) =
     case whnfElem sig w of
       QCtor _ c theta =>   -- either carried signature would do; see the module doc
-        case qElimBetaRhs sg ms fs c theta of
+        case qElimBetaRhs sg fs c theta of
           Right rhs => whnfElem sig rhs
           Left err  => assert_total $ idris_crash "whnfElem: el-qiit-beta on an ill-formed eliminator: \{err}"
       _ => assert_total $ idris_crash "whnfElem: QIIT eliminator scrutinee is not a constructor (impossible for a closed, well-typed term)"
@@ -248,7 +248,7 @@ mutual
     go Star               = Star
     go (QSort sg k es)   = QSort sg k (nfSubNorm sig es)   -- sg: a bundle of binder telescopes, left alone
     go (QCtor sg k es)    = QCtor sg k (nfSubNorm sig es)
-    go (QElim sg k ms fs es w) = QElim sg k ms fs (nfSubNorm sig es) (nfElem sig w)
+    go (QElim sg k fs es w) = QElim sg k fs (nfSubNorm sig es) (nfElem sig w)
     go (Elem.NuTy f)      = Elem.NuTy f   -- 𝔽: embedded pieces partly under binders, left alone
     go (Out t)            = Out (nfElem sig t)
     go (Corec p a f x)    = Corec p (nfElem sig a) f (nfElem sig x)   -- f: under a binder, left alone

@@ -94,8 +94,9 @@ The kernel's INPUT, however, is richer than a bare term: an ANNOTATED
 TREE — the elaborator's output where each node optionally carries
 exactly what the bidirectional pass invented or consumed there:
 
-  * eliminator motives (ℕ-elim, quot-elim) — bare core is not even
-    re-checkable without them;
+  * eliminator motives (ℕ-elim, ⊎-elim, quot-elim, and a QIIT's
+    𝒮.𝕤-elim, whose core carries only its methods) — bare core is
+    not even re-checkable without them;
   * the expected type at checked introduction forms;
   * conversion PROOFS at switch sites: proof terms (congruence nodes
     around licence leaves, transitivity, symmetry, type conversion,

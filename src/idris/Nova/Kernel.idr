@@ -86,6 +86,10 @@ mutual
     ||| hypothesis is then the squashee in the spelling the producer
     ||| checked the body against
     PSquashElim : Elem -> Skel -> Maybe (Ty, Prf) -> Elem -> Skel -> Payload
+    ||| QIIT eliminator MOTIVES — one type per sort entry of the carried
+    ||| signature, over Γ·⌊𝔎⌋ᵗ ▷ 𝒮.𝕤 δ, each with its skeleton (the core
+    ||| eliminator carries only the methods: what β reads)
+    PQMotives : List Ty -> List Skel -> Payload
     ||| QIIT eliminator coherences — one proof per equation entry of
     ||| the carried signature, checked in the entry's ᴰ-context (the
     ||| QIIT generalization of quot-elim's wd)
@@ -217,7 +221,10 @@ mutual
     CSquash : Prf -> Prf
     CQSort : QSig -> Nat -> List Prf -> Prf
     CQCtor : QSig -> Nat -> List Prf -> Prf
-    CQElim : QSig -> Nat -> List Ty -> List Elem -> List Prf -> Prf -> Prf
+    ||| the QIIT eliminator: an optional motive list (Nothing: the
+    ||| method positions are undetermined), a proof per METHOD, per
+    ||| index-spine entry, and for the eliminee
+    CQElim : QSig -> Nat -> Maybe (List Ty) -> List Prf -> List Prf -> Prf -> Prf
     COut : Prf -> Prf
     CCorec : Poly -> Prf -> Prf -> Prf -> Prf
     ||| an ELIMINATION node read with its scrutinee's type EXPOSED: the
@@ -295,9 +302,9 @@ substPrf (CQuotElim m f q) s =
 substPrf (CSquash p) s = CSquash (substPrf p s)
 substPrf (CQSort sg k ps) s = CQSort (substQSig sg s) k (map (\p => substPrf p s) ps)
 substPrf (CQCtor sg k ps) s = CQCtor (substQSig sg s) k (map (\p => substPrf p s) ps)
-substPrf (CQElim sg k ms fs ps w) s =
-  CQElim (substQSig sg s) k (map (\m => substTy m s) ms) (map (\f => substElem f s) fs)
-         (map (\p => substPrf p s) ps) (substPrf w s)
+substPrf (CQElim sg k ms qs ps w) s =
+  CQElim (substQSig sg s) k (map (map (\m => substTy m s)) ms)
+         (map (\p => substPrf p s) qs) (map (\p => substPrf p s) ps) (substPrf w s)
 substPrf (COut p) s = COut (substPrf p s)
 substPrf (CCorec pf a f x) s = CCorec (substPoly pf s) (substPrf a s) (substPrf f (under s)) (substPrf x s)
 substPrf (CScrut ty pt q) s = CScrut (substTy ty s) (substPrf pt s) (substPrf q s)
@@ -365,7 +372,7 @@ Show Prf where
   show (CSquash p) = "∥\{show p}∥"
   show (CQSort _ k ps) = "sort\{show k}[\{show ps}]"
   show (CQCtor _ k ps) = "ctor\{show k}[\{show ps}]"
-  show (CQElim _ k _ _ ps w) = "qelim\{show k}[\{show ps}; \{show w}]"
+  show (CQElim _ k m qs ps w) = "qelim\{show k}\{if isJust m then "{…}" else ""}[\{show qs}; \{show ps}; \{show w}]"
   show (COut p) = "out[\{show p}]"
   show (CCorec _ a f x) = "corec[\{show a}; \{show f}; \{show x}]"
   show (CScrut ty pt q) = "(scrut \{show pt} ⇒ \{show ty} in \{show q})"
@@ -588,9 +595,8 @@ mutual
   kElem sig Star = pure Star
   kElem sig (QSort sg k es) = [| QSort (kQSig sig sg) (pure k) (kSubNorm sig es) |]
   kElem sig (QCtor sg k es) = [| QCtor (kQSig sig sg) (pure k) (kSubNorm sig es) |]
-  kElem sig (QElim sg k ms fs es w) = do
+  kElem sig (QElim sg k fs es w) = do
     sg' <- kQSig sig sg
-    ms' <- traverse (kTy sig) ms
     fs' <- traverse (kElem sig) fs
     es' <- kSubNorm sig es
     w' <- kElem sig w
@@ -600,11 +606,11 @@ mutual
       QCtor sgW c theta =>
         if sgW == sg'
           then do burn
-                  case qElimBetaRhs sg' ms' fs' c theta of
+                  case qElimBetaRhs sg' fs' c theta of
                     Right rhs => kElem sig rhs
                     Left err => kerr "kernel: \{err}"
-          else pure (QElim sg' k ms' fs' es' w')
-      _ => pure (QElim sg' k ms' fs' es' w')
+          else pure (QElim sg' k fs' es' w')
+      _ => pure (QElim sg' k fs' es' w')
   kElem sig (Elem.NuTy f) = [| Elem.NuTy (kPoly sig f) |]
   kElem sig (Out t) = do
     t' <- kElem sig t
@@ -721,17 +727,17 @@ mutual
       p@(Elem.EqTy _ _ _) => do burn; pure p
       p@(Squash _) => do burn; pure p
       _ => pure (Squash t)
-  kWhnfE sig (QElim sg k ms fs es w) = do
+  kWhnfE sig (QElim sg k fs es w) = do
     w' <- kWhnfE sig w
     case w' of
       QCtor sgW c theta =>
         if sgW == sg
           then do burn
-                  case qElimBetaRhs sg ms fs c theta of
+                  case qElimBetaRhs sg fs c theta of
                     Right rhs => kWhnfE sig rhs
-                    Left _ => pure (QElim sg k ms fs es (QCtor sgW c theta))
-          else pure (QElim sg k ms fs es (QCtor sgW c theta))
-      _ => pure (QElim sg k ms fs es w')
+                    Left _ => pure (QElim sg k fs es (QCtor sgW c theta))
+          else pure (QElim sg k fs es (QCtor sgW c theta))
+      _ => pure (QElim sg k fs es w')
   kWhnfE sig (Out t) = do
     t' <- kWhnfE sig t
     case t' of
@@ -833,9 +839,8 @@ mutual
   kJoinElem sig Star = pure Star
   kJoinElem sig (QSort sg k es) = [| QSort (kJoinQSig sig sg) (pure k) (kJoinSubNorm sig es) |]
   kJoinElem sig (QCtor sg k es) = [| QCtor (kJoinQSig sig sg) (pure k) (kJoinSubNorm sig es) |]
-  kJoinElem sig (QElim sg k ms fs es w) = do
+  kJoinElem sig (QElim sg k fs es w) = do
     sg' <- kJoinQSig sig sg
-    ms' <- traverse (kJoinTy sig) ms
     fs' <- traverse (kJoinElem sig) fs
     es' <- kJoinSubNorm sig es
     w' <- kJoinElem sig w
@@ -843,11 +848,11 @@ mutual
       QCtor sgW c theta =>
         if sgW == sg'
           then do burn
-                  case qElimBetaRhs sg' ms' fs' c theta of
+                  case qElimBetaRhs sg' fs' c theta of
                     Right rhs => kJoinElem sig rhs
                     Left err => kerr "kernel: \{err}"
-          else pure (QElim sg' k ms' fs' es' w')
-      _ => pure (QElim sg' k ms' fs' es' w')
+          else pure (QElim sg' k fs' es' w')
+      _ => pure (QElim sg' k fs' es' w')
   kJoinElem sig (Elem.NuTy f) = Elem.NuTy <$> kJoinPoly sig f
   kJoinElem sig (Out t) = do
     t' <- kJoinElem sig t
@@ -1002,7 +1007,31 @@ mutual
   -- proof-fragment eliminator carries no coherence certificates, so
   -- each imposed method-image equation is verified by PURE β — both
   -- sides must normalize to identical forms.
-  inferP sig ctx (QElim sg k mots mths es w) = do
+  -- a QIIT eliminator in a proof spine carries no motives (the core
+  -- carries only the methods), so it has no inferable type: a spine
+  -- references the QIIT's Elim definition FOLDED, whose declared type
+  -- says what the eliminator returns (A4, docs/NovaKernel.txt §9)
+  inferP sig ctx (QElim sg k mths es w) =
+    kerr "kernel: a bare QIIT eliminator in a proof spine has no type (reference its Elim definition)"
+  inferP sig ctx e = kerr "kernel: proof element not inferable: \{show e}"
+
+  export
+  checkP : Sig -> Ctx -> Elem -> Ty -> KM ()
+  -- checking against 𝕍 IS type-formation checking (the dissolved
+  -- type judgement): route before any element-directed clause, so
+  -- e.g. 𝟘-elim/ℕ-elim at 𝕍 are correctly rejected (no motive at 𝕍)
+  checkP sig ctx e TopTy = checkTyP sig ctx e
+  -- a QIIT eliminator as a proof ARGUMENT: the core carries no
+  -- motives, so it is checked by the CONSTANT-MOTIVE instance of
+  -- el-qiit-elim — every sort's motive the expected type, weakened
+  -- into the sort's context (A1 extended to QIITs; a bare spine has no
+  -- place for a real motive). Methods at the displayed types,
+  -- coherences by pure β (A4), the result type is the expected type
+  -- by construction.
+  checkP sig ctx (QElim sg k mths es w) ty = do
+    let wkTimes : Nat -> Sub
+        wkTimes Z = Id
+        wkTimes (S n) = Chain (wkTimes n) Wk
     sg' <- kQSig sig sg
     entry <- case qEntry sg' k of
                Just x => pure x
@@ -1013,22 +1042,16 @@ mutual
     let sortPs = qPositions QKSort sg'
     let pointPs = qPositions QKPoint sg'
     let eqPs = qPositions QKEq sg'
-    if length mots /= length sortPs
-      then kerr "kernel: eliminator motive count mismatch" else pure ()
     if length mths /= length pointPs
       then kerr "kernel: eliminator method count mismatch" else pure ()
-    let goMotives : List Nat -> List Ty -> KM ()
-        goMotives [] [] = pure ()
-        goMotives (sj :: sjs) (mot :: rest) = do
+    let constMotive : Nat -> KM Ty
+        constMotive sj = do
           sjE <- case qEntry sg' sj of
                    Just x => pure x
                    Nothing => kerr "kernel: sort out of range"
-          (tel, wEnd, _) <- liftQ (reflTel sg' (qwAt sj) sjE)
-          let mctx = foldl (:<) ctx tel
-          let selfTy = QSort (substQSig sg' wEnd.ups) sj (varSpine (length tel))
-          checkTyP sig (mctx :< selfTy) mot
-          goMotives sjs rest
-        goMotives _ _ = kerr "kernel: eliminator motive count mismatch"
+          (tel, _, _) <- liftQ (reflTel sg' (qwAt sj) sjE)
+          pure (substTy ty (wkTimes (S (length tel))))
+    mots <- traverse constMotive sortPs
     let goMethods : List Nat -> List Elem -> KM ()
         goMethods [] [] = pure ()
         goMethods (cj :: cjs) (m :: rest) = do
@@ -1043,8 +1066,6 @@ mutual
           ctyN <- kTy sig cty
           isP <- kIsProp sig ctx ctyN
           case isP of
-            -- a prop-flavored eliminator: its coherences hold outright
-            -- by proof irrelevance (el-prf-prop)
             True => pure ()
             False => do
               lhs' <- kElem sig lhs
@@ -1052,26 +1073,10 @@ mutual
               if lhs' == rhs' then pure ()
                 else kerr "kernel: eliminator coherence does not hold by β"
           goCoherences ejs
-    goMotives sortPs mots
     goMethods pointPs mths
     goCoherences eqPs
     checkQSpineP sig ctx sg' k es
     checkP sig ctx w (QSort sg' k es)
-    o <- case qOrdinal QKSort sg' k of
-           Just x => pure x
-           Nothing => kerr "kernel: eliminator sort ordinal"
-    motK <- case getAt o mots of
-              Just m => pure m
-              Nothing => kerr "kernel: eliminator motive missing"
-    pure (substTy motK (Ext (foldl Ext Id (toList es)) w))
-  inferP sig ctx e = kerr "kernel: proof element not inferable: \{show e}"
-
-  export
-  checkP : Sig -> Ctx -> Elem -> Ty -> KM ()
-  -- checking against 𝕍 IS type-formation checking (the dissolved
-  -- type judgement): route before any element-directed clause, so
-  -- e.g. 𝟘-elim/ℕ-elim at 𝕍 are correctly rejected (no motive at 𝕍)
-  checkP sig ctx e TopTy = checkTyP sig ctx e
   checkP sig ctx (Class a) ty = do
     ty' <- kTy sig ty
     case ty' of
@@ -1423,7 +1428,7 @@ congChildren (CQuotElim _ f q) = Just [f, q]
 congChildren (CSquash p) = Just [p]
 congChildren (CQSort _ _ ps) = Just ps
 congChildren (CQCtor _ _ ps) = Just ps
-congChildren (CQElim _ _ _ _ ps w) = Just (ps ++ [w])
+congChildren (CQElim _ _ _ qs ps w) = Just (qs ++ ps ++ [w])
 congChildren (COut p) = Just [p]
 congChildren (CCorec _ a f x) = Just [a, f, x]
 congChildren (CScrut _ _ q) = congChildren q
@@ -1510,12 +1515,6 @@ inferHead sig ctx (SigVar x es) =
     Just (SigDef _ _ _ ty) => pure (Just (substTy ty (embed es)))
     Just (SigDecl _ _ ty) => pure (Just (substTy ty (embed es)))
     _ => pure Nothing
-inferHead sig ctx (QElim sg k mots mths es w) =
-  case qOrdinal QKSort sg k of
-    Just o => case getAt o mots of
-      Just motK => pure (Just (substTy motK (Ext (foldl Ext Id (toList es)) w)))
-      Nothing => pure Nothing
-    Nothing => pure Nothing
 inferHead sig ctx _ = pure Nothing
 
 ||| Expected type of the i-th spine entry of a former carrying 𝒮
@@ -1571,7 +1570,7 @@ unfoldAllK sig ns t = go t
   go (Squash u) = Squash <$> go u
   go (QSort sg k es) = QSort sg k <$> traverseSN go es
   go (QCtor sg k es) = QCtor sg k <$> traverseSN go es
-  go (QElim sg k ms fs es w) = [| QElim (pure sg) (pure k) (pure ms) (pure fs) (traverseSN go es) (go w) |]
+  go (QElim sg k fs es w) = [| QElim (pure sg) (pure k) (pure fs) (traverseSN go es) (go w) |]
   go (Out u) = Out <$> go u
   go (Corec p a f x) = [| Corec (pure p) (go a) (go f) (go x) |]
   go u = pure u
@@ -1670,6 +1669,10 @@ pNuCoind _ = Nothing
 pSquashElim : Payload -> Maybe (Elem, Skel, Maybe (Ty, Prf), Elem, Skel)
 pSquashElim (PSquashElim e esk ex b bsk) = Just (e, esk, ex, b, bsk)
 pSquashElim _ = Nothing
+
+pQMotives : Payload -> Maybe (List Ty, List Skel)
+pQMotives (PQMotives ms sks) = Just (ms, sks)
+pQMotives _ = Nothing
 
 pQCoh : Payload -> Maybe (List Prf)
 pQCoh (PQCoh cs) = Just cs
@@ -2337,20 +2340,35 @@ mutual
                                  _ => Nothing)
            (\xs => Just (QCtor sg k (cast xs)))
            (\es => pure (map (\i => (ctx, qSpineChildTy sg k (cast es) i)) (indices es))) qs
-    (CQElim sg k ms fs qs qw, _) =>
-      node sig ctx goal (\u => case u of
-                                 QElim sg' k' ms' fs' es w =>
-                                   if sg == sg' && k == k' && ms == ms' && fs == fs' then Just (toList es ++ [w]) else Nothing
-                                 _ => Nothing)
-           (\xs => case reverse xs of
-                     w :: esR => Just (QElim sg k ms fs (cast (reverse esR)) w)
-                     _ => Nothing)
-           (\xs => case reverse xs of
-                     _ :: esR =>
-                       let es = reverse esR in
-                       pure (map (\i => (ctx, qSpineChildTy sg k (cast es) i)) (indices es)
-                             ++ [(ctx, Just (QSort sg k (cast es)))])
-                     _ => kerr "kernel: proof node arity") (qs ++ [qw])
+    (CQElim sg k mm qm qs qw, _) =>
+      -- children: the methods (typed by the carried motives, else
+      -- undetermined), the index spine, the eliminee
+      let nM = length qm
+          split : List Elem -> Maybe (List Elem, List Elem, Elem)
+          split xs = case reverse xs of
+                       w :: rest => let ys = reverse rest in Just (take nM ys, drop nM ys, w)
+                       _ => Nothing
+          kids : List Elem -> KM (List (Ctx, Maybe Ty))
+          kids xs = case split xs of
+            Just (fs, es, w) => do
+              mTys <- case mm of
+                Nothing => pure (map (const Nothing) fs)
+                Just mots => do
+                  motiveAgrees (case qOrdinal QKSort sg k of
+                                  Just o => fromMaybe TopTy (map (\m => substTy m (Ext (foldl Ext Id es) w)) (getAt o mots))
+                                  Nothing => TopTy)
+                  traverse (\cj => Just <$> liftQ (methodTy sg mots cj)) (qPositions QKPoint sg)
+              pure (map (\t => (ctx, t)) mTys
+                    ++ map (\i => (ctx, qSpineChildTy sg k (cast es) i)) (indices es)
+                    ++ [(ctx, Just (QSort sg k (cast es)))])
+            Nothing => kerr "kernel: proof node arity"
+      in node sig ctx goal (\u => case u of
+                                    QElim sg' k' fs es w =>
+                                      if sg == sg' && k == k' && length fs == nM then Just (fs ++ toList es ++ [w]) else Nothing
+                                    _ => Nothing)
+              (\xs => case split xs of
+                        Just (fs, es, w) => Just (QElim sg k fs (cast es) w)
+                        Nothing => Nothing) kids (qm ++ qs ++ [qw])
     (COut q, _) =>
       node sig ctx goal (\x => case x of Out u => Just [u]; _ => Nothing)
            (\xs => case xs of [u] => Just (Out u); _ => Nothing)
@@ -2746,12 +2764,14 @@ mutual
             kQSigSmall sig ctx sg
             kQSortSpine sig ctx sg k es sk
             pure UniverseTy
-          QElim sg k mots mths es w =>
-            -- el-qiit-elim over mot/dalg/eprob; ℰ is carried by the
-            -- term, the coherences arrive as certificates (PQCoh)
-            case takeP pQCoh sk of
-              Nothing => kerr "kernel: QIIT eliminator without coherence certificates"
-              Just (cohs, sk') => do
+          QElim sg k mths es w =>
+            -- el-qiit-elim over mot/dalg/eprob: the methods are carried
+            -- by the term (β reads them), the motives arrive in the
+            -- skeleton (PQMotives) and the coherences as proofs (PQCoh)
+            case (takeP pQMotives sk, takeP pQCoh sk) of
+              (Nothing, _) => kerr "kernel: QIIT eliminator without motives"
+              (_, Nothing) => kerr "kernel: QIIT eliminator without coherence certificates"
+              (Just ((mots, motSks), _), Just (cohs, sk')) => do
                 kQSigCheck sig ctx sg
                 sortE <- case qEntry sg k of
                            Just x => pure x
@@ -2768,16 +2788,16 @@ mutual
                   then kerr "kernel: method count mismatch" else pure ()
                 if length cohs /= length eqPs
                   then kerr "kernel: coherence count mismatch" else pure ()
-                let goMotives : List Nat -> List Ty -> KM ()
+                let goMotives : List Nat -> List (Ty, Skel) -> KM ()
                     goMotives [] [] = pure ()
-                    goMotives (sj :: sjs) (mot :: rest) = do
+                    goMotives (sj :: sjs) ((mot, motSk) :: rest) = do
                       sjE <- case qEntry sg sj of
                                Just x => pure x
                                Nothing => kerr "kernel: sort out of range"
                       (tel, wEnd, _) <- liftQ (reflTel sg (qwAt sj) sjE)
                       let mctx = foldl (:<) ctx tel
                       let selfTy = QSort (substQSig sg wEnd.ups) sj (varSpine (length tel))
-                      kCheckTyK sig (mctx :< selfTy) mot (Nd [] [])
+                      kCheckTyK sig (mctx :< selfTy) mot motSk
                       goMotives sjs rest
                     goMotives _ _ = kerr "kernel: motive count mismatch"
                 let goMethods : List Nat -> List Elem -> KM ()
@@ -2794,7 +2814,7 @@ mutual
                       kEqElem sig (foldl (:<) ctx dtel) coh lhs rhs cty
                       goCoherences ejs rest
                     goCoherences _ _ = kerr "kernel: coherence count mismatch"
-                goMotives sortPs mots
+                goMotives sortPs (zip mots (motSks ++ replicate (length mots) (Nd [] [])))
                 goMethods pointPs mths
                 goCoherences eqPs cohs
                 kQSortSpine sig ctx sg k es sk'

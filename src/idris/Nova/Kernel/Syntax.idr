@@ -117,12 +117,15 @@ mutual
       ||| the full argument spine — a bare curried constructor would be a
       ||| non-λ inhabitant of a Π-type, breaking Π-canonicity)
       QCtor : QSig -> Nat -> SubNorm -> Elem
-      ||| 𝒮.k-elim ℰ ē w  (the eliminator at sort position k; carries
-      ||| ℰ = (C̄ ; m̄): motives — one per SORT entry in entry order, each
-      ||| a type over Γ·⌊𝔎⌋ᵗ ▷ 𝒮.k δ — and methods — one per POINT entry
-      ||| in entry order, terms over Γ; then the index spine and the
-      ||| eliminee. Coherences are CHECKED (kernel PQCoh), not stored.)
-      QElim : QSig -> Nat -> List Ty -> List Elem -> SubNorm -> Elem -> Elem
+      ||| 𝒮.k-elim m̄ ē w  (the eliminator at sort position k; carries
+      ||| the METHODS m̄ — one per POINT entry in entry order, terms over
+      ||| Γ — which is what β reads; then the index spine and the
+      ||| eliminee. The motives C̄ (one per SORT entry, each a type over
+      ||| Γ·⌊𝔎⌋ᵗ ▷ 𝒮.k δ) and the coherences are what typing alone
+      ||| reads: they ride in the skeleton (kernel PQMotives, PQCoh),
+      ||| never in the term — a term carries what its computation
+      ||| rules read, docs/NovaKernelRewrite.txt.)
+      QElim : QSig -> Nat -> List Elem -> SubNorm -> Elem -> Elem
       ||| ν 𝔽  (the coinductive type at the carried polynomial — a type
       ||| (ty-nu) and a code (code-nu; every polynomial is small, the
       ||| grammar enforces it); 𝔽 is carried, so ν-equality is
@@ -465,8 +468,8 @@ mutual
     Star             == Star               = True
     QSort s k es     == QSort s' k' es'    = s == s' && k == k' && es == es'
     QCtor s k es     == QCtor s' k' es'    = s == s' && k == k' && es == es'
-    QElim s k ms fs es w == QElim s' k' ms' fs' es' w' =
-      s == s' && k == k' && ms == ms' && fs == fs' && es == es' && w == w'
+    QElim s k fs es w == QElim s' k' fs' es' w' =
+      s == s' && k == k' && fs == fs' && es == es' && w == w'
     Elem.NuTy f      == Elem.NuTy f'       = f == f'
     Out t            == Out t'             = t == t'
     Corec p a f x    == Corec p' a' f' x'  = p == p' && a == a' && f == f' && x == x'
@@ -621,10 +624,10 @@ mutual
     compare (QCtor s k es)     (QCtor s' k' es')    = compare s s' <+> compare k k' <+> compare es es'
     compare (QCtor _ _ _)      _                    = LT
     compare _                  (QCtor _ _ _)        = GT
-    compare (QElim s k ms fs es w) (QElim s' k' ms' fs' es' w') =
-      compare s s' <+> compare k k' <+> compare ms ms' <+> compare fs fs' <+> compare es es' <+> compare w w'
-    compare (QElim _ _ _ _ _ _) _                   = LT
-    compare _                  (QElim _ _ _ _ _ _)  = GT
+    compare (QElim s k fs es w) (QElim s' k' fs' es' w') =
+      compare s s' <+> compare k k' <+> compare fs fs' <+> compare es es' <+> compare w w'
+    compare (QElim _ _ _ _ _) _                   = LT
+    compare _                  (QElim _ _ _ _ _)  = GT
     compare (Elem.NuTy f)      (Elem.NuTy f')       = compare f f'
     compare (Elem.NuTy _)      _                    = LT
     compare _                  (Elem.NuTy _)        = GT
@@ -728,8 +731,8 @@ mutual
     show Star = "Star"
     show (QSort s k es) = "QSort (\{show s}) \{show k} (\{show es})"
     show (QCtor s k es) = "QCtor (\{show s}) \{show k} (\{show es})"
-    show (QElim s k ms fs es w) =
-      "QElim (\{show s}) \{show k} (\{show ms}) (\{show fs}) (\{show es}) (\{show w})"
+    show (QElim s k fs es w) =
+      "QElim (\{show s}) \{show k} (\{show fs}) (\{show es}) (\{show w})"
     show (Elem.NuTy f) = "NuTy (\{show f})"
     show (Out t) = "Out (\{show t})"
     show (Corec p a f x) = "Corec (\{show p}) (\{show a}) (\{show f}) (\{show x})"

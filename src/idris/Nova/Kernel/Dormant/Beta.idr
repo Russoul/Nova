@@ -111,9 +111,8 @@ mutual
   betaElem sig Star               = Star
   betaElem sig (QSort sg k es)   = QSort (betaQSig sig sg) k (betaSubNorm sig es)
   betaElem sig (QCtor sg k es)    = QCtor (betaQSig sig sg) k (betaSubNorm sig es)
-  betaElem sig (QElim sg k ms fs es w) =
+  betaElem sig (QElim sg k fs es w) =
     let sg' = betaQSig sig sg
-        ms' = map (betaTy sig) ms
         fs' = map (betaElem sig) fs
         es' = betaSubNorm sig es
     in case betaElem sig w of
@@ -121,11 +120,11 @@ mutual
          -- IDENTICAL after normalization (structural identity, nameless)
          QCtor sgW c theta =>
            if sgW == sg'
-             then case qElimBetaRhs sg' ms' fs' c theta of
+             then case qElimBetaRhs sg' fs' c theta of
                     Right rhs => betaElem sig rhs
                     Left err => assert_total $ idris_crash "betaElem: el-qiit-beta on an ill-formed eliminator: \{err}"
-             else QElim sg' k ms' fs' es' (QCtor sgW c theta)
-         w' => QElim sg' k ms' fs' es' w'
+             else QElim sg' k fs' es' (QCtor sgW c theta)
+         w' => QElim sg' k fs' es' w'
   betaElem sig (Elem.NuTy f)      = Elem.NuTy (betaPoly sig f)
   betaElem sig (Out t) =
     case betaElem sig t of
@@ -237,17 +236,17 @@ mutual
       p@(Elem.EqTy _ _ _) => p   -- code-squash-idem (syntax-directed
       p@(Squash _)        => p   --   instances; Ω-neutrals stay stuck)
       t'    => Squash t'
-  whnfE sig (QElim sg k ms fs es w) =
+  whnfE sig (QElim sg k fs es w) =
     case whnfE sig w of
       QCtor sgW c theta =>
         -- el-qiit-beta demands nf-identical signatures; anything less
         -- than syntactic identity is left to the full-beta fallback
         if sgW == sg
-          then case qElimBetaRhs sg ms fs c theta of
+          then case qElimBetaRhs sg fs c theta of
                  Right rhs => whnfE sig rhs
-                 Left _ => QElim sg k ms fs es (QCtor sgW c theta)
-          else QElim sg k ms fs es (QCtor sgW c theta)
-      w' => QElim sg k ms fs es w'
+                 Left _ => QElim sg k fs es (QCtor sgW c theta)
+          else QElim sg k fs es (QCtor sgW c theta)
+      w' => QElim sg k fs es w'
   whnfE sig (Out t) =
     case whnfE sig t of
       Corec p a f x => whnfE sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
@@ -286,9 +285,9 @@ step1E sig (Elem.SigVar x es) =
 step1E sig (QuotElim f (Class a)) = Just (substElem f (Ext Id a))
 step1E sig (Squash p@(Elem.EqTy _ _ _)) = Just p
 step1E sig (Squash p@(Squash _)) = Just p
-step1E sig (QElim sg k ms fs es (QCtor sgW c theta)) =
+step1E sig (QElim sg k fs es (QCtor sgW c theta)) =
   if sgW == sg
-    then case qElimBetaRhs sg ms fs c theta of
+    then case qElimBetaRhs sg fs c theta of
            Right rhs => Just rhs
            Left _ => Nothing
     else Nothing
@@ -350,10 +349,10 @@ mutual
         (\es' => QSort sg k es') <$> contractSpine sig i p es
       (QCtor sg k es, _) =>
         (\es' => QCtor sg k es') <$> contractSpine sig i p es
-      (QElim sg k ms fs es w, _) =>
+      (QElim sg k fs es w, _) =>
         if i == length (toList es)
-          then QElim sg k ms fs es <$> contractAtE sig p w
-          else (\es' => QElim sg k ms fs es' w) <$> contractSpine sig i p es
+          then QElim sg k fs es <$> contractAtE sig p w
+          else (\es' => QElim sg k fs es' w) <$> contractSpine sig i p es
       (Out t, 0) => Out <$> contractAtE sig p t
       (Corec pf a f x, 0) => (\a' => Corec pf a' f x) <$> contractAtE sig p a
       (Corec pf a f x, 1) => (\f' => Corec pf a f' x) <$> contractAtE sig p f
@@ -433,7 +432,7 @@ mutual
       (QCtor sg k es, _) => do
         e2 <- getAt i (toList es)
         subAtE p e2
-      (QElim sg k ms fs es w, _) =>
+      (QElim sg k fs es w, _) =>
         if i == length (toList es)
           then subAtE p w
           else do e2 <- getAt i (toList es)
@@ -496,7 +495,7 @@ mutual
     childIx (QCtor sg k es) =
       map (\(i, e2) => (i, Left e2))
         (zip [0 .. minus (length (toList es)) 1] (toList es))
-    childIx (QElim sg k ms fs es w) =
+    childIx (QElim sg k fs es w) =
       map (\(i, e2) => (i, Left e2))
         (zip [0 .. minus (length (toList es)) 1] (toList es))
       ++ [(length (toList es), Left w)]
@@ -554,10 +553,10 @@ replaceAtE (i :: p) r e =
     (QuotElim f q, 1) => QuotElim f <$> replaceAtE p r q
     (QSort sg k es, _) => (\es' => QSort sg k es') <$> spineSet i p es
     (QCtor sg k es, _) => (\es' => QCtor sg k es') <$> spineSet i p es
-    (QElim sg k ms fs es w, _) =>
+    (QElim sg k fs es w, _) =>
       if i == length (toList es)
-        then QElim sg k ms fs es <$> replaceAtE p r w
-        else (\es' => QElim sg k ms fs es' w) <$> spineSet i p es
+        then QElim sg k fs es <$> replaceAtE p r w
+        else (\es' => QElim sg k fs es' w) <$> spineSet i p es
     (Out t, 0) => Out <$> replaceAtE p r t
     (Corec pf a f x, 0) => (\a' => Corec pf a' f x) <$> replaceAtE p r a
     (Corec pf a f x, 1) => (\f' => Corec pf a f' x) <$> replaceAtE p r f
@@ -587,7 +586,7 @@ principalIx (SigmaElim1 _) = Just 0
 principalIx (SigmaElim2 _) = Just 0
 principalIx (SumElim _ _ _) = Just 2
 principalIx (QuotElim _ _) = Just 1
-principalIx (QElim _ _ _ _ es _) = Just (length (toList es))
+principalIx (QElim _ _ _ es _) = Just (length (toList es))
 principalIx (Out _) = Just 0
 principalIx (Squash _) = Just 0
 principalIx _ = Nothing

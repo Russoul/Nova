@@ -928,18 +928,12 @@ matchElemP k d b (QSort sg j es) (QSort sg' j' es') =
 matchElemP k d b (QCtor sg j es) (QCtor sg' j' es') =
   if j == j' then \bs => matchQSigP k d b sg sg' bs >>= matchSpineP k d b es es'
   else const Nothing
-matchElemP k d b (QElim sg j ms fs es w) (QElim sg' j' ms' fs' es' w') =
+matchElemP k d b (QElim sg j fs es w) (QElim sg' j' fs' es' w') =
   if j == j'
     then \bs => matchQSigP k d b sg sg' bs
-             >>= matchMots (qPositions QKSort sg) ms ms'
              >>= matchList fs fs' >>= matchSpineP k d b es es' >>= matchElemP k d b w w'
     else const Nothing
  where
-  matchMots : List Nat -> List Ty -> List Ty -> Bindings -> Maybe Bindings
-  matchMots _ [] [] = Just
-  matchMots (sj :: sjs) (m :: rest) (m' :: rest') =
-    \bs => matchTyP k d (b + S (qArityLen sg sj)) m m' bs >>= matchMots sjs rest rest'
-  matchMots _ _ _ = const Nothing
   matchList : List Elem -> List Elem -> Bindings -> Maybe Bindings
   matchList [] [] = Just
   matchList (x :: xs) (y :: ys) = \bs => matchElemP k d b x y bs >>= matchList xs ys
@@ -1076,9 +1070,8 @@ elemSize Star = 1
 -- the spines as arguments
 elemSize (QSort _ _ es) = S (foldl (\acc, e => acc + elemSize e) 0 es)
 elemSize (QCtor _ _ es) = S (foldl (\acc, e => acc + elemSize e) 0 es)
-elemSize (QElim _ _ ms fs es w) =
-  S (foldl (\acc, m => acc + tySize m) 0 ms +
-     foldl (\acc, f => acc + elemSize f) 0 fs +
+elemSize (QElim _ _ fs es w) =
+  S (foldl (\acc, f => acc + elemSize f) 0 fs +
      foldl (\acc, e => acc + elemSize e) 0 es + elemSize w)
 elemSize (Elem.NuTy p) = S (polySize p)
 elemSize (Out t) = S (elemSize t)
@@ -1363,9 +1356,9 @@ rewriteElemS side c pi d t =
   -- signature and eliminator problem are OPAQUE (NovaKernel.txt, A3)
   descend (QSort sg k es)  = spineAt es (\es' => QSort sg k es')
   descend (QCtor sg k es)   = spineAt es (\es' => QCtor sg k es')
-  descend (QElim sg k ms fs es w) =
-    spineAt es (\es' => QElim sg k ms fs es' w)
-      <|> at (length (toList es)) 0 w (\w' => QElim sg k ms fs es w')
+  descend (QElim sg k fs es w) =
+    spineAt es (\es' => QElim sg k fs es' w)
+      <|> at (length (toList es)) 0 w (\w' => QElim sg k fs es w')
   -- ν formers: out's scrutinee and corec's carrier/body/seed are
   -- addressable; the carried polynomial is OPAQUE, like a signature
   descend (Out t) = at 0 0 t Out
@@ -1478,10 +1471,9 @@ mutual
   refsE Star acc = acc
   refsE (QSort _ _ es) acc = foldl (\a, e => refsE e a) acc es
   refsE (QCtor _ _ es) acc = foldl (\a, e => refsE e a) acc es
-  refsE (QElim _ _ ms fs es w) acc =
+  refsE (QElim _ _ fs es w) acc =
     refsE w (foldl (\a, e => refsE e a)
-              (foldl (\a, e => refsE e a)
-                (foldl (\a, t => refsT t a) acc ms) fs) es)
+              (foldl (\a, e => refsE e a) acc fs) es)
   refsE (Elem.NuTy _) acc = acc
   refsE (Out t) acc = refsE t acc
   refsE (Corec _ a f x) acc = refsE x (refsE f (refsE a acc))
@@ -1558,8 +1550,8 @@ mutual
   unfElem sig deep unfs Star              = Star
   unfElem sig deep unfs (QSort sg k es)  = QSort (unfQSig sig deep unfs sg) k (unfSubNorm sig deep unfs es)
   unfElem sig deep unfs (QCtor sg k es)   = QCtor (unfQSig sig deep unfs sg) k (unfSubNorm sig deep unfs es)
-  unfElem sig deep unfs (QElim sg k ms fs es w) =
-    QElim (unfQSig sig deep unfs sg) k (map (unfTy sig deep unfs) ms) (map (unfElem sig deep unfs) fs)
+  unfElem sig deep unfs (QElim sg k fs es w) =
+    QElim (unfQSig sig deep unfs sg) k (map (unfElem sig deep unfs) fs)
       (unfSubNorm sig deep unfs es) (unfElem sig deep unfs w)
   unfElem sig deep unfs (Elem.NuTy f)     = Elem.NuTy (unfPoly sig deep unfs f)
   unfElem sig deep unfs (Out t)           = Out (unfElem sig deep unfs t)
@@ -1693,9 +1685,9 @@ unfoldAllE sig unfs t0 = go t0 [<]
   go (Squash u) used = let (u', u1) = go u used in (Squash u', u1)
   go (QSort sg k es) used = let (es', u1) = mapAccumSN go es used in (QSort sg k es', u1)
   go (QCtor sg k es) used = let (es', u1) = mapAccumSN go es used in (QCtor sg k es', u1)
-  go (QElim sg k ms fs es w) used =
+  go (QElim sg k fs es w) used =
     let (es', u1) = mapAccumSN go es used
-        (w', u2) = go w u1 in (QElim sg k ms fs es' w', u2)
+        (w', u2) = go w u1 in (QElim sg k fs es' w', u2)
   go (Out u) used = let (u', u1) = go u used in (Out u', u1)
   go (Corec p a f x) used =
     let (a', u1) = go a used
@@ -1838,15 +1830,15 @@ mutual
       p@(Elem.EqTy _ _ _) => exposeE st p
       p@(Squash _)        => exposeE st p
       t'    => Squash t'
-  exposeE st (QElim sg k ms fs es w) =
+  exposeE st (QElim sg k fs es w) =
     case exposeE st w of
       QCtor sgW c theta =>
         if sgW == sg
-          then case qElimBetaRhs sg ms fs c theta of
+          then case qElimBetaRhs sg fs c theta of
                  Right rhs => exposeE st rhs
-                 Left _ => QElim sg k ms fs es (QCtor sgW c theta)
-          else QElim sg k ms fs es (QCtor sgW c theta)
-      w' => QElim sg k ms fs es w'
+                 Left _ => QElim sg k fs es (QCtor sgW c theta)
+          else QElim sg k fs es (QCtor sgW c theta)
+      w' => QElim sg k fs es w'
   exposeE st (Out t) =
     case exposeE st t of
       Corec p a f x => exposeE st (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
@@ -1905,16 +1897,16 @@ mutual
       p@(Elem.EqTy _ _ _) => (p, s1)
       p@(Squash _)        => (p, s1)
       _                   => (Squash t', s1)
-  exposeELog st side pi (QElim sg k ms fs es w) =
+  exposeELog st side pi (QElim sg k fs es w) =
     let (w', s1) = exposeELog st side (length (toList es) :: pi) w in
     case w' of
       QCtor sgW c theta =>
         if sgW == sg
-          then case qElimBetaRhs sg ms fs c theta of
+          then case qElimBetaRhs sg fs c theta of
                  Right rhs => let (r, s2) = exposeELog st side pi rhs in (r, s1 ++ s2)
-                 Left _ => (QElim sg k ms fs es (QCtor sgW c theta), s1)
-          else (QElim sg k ms fs es (QCtor sgW c theta), s1)
-      _ => (QElim sg k ms fs es w', s1)
+                 Left _ => (QElim sg k fs es (QCtor sgW c theta), s1)
+          else (QElim sg k fs es (QCtor sgW c theta), s1)
+      _ => (QElim sg k fs es w', s1)
   exposeELog st side pi (Out t) =
     let (t', s1) = exposeELog st side (0 :: pi) t in
     case t' of
@@ -2926,7 +2918,7 @@ resugarQ st occ = go (toList st.sig)
   -- positions are λ-binders, i.e. pure pattern variables — the
   -- Elim/ElimP twins stay disjoint because their motives are
   -- differently-typed terms (𝕌- vs Ω-valued C), never α-equal
-  headMatch (QElim _ jP _ _ _ _) (QElim _ j _ _ _ _) = jP == j
+  headMatch (QElim _ jP _ _ _) (QElim _ j _ _ _) = jP == j
   headMatch _ _ = False
 
   go : List SigEntry -> Maybe Elem
@@ -2959,8 +2951,8 @@ mutual
   resugarElem st e@(QCtor sg k es) =
     let z = QCtor (map (resugarQTy st) sg) k (resugarSub st es) in
     fromMaybe z (resugarQ st z)
-  resugarElem st (QElim sg k ms fs es w) =
-    QElim (map (resugarQTy st) sg) k (map (resugarTy st) ms)
+  resugarElem st (QElim sg k fs es w) =
+    QElim (map (resugarQTy st) sg) k
           (map (resugarElem st) fs) (resugarSub st es) (resugarElem st w)
   resugarElem st (ZeroElim t) = ZeroElim (resugarElem st t)
   resugarElem st (NatIntro1 t) = NatIntro1 (resugarElem st t)
@@ -7420,7 +7412,7 @@ elabItemGo irng (SData params decls) = do
     let mthsEnd = mVarsAt endExtra
     let bigN = nS + nM + nH + nI + 1
     let body = wrapLams (np + bigN)
-                 (QElim (sgAt sg bigN) s motsEnd mthsEnd (cast idxAtEnd) (CtxVar 0))
+                 (QElim (sgAt sg bigN) s mthsEnd (cast idxAtEnd) (CtxVar 0))
     -- coherence certificates. Code flavor: each replays from its
     -- hypothesis binder, applied to the ᴰ-context's variables (one
     -- step, then FBeta). Prop flavor: the coherence sides live at an
@@ -7436,7 +7428,9 @@ elabItemGo irng (SData params decls) = do
                     let dVars = map CtxVar (reverse (upto dlen))
                     pure (PRefl (applyChain (CtxVar hIdx) dVars)))
                 (zipWithIndex 0 eqPs)
-    let bodySk = nestSkel (np + bigN) (Nd [PQCoh cohCerts] [])
+    -- the motives ride in the skeleton (the core eliminator carries
+    -- only what β reads: the methods), each a binder variable here
+    let bodySk = nestSkel (np + bigN) (Nd [PQMotives motsEnd (map (const (Nd [] [])) motsEnd), PQCoh cohCerts] [])
     emitCoreDef site (nm ++ (if prop then "ElimP" else "Elim")) defTy defTySk body bodySk
    where
     upto : Nat -> List Nat
