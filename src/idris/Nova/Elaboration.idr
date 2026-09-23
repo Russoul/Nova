@@ -2507,7 +2507,7 @@ mutual
           _ => Nothing
         Elem.EqTy l r t => do
           c <- spEqElemC dep st (mkCandSet st ctx') ctx' l r t
-          p <- either (const Nothing) Just (toPrf st.sig ctx' c l r t)
+          p <- either (\e => audit "TRANSLATE-FAIL propext | \{e} | \{show c}" Nothing) Just (toPrf st.sig ctx' c l r t)
           Just (lam (Nd [PReflEq p] []))
         _ => Nothing
      where
@@ -3501,7 +3501,7 @@ mutual
                     -- by plain δβ must not be lost to an overzealous
                     -- rewrite (this rescue lived in the removed
                     -- item-end deletion pass; it belongs at the site)
-                    case deltaJoinC st a b of
+                    case audit "REPLAY-FAIL elem | \{site} | \{kerrMsg} | \{show cert} | goal: \{show a} ≐ \{show b} : \{show ty}" (deltaJoinC st a b) of
                       Just bare => case replayElem st.sig ctx bare a b ty of
                         Right prf => pure (Right prf)
                         Left _ => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
@@ -4052,40 +4052,6 @@ freeName sig item role (S f) n =
     Nothing => q
     Just _ => freeName sig item role f (S n)
 
-||| Install an inline definition — `ctx ⊦ body : ty`, Π-closed and
-||| kernel-checked as an ordinary item — and return the Σ NAME it took.
-||| The caller references it by an ordinary application spine, which is
-||| what keeps the site's own certificate ordinary.
-|||
-||| `tySk` is the TYPE's skeleton. Empty is right for a type built from
-||| the site's own material, which was checkable where it stood; a type
-||| the rule SYNTHESISED may need payloads of its own, and then the
-||| caller — which knows what it put there — supplies them. e-eqelim's
-||| irrelevance lemma is the one caller that does.
-||| The skeleton a TYPE needs to be kernel-checked: the payload of
-||| every eliminator standing in type position, and nothing else.
-|||
-||| A ⊎-elim that IS a type is Ω-valued — prop-lift is the only way it
-||| can be one, and the relator's SUM clause is where they come from
-||| (Kernel.Subst.liftPoly) — so its motive is the CONSTANT PropTy.
-||| That is a CLAIM, not an assumption: the kernel checks the motive,
-||| then checks each branch at it, so a wrong one is refused rather
-||| than believed, and this can only ever turn a rejection into an
-||| acceptance the kernel itself agreed to.
-|||
-||| Positions with nothing to say are left empty, which `skelChild`
-||| reads as the empty skeleton — so this stays the size of the
-||| eliminators it found, not of the type.
-tySkelK : Ty -> Skel
-tySkelK (SumElim l r _) =
-  Nd [PMotive PropTy (Nd [] [])] [tySkelK l, tySkelK r, Nd [] []]
-tySkelK (Squash a) = Nd [] [tySkelK a]
-tySkelK (Elem.SigmaTy a b) = Nd [] [tySkelK a, tySkelK b]
-tySkelK (Elem.PiTy a b) = Nd [] [tySkelK a, tySkelK b]
-tySkelK (Elem.SumTy a b) = Nd [] [tySkelK a, tySkelK b]
-tySkelK (Elem.EqTy a b t) = Nd [] [tySkelK a, tySkelK b, tySkelK t]
-tySkelK _ = Nd [] []
-
 emitInlineDef : Site -> (role : String) -> Ctx -> Ty -> Skel -> Elem -> Skel -> ElabM String
 emitInlineDef site role ctx ty tySk body bodySk = do
   st <- getSt
@@ -4181,6 +4147,142 @@ sigmaPairSub = Ext (Chain Wk Wk) (SigmaIntro (CtxVar 1) (CtxVar 0))
 withExpose : Maybe (Ty, Prf) -> Skel -> Skel
 withExpose Nothing sk = sk
 withExpose (Just (tyX, c)) sk = addPayload (PExpose tyX c) sk
+
+||| Attach a PScrut payload when an elimination's scrutinee type was
+||| exposed by normalization.
+withScrut : Maybe (Ty, Prf) -> Skel -> Skel
+withScrut Nothing sk = sk
+withScrut (Just (tyX, c)) sk = addPayload (PScrut tyX c) sk
+
+-- SKELETON RECONSTRUCTION for a core value the elaborator did not
+-- elaborate (a solved hole, a synthesized type): the payloads
+-- bidirectional checking cannot invent and the kernel's β-only whnf
+-- cannot reach — head exposures at intro forms, scrutinee exposures
+-- at eliminations — read off the value with the engine's own
+-- exposure. Eliminators with motives are left bare (the site that
+-- synthesized them carries their motives elsewhere).
+||| The state with the exposure whitelist OPEN: skeleton reconstruction
+||| exposes what the kernel's own whnf used to expose freely — a shape,
+||| not a match — so the site's citations do not govern it.
+openExp : ElabSt -> ElabSt
+openExp st = { eqScope $= ("exp:*" ::) } st
+
+mutual
+  reSkelE : ElabSt -> Ctx -> Elem -> Ty -> Skel
+  reSkelE st0 ctx e ty = let st = openExp st0 in case e of
+    PiIntro f => case preferPi st ctx ty of
+      Just (a, b, exp) => withExpose exp (Nd [] [reSkelE st (ctx :< a) f b])
+      Nothing => Nd [] []
+    SigmaIntro u v => case preferSigma st ctx ty of
+      Just (a, b, exp) => withExpose exp (Nd [] [reSkelE st ctx u a, reSkelE st ctx v (substTy b (Ext Id u))])
+      Nothing => Nd [] []
+    Inj1 a => case preferSum st ctx ty of
+      Just (d, _, exp) => withExpose exp (Nd [] [reSkelE st ctx a d])
+      Nothing => Nd [] []
+    Inj2 b => case preferSum st ctx ty of
+      Just (_, c, exp) => withExpose exp (Nd [] [reSkelE st ctx b c])
+      Nothing => Nd [] []
+    Class a => case preferQuot st ctx ty of
+      Just (dom, _, exp) => withExpose exp (Nd [] [reSkelE st ctx a dom])
+      Nothing => Nd [] []
+    Corec p a f x => case preferNu st ctx ty of
+      Just (pf, exp) => withExpose exp (Nd [] [reSkelE st ctx a UniverseTy,
+                                                reSkelE st (ctx :< a) f (substTy (reflectPoly pf a) Wk),
+                                                reSkelE st ctx x a])
+      Nothing => Nd [] []
+    ZeroElim t => Nd [] [reSkelE st ctx t ZeroTy]
+    _ => reSkelI st ctx e
+
+  reSkelI : ElabSt -> Ctx -> Elem -> Skel
+  reSkelI st0 ctx e = fst (reSkelIT (openExp st0) ctx e)
+
+  ||| Inference position: the skeleton AND the term's type, computed
+  ||| once, bottom-up (a spine's head is typed once, not once per
+  ||| node above it); Nothing when the type is not read off the
+  ||| structure — the kernel's liberal inference is then the fallback.
+  reSkelIT : ElabSt -> Ctx -> Elem -> (Skel, Maybe Ty)
+  reSkelIT st ctx e = case e of
+    CtxVar i => (Nd [] [], ctxAt ctx i)
+    SigVar x es =>
+      let args = toList es in
+      case cachedSigLookup st.sig x of
+        Just (SigDef delta _ _ ty) => (Nd [] (spine (toList delta) args), Just (substTy ty (embed es)))
+        Just (SigDecl delta _ ty) => (Nd [] (spine (toList delta) args), Just (substTy ty (embed es)))
+        _ => (Nd [] [], Nothing)
+    PiApp f a =>
+      let (fSk, fTy) = reSkelIT st ctx f in
+      case the (Maybe (Ty, Ty, Maybe (Ty, Prf))) (fTy >>= preferPi st ctx) of
+        Just (dom, cod, exp) => (withScrut exp (Nd [] [fSk, reSkelE st ctx a dom]), Just (substTy cod (Ext Id a)))
+        Nothing => (Nd [] [fSk, reSkelI st ctx a], Nothing)
+    SigmaElim1 t =>
+      let (tSk, tTy) = reSkelIT st ctx t in
+      case the (Maybe (Ty, Ty, Maybe (Ty, Prf))) (tTy >>= preferSigma st ctx) of
+        Just (a, _, exp) => (withScrut exp (Nd [] [tSk]), Just a)
+        Nothing => (Nd [] [tSk], Nothing)
+    SigmaElim2 t =>
+      let (tSk, tTy) = reSkelIT st ctx t in
+      case the (Maybe (Ty, Ty, Maybe (Ty, Prf))) (tTy >>= preferSigma st ctx) of
+        Just (_, b, exp) => (withScrut exp (Nd [] [tSk]), Just (substTy b (Ext Id (SigmaElim1 t))))
+        Nothing => (Nd [] [tSk], Nothing)
+    Out t =>
+      let (tSk, tTy) = reSkelIT st ctx t in
+      case the (Maybe (Poly, Maybe (Ty, Prf))) (tTy >>= preferNu st ctx) of
+        Just (p, exp) => (withScrut exp (Nd [] [tSk]), Just (reflectPoly p (Elem.NuTy p)))
+        Nothing => (Nd [] [tSk], Nothing)
+    NatIntro1 t => (Nd [] [reSkelE st ctx t NatTy], Just NatTy)
+    NatIntro0 => (Nd [] [], Just NatTy)
+    OneIntro => (Nd [] [], Just OneTy)
+    Elem.ZeroTy => (Nd [] [], Just UniverseTy)
+    Elem.OneTy => (Nd [] [], Just UniverseTy)
+    Elem.NatTy => (Nd [] [], Just UniverseTy)
+    Elem.PiTy a b => (Nd [] [reSkelI st ctx a, reSkelI st (ctx :< a) b], Just UniverseTy)
+    Elem.SigmaTy a b => (Nd [] [reSkelI st ctx a, reSkelI st (ctx :< a) b], Just UniverseTy)
+    Elem.SumTy a b => (Nd [] [reSkelI st ctx a, reSkelI st ctx b], Just UniverseTy)
+    Elem.EqTy l r t => (Nd [] [reSkelE st ctx l t, reSkelE st ctx r t, reSkelI st ctx t], Just PropTy)
+    QuotTy a r => (Nd [] [reSkelI st ctx a, reSkelI st (ctx :< a :< substTy a Wk) r], Just UniverseTy)
+    Squash t => (Nd [] [reSkelI st ctx t], Just PropTy)
+    -- a ⊎-elim in a TYPE (a relator instance): its scrutinee typed
+    -- and exposed, the cases at Ω under the summands
+    SumElim l r t =>
+      let (tSk, tTy) = reSkelIT st ctx t in
+      case the (Maybe (Ty, Ty, Maybe (Ty, Prf))) (tTy >>= preferSum st ctx) of
+        Just (a, b, exp) =>
+          (withScrut exp (Nd [PMotive PropTy (Nd [] [])] [reSkelI st (ctx :< a) l, reSkelI st (ctx :< b) r, tSk]), Nothing)
+        Nothing => (Nd [PMotive PropTy (Nd [] [])] [Nd [] [], Nd [] [], tSk], Nothing)
+    _ => (Nd [] [], kInferBare st.kernelSig kernelFuel ctx e)
+   where
+    ctxAt : Ctx -> Nat -> Maybe Ty
+    ctxAt [<] _ = Nothing
+    ctxAt (rest :< ty) Z = Just (substTy ty Wk)
+    ctxAt (rest :< ty) (S n) = map (\t => substTy t Wk) (ctxAt rest n)
+    spine : List Ty -> List Elem -> List Skel
+    spine dl args = go 0 args
+     where
+      go : Nat -> List Elem -> List Skel
+      go i [] = []
+      go i (a :: rest) =
+        (case getAt i dl of
+           Just d => reSkelE st ctx a (substTy d (embed (cast (take i args))))
+           Nothing => reSkelI st ctx a) :: go (S i) rest
+
+tySkelK : ElabSt -> Ctx -> Ty -> Skel
+tySkelK st ctx ty = reSkelI st ctx ty
+
+||| A proposition p — the expected type ty exposed so far by exp —
+||| taken to its ≡/∥·∥ head by LOGGED δ, the exposure proof extended
+||| accordingly: what the kernel binds and checks against is then the
+||| spelling the site worked with (its whnf is β-only).
+exposePropLog : ElabSt -> Ctx -> (Elem, Maybe (Ty, Prf)) -> (Elem, Maybe (Ty, Prf))
+exposePropLog st ctx (p, exp) =
+  let (pB, pSteps) = exposeELog st True [] p in
+  case pSteps of
+    -- β alone: the kernel's own whnf reaches the same spelling
+    [] => (pB, exp)
+    _ => case exposePrf st ctx p pB pSteps of
+           Nothing => (p, exp)
+           Just (_, e2) => (pB, Just (pB, case exp of
+                                           Nothing => e2
+                                           Just (_, e1) => pTrans e1 e2))
 
 ||| The head of a spine routed through the spine elaborator
 ||| (`impSpineOf`): a Σ name — telescope from its declared type,
@@ -4436,9 +4538,9 @@ mutual
           (f', fTy, fSk) <- inferShaped ctx env site f (piShape ctx env site (headRange f))
           st <- getSt
           case preferPi st ctx fTy of
-            Just (a, b, _) => do
+            Just (a, b, exp) => do
               (e', eSk) <- checkElem ctx env site e a
-              pure (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk])
+              pure (PiApp f' e', substTy b (Ext Id e'), withScrut exp (Nd [] [fSk, eSk]))
             Nothing => throwShape site env "cannot apply a term of type" fTy "a Π type"
   inferElemAt ctx env site (SImpArg _) =
     throwAt site.srange "\{site}: a {…} override is only legal at an implicit binder position of an applied definition"
@@ -4455,13 +4557,13 @@ mutual
     (t', tTy, tSk) <- inferShaped ctx env site t (sigmaShape ctx env site (headRange t))
     st <- getSt
     case preferSigma st ctx tTy of
-      Just (a, b, _) => pure (SigmaElim1 t', a, Nd [] [tSk])
+      Just (a, b, exp) => pure (SigmaElim1 t', a, withScrut exp (Nd [] [tSk]))
       Nothing => throwShape site env "cannot project from a term of type" tTy "a × type"
   inferElemAt ctx env site (SProj2 t) = do
     (t', tTy, tSk) <- inferShaped ctx env site t (sigmaShape ctx env site (headRange t))
     st <- getSt
     case preferSigma st ctx tTy of
-      Just (a, b, _) => pure (SigmaElim2 t', substTy b (Ext Id (SigmaElim1 t')), Nd [] [tSk])
+      Just (a, b, exp) => pure (SigmaElim2 t', substTy b (Ext Id (SigmaElim1 t')), withScrut exp (Nd [] [tSk]))
       Nothing => throwShape site env "cannot project from a term of type" tTy "a × type"
   inferElemAt ctx env site (SAnn t ty) = do
     (ty', tySk) <- elabTy ctx env site ty
@@ -4522,7 +4624,7 @@ mutual
     (t', tTy, tSk) <- inferShaped ctx env site t (sumShape ctx env site (headRange t))
     st <- getSt
     case preferSum st ctx tTy of
-      Just (a, b, _) => do
+      Just (a, b, exp) => do
         recordBinder zr ctx env zn (SumTy a b)
         (motTy, motSk) <- elabTy (ctx :< SumTy a b) (env :< zn) site mot
         recordBinder ar ctx env an a
@@ -4532,13 +4634,13 @@ mutual
         (r', rSk) <- checkElem (ctx :< b) (env :< bn) site r
                        (substTy motTy (Ext Wk (Inj2 (CtxVar 0))))
         pure (SumElim l' r' t', substTy motTy (Ext Id t'),
-              Nd [PMotive motTy motSk] [lSk, rSk, tSk])
+              withScrut exp (Nd [PMotive motTy motSk] [lSk, rSk, tSk]))
       Nothing => throwShape site env "⊎-elim scrutinee has type" tTy "a ⊎ type"
   inferElemAt ctx env site (SQuotElim (Just ((zn, zr), mot)) (an, ar) f q) = do
     (q', qTy, qSk) <- inferShaped ctx env site q (quotShape ctx env site (headRange q))
     st <- getSt
     case preferQuot st ctx qTy of
-      Just (a, r, _) => do
+      Just (a, r, exp) => do
         recordBinder zr ctx env zn (QuotTy a r)
         (motTy, motSk) <- elabTy (ctx :< QuotTy a r) (env :< zn) site mot
         recordBinder ar ctx env an a
@@ -4560,7 +4662,7 @@ mutual
             (substElem f' (Ext wk3 (CtxVar 1)))
             (substTy motTy (Ext wk3 (Class (CtxVar 2))))
         pure (QuotElim f' q', substTy motTy (Ext Id q'),
-              Nd [PMotive motTy motSk, PWD (certOr wd)] [fSk, qSk])
+              withScrut exp (Nd [PMotive motTy motSk, PWD (certOr wd)] [fSk, qSk]))
       Nothing => throwShape site env "quot-elim scrutinee has type" qTy "a quotient type"
   inferElemAt ctx env site SZeroC = pure (Elem.ZeroTy, UniverseTy, Nd [] [])
   inferElemAt ctx env site SOneC = pure (Elem.OneTy, UniverseTy, Nd [] [])
@@ -4630,7 +4732,7 @@ mutual
     (t', tTy, tSk) <- inferElem ctx env site t
     st <- getSt
     case preferNu st ctx tTy of
-      Just (p, _) => pure (Out t', reflectPoly p (Elem.NuTy p), Nd [] [tSk])
+      Just (p, exp) => pure (Out t', reflectPoly p (Elem.NuTy p), withScrut exp (Nd [] [tSk]))
       Nothing => throwShape site env "out scrutinee has type" tTy "a ν type"
   inferElemAt ctx env site (SCorec _ _ _ _) =
     throwAt site.srange "\{site}: cannot infer the type of corec (the polynomial comes from the expected ν-type)\{structuralHint ()}"
@@ -4717,7 +4819,7 @@ mutual
               let ctx' = (g0 <>< g1') :< substTy aTy (wkN n1)
               let env' = (env0 <>< toList env1) :< xn
               (b', bSk) <- checkElem ctx' env' site sb (substTy goal0 Wk)
-              q <- emitInlineDef site "q" ctx' (substTy goal0 Wk) (tySkelK (substTy goal0 Wk)) b' bSk
+              q <- emitInlineDef site "q" ctx' (substTy goal0 Wk) (tySkelK st ctx' (substTy goal0 Wk)) b' bSk
               -- the site is an ORDINARY squash-elim around the lifted
               -- body, so el-squash-e-prf's own rule checks the goal is
               -- a proposition and nothing here has to
@@ -4798,8 +4900,8 @@ mutual
               let goalR = compTy (substTy goal (underN n1 subR))
               (l', lSk) <- checkElem ctxL (envB an) site sl goalL
               (r', rSk) <- checkElem ctxR (envB bn) site sr goalR
-              ql <- emitInlineDef site "l" ctxL goalL (tySkelK goalL) l' lSk
-              qr <- emitInlineDef site "r" ctxR goalR (tySkelK goalR) r' rSk
+              ql <- emitInlineDef site "l" ctxL goalL (tySkelK st ctxL goalL) l' lSk
+              qr <- emitInlineDef site "r" ctxR goalR (tySkelK st ctxR goalR) r' rSk
               -- the eliminator, at the Π-closed type. Its motive
               -- binder stands where w stood, so the closure is the
               -- entries and the goal VERBATIM — no substitution
@@ -4809,7 +4911,7 @@ mutual
                                              (bn, Nothing) (branch env0 env1 qr bn)
                                              (SVar Nothing nm 0))
               (e', eSk) <- checkElem g0 env0 site body elimTy
-              qe <- emitInlineDef site "u" g0 elimTy (tySkelK elimTy) e' eSk
+              qe <- emitInlineDef site "u" g0 elimTy (tySkelK st g0 elimTy) e' eSk
               -- the site: the eliminator at w and the survivors
               let args = svarsS env0 (S i) ++ [SVar wrng nm i] ++ svarsS env1 0
               let spine = foldl SApp (SSig Nothing qe) args
@@ -4947,7 +5049,7 @@ mutual
                             (e, sk) <- checkElem ctx' env' site sp ty'
                             pure (e, ty', sk)
                           Nothing => inferElem ctx' env' site sp
-                        q <- emitInlineDef site "j" ctx' prfTy (tySkelK prfTy) prf' prfSk
+                        q <- emitInlineDef site "j" ctx' prfTy (tySkelK st ctx' prfTy) prf' prfSk
                         -- the spine is the PERMUTED order at the SITE's
                         -- own indices: the reordering is the lifted
                         -- definition's business and reaches no further
@@ -5066,10 +5168,11 @@ mutual
     mintRefl : Ctx -> NameEnv -> (aEq0, t0 : Elem) -> (n0, i, j : Nat) ->
                (siteArgs : List Elem) -> (wTy : Ty) -> ElabM (Elem, List Cand)
     mintRefl g0 env0 aEq0 t0 n0 i j siteArgs wTy = do
+      st <- getSt
       let reflTy = Elem.EqTy t0 t0 aEq0
       (rp, rsk) <- withScope (Just []) (checkElem g0 env0 (sub site "\{site}: ≡-elim, reflexivity")
                                           (SStar Nothing) reflTy)
-      qr <- emitInlineDef site "r" g0 reflTy (tySkelK reflTy) rp rsk
+      qr <- emitInlineDef site "r" g0 reflTy (tySkelK st g0 reflTy) rp rsk
       let inst = \base => foldl PiApp (SigVar qr [<]) (map CtxVar (idxDesc n0 base))
       -- the irrelevance equation lives at the SITE, where w still
       -- stands; both sides inhabit a proposition, so its ⋆ closes on
@@ -5161,7 +5264,8 @@ mutual
       -- so the site pays a fixed cost whatever the module holds
       (prf, prfSk) <- withScope (Just []) (withEqScope ["sigma.eta"]
                         (checkElem ctx env site (SStar Nothing) etaTy))
-      q <- emitInlineDef site "η" ctx etaTy (tySkelK etaTy) prf prfSk
+      st <- getSt
+      q <- emitInlineDef site "η" ctx etaTy (tySkelK st ctx etaTy) prf prfSk
       n1 <- oblCount
       if n1 /= n0
         then do modifySt (const before); pure []
@@ -5215,7 +5319,7 @@ mutual
                   (t, sk) <- checkElem ctx' env' site body (compTy (substTy ty pair))
                   pure (t, compTy (substTy ty pair), sk)
                 Nothing => inferElem ctx' env' site body
-              q <- emitInlineDef site "σ" ctx' bodyTy (tySkelK bodyTy) body' bodySk
+              q <- emitInlineDef site "σ" ctx' bodyTy (tySkelK st ctx' bodyTy) body' bodySk
               -- the site: the definition at the SPLIT spine
               let wv = SVar wrng nm i
               let args = svars env0 (S i) ++ [SProj1 wv, SProj2 wv] ++ svars env1 0
@@ -5325,13 +5429,23 @@ mutual
     st <- getSt
     case preferPrf st ctx ty of
       Nothing => throwShape site env "coind checked against" ty "a proposition"
-      Just (pc, exp) => do
-        let pcUse = case pc of
-                      Elem.EqTy _ _ _ => pc
-                      _ => exposeCode st pc
+      Just (pc, exp0) => do
+        let (pcUse, exp1) = exposePropLog st ctx (pc, exp0)
         case pcUse of
           Elem.EqTy l rhs ety => do
-            let fM = case exposeT st ety of
+            -- the ∈-type exposed to its ν head, LOGGED: the exposure of
+            -- the prop extends by ≡-congruence at its type child
+            let (etyX, etySteps) = exposeTLog st True [] ety
+            let exp = the (Maybe (Ty, Prf)) $ case etySteps of
+                        [] => exp1
+                        _ => case exposePrf st ctx ety etyX etySteps of
+                               Nothing => exp1
+                               Just (_, eNu) =>
+                                 let e2 = CEqTy PReflx PReflx eNu in
+                                 Just (Elem.EqTy l rhs etyX, case exp1 of
+                                                                Nothing => e2
+                                                                Just (_, e1) => pTrans e1 e2)
+            let fM = case etyX of
                        NuTy f => Just f
                        _ => Nothing
             case fM of
@@ -5376,14 +5490,7 @@ mutual
         -- (checking ⋆ emits its equation into ↓); a squashed 𝟙 is
         -- witnessed outright. Prefer the prop as written for readable
         -- obligation statements; fall back to its normal form.
-        let pN = exposeCode st p
-        let pUse0 = case p of
-                      Elem.EqTy _ _ _ => p
-                      _ => pN
-        (pUse, exp) <- pure $ case pUse0 of
-          Elem.EqTy _ _ _ => (pUse0, exp)
-          Squash _ => (pUse0, exp)
-          _ => (pUse0, exp)
+        let (pUse, exp) = exposePropLog st ctx (p, exp)
         case pUse of
           Elem.EqTy l r t => do
             c <- convElem ctx env (sub site "\{site}: checking ⋆") Nothing l r t
@@ -5417,10 +5524,8 @@ mutual
     st <- getSt
     case preferPrf st ctx ty of
       Nothing => throwShape site env "a chain proves an equality, but is checked against" ty "a proposition"
-      Just (p, exp) => do
-        let pUse = case p of
-                     Elem.EqTy _ _ _ => p
-                     _ => exposeCode st p
+      Just (p, exp0) => do
+        let (pUse, exp) = exposePropLog st ctx (p, exp0)
         case pUse of
           Elem.EqTy l r tA => do
             (x0', x0Sk) <- checkElem ctx env site x0 tA
@@ -5540,15 +5645,23 @@ mutual
             -- two representatives, whatever the relation's shape.
             -- Anything else keeps the license reading — w proves this
             -- very equation.
-            mcert <- case (exposeHead st qty, pl, pr, unPos w) of
+            -- the ∈-type exposed by LOGGED δ: the type-directed leaf is
+            -- read at the exposed spelling (a conversion around it)
+            let (qtyX, qSteps) = exposeTLog st True [] qty
+            let atQty = the (Prf -> Prf) $ case qSteps of
+                          [] => id
+                          _ => case exposePrf st ctx qty qtyX qSteps of
+                                 Just (_, pq) => PConv pq qtyX
+                                 Nothing => id
+            mcert <- case (qtyX, pl, pr, unPos w) of
               (PropTy, _, _, SPair f g) => do
                 (f', fSk) <- checkElem ctx env site f (PiTy pl (substTy pr Wk))
                 (g', gSk) <- checkElem ctx env site g (PiTy pr (substTy pl Wk))
-                pure (Just (PPropExt f' fSk g' gSk))
+                pure (Just (atQty (PPropExt f' fSk g' gSk)))
               (QuotTy _ rel, Class a, Class b, _) => do
                 (w', wSk) <- checkElem ctx env site w
                                (substElem rel (Ext (Ext Id a) b))
-                pure (Just (PQuotWitPrf w' wSk))
+                pure (Just (atQty (PQuotWitPrf w' wSk)))
               _ => pure Nothing
             case mcert of
               Just cert => pure (Star, withExpose exp (Nd [PReflEq cert] []))
@@ -5676,6 +5789,7 @@ mutual
   -- switch is α-trivial
   checkElemAt ctx env site (SNatElim Nothing z (n2, n2r) (ih, ihr) s t) cTy = do
     (t', tSk) <- checkElem ctx env site t NatTy
+    st <- getSt
     let motTy = absT 0 t' cTy
     unless (skelFreeT motTy) $
       throwAt site.srange "\{site}: the recovered motive contains a stuck eliminator — write the motive: (n. T)"
@@ -5686,12 +5800,12 @@ mutual
                    (substTy motTy (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk))
     c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing (substTy motTy (Ext Id t')) cTy
     pure (NatElim z' s' t',
-          addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] [])] [zSk, sSk, tSk]))
+          addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (reSkelI st (ctx :< NatTy) motTy)] [zSk, sSk, tSk]))
   checkElemAt ctx env site (SSumElim Nothing (an, ar) l (bn, br) r t) cTy = do
     (t', tTy, tSk) <- inferShaped ctx env site t (sumShape ctx env site (headRange t))
     st <- getSt
     case preferSum st ctx tTy of
-      Just (a, b, _) => do
+      Just (a, b, exp) => do
         let motTy = absT 0 t' cTy
         unless (skelFreeT motTy) $
           throwAt site.srange "\{site}: the recovered motive contains a stuck eliminator — write the motive: (z. T)"
@@ -5703,13 +5817,13 @@ mutual
                        (substTy motTy (Ext Wk (Inj2 (CtxVar 0))))
         c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing (substTy motTy (Ext Id t')) cTy
         pure (SumElim l' r' t',
-              addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] [])] [lSk, rSk, tSk]))
+              addPayload (PSwitch (certOr c)) (withScrut exp (Nd [PMotive motTy (reSkelI st (ctx :< SumTy a b) motTy)] [lSk, rSk, tSk])))
       Nothing => throwShape site env "⊎-elim scrutinee has type" tTy "a ⊎ type"
   checkElemAt ctx env site (SQuotElim Nothing (an, ar) f q) cTy = do
     (q', qTy, qSk) <- inferShaped ctx env site q (quotShape ctx env site (headRange q))
     st <- getSt
     case preferQuot st ctx qTy of
-      Just (a, rel, _) => do
+      Just (a, rel, exp) => do
         let motTy = absT 0 q' cTy
         unless (skelFreeT motTy) $
           throwAt site.srange "\{site}: the recovered motive contains a stuck eliminator — write the motive: (z. T)"
@@ -5727,7 +5841,7 @@ mutual
             (substTy motTy (Ext wk3 (Class (CtxVar 2))))
         c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing (substTy motTy (Ext Id q')) cTy
         pure (QuotElim f' q',
-              addPayload (PSwitch (certOr c)) (Nd [PMotive motTy (Nd [] []), PWD (certOr wd)] [fSk, qSk]))
+              addPayload (PSwitch (certOr c)) (withScrut exp (Nd [PMotive motTy (reSkelI st (ctx :< QuotTy a rel) motTy), PWD (certOr wd)] [fSk, qSk])))
       Nothing => throwShape site env "quot-elim scrutinee has type" qTy "a quotient type"
   -- as in `elabTyAt`: the site is already this node's own span
   checkElemAt ctx env site (SPos _ e) ty = checkElemAt ctx env site e ty
@@ -6160,7 +6274,18 @@ mutual
         _ => pure ()) slots
     -- pending switch conversions, at the FINAL instantiations
     sks0 <- patchPending doms finalArgs (reverse revSks) pending
-    let sks = foldl (\ss, (dpos, dsk) => mapAt dpos (const dsk) ss) sks0 dPatches
+    let sks1 = foldl (\ss, (dpos, dsk) => mapAt dpos (const dsk) ss) sks0 dPatches
+    -- a SOLVED position (a hole the sources fixed) carries a value the
+    -- elaborator never elaborated: its skeleton is reconstructed —
+    -- the exposures the kernel's β-only whnf cannot reach
+    let reSk : (Nat, Skel) -> Skel
+        reSk (pos, sk) = case (sk, getAt pos finalArgs, getAt pos doms) of
+                      (Nd [] [], Just v, Just d) =>
+                        if isJust (lookup pos sols)
+                          then reSkelE st ctx v (substTy d (preSub (take pos finalArgs)))
+                          else sk
+                      _ => sk
+    let sks = map reSk (zip (map (\sl => fst {a=Nat} {b=Maybe SElem} sl) slots) sks1)
     -- the implicitize TRIAL (docs/NovaPerfectSurface.txt, Phase 3c):
     -- for every {t}-override at an implicit position, replay the
     -- HYPOTHETICAL elided recovery — implicit positions as holes,
@@ -6661,11 +6786,11 @@ mutual
       ||| (refl a x checks at Id a x y only through hyp.rw)
       payloadBare : Payload -> Bool
       payloadBare (PSwitch c) = isReflx c
-      -- a TRIVIAL exposure (El-code head opened by computation
-      -- alone) is re-derived by the kernel bare — it is licensed
-      -- exposure (a lemma-rewritten head) that must keep its
-      -- skeleton
-      payloadBare (PExpose _ c) = isReflx c
+      -- an exposure (of an intro form's type, of a scrutinee's type)
+      -- is RECONSTRUCTED from the value alone (reSkelE) when the
+      -- position is solved by a blank: it never blocks blanking
+      payloadBare (PExpose _ _) = True
+      payloadBare (PScrut _ _) = True
       payloadBare _ = False
 
       skelBare : Skel -> Bool
@@ -6760,9 +6885,9 @@ mutual
       _ => do
         st <- getSt
         case preferPi st ctx fTy of
-          Just (a, b, _) => do
+          Just (a, b, exp) => do
             (e', eSk) <- asArg (checkElem ctx env site it a)
-            continueApp (PiApp f' e', substTy b (Ext Id e'), Nd [] [fSk, eSk]) rest
+            continueApp (PiApp f' e', substTy b (Ext Id e'), withScrut exp (Nd [] [fSk, eSk])) rest
           Nothing => throwShape site env "cannot apply a term of type" fTy "a Π type"
 
 -- ===== Items =====

@@ -2,5 +2,5 @@ defined q1eq
 defined q2bad [+1 obligation]
 open obligations (1):
   [1] ⊢ Z ≐ S Z : ℕ
-      at: input.nova:7:9: def q2bad: checking ⋆ [replay failed: kernel: proof type does not match the position [position: QuotTy (NatTy) (Squash (EqTy (CtxVar 1) (CtxVar 0) (NatTy))); proof: QuotTy (NatTy) (Squash (OneTy))] [proof: (⟨SigVar "q1eq" ([< ])⟩ ; refl)]]
+      at: input.nova:7:9: def q2bad: checking ⋆ [replay failed: certificate: no δ-conversion between the stated type and the position's [stated: QuotTy (NatTy) (Squash (OneTy)); position: QuotTy (NatTy) (Squash (EqTy (CtxVar 1) (CtxVar 0) (NatTy)))]]
       from composite: ⊢ class Z ≐ class (S Z) : ℕ / (n x. n ≡ x ∈ ℕ)

@@ -170,12 +170,21 @@ proof terms at the boundary (Nova.Elaboration.Cert), by an untrusted
 replay of its own steps; the kernel sees the proof term and nothing
 else.
 
-Two places still unfold on the kernel's own initiative, both slated
-for the next migration step: the POSITIONAL TYPE check at a leaf
-(two types compared by full δβ) and head EXPOSURE at introduction
-forms, congruence nodes, leaf types and type-directed leaves. The
-floor in every variant: α-comparison and substitution stay trusted —
-no kernel design knows less than that.
+NO δ FOR EXPOSURE: the kernel's weak-head normalizer is β-only.
+A shape a definition hides — the Π of a checked λ, the quotient of a
+class, the Σ a projection needs, the ≡ behind a hypothesis, the type
+a stated equation sits at — reaches the kernel as a recorded
+conversion (an expose/scrut payload at the item level, a conv/scrut
+node or an ascribed leaf inside a proof), produced by the engine's
+own exposure; a value the elaborator never elaborated (a solved
+hole, a synthesized type) has its skeleton reconstructed. What still
+unfolds on the kernel's own initiative is the typing of BARE SPINES
+— proof-spine and neutral-spine typing open heads by δ, and the item
+level's switch-less fallthrough compares types by full δβ — which
+have no place for an ascription; that goes with ascribed spines, the
+next migration step (docs/NovaKernel.txt §9). The floor in every
+variant: α-comparison and substitution stay trusted — no kernel
+design knows less than that.
 
 ////////// Who produces what: the two tactic layers //////////
 

@@ -156,6 +156,11 @@ names):
       ⟨p⟩               reflection: a proof element     (PRefl)
     | qpath 𝕔 θ         an imposed QIIT equation        (PPath)
     | x-δ ē             x[ē] ≐ t[ē] for (Δ ⊦ x ≔ t : T)  (PDelta)
+    | ⟨p : P′ by πᵀ⟩    reflection through a CONVERTED type:
+                        πᵀ ▷ ⇒ᵖ(p) ≐ P′, P′ an equality prop
+                        (the sketch's ascription)        (PReflAt)
+    | π at T′ by πᵀ     the stated equation at T′,
+                        πᵀ ▷ A ≐ T′                      (PAt)
     | sel π             a component, by a selector      (PSel)
     -- structure
     | refl              the sides join under β          (PReflx)
@@ -175,6 +180,9 @@ names):
       Π[π; π]  Σ[π; π]  ⊎[π; π]  ≡[π; π; π]  quot[π; π]  x[π̄]
       class[π]  quot-elim{M?}[π; π]  ∥π∥  𝒮.𝕤[π̄]  𝒮.𝕔[π̄]
       𝒮.𝕤-elim ℰ[π̄; π]  out[π]  corec 𝔽[π; π; π]
+    | scrut T′ πᵀ [node]  an elimination node (app, π₁/π₂, out,
+                        ⊎-elim, quot-elim) read with its scrutinee's
+                        type CONVERTED: πᵀ ▷ ⇒ᴺ(head) ≐ T′ (CScrut)
 
 Substitution acts on a proof as on a term (every element it carries
 — proof elements, spines, stated middles, converted types, motives —
@@ -362,6 +370,20 @@ proof type is rejected. Γ is the context AT THE LEAF: the binders the
 congruence nodes above it crossed are in scope (a proof spelled at
 the root arrives weakened, §2).
 
+  ⟨p : P′ by πᵀ⟩ :  Σ; Γ ⊦ p ⇒ᵖ P    Σ; Γ ⊦ πᵀ ▷ P ≐ P′ : 𝕍
+                    nf_β(P′) ⇓ (l ≡ r ∈ A)
+                    ------------------------------------------
+                    ⟨p : P′ by πᵀ⟩ ⇒  l ≐ r : A
+  # the kernel's whnf is β-only: an equality hidden behind a
+  # definition is read through the recorded conversion, never by the
+  # kernel unfolding the proof's type
+
+  π at T′ by πᵀ :   π ⇒ l ≐ r : A    πᵀ ▷ A ≐ T′ : 𝕍
+                    ------------------------------------
+                    π at T′ by πᵀ ⇒  l ≐ r : T′
+  # equal types have equal PERs; how a stated equation meets a
+  # position spelled otherwise (§7, the positional check is β-only)
+
 A PATH leaf  qpath 𝕔 θ  cites an imposed equation of its carried
 signature: the kernel demands 𝒮(𝕔) = 𝔄 ending in El (l ≡ r), checks
 θ entrywise against ⌊𝔄⌋ᵗ (⇐ᵖ, §3), and the leaf states
@@ -511,7 +533,16 @@ its part at the child's expected type, computed from the node:
   neutral-spine inference (context variables, applications,
   projections, out, signature references, eliminator heads — the
   heads whose types are recoverable without annotations), read off
-  the LEFT side's part, in the context at the node.
+  the LEFT side's part, in the context at the node. Every "when
+  nf(·) ⇓ …" above is the β-whnf: a shape a definition hides reaches
+  the node only through a conversion — `conv` around the node for the
+  type flowing down, `scrut T′ πᵀ [node]` for a scrutinee's inferred
+  type (the node then reads its children from T′). ⇒ᴺ itself still
+  exposes the heads ALONG a spine by δ (the type of h.π₁ needs h's
+  declared type opened; a bare spine has no place for an ascription):
+  the residue of neutral-spine typing (§9), shared with proof-spine
+  typing; what ⇒ᴺ returns is the head's declared type, which a scrut
+  node converts.
 
 A child's expected type may be UNDETERMINED (—): harmless for a node
 merely passed THROUGH (refl at a sibling compares, needing no type)
@@ -622,12 +653,11 @@ consumer joins):
 The ⇒ reading is §4.
 
 POSITIONAL TYPE CHECK, A ≐ E: join-syntactic, or cumulativity (a
-licence at 𝕌 at a position typed 𝕍 — code-lift-eq), or — the one
-place checking still unfolds on its own — the two TYPES compared by
-full δβ normalization (nf, §1): the type flowing down and the
-licence's may differ by unfoldings no leaf addresses (type indices).
-It widens only that comparison of two types, never the equation
-being checked, and goes with head exposure (§9).
+licence at 𝕌 at a position typed 𝕍 — code-lift-eq). Nothing else: a
+stated equation whose type is spelled otherwise than its position's
+(by unfoldings no leaf addresses — type indices, a hypothesis at the
+quotient's definition) arrives CONVERTED, `π at E by πᵀ` (§4), the
+conversion a δ chain the producer records.
 
 Type equations — Σ; Γ ⊦ π ▷ T₀ ≐ T₁ (E = 𝕍): no conv is admissible
 (circular); the type formers are congruence nodes like any other,
@@ -654,6 +684,11 @@ payloads:
                                       equality prop (el-eq-i)
     | wd π                (PWD)       quot-elim well-definedness
     | expose T π          (PExpose)   head exposure at a checked intro
+    | scrut T π           (PScrut)    head exposure of an ELIMINATION's
+                                      scrutinee type (the function
+                                      applied, the pair projected, the
+                                      ⊎/quotient/ν scrutinee): the
+                                      inferred type converted to T
     | squash-wit e ⟨sk⟩   (PSquashWit) the witness behind a checked
                                       ⋆ : ∥A∥ (el-squash-i)
     | squash-elim e ⟨ske⟩  (PSquashElim) el-squash-e-prf: scrutinee e
@@ -980,15 +1015,34 @@ EQUATION REPLAY (A1, A2), and three added by the QIIT extension
       its use site). Foundation covers the rest; the restriction is
       checking incompleteness only.
 
-One residue of kernel-initiated δ remains in equation checking: the
-POSITIONAL TYPE CHECK (§7) compares the type at a leaf's position
-with the leaf's stated type by full δβ normalization (nf, §1), since
-the type flowing down may differ from the licence's by unfoldings no
-leaf addresses (type indices). It widens only that comparison of two
-types, never the equation being checked. Likewise head EXPOSURE at
-introduction forms, congruence nodes, leaf types and type-directed
-leaves (kWhnf*) still unfolds freely: that is the next migration step
-(exposure as ascription + certificate, docs/NovaKernelRewrite.txt).
+NO δ FOR EXPOSURE (docs/NovaKernelRewrite.txt, CONVENTIONS): the
+kernel's weak-head normalizer is β-only. Every shape a definition
+hides — the Π of a checked λ, the Σ of a projected pair, the quotient
+of a class, the ≡ behind a proof's type, the type a stated equation
+sits at — reaches the kernel through a recorded conversion: the
+expose/scrut payloads at the item level (§8), conv/scrut nodes and
+the ascribed leaves inside a proof (§2, §4, §7). The producer records
+them from its own exposure (the engine's whitelist governs matching,
+not shapes: a value the elaborator never elaborated — a solved hole,
+a synthesized type — has its skeleton RECONSTRUCTED with the
+whitelist open). What remains of kernel-initiated δ is the typing of
+BARE SPINES, which have no place for an ascription:
+
+  * proof-spine typing (§3: inferP/checkP) opens a head by δ where
+    the spine's shape demands it (an application's Π, a projection's
+    Σ) and compares a proof argument's type with the expected one by
+    full δβ (kTy);
+  * neutral-spine typing (⇒ᴺ, §6) opens the heads along a spine by δ
+    (head only, never the whole type);
+  * the item level's checking fallthrough (a non-intro term with no
+    switch payload) compares inferred and expected by kTy;
+  * the engine-facing services (kInferBare: typing a hole's value)
+    run a LIBERAL whnf — never a verdict path.
+
+All four go together with ascribed spines (a core ascription form,
+or the Church-style core of docs/NovaKernelRewrite.txt), the next
+migration step. The kernel state carries the liberal flag explicitly
+(KSt.liberal), so a verdict path cannot inherit it by accident.
 
 Two structural caveats restated from docs/NovaPipeline.txt: an
 annotation (motive, ascription, exposure target) is a REPRESENTATIVE,
