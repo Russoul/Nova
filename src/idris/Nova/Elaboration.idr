@@ -47,6 +47,7 @@ import Nova.Elaboration.Beta
 import Nova.Kernel.QIIT
 import Nova.Kernel.Parser
 import Nova.Kernel
+import Nova.Elaboration.Cert
 
 import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
@@ -2369,6 +2370,11 @@ stepFree : ECert -> Bool
 stepFree (MkECertF Nothing [] FBeta) = True
 stepFree _ = False
 
+||| The bare proof: reflexivity (sides join under β).
+isReflx : Prf -> Bool
+isReflx PReflx = True
+isReflx _ = False
+
 mutual
   ||| Γ ⊢ a ≐ b : A, speculatively; Just cert = dischargeable with this
   ||| evidence.
@@ -2501,7 +2507,8 @@ mutual
           _ => Nothing
         Elem.EqTy l r t => do
           c <- spEqElemC dep st (mkCandSet st ctx') ctx' l r t
-          Just (lam (Nd [PReflEq c] []))
+          p <- either (const Nothing) Just (toPrf st.sig ctx' c l r t)
+          Just (lam (Nd [PReflEq p] []))
         _ => Nothing
      where
       lam : Skel -> (Elem, Skel)
@@ -3317,9 +3324,9 @@ hintE st ctx a b ty = lemmaHint <|> eqHint
         case spEqElemC spDepth stG (mkCandSet stG ctx) ctx a b ty of
           Nothing => Nothing
           Just cert =>
-            case kCheckEqElem stG.sig ctx kernelFuel cert a b ty of
+            case replayElem stG.sig ctx cert a b ty of
               Left _ => Nothing
-              Right () =>
+              Right _ =>
                 case nub (hintNamesC cert) of
                   [] => Nothing
                   ns => Just "closes with \{joinBy ", " ns}"
@@ -3351,9 +3358,9 @@ hintT st ctx x y = lemmaHint <|> eqHint
         case spEqTyC spDepth stG (mkCandSet stG ctx) ctx x y of
           Nothing => Nothing
           Just cert =>
-            case kCheckEqTy stG.sig ctx kernelFuel cert x y of
+            case replayTy stG.sig ctx cert x y of
               Left _ => Nothing
-              Right () =>
+              Right _ =>
                 case nub (hintNamesC cert) of
                   [] => Nothing
                   ns => Just "closes with \{joinBy ", " ns}"
@@ -3443,7 +3450,7 @@ mutual
   ||| replayed certificate; Left = the site string, annotated when the
   ||| engine produced a certificate that failed replay (engine bug
   ||| signal, reported on the obligation).
-  attemptE : Ctx -> Site -> Elem -> Elem -> Ty -> ElabM (Either Site ECert)
+  attemptE : Ctx -> Site -> Elem -> Elem -> Ty -> ElabM (Either Site Prf)
   attemptE ctx site a b ty =
     -- TIER 0 (↓ step 0): α-identical sides discharge by REFLEXIVITY —
     -- no candidate assembly, no engine, and no eager replay: kernel
@@ -3451,7 +3458,7 @@ mutual
     -- fail (its normalizer is deterministic), and the item-level
     -- check still replays it
     if a == b
-      then pure (Right (bump "syn-eq-elem" 1 (MkECert [] FBeta)))
+      then pure (Right (bump "syn-eq-elem" 1 PReflx))
       else do
         st <- getSt
         -- TIER 1 (↓ step ½): the sides join under the COMPUTATIONAL
@@ -3463,8 +3470,8 @@ mutual
         if timed "tier1" (\_ => compElem a == compElem b)
           then do
             let cert = bump "comp-eq-elem" 1 (MkECert [] FBeta)
-            case kCheckEqElem st.sig ctx kernelFuel cert a b ty of
-              Right () => pure (Right cert)
+            case replayElem st.sig ctx cert a b ty of
+              Right prf => pure (Right prf)
               Left kerrMsg => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
           else do
             let t0 = nowNs ()
@@ -3478,13 +3485,14 @@ mutual
             case mcert of
               Nothing => pure (Left site)
               Just cert =>
-                let kres = kCheckEqElem st.sig ctx kernelFuel cert a b ty in
+                let kres = replayElem st.sig ctx cert a b ty in
                 case bump "kernel" (nowNs () - t2) kres of
-                  Right () =>
+                  Right prf =>
                     let cert1 = if stepFree cert then bump "triv-stepless-elem" 1 cert else cert in
                     let names = nub (hintNamesC cert1) in
-                    pure (Right (if null names then cert1
-                                   else audit "AUDIT elem | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert1))
+                    pure (Right (audit "CERT elem | \{st.modPrefix} | \{site} | \{show prf}"
+                                  (if null names then prf
+                                     else audit "AUDIT elem | \{st.modPrefix} | \{site} | \{joinBy ", " names}" prf)))
                   Left kerrMsg =>
                     -- the engine's route overreached (a step the
                     -- kernel's positional rules reject) — before
@@ -3494,24 +3502,24 @@ mutual
                     -- rewrite (this rescue lived in the removed
                     -- item-end deletion pass; it belongs at the site)
                     case deltaJoinC st a b of
-                      Just bare => case kCheckEqElem st.sig ctx kernelFuel bare a b ty of
-                        Right () => pure (Right bare)
+                      Just bare => case replayElem st.sig ctx bare a b ty of
+                        Right prf => pure (Right prf)
                         Left _ => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
                       Nothing => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
 
-  attemptT : Ctx -> Site -> Ty -> Ty -> ElabM (Either Site ECert)
+  attemptT : Ctx -> Site -> Ty -> Ty -> ElabM (Either Site Prf)
   attemptT ctx site tyA tyB =
     -- TIER 0, as at attemptE: identical types are equal by reflexivity
     if tyA == tyB
-      then pure (Right (bump "syn-eq-ty" 1 (MkECert [] FBeta)))
+      then pure (Right (bump "syn-eq-ty" 1 PReflx))
       else do
         st <- getSt
         -- TIER 1, as at attemptE (eager replay kept — the canary)
         if timed "tier1" (\_ => compTy tyA == compTy tyB)
           then do
             let cert = bump "comp-eq-ty" 1 (MkECert [] FBeta)
-            case kCheckEqTy st.sig ctx kernelFuel cert tyA tyB of
-              Right () => pure (Right cert)
+            case replayTy st.sig ctx cert tyA tyB of
+              Right prf => pure (Right prf)
               Left kerrMsg => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
           else do
             let t0 = nowNs ()
@@ -3522,22 +3530,23 @@ mutual
             case mcert of
               Nothing => pure (Left site)
               Just cert =>
-                let kres = kCheckEqTy st.sig ctx kernelFuel cert tyA tyB in
+                let kres = replayTy st.sig ctx cert tyA tyB in
                 case bump "kernel" (nowNs () - t2) kres of
-                  Right () =>
+                  Right prf =>
                     let names = nub (hintNamesC cert) in
-                    pure (Right (if null names then cert
-                                   else audit "AUDIT ty | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert))
+                    pure (Right (audit "CERT ty | \{st.modPrefix} | \{site} | \{show prf}"
+                                  (if null names then prf
+                                     else audit "AUDIT ty | \{st.modPrefix} | \{site} | \{joinBy ", " names}" prf)))
                   Left kerrMsg =>
                     -- bare-beta rescue, as at attemptE
-                    case deltaJoinC st tyA tyB of
-                      Just bare => case kCheckEqTy st.sig ctx kernelFuel bare tyA tyB of
-                        Right () => pure (Right bare)
+                    case audit "REPLAY-FAIL ty | \{site} | \{kerrMsg} | \{show cert}" (deltaJoinC st tyA tyB) of
+                      Just bare => case replayTy st.sig ctx bare tyA tyB of
+                        Right prf => pure (Right prf)
                         Left _ => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
                       Nothing => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
 
   ||| Γ ⊢ a ≐ b : A ↓ — always succeeds; assumes what it cannot discharge.
-  convElem : Ctx -> NameEnv -> Site -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM (Maybe ECert)
+  convElem : Ctx -> NameEnv -> Site -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM (Maybe Prf)
   convElem ctx env site comp a b ty = do
     r <- attemptE ctx site a b ty
     case r of
@@ -3665,7 +3674,7 @@ mutual
                  Nothing => assume cur site comp
 
   ||| Γ ⊢ A ≐ B type ↓
-  convTy : Ctx -> NameEnv -> Site -> Maybe Stmt -> Ty -> Ty -> ElabM (Maybe ECert)
+  convTy : Ctx -> NameEnv -> Site -> Maybe Stmt -> Ty -> Ty -> ElabM (Maybe Prf)
   convTy ctx env site comp tyA tyB = do
     r <- attemptT ctx site tyA tyB
     case r of
@@ -3817,45 +3826,55 @@ addPayload p (Nd ps cs) = Nd (p :: ps) cs
 
 ||| The certificate of a validated discharge; an assumed (dirty-run)
 ||| site carries an empty stub — the item is not kernel-checked then.
-certOr : Maybe ECert -> ECert
+certOr : Maybe Prf -> Prf
 certOr (Just c) = c
-certOr Nothing = MkECert [] FBeta
+certOr Nothing = PReflx
 
-preferPi : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
+||| An exposure — the expected type rewritten to its exposed form by
+||| the logged unfold steps — as the kernel's proof of the conversion.
+||| A translation failure drops the exposure (the kernel then reports
+||| the unexposed type: the same signal a rejected certificate gives).
+exposePrf : ElabSt -> Ctx -> Ty -> Ty -> List Step -> Maybe (Ty, Prf)
+exposePrf st ctx ty tyX steps =
+  case toPrfTy st.sig ctx (MkECert steps FBeta) ty tyX of
+    Right p => Just (tyX, p)
+    Left _ => Nothing
+
+preferPi : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, Prf))
 preferPi st ctx (PiTy a b) = Just (a, b, Nothing)
 preferPi st ctx ty = case exposeTLog st True [] ty of
-                       (tyX@(PiTy a b), steps) => Just (a, b, Just (tyX, MkECert steps FBeta))
+                       (tyX@(PiTy a b), steps) => Just (a, b, exposePrf st ctx ty tyX steps)
                        _ => Nothing
 
-preferSigma : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
+preferSigma : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, Prf))
 preferSigma st ctx (SigmaTy a b) = Just (a, b, Nothing)
 preferSigma st ctx ty = case exposeTLog st True [] ty of
-                          (tyX@(SigmaTy a b), steps) => Just (a, b, Just (tyX, MkECert steps FBeta))
+                          (tyX@(SigmaTy a b), steps) => Just (a, b, exposePrf st ctx ty tyX steps)
                           _ => Nothing
 
-preferSum : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
+preferSum : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, Prf))
 preferSum st ctx (SumTy a b) = Just (a, b, Nothing)
 preferSum st ctx ty = case exposeTLog st True [] ty of
-                        (tyX@(SumTy a b), steps) => Just (a, b, Just (tyX, MkECert steps FBeta))
+                        (tyX@(SumTy a b), steps) => Just (a, b, exposePrf st ctx ty tyX steps)
                         _ => Nothing
 
-preferNu : ElabSt -> Ctx -> Ty -> Maybe (Poly, Maybe (Ty, ECert))
+preferNu : ElabSt -> Ctx -> Ty -> Maybe (Poly, Maybe (Ty, Prf))
 preferNu st ctx (NuTy f) = Just (f, Nothing)
 preferNu st ctx ty = case exposeTLog st True [] ty of
-                       (tyX@(NuTy f), steps) => Just (f, Just (tyX, MkECert steps FBeta))
+                       (tyX@(NuTy f), steps) => Just (f, exposePrf st ctx ty tyX steps)
                        _ => Nothing
 
-preferQuot : ElabSt -> Ctx -> Ty -> Maybe (Ty, Elem, Maybe (Ty, ECert))
+preferQuot : ElabSt -> Ctx -> Ty -> Maybe (Ty, Elem, Maybe (Ty, Prf))
 preferQuot st ctx (QuotTy a r) = Just (a, r, Nothing)
 preferQuot st ctx ty = case exposeTLog st True [] ty of
-                         (tyX@(QuotTy a r), steps) => Just (a, r, Just (tyX, MkECert steps FBeta))
+                         (tyX@(QuotTy a r), steps) => Just (a, r, exposePrf st ctx ty tyX steps)
                          _ => Nothing
 
 ||| The expected type AS a proposition (Prf retired: the prop IS the
 ||| type). Syntax-directed at the Ω formers, through exposure; a
 ||| NEUTRAL type is a prop exactly when its kernel-inferred type is Ω
 ||| — with no exposure certificate, since nothing is unwrapped.
-preferPrf : ElabSt -> Ctx -> Ty -> Maybe (Elem, Maybe (Ty, ECert))
+preferPrf : ElabSt -> Ctx -> Ty -> Maybe (Elem, Maybe (Ty, Prf))
 preferPrf st ctx p@(Elem.EqTy _ _ _) = Just (p, Nothing)
 preferPrf st ctx p@(Squash _) = Just (p, Nothing)
 preferPrf st ctx ty = if kIsPropB st.kernelSig kernelFuel ctx ty
@@ -3864,8 +3883,8 @@ preferPrf st ctx ty = if kIsPropB st.kernelSig kernelFuel ctx ty
   -- and downstream types keep the user's spelling)
   then Just (ty, Nothing)
   else case exposeTLog st True [] ty of
-         (tyX@(Elem.EqTy _ _ _), steps) => Just (tyX, Just (tyX, MkECert steps FBeta))
-         (tyX@(Squash _), steps) => Just (tyX, Just (tyX, MkECert steps FBeta))
+         (tyX@(Elem.EqTy _ _ _), steps) => Just (tyX, exposePrf st ctx ty tyX steps)
+         (tyX@(Squash _), steps) => Just (tyX, exposePrf st ctx ty tyX steps)
          _ => Nothing
 
 ||| they cannot be accepted anyway.
@@ -4159,7 +4178,7 @@ sigmaPairSub : Sub
 sigmaPairSub = Ext (Chain Wk Wk) (SigmaIntro (CtxVar 1) (CtxVar 0))
 
 ||| Attach a PExpose payload when exposure happened by normalization.
-withExpose : Maybe (Ty, ECert) -> Skel -> Skel
+withExpose : Maybe (Ty, Prf) -> Skel -> Skel
 withExpose Nothing sk = sk
 withExpose (Just (tyX, c)) sk = addPayload (PExpose tyX c) sk
 
@@ -4534,7 +4553,7 @@ mutual
         let wk3 = Chain Wk (Chain Wk Wk)
         st2 <- getSt
         wd <- if isPropTy st2 (ctx :< QuotTy a r) motTy
-          then pure (Just (MkECert [] FProp))
+          then pure (Just PIrrel)
           else convElem (ctx :< a :< substTy a Wk :< r) (env :< an :< (an ++ "'") :< "h")
             (sub site "\{site}: well-definedness of quot-elim case") Nothing
             (substElem f' (Ext wk3 (CtxVar 2)))
@@ -5432,7 +5451,7 @@ mutual
     ||| discharge each adjacency against ITS link only; a failure is
     ||| an ordinary obligation sited at its step (and, being scoped,
     ||| gets a global-store hint if one exists)
-    adjacencies : Ty -> Nat -> Elem -> List (Maybe Range, List Cand, Elem) -> ElabM (List (Maybe ECert))
+    adjacencies : Ty -> Nat -> Elem -> List (Maybe Range, List Cand, Elem) -> ElabM (List (Maybe Prf))
     adjacencies tA i prev [] = pure []
     adjacencies tA i prev ((rng, cs, next) :: rest) = do
       -- the step reports at ITS OWN midpoint, not at the chain
@@ -5448,7 +5467,7 @@ mutual
     ||| replayed between its neighbours; nothing is inverted), validated
     ||| by kernel replay; when an adjacency failed, or the composite
     ||| does not replay, degrade exactly as ⋆ does
-    composite : Ty -> Elem -> Elem -> List (List Cand) -> List (Elem, Skel) -> List (Maybe ECert) -> ElabM (Maybe ECert)
+    composite : Ty -> Elem -> Elem -> List (List Cand) -> List (Elem, Skel) -> List (Maybe Prf) -> ElabM (Maybe Prf)
     composite tA l r cands points adjCerts = do
       st <- getSt
       if not (all isJust adjCerts)
@@ -5458,20 +5477,31 @@ mutual
           -- the site's licensed unfoldings (u - v against u + realNeg v):
           -- an ordinary engine certificate at each end
           let cs = mkCandSet st ctx
+          let endPrf : Elem -> Elem -> Maybe Prf
+              endPrf x y = do
+                c <- spEqElemC spDepth st cs ctx x y tA <|> deltaJoinC st x y
+                either (const Nothing) Just (toPrf st.sig ctx c x y tA)
           let ends = case (points, reverse points) of
                        ((p0, _) :: _, (pn, _) :: _) =>
-                         [| MkPair (spEqElemC spDepth st cs ctx l p0 tA <|> deltaJoinC st l p0)
-                                   (spEqElemC spDepth st cs ctx pn r tA <|> deltaJoinC st pn r) |]
+                         [| MkPair (endPrf l p0) (endPrf pn r) |]
                        _ => Nothing
           case ends of
             Nothing => audit "CHAIN-COMPOSITE-FAIL \{site}: endpoints" fallback
             Just (c0, cn) =>
-              let cert = MkECert [] (FChain points ([c0] ++ catMaybes adjCerts ++ [cn])) in
-              case kCheckEqElem st.sig ctx kernelFuel cert l r tA of
-                Right () => pure (Just cert)
+              -- el-trans through the stated points: the endpoint proofs
+              -- bridge the equation's sides to the chain's written
+              -- ends; every link is its own proof
+              let prf = chainPrf (l :: map fst points ++ [r]) ([c0] ++ catMaybes adjCerts ++ [cn]) in
+              case kCheckEqElem st.sig ctx kernelFuel prf l r tA of
+                Right () => pure (Just prf)
                 Left kerr => audit "CHAIN-COMPOSITE-FAIL \{site}: \{kerr}" fallback
      where
-      fallback : ElabM (Maybe ECert)
+      chainPrf : List Elem -> List Prf -> Prf
+      chainPrf [_, _] [c] = c
+      chainPrf (_ :: b :: rest) (c :: cs) = PTransAt c b (chainPrf (b :: rest) cs)
+      chainPrf _ _ = PReflx
+
+      fallback : ElabM (Maybe Prf)
       fallback =
         withLocal (concat cands) (length links + spDepth) $
           convElem ctx env (sub site "\{site}: checking chain") Nothing l r tA
@@ -5488,17 +5518,15 @@ mutual
         -- type plus its unfold steps, so the witness is checked against
         -- the same spelling on both sides
         let (pB, pSteps) = exposeELog st True [] p in
-        let exp1 = the (Maybe (Ty, ECert)) $ case pSteps of
+        let exp1 = the (Maybe (Ty, Prf)) $ case pSteps of
               [] => exp
-              _ => let prior = the (List Step) (case exp of
-                                   Nothing => []
-                                   Just (_, c) => c.steps) in
-                   Just (pB, MkECert (prior ++ pSteps) FBeta)
+              _ => case exposePrf st ctx p pB pSteps of
+                     Nothing => exp
+                     Just (_, e2) => Just (pB, case exp of
+                                                 Nothing => e2
+                                                 Just (_, e1) => pTrans e1 e2)
         in
-        let (pUse, exp) = the (Elem, Maybe (Ty, ECert)) $ case pB of
-              Squash _ => (pB, exp1)
-              Elem.EqTy _ _ _ => (pB, exp1)
-              _ => (pB, exp1)
+        let (pUse, exp) = the (Elem, Maybe (Ty, Prf)) (pB, exp1)
         in case pUse of
           Squash sq => do
             (w', wSk) <- checkElem ctx env site w sq
@@ -5516,18 +5544,17 @@ mutual
               (PropTy, _, _, SPair f g) => do
                 (f', fSk) <- checkElem ctx env site f (PiTy pl (substTy pr Wk))
                 (g', gSk) <- checkElem ctx env site g (PiTy pr (substTy pl Wk))
-                pure (Just (MkECert [] (FPropExt f' fSk g' gSk)))
+                pure (Just (PPropExt f' fSk g' gSk))
               (QuotTy _ rel, Class a, Class b, _) => do
                 (w', wSk) <- checkElem ctx env site w
                                (substElem rel (Ext (Ext Id a) b))
-                pure (Just (MkECert [] (FWitnessPrf w' wSk)))
+                pure (Just (PQuotWitPrf w' wSk))
               _ => pure Nothing
             case mcert of
               Just cert => pure (Star, withExpose exp (Nd [PReflEq cert] []))
               Nothing => do
                 (w', _) <- checkElem ctx env site w pN
-                let cert = MkECert [MkStep True [] (LProof w') [] False []] FBeta
-                pure (Star, withExpose exp (Nd [PReflEq cert] []))
+                pure (Star, withExpose exp (Nd [PReflEq (PRefl w')] []))
           _ => throwShape site env "⋆ ⟨witness⟩ checked against" ty "an evident proposition"
   checkElemAt ctx env site (SSquashElim e xn body) ty = do
     st <- getSt
@@ -5536,9 +5563,9 @@ mutual
     -- head, the exposure RECORDED for the kernel (the body is checked
     -- under the exposed squashee, so the kernel must bind the same)
     let (eTyX, eSteps) = exposeELog st True [] eTy
-    let eExp = the (Maybe (Ty, ECert)) $ case eSteps of
+    let eExp = the (Maybe (Ty, Prf)) $ case eSteps of
                  [] => Nothing
-                 _ => Just (eTyX, MkECert eSteps FBeta)
+                 _ => exposePrf st ctx eTy eTyX eSteps
     case eTyX of
       Squash a =>
         -- el-squash-e-prf: body proves q[↑] under a hypothetical
@@ -5692,7 +5719,7 @@ mutual
         let wk3 = Chain Wk (Chain Wk Wk)
         st2 <- getSt
         wd <- if isPropTy st2 (ctx :< QuotTy a rel) motTy
-          then pure (Just (MkECert [] FProp))
+          then pure (Just PIrrel)
           else convElem (ctx :< a :< substTy a Wk :< rel) (env :< an :< (an ++ "'") :< "h")
             (sub site "\{site}: well-definedness of quot-elim case") Nothing
             (substElem f' (Ext wk3 (CtxVar 2)))
@@ -6633,12 +6660,12 @@ mutual
       ||| α-recoverable yet kernel-unREcheckable — the uip lesson
       ||| (refl a x checks at Id a x y only through hyp.rw)
       payloadBare : Payload -> Bool
-      payloadBare (PSwitch c) = stepFree c
+      payloadBare (PSwitch c) = isReflx c
       -- a TRIVIAL exposure (El-code head opened by computation
       -- alone) is re-derived by the kernel bare — it is licensed
       -- exposure (a lemma-rewritten head) that must keep its
       -- skeleton
-      payloadBare (PExpose _ c) = stepFree c
+      payloadBare (PExpose _ c) = isReflx c
       payloadBare _ = False
 
       skelBare : Skel -> Bool
@@ -7150,7 +7177,7 @@ elabItemGo irng (SData params decls) = do
     let n = length tel
     let ty = wrapParams ptys (foldr PiTy (Elem.EqTy lE rE uT) tel)
     let body = wrapLams (np + n) Star
-    let cert = MkECert [MkStep True [] (LPath (sgAt sg n) k (varSpine n)) [] False []] FBeta
+    let cert = PPath (sgAt sg n) k (varSpine n)
     emitCoreDef site nm ty (Nd [] []) body (nestSkel (np + n) (Nd [PReflEq cert] []))
 
   ||| The eliminator def for sort s: motives (code-valued), methods,
@@ -7232,9 +7259,10 @@ elabItemGo irng (SData params decls) = do
                 let sgJ = sgAt sg (nS + nM + j)
                 (dtel, spineArgs, lhs, rhs, cty) <- liftQE site (coherenceAt sgJ mots (mVarsAt (nM + j)) ej)
                 let dlen = length dtel
-                -- path [1]: the rhs argument of the (bare, El retired)
-                -- motive application C ī ⌊r⌋
-                let swc = MkECert [MkStep True [1] (LPath (sgAt sgJ dlen) ej spineArgs) [] True []] FBeta
+                -- the rhs argument of the (bare, El retired) motive
+                -- application C ī ⌊r⌋, rewritten by the path equation
+                -- read right to left
+                let swc = CPiApp PReflx (PSym (PPath (sgAt sgJ dlen) ej spineArgs))
                 -- the ≡-TYPE IS the eq-prop (Prf retired): children
                 -- l, r and the carried type
                 let eqSk = Nd [] [Nd [] [], Nd [PSwitch swc] [], Nd [] []]
@@ -7274,14 +7302,14 @@ elabItemGo irng (SData params decls) = do
     -- Ω-valued motive, so proof irrelevance closes them outright
     -- (FProp).
     cohCerts <- if prop
-      then pure (map (const (MkECert [] FProp)) eqPs)
+      then pure (map (const PIrrel) eqPs)
       else traverse (\p => case p of
                   (j, ej) => do
                     (dtel, _, _, _, _) <- liftQE site (coherenceAt (sgAt sg bigN) motsEnd mthsEnd ej)
                     let dlen = length dtel
                     let hIdx = minus nH (S j) + nI + 1 + dlen
                     let dVars = map CtxVar (reverse (upto dlen))
-                    pure (MkECert [MkStep True [] (LProof (applyChain (CtxVar hIdx) dVars)) [] False []] FBeta))
+                    pure (PRefl (applyChain (CtxVar hIdx) dVars)))
                 (zipWithIndex 0 eqPs)
     let bodySk = nestSkel (np + bigN) (Nd [PQCoh cohCerts] [])
     emitCoreDef site (nm ++ (if prop then "ElimP" else "Elim")) defTy defTySk body bodySk

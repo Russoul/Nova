@@ -12,7 +12,7 @@ layers are specified elsewhere:
   * docs/NovaFoundation.txt   — the THEORY. Sole source of truth; every
                                 other layer answers to it.
   * docs/NovaKernel.txt       — the KERNEL, rule by rule: fuel-bounded
-                                normalization, certificate replay,
+                                normalization, proof checking,
                                 item-level checking over skeletons.
   * docs/NovaElaboration.txt  — the elaborator: surface syntax,
                                 bidirectional rules, the obligation
@@ -38,7 +38,7 @@ and docs — has been removed; the pipeline below replaced it.)
       │                                    artifact (see below)
       │  KERNEL                          (trusted, total)
       │    synthesis over the annotated tree + fuel-bounded beta +
-      │    certificate replay; no search, no choices, always a verdict
+      │    proof checking; no search, no choices, always a verdict
       ▼
   accept / reject                        — the only verdict that counts;
                                            accepted erasures extend the
@@ -58,11 +58,11 @@ every judgement from its own Σ using only:
     and the eliminators' computation, NEVER signature unfolding) —
     budgets come with the certificate, exhaustion means REJECT, so the
     kernel is total: every artifact gets a verdict;
-  * CERTIFICATE REPLAY: at a conversion site, apply the recorded steps
-    mechanically — check each step's licence (a proof element, or a
-    DEFINITION TO UNFOLD: every δ the replay performs is a recorded
-    step), rewrite at the given path in the given orientation, compare
-    β-normal forms.
+  * PROOF CHECKING: at a conversion site, read the PROOF TERM against
+    the equation — decompose the sides along its congruence nodes,
+    compute each position's type, check each leaf's licence there (a
+    proof element; a DEFINITION TO UNFOLD: every δ is a leaf), compare
+    β-normal forms where the proof says refl.
 
 Consequences of the split:
 
@@ -97,9 +97,9 @@ exactly what the bidirectional pass invented or consumed there:
   * eliminator motives (ℕ-elim, quot-elim) — bare core is not even
     re-checkable without them;
   * the expected type at checked introduction forms;
-  * conversion traces at switch sites: chains of
-    (path, proof element, orientation) steps, plus the quotient-witness
-    step kind carrying its witness element;
+  * conversion PROOFS at switch sites: proof terms (congruence nodes
+    around licence leaves, transitivity, symmetry, type conversion,
+    the type-directed leaves — quotient witnesses among them);
   * fuel budgets for the kernel's normalization (per item or per site;
     the elaborator knows its own step counts and writes in a margin).
 
@@ -139,10 +139,10 @@ its own initiative fixes one strategy in the trusted base and forces
 every producer to predict it step for step; the certificate's paths
 are meaningful only relative to the normal form that strategy
 computes, and any mismatch is a "bad path" (docs/NovaKernelRewrite.txt,
-CONVENTIONS, records the reasoning). So δ is CERTIFIED: a certificate
-carries UNFOLD steps — one occurrence at a path, or every addressable
-occurrence of named definitions at once (the δ-round of a join) —
-and the kernel's replay join is β-only. The producer's every
+CONVENTIONS, records the reasoning). So δ is CERTIFIED: a proof term
+carries δ LEAVES — one occurrence (x-δ ē), or every addressable
+occurrence of named definitions at once (δ-all, the δ-round of a
+join) — and the kernel's join is β-only. The producer's every
 unfolding is recorded; the licence vocabulary (`<def>.eq`,
 `<def>.unfold`) survives as a HINT to the untrusted engine about what
 to unfold and what to leave folded for matching, and the kernel never
@@ -151,16 +151,29 @@ engine's exposure whitelist enforced OR fully open, at the same
 speed — the coupling that used to break a site when the two sides
 normalized differently is gone.
 
-A licence stated in one spelling and used at a position spelled
-otherwise (a hypothesis k + Z ≡ k at an occurrence of ℕ-elim … k Z)
-carries its own NORMALIZATION steps, replayed on the licence's sides
-before use — never inverted onto the goal, where an unfolded body
-that has β-reduced away leaves no position to refold.
+CERTIFICATES ARE PROOF TERMS (docs/NovaKernel.txt §2, §7). The
+kernel never edits a goal: a proof is a term-shaped tree — congruence
+nodes, one per former, around licence leaves, with transitivity,
+symmetry and type conversion — and the kernel reads it against the
+equation's sides, decomposing them along the nodes and computing each
+position's type from the node above (the type flowing down, a
+neutral head's inferred type, or a carried motive). Transitivity
+finds its middles by running one proof DIRECTIONALLY from the known
+side; the type-directed leaves (irrelevance, η, quotient witnesses,
+propext) read both sides. A licence stated in one spelling and used
+at a position spelled otherwise (a hypothesis k + Z ≡ k at an
+occurrence of ℕ-elim … k Z) is transitivity over the leaf with the
+δ chains that normalized it — never an inversion onto the goal, where
+an unfolded body that has β-reduced away leaves no position to
+refold. The engine's own step-and-path traces are translated into
+proof terms at the boundary (Nova.Elaboration.Cert), by an untrusted
+replay of its own steps; the kernel sees the proof term and nothing
+else.
 
-Two places still unfold on the kernel's own initiative, both outside
-equation replay and both slated for the next migration steps: the
-descent's positional TYPE check (two types compared by full δβ) and
-head EXPOSURE at introduction forms, licence types and finals. The
+Two places still unfold on the kernel's own initiative, both slated
+for the next migration step: the POSITIONAL TYPE check at a leaf
+(two types compared by full δβ) and head EXPOSURE at introduction
+forms, congruence nodes, leaf types and type-directed leaves. The
 floor in every variant: α-comparison and substitution stay trusted —
 no kernel design knows less than that.
 
@@ -242,20 +255,18 @@ docs/NovaElaboration.txt, "Modules"); the EQUATION KERNEL with the demotion of
 engine verdicts to proposals — Nova.Kernel provides
 fuel-bounded normalization (mirroring the ≜ rules clause for clause,
 exhaustion = reject), proof-element inference/checking for elimination
-spines and intro forms, injectivity selectors, TYPED PATH DESCENT
-(every rewrite's licensed equation is verified against its position's
-locally determined expected type — intermediate hops need no type,
-congruence only demands the child equation at the rewrite point, and
-a type-undetermined rewrite point accepts a neutral subterm at its
-own synthesized type, the NEUTRAL-SUBTERM rule of the kernel spec's
-§6), and
-replay of the certificate finals (beta, el-zero-prop/el-one-prop,
-quotient witnesses, el-pi-eta/el-sigma-eta). The discharge engine emits certificates for every discharge
-(rewrite traces with parametric-context normalization bridging,
-whole-equation matches with condition witnesses, hop chains,
-injectivity-selector components), and convElem/convTy count a
-discharge ONLY if its certificate replays — a replay failure is
-reported on the resulting obligation. Both historical exploits are
+spines and intro forms, injectivity selectors, PROOF-TERM CHECKING
+(every leaf's licensed equation is verified against its position's
+type, computed by the congruence nodes above it — a sibling needs no
+type, a leaf at an undetermined position is typed by its own neutral
+side, the NEUTRAL-SUBTERM rule of the kernel spec's §6), and the
+type-directed leaves (el-zero-prop/el-one-prop, quotient witnesses,
+el-pi-eta/el-sigma-eta). The discharge engine emits certificates for
+every discharge (rewrite traces with parametric-context normalization
+bridging, whole-equation matches with condition witnesses, hop
+chains, injectivity-selector components), translated into proof
+terms at the boundary, and convElem/convTy count a discharge ONLY if
+its proof checks — a failure is reported on the resulting obligation. Both historical exploits are
 golden tests that now END IN OBLIGATIONS (elab-reject-prop-solvent,
 elab-reject-cross-quotient): the parametric 𝟙-lemma dies at proof
 argument checking, the cross-quotient transport dies at the positional
@@ -266,7 +277,7 @@ whole core items over ANNOTATION SKELETONS — trees positionally
 aligned with the core term carrying eliminator motives, expected types
 at checked intro forms, switch/refl-eq/well-definedness certificates, and
 head-exposure payloads (an expected type whose Π/Σ/quotient structure
-whnf-δ exposes ships as the exposed type plus a stepless certificate.
+whnf-δ exposes ships as the exposed type plus its δ proof.
 Elaboration is SYNTAX-DIRECTED: it never rewrites an expected type by
 lemmas or hypotheses to find a shape — a shape that holds only up to
 an equation is written as an ascription, whose switch carries the
@@ -278,12 +289,12 @@ file is accepted exactly when the run's final signature is
 definitional and every item was so admitted. Two consequences of that discipline are
 load-bearing:
 
-  * certificates carry a TYPE BRIDGE (the equation-level counterpart
-    of the exposure payload): a conversion site whose replay steps
-    land at positions only a lemma-normalized type determines is
-    replayed at that exposed type, justified by a nested TYPE
-    certificate — equal types have equal PERs, and a bogus bridge
-    dies in replay like any other bad step;
+  * proofs carry a TYPE CONVERSION (the equation-level counterpart
+    of the exposure payload): a conversion site whose leaves sit at
+    positions only a lemma-normalized type determines is checked at
+    that exposed type, justified by a nested TYPE proof — equal types
+    have equal PERs, and a bogus conversion dies in checking like any
+    other bad leaf;
   * a conversion the engine can only close by DECOMPOSING (children
     discharged, but no composite certificate expressible) is assumed,
     not silently accepted — the composite surfaces as an ordinary

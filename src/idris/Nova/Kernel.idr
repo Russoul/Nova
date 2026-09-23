@@ -49,59 +49,6 @@ data Sel : Type where
                                      -- code injectivity, indexwise; the spines
                                      -- must agree before i)
 
-||| A step's LICENSE: a proof element whose type exposes an ≡-type
-||| (equality reflection read certificate-side), or a PATH LICENSE —
-||| an imposed equation of a QIIT signature (el-qiit-path): entry
-||| position plus the full argument spine. The carried signature is
-||| validated by the descent's positional type check at the rewrite
-||| site (the licensed equation's type embeds it syntactically).
-public export
-data StepLic : Type where
-  LProof : Elem -> StepLic
-  LPath : QSig -> Nat -> SubNorm -> StepLic
-  ||| A δ LICENSE — the ONLY way a definition unfolds during replay
-  ||| (docs/NovaKernelRewrite.txt, CONVENTIONS: never δ, x-δ is a
-  ||| proof leaf). The licensed equation is x[ē] ≐ t[ē] : T[ē] for the
-  ||| definition (Δ ⊦ x ≔ t : T). FORWARD (flip = False) it replaces
-  ||| the occurrence x[ē] at the path — matched literally, spine
-  ||| compared modulo β — by t[ē]: no positional check is needed, the
-  ||| occurrence is well-typed by the replay invariant and δ preserves
-  ||| its type, so ē may mention binders the path crossed. FLIPPED it
-  ||| REFOLDS t[ē] into x[ē] through the ordinary licence path, which
-  ||| checks ē against Δ in the root context — so a refold's spine
-  ||| must not mention crossed binders (the root-context discipline of
-  ||| every licence).
-  LUnfold : String -> SubNorm -> StepLic
-  ||| Every addressable occurrence of the named definitions unfolds AT
-  ||| ONCE (forward only, path []): the δ-round of a join. Explicit and
-  ||| deterministic — the kernel unfolds exactly the named definitions
-  ||| at exactly the addressable positions — and linear where one
-  ||| occurrence per step, each followed by a β-join, was quadratic
-  ||| (a numeral computation unfolds a recursive definition hundreds
-  ||| of times).
-  LUnfoldAll : List String -> StepLic
-
-||| One replay step: at `path` (child indices; binders crossed are
-||| counted by the walk itself) in the chosen side, rewrite by the
-||| licensed equation, after applying `sels` and possibly flipping.
-public export
-record Step where
-  constructor MkStep
-  onLhs : Bool
-  path : List Nat
-  lic : StepLic
-  sels : List Sel
-  flip : Bool
-  ||| Steps NORMALIZING the licensed equation's OWN sides before it is
-  ||| used (onLhs selects the licence's lhs or rhs): each is replayed
-  ||| by the typed descent on that side, at the licence's type in the
-  ||| root context, then β-joined. This is how a licence stated in one
-  ||| spelling applies at a position spelled otherwise — a hypothesis
-  ||| k + Z ≡ k at an occurrence of ℕ-elim … k Z: the LICENCE unfolds
-  ||| (and β-reduces) to meet the goal; the goal is never asked to
-  ||| un-β back to the licence, which is not a rewrite at any path.
-  licNorm : List Step
-
 mutual
   public export
   data Payload : Type where
@@ -109,19 +56,18 @@ mutual
     PMotive : Ty -> Skel -> Payload
     ||| expected type of an introduction form in inference position
     PIntroTy : Ty -> Skel -> Payload
-    ||| conversion certificate at a switch site (inferred ≐ expected)
-    PSwitch : ECert -> Payload
+    ||| conversion proof at a switch site (inferred ≐ expected)
+    PSwitch : Prf -> Payload
     ||| the equation behind a ⋆ checked at an equality prop (el-eq-i)
-    PReflEq : ECert -> Payload
+    PReflEq : Prf -> Payload
     ||| quot-elim well-definedness (f respects R)
-    PWD : ECert -> Payload
+    PWD : Prf -> Payload
     ||| head exposure at a checked introduction form: the expected type
-    ||| rewritten to expose its Π/Σ/quotient/≡ head, with the
-    ||| certificate for the conversion. The exposed type's own
-    ||| well-formedness follows from the original's by subject
-    ||| reduction; the intro checks against the exposed form and
-    ||| coercion transports the result.
-    PExpose : Ty -> ECert -> Payload
+    ||| rewritten to expose its Π/Σ/quotient/≡ head, with the proof of
+    ||| the conversion. The exposed type's own well-formedness follows
+    ||| from the original's by subject reduction; the intro checks
+    ||| against the exposed form and coercion transports the result.
+    PExpose : Ty -> Prf -> Payload
     ||| the witness behind a checked ⋆ : ∥A∥ (el-squash-i: an
     ||| inhabitant of the squashee)
     PSquashWit : Elem -> Skel -> Payload
@@ -130,14 +76,14 @@ mutual
     ||| proving q[↑] under the raw squashee A
     ||| The scrutinee's type may arrive EXPOSED (its ∥·∥ head, or the
     ||| squashee's head, reached by unfolding): the exposed type plus
-    ||| the certificate from the inferred one, as at PExpose — the body's
+    ||| the proof from the inferred one, as at PExpose — the body's
     ||| hypothesis is then the squashee in the spelling the producer
     ||| checked the body against
-    PSquashElim : Elem -> Skel -> Maybe (Ty, ECert) -> Elem -> Skel -> Payload
-    ||| QIIT eliminator coherences — one certificate per equation entry
-    ||| of the carried signature, replayed in the entry's ᴰ-context
-    ||| (the QIIT generalization of quot-elim's wd)
-    PQCoh : List ECert -> Payload
+    PSquashElim : Elem -> Skel -> Maybe (Ty, Prf) -> Elem -> Skel -> Payload
+    ||| QIIT eliminator coherences — one proof per equation entry of
+    ||| the carried signature, checked in the entry's ᴰ-context (the
+    ||| QIIT generalization of quot-elim's wd)
+    PQCoh : List Prf -> Payload
     ||| coinduction behind a ⋆ checked at an equality prop over a
     ||| ν-type (el-nu-coind): the invariant R (Ω-valued, two bound
     ||| variables), the proof that R holds at the equation's
@@ -149,92 +95,191 @@ mutual
   data Skel : Type where
     Nd : List Payload -> List Skel -> Skel
 
+  ||| PROOF TERMS — the certificate of an equation Γ ⊦ l ≐ r : T
+  ||| (docs/NovaKernelRewrite.txt: proofs are terms with proof leaves).
+  ||| A proof is CHECKED against its goal: the sides are decomposed
+  ||| along the proof's congruence nodes, each node one congruence rule
+  ||| of the Foundation whose component types the node computes (from
+  ||| the type flowing down, the inferred type of a neutral head, or a
+  ||| carried motive), and the leaves justify the equation at their
+  ||| position. Three readings of one proof:
+  |||   ⇒ (synthesis)  a licence leaf, with selectors, symmetry and
+  |||      transitivity over it, STATES its equation and type;
+  |||   → (directional) given one side, the proof REWRITES it to the
+  |||      other — this is how transitivity finds its middles: the
+  |||      left proof run left-to-right, or the right one right-to-left;
+  |||   ⇐ (checking)   given both sides, everything is verified — the
+  |||      only reading the type-directed leaves (irrelevance, η,
+  |||      quotient witnesses, propext) have.
+  ||| Comparison is modulo β everywhere (the β join); δ happens only
+  ||| where a δ leaf says so.
   public export
-  data Final : Type where
-    ||| compare beta-normal forms
-    FBeta : Final
-    ||| the equation's type normalizes to 𝟙 or 𝟘 (el-one-prop/
-    ||| el-zero-prop) or to a PROPOSITION — ≡-/∥·∥-headed, or a
-    ||| neutral that checks at Ω (el-prf-prop: proof irrelevance; the
-    ||| retired Prf head was the premise p : Ω's syntactic proxy)
-    FProp : Final
-    ||| class a ≐ class b at A / R via the relation's shape:
-    ||| R[id,a,b] ⇝ ∥T∥ with T ⇝ 𝟙 (witness ()) or T ⇝ an ≡-type whose
-    ||| equation the nested certificate establishes (witness ⋆;
-    ||| el-quot-eq)
-    FWitness : Maybe ECert -> Final
-    ||| el-quot-eq with the witness SUPPLIED: class a ≐ class b at
-    ||| A / R by a proof of R[id,a,b], checked with its skeleton.
-    ||| FWitness above re-derives the witness from the relation's
-    ||| SHAPE and so reaches only ∥𝟙∥ and equality props; this is the
-    ||| faithful route, at an arbitrary Ω-valued relation — the
-    ||| premise of el-quot-eq, presented.
-    FWitnessPrf : Elem -> Skel -> Final
-    ||| same-tag injections at A ⊎ B are equal when their payloads are
-    ||| (congruence of ≐ at inj₁/inj₂); the nested certificate proves
-    ||| the payload equation at the branch type
-    FInj : ECert -> Final
-    ||| el-pi-eta: compare applied to the fresh variable, under the domain
-    FEtaPi : ECert -> Final
-    ||| el-sigma-eta: compare the projections
-    FEtaSigma : ECert -> ECert -> Final
-    ||| code-prop-eq (propositional extensionality) at Ω: mutually
-    ||| implied prop codes are equal. Carries the two implications as
-    ||| FUNCTIONS over Γ — f : p → q and g : q → p (props are types,
-    ||| prop-lift) —
-    ||| with their checking skeletons. (Equivalent to carrying the
-    ||| hypothetical proofs f ☐₀ / g ☐₀ under Γ ▷ p / Γ ▷ q,
-    ||| by Π intro/elim; the function form is what a surface term can
-    ||| hand over, since a checked term's variable indices are fixed
-    ||| against the context it was written in.)
-    FPropExt : Elem -> Skel -> Elem -> Skel -> Final
-    ||| prop-lift-eq for a TYPE certificate: both sides are PROPS
-    ||| (checked — the lift's side condition is load-bearing) and the
-    ||| nested certificate equates them at Ω
-    ||| and the nested certificate proves the codes equal at Ω
-    FPrfCong : ECert -> Final
-    ||| ty-quot-cong (reflexive domain) for a TYPE certificate: both
-    ||| sides are quotients of the SAME domain and the nested
-    ||| certificate proves the relations equal at Ω (under the domain
-    ||| twice)
-    FQuotCong : ECert -> Final
-    ||| ty-pi-cong for a TYPE certificate: domain certificate, then
-    ||| codomain certificate under the (right) domain — needed when a
-    ||| component's equality is extensional (Ω-valued) and cannot be
-    ||| flattened into steps
-    FPiCong : ECert -> ECert -> Final
-    ||| ty-sigma-cong, same shape
-    FSigmaCong : ECert -> ECert -> Final
-    ||| ty-sum-cong, componentwise — both components over Γ (no
-    ||| binder to cross), needed when a component's equality is
-    ||| extensional and cannot flatten into steps
-    FSumCong : ECert -> ECert -> Final
-    ||| TRANSITIVITY through STATED middles (el-trans): the points
-    ||| p₀ … pₙ, each with its skeleton (checked at the equation's
-    ||| type), and n + 2 certificates — l ≐ p₀, then pᵢ₋₁ ≐ pᵢ for each
-    ||| link, then pₙ ≐ r (the endpoint ones bridge the equation's
-    ||| sides to the chain's written ends, δ-apart at most). A surface
-    ||| chain's composite: its links compose without inverting
-    ||| anyone's steps
-    FChain : List (Elem, Skel) -> List ECert -> Final
+  data Prf : Type where
+    -- ----- leaves that synthesise their equation -----
+    ||| reflection: a proof element whose type is (or whnf-exposes) an
+    ||| equality prop l ≡ r ∈ A — the licensed equation l ≐ r : A
+    PRefl : Elem -> Prf
+    ||| el-qiit-path: an imposed equation of the carried signature at
+    ||| entry k and argument spine θ
+    PPath : QSig -> Nat -> SubNorm -> Prf
+    ||| x-δ: for the definition (Δ ⊦ x ≔ t : T), x[ē] ≐ t[ē] : T[ē].
+    ||| Run left-to-right it is a plain unfolding of the occurrence
+    ||| x[ē'] (spines compared modulo β); every other reading checks
+    ||| the spine against Δ
+    PDelta : String -> SubNorm -> Prf
+    ||| a component of the equation below, by a selector
+    PSel : Sel -> Prf -> Prf
+    -- ----- structure -----
+    ||| reflexivity: the sides join under β
+    PReflx : Prf
+    PSym : Prf -> Prf
+    ||| transitivity with a COMPUTED middle: the left proof rewrites the
+    ||| left side (or the right proof the right side, or a synthesising
+    ||| child states it) — and the middle is β-joined before it passes
+    ||| on
+    PTrans : Prf -> Prf -> Prf
+    ||| transitivity through a STATED middle (el-trans as written in a
+    ||| chain, or a licence's raw side before its normalization)
+    PTransAt : Prf -> Elem -> Prf -> Prf
+    ||| conversion of the equation's type: a proof of T ≐ T' at 𝕍, the
+    ||| type T', and the proof at T' (equal types have equal PERs)
+    PConv : Prf -> Ty -> Prf -> Prf
+    ||| every addressable occurrence of the named definitions unfolded
+    ||| at once: the δ-round of a join. Left-to-right only (it is a
+    ||| function of the term it acts on)
+    PDeltaAll : List String -> Prf
+    -- ----- type-directed leaves (checking only) -----
+    ||| el-one-prop/el-zero-prop/el-prf-prop: the type is 𝟙, 𝟘 or a
+    ||| proposition
+    PIrrel : Prf
+    ||| el-pi-eta: the proof compares the sides applied to the fresh
+    ||| variable, under the domain
+    PEtaPi : Prf -> Prf
+    ||| el-sigma-eta: the proofs compare the projections
+    PEtaSigma : Prf -> Prf -> Prf
+    ||| el-quot-eq via the relation's SHAPE: R[id,a,b] ⇝ ∥T∥ with T ⇝ 𝟙
+    ||| (no proof) or T ⇝ an ≡-type whose equation the proof establishes
+    PQuotWit : Maybe Prf -> Prf
+    ||| el-quot-eq with the witness SUPPLIED: a proof of R[id,a,b]
+    ||| checked with its skeleton — the faithful route at an arbitrary
+    ||| Ω-valued relation
+    PQuotWitPrf : Elem -> Skel -> Prf
+    ||| same-tag injections are equal when their payloads are; the
+    ||| proof is at the branch type
+    PInj : Prf -> Prf
+    ||| code-prop-eq (propositional extensionality) at Ω: the two
+    ||| implications as FUNCTIONS over Γ, with their skeletons
+    PPropExt : Elem -> Skel -> Elem -> Skel -> Prf
+    ||| prop-lift-eq for a TYPE equation: both sides are props (checked
+    ||| — the side condition is load-bearing) and the proof equates
+    ||| them at Ω
+    PPrfCong : Prf -> Prf
+    -- ----- congruences: one node per former, a proof per child -----
+    -- Eliminators carry their motive when the constant-motive reading
+    -- (the case positions at the node's own type) does not apply;
+    -- Nothing = the constant reading. Carried heads (a signature
+    -- variable's name, a QIIT signature, a polynomial) must match the
+    -- sides'.
+    CZeroElim : Prf -> Prf
+    CNatIntro1 : Prf -> Prf
+    CNatElim : Maybe Ty -> Prf -> Prf -> Prf -> Prf
+    CPiIntro : Prf -> Prf
+    CPiApp : Prf -> Prf -> Prf
+    CSigmaIntro : Prf -> Prf -> Prf
+    CSigmaElim1 : Prf -> Prf
+    CSigmaElim2 : Prf -> Prf
+    CInj1 : Prf -> Prf
+    CInj2 : Prf -> Prf
+    CSumElim : Maybe Ty -> Prf -> Prf -> Prf -> Prf
+    CPiTy : Prf -> Prf -> Prf
+    CSigmaTy : Prf -> Prf -> Prf
+    CSumTy : Prf -> Prf -> Prf
+    CEqTy : Prf -> Prf -> Prf -> Prf
+    CQuotTy : Prf -> Prf -> Prf
+    CSigVar : String -> List Prf -> Prf
+    CClass : Prf -> Prf
+    CQuotElim : Maybe Ty -> Prf -> Prf -> Prf
+    CSquash : Prf -> Prf
+    CQSort : QSig -> Nat -> List Prf -> Prf
+    CQCtor : QSig -> Nat -> List Prf -> Prf
+    CQElim : QSig -> Nat -> List Ty -> List Elem -> List Prf -> Prf -> Prf
+    COut : Prf -> Prf
+    CCorec : Poly -> Prf -> Prf -> Prf -> Prf
 
-  public export
-  record ECert where
-    constructor MkECertF
-    ||| Type bridge: replay the equation at tyX instead of the site's
-    ||| type, justified by a TYPE certificate for  site-ty ≐ tyX  (equal
-    ||| types have equal PERs). This is the equation-level counterpart
-    ||| of the item level's PExpose: it lets steps land at positions
-    ||| whose structure only a lemma-normalized type exposes.
-    tyEx : Maybe (Ty, ECert)
-    steps : List Step
-    final : Final
+||| Smart transitivity/symmetry: reflexivity is the unit.
+public export
+pTrans : Prf -> Prf -> Prf
+pTrans PReflx q = q
+pTrans p PReflx = p
+pTrans p q = PTrans p q
 
 public export
-MkECert : List Step -> Final -> ECert
-MkECert steps final = MkECertF Nothing steps final
+pSym : Prf -> Prf
+pSym PReflx = PReflx
+pSym (PSym p) = p
+pSym p = PSym p
 
--- Diagnostics only: a certificate's shape (skeletons elided).
+||| Substitution on a proof: acts on every element the proof carries
+||| (proof elements, spines, stated middles, converted types, motives),
+||| under the binders the congruence nodes cross.
+public export
+covering
+substPrf : Prf -> Sub -> Prf
+substPrf (PRefl p) s = PRefl (substElem p s)
+substPrf (PPath sg k th) s = PPath (substQSig sg s) k (substSubNorm th s)
+substPrf (PDelta x es) s = PDelta x (substSubNorm es s)
+substPrf (PSel sel p) s = PSel (substSel sel) (substPrf p s)
+ where
+  substSel : Sel -> Sel
+  substSel (SelCod u) = SelCod (substElem u s)
+  substSel (SelQRel u v) = SelQRel (substElem u s) (substElem v s)
+  substSel x = x
+substPrf PReflx s = PReflx
+substPrf (PSym p) s = PSym (substPrf p s)
+substPrf (PTrans p q) s = PTrans (substPrf p s) (substPrf q s)
+substPrf (PTransAt p m q) s = PTransAt (substPrf p s) (substElem m s) (substPrf q s)
+substPrf (PConv pt ty p) s = PConv (substPrf pt s) (substTy ty s) (substPrf p s)
+substPrf (PDeltaAll ns) s = PDeltaAll ns
+substPrf PIrrel s = PIrrel
+substPrf (PEtaPi p) s = PEtaPi (substPrf p (under s))
+substPrf (PEtaSigma p q) s = PEtaSigma (substPrf p s) (substPrf q s)
+substPrf (PQuotWit mp) s = PQuotWit (map (\p => substPrf p s) mp)
+substPrf (PQuotWitPrf w sk) s = PQuotWitPrf (substElem w s) sk
+substPrf (PInj p) s = PInj (substPrf p s)
+substPrf (PPropExt f fs g gs) s = PPropExt (substElem f s) fs (substElem g s) gs
+substPrf (PPrfCong p) s = PPrfCong (substPrf p s)
+substPrf (CZeroElim p) s = CZeroElim (substPrf p s)
+substPrf (CNatIntro1 p) s = CNatIntro1 (substPrf p s)
+substPrf (CNatElim m z st n) s =
+  CNatElim (map (\t => substTy t (under s)) m) (substPrf z s) (substPrf st (under (under s))) (substPrf n s)
+substPrf (CPiIntro p) s = CPiIntro (substPrf p (under s))
+substPrf (CPiApp f a) s = CPiApp (substPrf f s) (substPrf a s)
+substPrf (CSigmaIntro u v) s = CSigmaIntro (substPrf u s) (substPrf v s)
+substPrf (CSigmaElim1 p) s = CSigmaElim1 (substPrf p s)
+substPrf (CSigmaElim2 p) s = CSigmaElim2 (substPrf p s)
+substPrf (CInj1 p) s = CInj1 (substPrf p s)
+substPrf (CInj2 p) s = CInj2 (substPrf p s)
+substPrf (CSumElim m l r t) s =
+  CSumElim (map (\x => substTy x (under s)) m) (substPrf l (under s)) (substPrf r (under s)) (substPrf t s)
+substPrf (CPiTy a b) s = CPiTy (substPrf a s) (substPrf b (under s))
+substPrf (CSigmaTy a b) s = CSigmaTy (substPrf a s) (substPrf b (under s))
+substPrf (CSumTy a b) s = CSumTy (substPrf a s) (substPrf b s)
+substPrf (CEqTy l r t) s = CEqTy (substPrf l s) (substPrf r s) (substPrf t s)
+substPrf (CQuotTy a r) s = CQuotTy (substPrf a s) (substPrf r (under (under s)))
+substPrf (CSigVar x ps) s = CSigVar x (map (\p => substPrf p s) ps)
+substPrf (CClass p) s = CClass (substPrf p s)
+substPrf (CQuotElim m f q) s =
+  CQuotElim (map (\x => substTy x (under s)) m) (substPrf f (under s)) (substPrf q s)
+substPrf (CSquash p) s = CSquash (substPrf p s)
+substPrf (CQSort sg k ps) s = CQSort (substQSig sg s) k (map (\p => substPrf p s) ps)
+substPrf (CQCtor sg k ps) s = CQCtor (substQSig sg s) k (map (\p => substPrf p s) ps)
+substPrf (CQElim sg k ms fs ps w) s =
+  CQElim (substQSig sg s) k (map (\m => substTy m s) ms) (map (\f => substElem f s) fs)
+         (map (\p => substPrf p s) ps) (substPrf w s)
+substPrf (COut p) s = COut (substPrf p s)
+substPrf (CCorec pf a f x) s = CCorec (substPoly pf s) (substPrf a s) (substPrf f (under s)) (substPrf x s)
+
+-- Diagnostics only: a proof's shape (skeletons elided).
 export
 covering
 Show Sel where
@@ -247,47 +292,57 @@ Show Sel where
   show (SelQRel u v) = "qrel(\{show u},\{show v})"
   show (SelQIdx i) = "idx\{show i}"
 
+covering
+motive : Maybe Ty -> String
+motive Nothing = ""
+motive (Just m) = "{\{show m}}"
+
 export
 covering
-Show StepLic where
-  show (LProof p) = "proof \{show p}"
-  show (LPath _ k th) = "path \{show k} \{show th}"
-  show (LUnfold x es) = "unfold \{x} \{show es}"
-  show (LUnfoldAll ns) = "unfold-all \{show ns}"
-
-mutual
-  export
-  covering
-  Show Step where
-    show st = "{\{if st.onLhs then "L" else "R"} @\{show st.path} \{show st.lic}\{if null st.sels then "" else " sels=" ++ show st.sels}\{if st.flip then " flipped" else ""}\{if null st.licNorm then "" else " licNorm=" ++ show st.licNorm}}"
-
-  export
-  covering
-  Show Final where
-    show FBeta = "β"
-    show FProp = "prop"
-    show (FWitness c) = "witness \{show c}"
-    show (FWitnessPrf w _) = "witness-prf \{show w}"
-    show (FInj c) = "inj \{show c}"
-    show (FEtaPi c) = "η→ \{show c}"
-    show (FEtaSigma c1 c2) = "η× \{show c1} \{show c2}"
-    show (FPropExt f _ g _) = "propext \{show f} \{show g}"
-    show (FPrfCong c) = "prf-cong \{show c}"
-    show (FQuotCong c) = "quot-cong \{show c}"
-    show (FPiCong c1 c2) = "Π-cong \{show c1} \{show c2}"
-    show (FSigmaCong c1 c2) = "Σ-cong \{show c1} \{show c2}"
-    show (FSumCong c1 c2) = "⊎-cong \{show c1} \{show c2}"
-    show (FChain pts cs) = "chain \{show (map fst pts)} \{show cs}"
-
-  export
-  covering
-  Show ECert where
-    show (MkECertF tyEx steps final) =
-      let bridge = the String (case tyEx of
-                     Nothing => ""
-                     Just (t, c) => "bridge " ++ show t ++ " by " ++ show c ++ "; ") in
-      "cert(" ++ bridge ++ "steps=" ++ show steps ++ "; final=" ++ show final ++ ")"
-
+Show Prf where
+  show (PRefl p) = "⟨\{show p}⟩"
+  show (PPath _ k th) = "path \{show k} \{show th}"
+  show (PDelta x es) = "\{x}-δ \{show es}"
+  show (PSel sel p) = "\{show sel}(\{show p})"
+  show PReflx = "refl"
+  show (PSym p) = "(\{show p})⁻¹"
+  show (PTrans p q) = "(\{show p} ; \{show q})"
+  show (PTransAt p m q) = "(\{show p} ; [\{show m}] ; \{show q})"
+  show (PConv pt ty p) = "(conv \{show pt} ⇒ \{show ty} in \{show p})"
+  show (PDeltaAll ns) = "δ-all \{show ns}"
+  show PIrrel = "irrel"
+  show (PEtaPi p) = "η→(\{show p})"
+  show (PEtaSigma p q) = "η×(\{show p}, \{show q})"
+  show (PQuotWit mp) = "quot-wit(\{show mp})"
+  show (PQuotWitPrf w _) = "quot-wit-prf(\{show w})"
+  show (PInj p) = "inj(\{show p})"
+  show (PPropExt f _ g _) = "propext(\{show f}, \{show g})"
+  show (PPrfCong p) = "prop-lift(\{show p})"
+  show (CZeroElim p) = "𝟘-elim[\{show p}]"
+  show (CNatIntro1 p) = "S[\{show p}]"
+  show (CNatElim m z s n) = "ℕ-elim\{motive m}[\{show z}; \{show s}; \{show n}]"
+  show (CPiIntro p) = "λ[\{show p}]"
+  show (CPiApp f a) = "app[\{show f}; \{show a}]"
+  show (CSigmaIntro u v) = "pair[\{show u}; \{show v}]"
+  show (CSigmaElim1 p) = "π₁[\{show p}]"
+  show (CSigmaElim2 p) = "π₂[\{show p}]"
+  show (CInj1 p) = "inj₁[\{show p}]"
+  show (CInj2 p) = "inj₂[\{show p}]"
+  show (CSumElim m l r t) = "⊎-elim\{motive m}[\{show l}; \{show r}; \{show t}]"
+  show (CPiTy a b) = "Π[\{show a}; \{show b}]"
+  show (CSigmaTy a b) = "Σ[\{show a}; \{show b}]"
+  show (CSumTy a b) = "⊎[\{show a}; \{show b}]"
+  show (CEqTy l r t) = "≡[\{show l}; \{show r}; \{show t}]"
+  show (CQuotTy a r) = "quot[\{show a}; \{show r}]"
+  show (CSigVar x ps) = "\{x}[\{show ps}]"
+  show (CClass p) = "class[\{show p}]"
+  show (CQuotElim m f q) = "quot-elim\{motive m}[\{show f}; \{show q}]"
+  show (CSquash p) = "∥\{show p}∥"
+  show (CQSort _ k ps) = "sort\{show k}[\{show ps}]"
+  show (CQCtor _ k ps) = "ctor\{show k}[\{show ps}]"
+  show (CQElim _ k _ _ ps w) = "qelim\{show k}[\{show ps}; \{show w}]"
+  show (COut p) = "out[\{show p}]"
+  show (CCorec _ a f x) = "corec[\{show a}; \{show f}; \{show x}]"
 -- ===== Fuel monad =====
 
 public export
@@ -313,18 +368,22 @@ record KSt where
   ||| Same per-call discipline as the nf memo above.
   sigIx : SortedMap String SigEntry
 
+export
 data KM : Type -> Type where
   MkKM : (KSt -> Either KErr (a, KSt)) -> KM a
 
 runKMSt : KM a -> KSt -> Either KErr (a, KSt)
 runKMSt (MkKM f) = f
 
+export
 runKM : KM a -> Nat -> Either KErr (a, Nat)
 runKM m n = map (mapSnd fuel) (runKMSt m (MkKSt n empty empty))
 
+export
 Functor KM where
   map f (MkKM g) = MkKM $ \n => map (mapFst f) (g n)
 
+export
 Applicative KM where
   pure x = MkKM $ \n => Right (x, n)
   (MkKM f) <*> (MkKM g) = MkKM $ \n => do
@@ -332,11 +391,13 @@ Applicative KM where
     (x, n'') <- g n'
     Right (h x, n'')
 
+export
 Monad KM where
   (MkKM f) >>= k = MkKM $ \n => do
     (x, n') <- f n
     runKMSt (k x) n'
 
+export
 kerr : KErr -> KM a
 kerr e = MkKM $ \_ => Left e
 
@@ -359,6 +420,7 @@ kNfElemGet x = MkKM $ \st => Right (lookup x st.nfE, st)
 kNfElemPut : String -> Elem -> KM Elem
 kNfElemPut x v = MkKM $ \st => Right (v, { nfE $= insert x v } st)
 
+export
 ||| Name-indexed signature lookup (see KSt.sigIx). Negatives are never
 ||| cached — they cost one scan and stay correct by construction.
 kSigLookup : Sig -> SigIdentifier -> KM (Maybe SigEntry)
@@ -523,6 +585,7 @@ mutual
   kQTy sig (QPiExt a b) = [| QPiExt (kTy sig a) (kQTy sig b) |]
   kQTy sig (QPiInd u b) = [| QPiInd (kQTm sig u) (kQTy sig b) |]
 
+  export
   kQSig : Sig -> QSig -> KM QSig
   kQSig sig = traverse (kQTy sig)
 
@@ -622,10 +685,12 @@ mutual
   kWhnfT = kWhnfE
 
 mutual
+  export
   kJoinSubNorm : Sig -> SubNorm -> KM SubNorm
   kJoinSubNorm sig [<] = pure [<]
   kJoinSubNorm sig (es :< e) = [| kJoinSubNorm sig es :< kJoinElem sig e |]
 
+  export
   ||| The β-join normal form: every computation rule, no δ.
   kJoinElem : Sig -> Elem -> KM Elem
   kJoinElem sig (CtxVar n) = pure (CtxVar n)
@@ -749,144 +814,16 @@ mutual
   kJoinQSig : Sig -> QSig -> KM QSig
   kJoinQSig sig = traverse (kJoinQTy sig)
 
+  export
   ||| β-join normal form of a TYPE — one sort, one join.
   kJoinTy : Sig -> Ty -> KM Ty
   kJoinTy = kJoinElem
-
--- ===== Path rewriting =====
---
--- Child indexing (binders in parentheses):
---   Elem: ZeroElim t→0 | NatIntro1 t→0 | NatElim z s t→0,1(2),2
---       | PiIntro f→0(1) | PiApp f e→0,1 | SigmaIntro a b→0,1
---       | SigmaElim1/2 t→0 | PiTyᶜ a b→0,1(1) | SigmaTyᶜ a b→0,1(1)
---       | EqTy l r T→0,1,2ᵗ | QuotTyᶜ a r→0,1(2) | SigVar es→0.. (left
---         to right) | Class a→0 | QuotElim f q→0(1),1 | ∥T∥→0(t)
---   Ty:   PiTy a b→0,1(1) | SigmaTy a b→0,1(1)
---       | QuotTy a r→0,1(e)(2)
---       | SigVar es→0.. (e)
---   (e) marks descent into an Elem child, (t) into a Ty child.
-
-subNormAt : Nat -> SubNorm -> Maybe Elem
-subNormAt i es = getAt i (toList es)
-
-subNormSet : Nat -> Elem -> SubNorm -> Maybe SubNorm
-subNormSet i e es =
-  let xs = toList es in
-  case splitAt i xs of
-    (pre, _ :: post) => Just (cast (pre ++ e :: post))
-    _ => Nothing
-
-mutual
-  ||| Rewrite at a path in an element; the transformer receives the
-  ||| number of binders crossed.
-  pathE : List Nat -> Nat -> (Nat -> Elem -> Either KErr Elem) -> Elem -> Either KErr Elem
-  pathE [] b f t = f b t
-  pathE (i :: p) b f (ZeroElim t) = if i == 0 then ZeroElim <$> pathE p b f t else Left "kernel: bad path"
-  pathE (i :: p) b f (NatIntro1 t) = if i == 0 then NatIntro1 <$> pathE p b f t else Left "kernel: bad path"
-  pathE (i :: p) b f (NatElim z s t) =
-    case i of
-      0 => (\z' => NatElim z' s t) <$> pathE p b f z
-      1 => (\s' => NatElim z s' t) <$> pathE p (2 + b) f s
-      2 => (\t' => NatElim z s t') <$> pathE p b f t
-      _ => Left "kernel: bad path"
-  pathE (i :: p) b f (PiIntro g) = if i == 0 then PiIntro <$> pathE p (1 + b) f g else Left "kernel: bad path"
-  pathE (i :: p) b f (PiApp g e) =
-    case i of
-      0 => (\g' => PiApp g' e) <$> pathE p b f g
-      1 => (\e' => PiApp g e') <$> pathE p b f e
-      _ => Left "kernel: bad path"
-  pathE (i :: p) b f (SigmaIntro u v) =
-    case i of
-      0 => (\u' => SigmaIntro u' v) <$> pathE p b f u
-      1 => (\v' => SigmaIntro u v') <$> pathE p b f v
-      _ => Left "kernel: bad path"
-  pathE (i :: p) b f (SigmaElim1 t) = if i == 0 then SigmaElim1 <$> pathE p b f t else Left "kernel: bad path"
-  pathE (i :: p) b f (SigmaElim2 t) = if i == 0 then SigmaElim2 <$> pathE p b f t else Left "kernel: bad path"
-  pathE (i :: p) b f (Inj1 t) = if i == 0 then Inj1 <$> pathE p b f t else Left "kernel: bad path"
-  pathE (i :: p) b f (Inj2 t) = if i == 0 then Inj2 <$> pathE p b f t else Left "kernel: bad path"
-  pathE (i :: p) b f (SumElim l r t) =
-    case i of
-      0 => (\l' => SumElim l' r t) <$> pathE p (1 + b) f l
-      1 => (\r' => SumElim l r' t) <$> pathE p (1 + b) f r
-      2 => (\t' => SumElim l r t') <$> pathE p b f t
-      _ => Left "kernel: bad path"
-  pathE (i :: p) b f (Elem.PiTy a c) =
-    case i of
-      0 => (\a' => Elem.PiTy a' c) <$> pathE p b f a
-      1 => (\c' => Elem.PiTy a c') <$> pathE p (1 + b) f c
-      _ => Left "kernel: bad path"
-  pathE (i :: p) b f (Elem.SigmaTy a c) =
-    case i of
-      0 => (\a' => Elem.SigmaTy a' c) <$> pathE p b f a
-      1 => (\c' => Elem.SigmaTy a c') <$> pathE p (1 + b) f c
-      _ => Left "kernel: bad path"
-  pathE (i :: p) b f (Elem.SumTy a c) =
-    case i of
-      0 => (\a' => Elem.SumTy a' c) <$> pathE p b f a
-      1 => (\c' => Elem.SumTy a c') <$> pathE p b f c
-      _ => Left "kernel: bad path"
-  pathE (i :: p) b f (Elem.EqTy l r t) =
-    case i of
-      0 => (\l' => Elem.EqTy l' r t) <$> pathE p b f l
-      1 => (\r' => Elem.EqTy l r' t) <$> pathE p b f r
-      2 => (\t' => Elem.EqTy l r t') <$> pathT p b f t
-      _ => Left "kernel: bad path"
-  pathE (i :: p) b f (QuotTy a r) =
-    case i of
-      0 => (\a' => QuotTy a' r) <$> pathE p b f a
-      1 => (\r' => QuotTy a r') <$> pathE p (2 + b) f r
-      _ => Left "kernel: bad path"
-  pathE (i :: p) b f (SigVar x es) =
-    case subNormAt i es of
-      Just e => do e' <- pathE p b f e
-                   case subNormSet i e' es of
-                     Just es' => Right (SigVar x es')
-                     Nothing => Left "kernel: bad path"
-      Nothing => Left "kernel: bad path"
-  pathE (i :: p) b f (Class a) = if i == 0 then Class <$> pathE p b f a else Left "kernel: bad path"
-  pathE (i :: p) b f (QuotElim g q) =
-    case i of
-      0 => (\g' => QuotElim g' q) <$> pathE p (1 + b) f g
-      1 => (\q' => QuotElim g q') <$> pathE p b f q
-      _ => Left "kernel: bad path"
-  pathE (i :: p) b f (Squash t) = if i == 0 then Squash <$> pathT p b f t else Left "kernel: bad path"
-  pathE _ _ _ _ = Left "kernel: bad path"
-
-  pathT : List Nat -> Nat -> (Nat -> Elem -> Either KErr Elem) -> Ty -> Either KErr Ty
-  pathT [] b f t = Left "kernel: path must end at an element"
-  pathT (i :: p) b f (PiTy a c) =
-    case i of
-      0 => (\a' => PiTy a' c) <$> pathT p b f a
-      1 => (\c' => PiTy a c') <$> pathT p (1 + b) f c
-      _ => Left "kernel: bad path"
-  pathT (i :: p) b f (SigmaTy a c) =
-    case i of
-      0 => (\a' => SigmaTy a' c) <$> pathT p b f a
-      1 => (\c' => SigmaTy a c') <$> pathT p (1 + b) f c
-      _ => Left "kernel: bad path"
-  pathT (i :: p) b f (SumTy a c) =
-    case i of
-      0 => (\a' => SumTy a' c) <$> pathT p b f a
-      1 => (\c' => SumTy a c') <$> pathT p b f c
-      _ => Left "kernel: bad path"
-  pathT (i :: p) b f (QuotTy a r) =
-    case i of
-      0 => (\a' => QuotTy a' r) <$> pathT p b f a
-      1 => (\r' => QuotTy a r') <$> pathE p (2 + b) f r
-      _ => Left "kernel: bad path"
-  pathT (i :: p) b f (SigVar x es) =
-    case subNormAt i es of
-      Just e => do e' <- pathE p b f e
-                   case subNormSet i e' es of
-                     Just es' => Right (SigVar x es')
-                     Nothing => Left "kernel: bad path"
-      Nothing => Left "kernel: bad path"
-  pathT _ _ _ _ = Left "kernel: bad path"
 
 liftEither : Either KErr a -> KM a
 liftEither (Left e) = kerr e
 liftEither (Right x) = pure x
 
+export
 liftQ : Either QErr a -> KM a
 liftQ (Left e) = kerr "kernel: \{e}"
 liftQ (Right x) = pure x
@@ -906,6 +843,7 @@ ctxLookup (rest :< ty) Z = Just (substTy ty Wk)
 ctxLookup (rest :< ty) (S n) = map (\t => substTy t Wk) (ctxLookup rest n)
 
 mutual
+  export
   inferP : Sig -> Ctx -> Elem -> KM Ty
   inferP sig ctx (CtxVar i) =
     case ctxLookup ctx i of
@@ -1058,6 +996,7 @@ mutual
     pure (substTy motK (Ext (foldl Ext Id (toList es)) w))
   inferP sig ctx e = kerr "kernel: proof element not inferable: \{show e}"
 
+  export
   checkP : Sig -> Ctx -> Elem -> Ty -> KM ()
   -- checking against 𝕍 IS type-formation checking (the dissolved
   -- type judgement): route before any element-directed clause, so
@@ -1334,6 +1273,7 @@ mutual
 
 -- ===== Selector application =====
 
+export
 applySel : Sig -> Ctx -> (Elem, Elem, Ty) -> Sel -> KM (Elem, Elem, Ty)
 applySel sig ctx (l, r, _) sel = do
   l' <- kElem sig l
@@ -1381,568 +1321,206 @@ applySel sig ctx (l, r, _) sel = do
         else kerr "kernel: qidx selector at different signatures or sorts"
     _ => kerr "kernel: selector does not apply"
 
+-- ===== Proof readings (static) =====
+--
+-- Which readings a proof supports is a property of its SHAPE, decided
+-- before any replay: the checker never guesses a direction.
+
+||| The children of a congruence node (Nothing at a leaf or a
+||| structural form).
+congChildren : Prf -> Maybe (List Prf)
+congChildren (CZeroElim p) = Just [p]
+congChildren (CNatIntro1 p) = Just [p]
+congChildren (CNatElim _ z s n) = Just [z, s, n]
+congChildren (CPiIntro p) = Just [p]
+congChildren (CPiApp f a) = Just [f, a]
+congChildren (CSigmaIntro u v) = Just [u, v]
+congChildren (CSigmaElim1 p) = Just [p]
+congChildren (CSigmaElim2 p) = Just [p]
+congChildren (CInj1 p) = Just [p]
+congChildren (CInj2 p) = Just [p]
+congChildren (CSumElim _ l r t) = Just [l, r, t]
+congChildren (CPiTy a b) = Just [a, b]
+congChildren (CSigmaTy a b) = Just [a, b]
+congChildren (CSumTy a b) = Just [a, b]
+congChildren (CEqTy l r t) = Just [l, r, t]
+congChildren (CQuotTy a r) = Just [a, r]
+congChildren (CSigVar _ ps) = Just ps
+congChildren (CClass p) = Just [p]
+congChildren (CQuotElim _ f q) = Just [f, q]
+congChildren (CSquash p) = Just [p]
+congChildren (CQSort _ _ ps) = Just ps
+congChildren (CQCtor _ _ ps) = Just ps
+congChildren (CQElim _ _ _ _ ps w) = Just (ps ++ [w])
+congChildren (COut p) = Just [p]
+congChildren (CCorec _ a f x) = Just [a, f, x]
+congChildren _ = Nothing
+
 mutual
-  ||| The equation a step licenses (with its type). For a PROOF license:
-  ||| infer the proof, expose the ≡-prop (an ∥l ≡ r ∈ t∥ type licenses
-  ||| the same equation — squashed reflection; the squash contracts by
-  ||| code-squash-idem's syntax-directed instance during nf). For a PATH license: the
-  ||| imposed equation of the carried signature at the given spine
-  ||| (el-qiit-path read certificate-side) — the signature itself is
-  ||| validated by the descent's positional type check, which compares
-  ||| the licensed type (embedding 𝒮 syntactically) against the rewrite
-  ||| site's own. Components and orientation apply to both.
-  licensed : Sig -> Ctx -> Step -> KM (Elem, Elem, Ty)
-  licensed sig ctx step = do
-   (l, r, t) <- base step.lic
-   (l', r', t') <- foldlM (applySel sig ctx) (l, r, t) step.sels
-   -- the licence's own normalization: its steps, on its sides, at its type
-   -- on its β-JOINED sides: the producer normalized the β-normal form
-   lN <- kJoinElem sig l' >>= \l0 => normSide t' l0 (filter (\s => s.onLhs) step.licNorm)
-   rN <- kJoinElem sig r' >>= \r0 => normSide t' r0 (filter (\s => not s.onLhs) step.licNorm)
-   pure (if step.flip then (rN, lN, t') else (lN, rN, t'))
-  where
-   normSide : Ty -> Elem -> List Step -> KM Elem
-   normSide t e [] = pure e
-   normSide t e (st :: rest) = do
-     e' <- stepElem sig ctx st t e >>= kJoinElem sig
-     normSide t e' rest
+  ||| ⇒: does the proof state its own equation (sides and type)?
+  synthP : Prf -> Bool
+  synthP (PRefl _) = True
+  synthP (PPath _ _ _) = True
+  synthP (PDelta _ _) = True
+  synthP (PSel _ p) = synthP p
+  synthP (PSym p) = synthP p
+  synthP (PTrans p q) = (synthP p && dirP True q) || (synthP q && dirP False p)
+  synthP _ = False
 
-   -- equality is Ω-valued: the one license pathway is the equality
-   -- prop itself, standing as the proof's type (squashed spellings
-   -- converge by code-squash-idem's instances during nf)
-   exposeEq : Ty -> KM (Elem, Elem, Ty)
-   exposeEq (Elem.EqTy l r t) = pure (l, r, t)
-   exposeEq _ = kerr "kernel: step proof is not an equality"
+  ||| →: given one side, can the proof produce the other? (True: the
+  ||| left side is given, the right produced.)
+  dirP : Bool -> Prf -> Bool
+  dirP d PReflx = True
+  dirP d (PDeltaAll _) = d
+  dirP d (PSym p) = dirP (not d) p
+  dirP d (PTrans p q) =
+    if d then (dirP True p && dirP True q) || synthP q
+         else (dirP False q && dirP False p) || synthP p
+  dirP d (PTransAt p _ q) = if d then dirP True q else dirP False p
+  dirP d (PConv _ _ p) = dirP d p
+  dirP d p =
+    if synthP p then True
+      else case congChildren p of
+             Just cs => all (dirP d) cs
+             Nothing => False
 
-   base : StepLic -> KM (Elem, Elem, Ty)
-   base (LProof p) = do
-     pty <- inferP sig ctx p >>= kWhnfT sig
-     exposeEq pty
-   base (LUnfoldAll _) = kerr "kernel: an unfold-all step is forward-only, at the root"
-   -- x-δ, root-context form: the spine is checked against the
-   -- definition's context, and the licensed equation is x[ē] ≐ t[ē]
-   -- at T[ē]. (The forward direction never comes here — stepElem
-   -- applies it by literal replacement; this is the REFOLD's licence.)
-   base (LUnfold x es) =
-     kSigLookup sig x >>= \entryX => case entryX of
-       Just (SigDef delta _ body ty) => do
-         let args = toList es
-         let dl = toList delta
-         if length args /= length dl
-           then kerr "kernel: unfold license spine length mismatch for '\{x}'"
-           else pure ()
-         checkSpine 0 args dl
-         pure (SigVar x es, substElem body (embed es), substTy ty (embed es))
-       Just _ => kerr "kernel: unfold license at a declaration '\{x}'"
-       Nothing => kerr "kernel: unfold license names unknown definition '\{x}'"
-    where
-     checkSpine : Nat -> List Elem -> List Ty -> KM ()
-     checkSpine i [] _ = pure ()
-     checkSpine i (e :: rest) dl = do
-       case getAt i dl of
-         Just entryTy => checkP sig ctx e (substTy entryTy (embed (cast (take i (toList es)))))
-         Nothing => kerr "kernel: unfold license spine out of range"
-       checkSpine (S i) rest dl
-   base (LPath sg k theta) = do
-     sg' <- kQSig sig sg
-     entry <- case qEntry sg' k of
-                Just e => pure e
-                Nothing => kerr "kernel: path license entry out of range"
-     case qEntryKind entry of
-       QKEq => pure ()
-       _ => kerr "kernel: path license at a non-equation entry"
-     -- check the spine entrywise against the reflected binder telescope
-     (tel, _, _) <- liftQ (reflTel sg' (qwAt k) entry)
-     let args = toList theta
-     if length args /= length tel
-       then kerr "kernel: path license spine length mismatch"
-       else pure ()
-     checkTelArgs 0 args tel
-     -- the imposed equation, at the spine
-     (wEnd, hd) <- liftQ (walkVals sg' (qwAt k) entry args)
-     (lq, rq, uq) <- liftQ (eqHead hd)
-     l <- liftQ (reflTm sg' wEnd lq)
-     r <- liftQ (reflTm sg' wEnd rq)
-     t <- liftQ (reflCodeTy sg' wEnd uq)
-     pure (l, r, t)
-    where
-     checkTelArgs : Nat -> List Elem -> List Ty -> KM ()
-     checkTelArgs i [] _ = pure ()          -- lengths verified above
-     checkTelArgs i (e :: rest) tel = do
-       case telInst tel i (toList theta) of
-         Just ty => checkP sig ctx e ty
-         Nothing => kerr "kernel: path license telescope mismatch"
-       checkTelArgs (S i) rest tel
-
-   foldlM : (acc -> x -> KM acc) -> acc -> List x -> KM acc
-   foldlM f a [] = pure a
-   foldlM f a (y :: ys) = f a y >>= \a' => foldlM f a' ys
-
-  weakenN : Nat -> Elem -> Elem
-  weakenN Z e = e
-  weakenN (S n) e = weakenN n (substElem e Wk)
-
-  weakenTyN : Nat -> Ty -> Ty
-  weakenTyN Z t = t
-  weakenTyN (S n) t = weakenTyN n (substTy t Wk)
-
- -- ===== Typed path descent =====
- --
- -- Rewriting a subterm by an equation is congruence — and Foundation's
- -- congruences demand the component equation AT THE COMPONENT'S TYPE.
- -- The descent below computes each position's expected type from the
- -- side's root type, so the licensed equation's type can be verified
- -- in situ. Two positions are motive-dependent and use the CONSTANT-
- -- MOTIVE reading (a valid ℕ-elim/quot-elim congruence instance whose
- -- premises are then demanded at the constant type): ℕ-elim's z/s
- -- slots. This is the one acknowledged approximation of the equation
- -- kernel; the item-level kernel's motive annotations remove it.
-
-  ||| Expected type of the child at index i, given (maybe) the parent's
-  ||| expected type. Nothing = undetermined there — harmless for path
-  ||| positions being passed THROUGH (congruence needs no type at
-  ||| intermediate hops), fatal only at the rewrite point itself.
-  childTyE : Sig -> Ctx -> (crossed : Nat) -> Maybe Ty -> Elem -> Nat -> KM (Maybe Ty)
-  -- SINGLE-COLUMN matching, deliberately: one clause per former, the
-  -- child index (a Nat — nested S-patterns!) and the expected-type
-  -- Maybe dispatched in the BODY. The former × index × Maybe product
-  -- pattern this replaces made the compile-time case tree and its
-  -- coverage check the single most expensive item in the file
-  -- (~23s / most of the peak RSS).
-  childTyE sig ctx b pexp (ZeroElim _) i =
-    pure (if i == 0 then Just ZeroTy else Nothing)
-  childTyE sig ctx b pexp (NatIntro1 _) i =
-    pure (if i == 0 then Just NatTy else Nothing)
-  childTyE sig ctx b pexp (NatElim _ _ _) i =
-    case i of
-      0 => pure pexp                    -- constant-motive reading
-      1 => pure (map (weakenTyN 2) pexp)
-      2 => pure (Just NatTy)
-      _ => pure Nothing
-  childTyE sig ctx b pexp (PiIntro _) i =
-    case (pexp, i) of
-      (Just pe, 0) => do
-        t <- kWhnfT sig pe
-        case t of
-          PiTy _ b => pure (Just b)
-          _ => pure Nothing
-      _ => pure Nothing
-  childTyE sig ctx b pexp (PiApp f _) i =
-    case i of
-      1 => do
-        mf <- inferNeAt sig ctx b f
-        case mf of
-          Just fTy => do
-            t <- kWhnfT sig fTy
-            case t of
-              PiTy a _ => pure (Just a)
-              _ => pure Nothing
-          Nothing => pure Nothing
-      _ => pure Nothing
-  childTyE sig ctx b pexp (SigmaIntro u _) i =
-    case (pexp, i) of
-      (Just pe, 0) => do
-        t <- kWhnfT sig pe
-        case t of
-          SigmaTy a _ => pure (Just a)
-          _ => pure Nothing
-      (Just pe, 1) => do
-        t <- kWhnfT sig pe
-        case t of
-          SigmaTy _ b => pure (Just (substTy b (Ext Id u)))
-          _ => pure Nothing
-      _ => pure Nothing
-  childTyE sig ctx b pexp (SigmaElim1 u) i =
-    if i == 0 then inferNeAt sig ctx b u else pure Nothing
-  childTyE sig ctx b pexp (SigmaElim2 u) i =
-    if i == 0 then inferNeAt sig ctx b u else pure Nothing
-  childTyE sig ctx b pexp (Inj1 _) i =
-    case (pexp, i) of
-      (Just pe, 0) => do
-        t <- kWhnfT sig pe
-        case t of
-          SumTy a _ => pure (Just a)
-          _ => pure Nothing
-      _ => pure Nothing
-  childTyE sig ctx b pexp (Inj2 _) i =
-    case (pexp, i) of
-      (Just pe, 0) => do
-        t <- kWhnfT sig pe
-        case t of
-          SumTy _ b => pure (Just b)
-          _ => pure Nothing
-      _ => pure Nothing
-  -- ⊎-elim: the case positions are motive-dependent (undetermined);
-  -- the scrutinee's type is neutrally inferable
-  childTyE sig ctx b pexp (SumElim _ _ t) i =
-    if i == 2 then inferNeAt sig ctx b t else pure Nothing
-  -- SHARED formers are typed at both 𝕌 (codes) and 𝕍 (types): the
-  -- parent's expected type decides where the components sit. Default
-  -- 𝕌 — an element position met only codes before the merge.
-  childTyE sig ctx b pexp (Elem.SumTy _ _) i =
-    if i == 0 || i == 1 then Just <$> compClassifier sig pexp else pure Nothing
-  childTyE sig ctx b pexp (Elem.PiTy _ _) i =
-    if i == 0 || i == 1 then Just <$> compClassifier sig pexp else pure Nothing
-  childTyE sig ctx b pexp (Elem.SigmaTy _ _) i =
-    if i == 0 || i == 1 then Just <$> compClassifier sig pexp else pure Nothing
-  -- child 2 of ≡ is its ∈-type — a term at 𝕍 (or 𝕍 itself, which has
-  -- no children); children 0/1 sit at it
-  childTyE sig ctx b pexp (Elem.EqTy _ _ t) i =
-    case i of
-      0 => pure (Just t)
-      1 => pure (Just t)
-      2 => pure (Just TopTy)
-      _ => pure Nothing
-  childTyE sig ctx b pexp (QuotTy _ _) i =
-    case i of
-      0 => Just <$> compClassifier sig pexp
-      1 => pure (Just PropTy)
-      _ => pure Nothing
-  childTyE sig ctx b pexp (Squash _) i =
-    pure (if i == 0 then Just TopTy else Nothing)
-  childTyE sig ctx b pexp (SigVar x es) i =
-    kSigLookup sig x >>= \entryX => case entryX of
-      Just (SigDef delta _ _ _) =>
-        case getAt i (toList delta) of
-          Just entryTy =>
-            pure (Just (substTy entryTy (embed (cast (take i (toList es))))))
-          Nothing => pure Nothing
-      Just (SigDecl delta _ _) =>
-        case getAt i (toList delta) of
-          Just entryTy =>
-            pure (Just (substTy entryTy (embed (cast (take i (toList es))))))
-          Nothing => pure Nothing
-      _ => pure Nothing
-  childTyE sig ctx b pexp (Class _) i =
-    case (pexp, i) of
-      (Just pe, 0) => do
-        t <- kWhnfT sig pe
-        case t of
-          QuotTy dom _ => pure (Just dom)
-          _ => pure Nothing
-      _ => pure Nothing
-  childTyE sig ctx b pexp (QuotElim _ q) i =
-    if i == 1 then inferNeAt sig ctx b q else pure Nothing
-  -- ν formers: out's scrutinee is neutrally inferable; corec's carrier
-  -- is a code, its seed at the carrier's decoding (the body, child 1,
-  -- is carrier-dependent — undetermined, like ⊎-elim's cases)
-  childTyE sig ctx b pexp (Out t) i =
-    if i == 0 then inferNeAt sig ctx b t else pure Nothing
-  childTyE sig ctx b pexp (Corec _ a _ _) i =
-    case i of
-      0 => pure (Just UniverseTy)
-      2 => pure (Just a)
-      _ => pure Nothing
-  -- QIIT formers: spine child i's type is the reflected telescope's
-  -- entry i, instantiated by the earlier children — always determined
-  childTyE sig ctx b pexp (QSort sg k es) i = qSpineChildTy sg k es i
-  childTyE sig ctx b pexp (QCtor sg k es) i = qSpineChildTy sg k es i
-  childTyE sig ctx b pexp (QElim sg k _ _ es w) i =
-    if i == length (toList es)
-      then pure (Just (QSort sg k es))
-      else qSpineChildTy sg k es i
-  childTyE sig ctx b pexp _ _ = pure Nothing
-
-  ||| The classifier a shared former's components sit at: 𝕍 when the
-  ||| parent is expected at 𝕍 (a type), 𝕌 otherwise (a code).
-  compClassifier : Sig -> Maybe Ty -> KM Ty
-  compClassifier sig Nothing = pure UniverseTy
-  compClassifier sig (Just pe) = do
-    t <- kWhnfT sig pe
-    pure (case t of
-            TopTy => TopTy
-            _ => UniverseTy)
-
-  ||| Expected type of the i-th spine entry of a former carrying 𝒮
-  ||| (position k's reflected binder/arity telescope).
-  qSpineChildTy : QSig -> Nat -> SubNorm -> Nat -> KM (Maybe Ty)
-  qSpineChildTy sg k es i =
-    case qEntry sg k of
-      Nothing => pure Nothing
-      Just entry =>
-        case reflTel sg (qwAt k) entry of
-          Left _ => pure Nothing
-          Right (tel, _, _) => pure (telInst tel i (toList es))
-
-  ||| Neutral inference at a position standing under `crossed` binders
-  ||| the walk entered on its way down. Those binders are NOT in ctx —
-  ||| goE carries their COUNT and never their types — so a spine's
-  ||| indices there are shifted relative to ctx, and inferring against
-  ||| ctx as if they were not would resolve a DIFFERENT entry and type
-  ||| the position by it. Strengthening first is exactly the test: a
-  ||| spine that never names a crossed binder is the same spine at the
-  ||| site, inferable there, and its type weakens back; one that does
-  ||| name it is not inferable here at all, which is what Nothing says
-  ||| (the caller then reports a type-undetermined position rather
-  ||| than a mismatch against a type that was never the position's).
-  inferNeAt : Sig -> Ctx -> (crossed : Nat) -> Elem -> KM (Maybe Ty)
-  inferNeAt sig ctx Z e = inferNeK sig ctx e
-  inferNeAt sig ctx b e = case strengthenN b e of
+||| Neutral inference (spines only, arguments unchecked): the type a
+||| well-typed neutral has at its position, by typing inversion — a
+||| neutral's typings all factor through its head's declared type. The
+||| one way a position's type is read off the SIDE rather than the type
+||| flowing down: at motive-dependent case positions the node carries
+||| no motive for, and at the function of an application.
+inferHead : Sig -> Ctx -> Elem -> KM (Maybe Ty)
+inferHead sig ctx (CtxVar i) = pure (ctxLookup ctx i)
+inferHead sig ctx (PiApp f e) = do
+  mf <- inferHead sig ctx f
+  case mf of
+    Just fTy => do
+      t <- kWhnfT sig fTy
+      case t of
+        PiTy _ b => pure (Just (substTy b (Ext Id e)))
+        _ => pure Nothing
     Nothing => pure Nothing
-    Just e' => map (map (weakenTyN b)) (inferNeK sig ctx e')
-
-  ||| Undo `n` weakening steps at the innermost end; Nothing when the
-  ||| term mentions one of the entries being removed.
-  strengthenN : Nat -> Elem -> Maybe Elem
-  strengthenN Z e = Just e
-  strengthenN (S n) e = strengthenElem 0 e >>= strengthenN n
-
-  ||| Neutral inference inside the kernel (spines only).
-  inferNeK : Sig -> Ctx -> Elem -> KM (Maybe Ty)
-  inferNeK sig ctx (CtxVar i) = pure (ctxLookup ctx i)
-  inferNeK sig ctx (PiApp f e) = do
-    mf <- inferNeK sig ctx f
-    case mf of
-      Just fTy => do
-        t <- kWhnfT sig fTy
-        case t of
-          PiTy _ b => pure (Just (substTy b (Ext Id e)))
-          _ => pure Nothing
+inferHead sig ctx (SigmaElim1 t) = do
+  mt <- inferHead sig ctx t
+  case mt of
+    Just tTy => do
+      t' <- kWhnfT sig tTy
+      case t' of
+        SigmaTy a _ => pure (Just a)
+        _ => pure Nothing
+    Nothing => pure Nothing
+inferHead sig ctx (SigmaElim2 t) = do
+  mt <- inferHead sig ctx t
+  case mt of
+    Just tTy => do
+      t' <- kWhnfT sig tTy
+      case t' of
+        SigmaTy _ b => pure (Just (substTy b (Ext Id (SigmaElim1 t))))
+        _ => pure Nothing
+    Nothing => pure Nothing
+inferHead sig ctx (Out t) = do
+  mt <- inferHead sig ctx t
+  case mt of
+    Just tTy => do
+      t' <- kWhnfT sig tTy
+      case t' of
+        NuTy f => pure (Just (reflectPoly f (Elem.NuTy f)))
+        _ => pure Nothing
+    Nothing => pure Nothing
+inferHead sig ctx (SigVar x es) =
+  kSigLookup sig x >>= \entryX => case entryX of
+    Just (SigDef _ _ _ ty) => pure (Just (substTy ty (embed es)))
+    Just (SigDecl _ _ ty) => pure (Just (substTy ty (embed es)))
+    _ => pure Nothing
+inferHead sig ctx (QElim sg k mots mths es w) =
+  case qOrdinal QKSort sg k of
+    Just o => case getAt o mots of
+      Just motK => pure (Just (substTy motK (Ext (foldl Ext Id (toList es)) w)))
       Nothing => pure Nothing
-  inferNeK sig ctx (SigmaElim1 t) = do
-    mt <- inferNeK sig ctx t
-    case mt of
-      Just tTy => do
-        t' <- kWhnfT sig tTy
-        case t' of
-          SigmaTy a _ => pure (Just a)
-          _ => pure Nothing
-      Nothing => pure Nothing
-  inferNeK sig ctx (Out t) = do
-    mt <- inferNeK sig ctx t
-    case mt of
-      Just tTy => do
-        t' <- kWhnfT sig tTy
-        case t' of
-          NuTy f => pure (Just (reflectPoly f (Elem.NuTy f)))
-          _ => pure Nothing
-      Nothing => pure Nothing
-  inferNeK sig ctx (SigVar x es) =
-    kSigLookup sig x >>= \entryX => case entryX of
-      Just (SigDef _ _ _ ty) => pure (Just (substTy ty (embed es)))
-      Just (SigDecl _ _ ty) => pure (Just (substTy ty (embed es)))
-      _ => pure Nothing
-  inferNeK sig ctx _ = pure Nothing
+    Nothing => pure Nothing
+inferHead sig ctx _ = pure Nothing
 
-  ||| The path WALK, shared by the typed descent (goE) and the untyped
-  ||| forward unfold (goU): `child` yields the information carried down
-  ||| to child i of u (the typed descent's expected type; nothing for
-  ||| the unfold), `leaf` acts at the path's end with the binder count
-  ||| and that information. Child indexing as at pathE.
-  walkE : (child : Nat -> Maybe Ty -> Elem -> Nat -> KM (Maybe Ty))
-       -> (leaf : Nat -> Maybe Ty -> Elem -> KM Elem)
-       -> List Nat -> Nat -> Maybe Ty -> Elem -> KM Elem
-  walkE child leaf [] b mexp u = leaf b mexp u
-  walkE child leaf (i :: p) b mexp u = do
-    childTy <- child b mexp u i
-    let go : Nat -> Maybe Ty -> Elem -> KM Elem
-        go = walkE child leaf p
-    let goQSpine : SubNorm -> (SubNorm -> Elem) -> KM Elem
-        goQSpine es re =
-          case subNormAt i es of
-            Just e => do
-              e' <- go b childTy e
-              case subNormSet i e' es of
-                Just es' => pure (re es')
-                Nothing => kerr "kernel: bad path"
-            Nothing => kerr "kernel: bad path"
-    case (u, i) of
-      (ZeroElim t', 0) => ZeroElim <$> go b childTy t'
-      (NatIntro1 t', 0) => NatIntro1 <$> go b childTy t'
-      (NatElim z st t', 0) => (\z' => NatElim z' st t') <$> go b childTy z
-      (NatElim z st t', 1) => (\s' => NatElim z s' t') <$> go (2 + b) childTy st
-      (NatElim z st t', 2) => (\t'' => NatElim z st t'') <$> go b childTy t'
-      (PiIntro f, 0) => PiIntro <$> go (1 + b) childTy f
-      (PiApp f e, 0) => (\f' => PiApp f' e) <$> go b childTy f
-      (PiApp f e, 1) => PiApp f <$> go b childTy e
-      (SigmaElim1 t', 0) => SigmaElim1 <$> go b childTy t'
-      (SigmaElim2 t', 0) => SigmaElim2 <$> go b childTy t'
-      (Inj1 t', 0) => Inj1 <$> go b childTy t'
-      (Inj2 t', 0) => Inj2 <$> go b childTy t'
-      (SumElim l r t', 0) => (\l' => SumElim l' r t') <$> go (1 + b) childTy l
-      (SumElim l r t', 1) => (\r' => SumElim l r' t') <$> go (1 + b) childTy r
-      (SumElim l r t', 2) => SumElim l r <$> go b childTy t'
-      (SigmaIntro x y, 0) => (\x' => SigmaIntro x' y) <$> go b childTy x
-      (SigmaIntro x y, 1) => SigmaIntro x <$> go b childTy y
-      (Elem.PiTy a c, 0) => (\a' => Elem.PiTy a' c) <$> go b childTy a
-      (Elem.PiTy a c, 1) => Elem.PiTy a <$> go (1 + b) childTy c
-      (Elem.SigmaTy a c, 0) => (\a' => Elem.SigmaTy a' c) <$> go b childTy a
-      (Elem.SigmaTy a c, 1) => Elem.SigmaTy a <$> go (1 + b) childTy c
-      (Elem.SumTy a c, 0) => (\a' => Elem.SumTy a' c) <$> go b childTy a
-      (Elem.SumTy a c, 1) => Elem.SumTy a <$> go b childTy c
-      (Elem.EqTy l r t', 0) => (\l' => Elem.EqTy l' r t') <$> go b childTy l
-      (Elem.EqTy l r t', 1) => (\r' => Elem.EqTy l r' t') <$> go b childTy r
-      (Elem.EqTy l r t', 2) => Elem.EqTy l r <$> go b childTy t'
-      (QuotTy a r, 0) => (\a' => QuotTy a' r) <$> go b childTy a
-      (QuotTy a r, 1) => QuotTy a <$> go (2 + b) childTy r
-      (SigVar x es, _) =>
-        case subNormAt i es of
-          Just e => do
-            e' <- go b childTy e
-            case subNormSet i e' es of
-              Just es' => pure (SigVar x es')
-              Nothing => kerr "kernel: bad path"
-          Nothing => kerr "kernel: bad path"
-      (Class a, 0) => Class <$> go b childTy a
-      (Out t', 0) => Out <$> go b childTy t'
-      (Corec pf a f x, 0) => (\a' => Corec pf a' f x) <$> go b childTy a
-      (Corec pf a f x, 1) => (\f' => Corec pf a f' x) <$> go (1 + b) childTy f
-      (Corec pf a f x, 2) => Corec pf a f <$> go b childTy x
-      (QuotElim f q, 0) => (\f' => QuotElim f' q) <$> go (1 + b) childTy f
-      (QuotElim f q, 1) => QuotElim f <$> go b childTy q
-      (Squash t, 0) => Squash <$> go b childTy t
-      (QSort sg k es, _) => goQSpine es (\es' => QSort sg k es')
-      (QCtor sg k es, _) => goQSpine es (\es' => QCtor sg k es')
-      (QElim sg k ms fs es w, _) =>
-        if i == length (toList es)
-          then (\w' => QElim sg k ms fs es w') <$> go b childTy w
-          else goQSpine es (\es' => QElim sg k ms fs es' w)
-      _ => kerr "kernel: bad or type-undetermined path [i=\{show i}, at \{show u}]"
+||| Expected type of the i-th spine entry of a former carrying 𝒮
+||| (position k's reflected binder/arity telescope).
+qSpineChildTy : QSig -> Nat -> SubNorm -> Nat -> Maybe Ty
+qSpineChildTy sg k es i =
+  case qEntry sg k of
+    Nothing => Nothing
+    Just entry =>
+      case reflTel sg (qwAt k) entry of
+        Left _ => Nothing
+        Right (tel, _, _) => telInst tel i (toList es)
 
-  ||| Typed descent: rewrite at the path, checking the licensed type
-  ||| against each position's expected type.
-  goE : Sig -> Ctx -> (Elem, Elem, Ty) -> List Nat -> Nat -> Maybe Ty -> Elem -> KM Elem
-  goE sig ctx lic@(le, re, ltyN) = walkE (childTyE sig ctx) leaf
-   where
-    leaf : Nat -> Maybe Ty -> Elem -> KM Elem
-    leaf b mexp u = do
-      expN <- case mexp of
-        Just expTy => kJoinTy sig expTy
-        Nothing =>
-          -- the NEUTRAL-SUBTERM rule (spec §6): at a type-undetermined
-          -- rewrite point, the subterm's own ⇒ᴺ-type serves in the
-          -- positional check — any type a neutral inhabits is
-          -- judgementally equal to its synthesized type (typing
-          -- inversion: a neutral's typings factor through its head's
-          -- declared type plus conversion; the multi-typing the check
-          -- guards against lives at INTRO forms, which ⇒ᴺ refuses).
-          -- Binder-crossing paths are excluded: the crossed binders'
-          -- types are untracked here, so the subterm's variables could
-          -- not be resolved against ctx.
-          if b == 0
-            then do
-              mu <- inferNeK sig ctx u
-              case mu of
-                Just uTy => kJoinTy sig uTy
-                Nothing => kerr "kernel: step at a type-undetermined position [not inferable: \{show u}]"
-            else kerr "kernel: step at a type-undetermined position [b=\{show b}, at \{show u}]"
-      -- POSITIONAL TYPE CHECK, join-syntactic first, then a full-δβ
-      -- comparison of the two TYPES. This is the one place replay still
-      -- unfolds on its own: the expected type at a position is
-      -- reconstructed by the descent (childTyE) and may differ from the
-      -- licence's type by unfoldings no step addresses (type indices). It
-      -- goes with the descent itself, when certificates become proof
-      -- terms that carry their own types at every node
-      -- (docs/NovaKernelRewrite.txt); the EQUATION being replayed is
-      -- never widened by it.
-      tyOk <- if expN == weakenTyN b ltyN
-                -- CUMULATIVITY (code-lift-eq): a licensed equation at 𝕌
-                -- applies at a type position (expected 𝕍)
-                then pure True
-                else if expN == TopTy && weakenTyN b ltyN == UniverseTy
-                then pure True
-                else do e1 <- kTy sig expN
-                        e2 <- kTy sig (weakenTyN b ltyN)
-                        pure (e1 == e2 || (e1 == TopTy && e2 == UniverseTy))
-      if not tyOk
-        then kerr "kernel: step type does not match the position"
-        -- the subterm and the licence's side are both β-joined: identity,
-        -- no δ rescue (an unfolding the match needs is an LUnfold step)
-        else if u == weakenN b le
-          then pure (weakenN b re)
-          else kerr "kernel: step does not match the subterm\n  subterm: \{show u}\n  licence: \{show (weakenN b le)} ≐ \{show (weakenN b re)}"
+||| Every addressable occurrence of the named definitions, unfolded at
+||| once (the δ-all leaf). Carried signatures, polynomials, motives and
+||| methods are opaque.
+traverseSN : (Elem -> KM Elem) -> SubNorm -> KM SubNorm
+traverseSN f [<] = pure [<]
+traverseSN f (es :< e) = [| traverseSN f es :< f e |]
 
-  ||| Every addressable occurrence of a named definition, unfolded at
-  ||| once (the LUnfoldAll step). Addressable as at walkE: carried
-  ||| signatures, polynomials, motives and methods are opaque.
-  traverseSN : (Elem -> KM Elem) -> SubNorm -> KM SubNorm
-  traverseSN f [<] = pure [<]
-  traverseSN f (es :< e) = [| traverseSN f es :< f e |]
+export
+unfoldAllK : Sig -> List String -> Elem -> KM Elem
+unfoldAllK sig ns t = go t
+ where
+  go : Elem -> KM Elem
+  go (SigVar x es) = do
+    es' <- traverseSN go es
+    if elem x ns
+      then kSigLookup sig x >>= \entryX => case entryX of
+             Just (SigDef _ _ body _) => pure (substElem body (embed es'))
+             _ => pure (SigVar x es')
+      else pure (SigVar x es')
+  go (ZeroElim u) = ZeroElim <$> go u
+  go (NatIntro1 u) = NatIntro1 <$> go u
+  go (NatElim z st u) = [| NatElim (go z) (go st) (go u) |]
+  go (PiIntro f) = PiIntro <$> go f
+  go (PiApp f e) = [| PiApp (go f) (go e) |]
+  go (Let a b) = [| Let (go a) (go b) |]
+  go (SigmaIntro u v) = [| SigmaIntro (go u) (go v) |]
+  go (SigmaElim1 u) = SigmaElim1 <$> go u
+  go (SigmaElim2 u) = SigmaElim2 <$> go u
+  go (Inj1 u) = Inj1 <$> go u
+  go (Inj2 u) = Inj2 <$> go u
+  go (SumElim l r u) = [| SumElim (go l) (go r) (go u) |]
+  go (Elem.PiTy a c) = [| Elem.PiTy (go a) (go c) |]
+  go (Elem.SigmaTy a c) = [| Elem.SigmaTy (go a) (go c) |]
+  go (Elem.SumTy a c) = [| Elem.SumTy (go a) (go c) |]
+  go (Elem.EqTy l r u) = [| Elem.EqTy (go l) (go r) (go u) |]
+  go (QuotTy a r) = [| QuotTy (go a) (go r) |]
+  go (Class a) = Class <$> go a
+  go (QuotElim f q) = [| QuotElim (go f) (go q) |]
+  go (Squash u) = Squash <$> go u
+  go (QSort sg k es) = QSort sg k <$> traverseSN go es
+  go (QCtor sg k es) = QCtor sg k <$> traverseSN go es
+  go (QElim sg k ms fs es w) = [| QElim (pure sg) (pure k) (pure ms) (pure fs) (traverseSN go es) (go w) |]
+  go (Out u) = Out <$> go u
+  go (Corec p a f x) = [| Corec (pure p) (go a) (go f) (go x) |]
+  go u = pure u
 
-  unfoldAllK : Sig -> List String -> Elem -> KM Elem
-  unfoldAllK sig ns t = go t
-   where
-    go : Elem -> KM Elem
-    go (SigVar x es) = do
-      es' <- traverseSN go es
-      if elem x ns
-        then kSigLookup sig x >>= \entryX => case entryX of
-               Just (SigDef _ _ body _) => pure (substElem body (embed es'))
-               _ => pure (SigVar x es')
-        else pure (SigVar x es')
-    go (ZeroElim u) = ZeroElim <$> go u
-    go (NatIntro1 u) = NatIntro1 <$> go u
-    go (NatElim z st u) = [| NatElim (go z) (go st) (go u) |]
-    go (PiIntro f) = PiIntro <$> go f
-    go (PiApp f e) = [| PiApp (go f) (go e) |]
-    go (Let a b) = [| Let (go a) (go b) |]
-    go (SigmaIntro u v) = [| SigmaIntro (go u) (go v) |]
-    go (SigmaElim1 u) = SigmaElim1 <$> go u
-    go (SigmaElim2 u) = SigmaElim2 <$> go u
-    go (Inj1 u) = Inj1 <$> go u
-    go (Inj2 u) = Inj2 <$> go u
-    go (SumElim l r u) = [| SumElim (go l) (go r) (go u) |]
-    go (Elem.PiTy a c) = [| Elem.PiTy (go a) (go c) |]
-    go (Elem.SigmaTy a c) = [| Elem.SigmaTy (go a) (go c) |]
-    go (Elem.SumTy a c) = [| Elem.SumTy (go a) (go c) |]
-    go (Elem.EqTy l r u) = [| Elem.EqTy (go l) (go r) (go u) |]
-    go (QuotTy a r) = [| QuotTy (go a) (go r) |]
-    go (Class a) = Class <$> go a
-    go (QuotElim f q) = [| QuotElim (go f) (go q) |]
-    go (Squash u) = Squash <$> go u
-    go (QSort sg k es) = QSort sg k <$> traverseSN go es
-    go (QCtor sg k es) = QCtor sg k <$> traverseSN go es
-    go (QElim sg k ms fs es w) = [| QElim (pure sg) (pure k) (pure ms) (pure fs) (traverseSN go es) (go w) |]
-    go (Out u) = Out <$> go u
-    go (Corec p a f x) = [| Corec (pure p) (go a) (go f) (go x) |]
-    go u = pure u
+weakenTyN : Nat -> Ty -> Ty
+weakenTyN Z t = t
+weakenTyN (S n) t = weakenTyN n (substTy t Wk)
 
-  ||| FORWARD UNFOLD at a path: the subterm must be x[ē'] with ē' the
-  ||| licence's ē modulo β (the walked side is β-joined, the step's spine
-  ||| as the producer spelled it), and is replaced by the body at ē'.
-  ||| No positional typing: the occurrence is well-typed by the replay
-  ||| invariant, and x[ē'] ≐ t[ē'] at its type by x-δ. The spine may
-  ||| therefore mention binders the path crossed.
-  goU : Sig -> String -> SubNorm -> Elem -> List Nat -> Elem -> KM Elem
-  goU sig x es body path t = walkE (\_, _, _, _ => pure Nothing) leaf path 0 Nothing t
-   where
-    leaf : Nat -> Maybe Ty -> Elem -> KM Elem
-    leaf b _ (SigVar y es') =
-      if y /= x then kerr "kernel: unfold step at a reference to '\{y}', licensed for '\{x}'"
-      else do
-        esL <- kJoinSubNorm sig es
-        esU <- kJoinSubNorm sig es'
-        if esL == esU
-          then pure (substElem body (embed es'))
-          else kerr "kernel: unfold step spine does not match the occurrence of '\{x}'"
-    leaf b _ u = kerr "kernel: unfold step at a non-reference [at \{show u}]"
+||| The goal a proof is read against: one side (→, with its direction:
+||| True = the left side is given) or both (⇐).
+data Goal : Type where
+  GDir : Bool -> Elem -> Goal
+  GChk : Elem -> Elem -> Goal
 
-  ||| Apply one step to an element known (by the replay invariant) to be
-  ||| well-typed at tyRoot: descend the path computing expected types,
-  ||| verify the licensed equation's type in situ, rewrite. A forward
-  ||| unfold step bypasses the typed descent (goU).
-  stepElem : Sig -> Ctx -> Step -> Ty -> Elem -> KM Elem
-  stepElem sig ctx step tyRoot t =
-    case (step.lic, step.flip, step.sels) of
-      (LUnfoldAll ns, False, []) =>
-        case step.path of
-        [] => unfoldAllK sig ns t
-        _ => kerr "kernel: an unfold-all step acts at the root"
-      (LUnfold x es, False, []) =>
-        kSigLookup sig x >>= \entryX => case entryX of
-          Just (SigDef _ _ body _) => goU sig x es body step.path t
-          Just _ => kerr "kernel: unfold step at a declaration '\{x}'"
-          Nothing => kerr "kernel: unfold step names unknown definition '\{x}'"
-      _ => do
-        (le, re, lty) <- licensed sig ctx step
-        ltyN <- kJoinTy sig lty
-        goE sig ctx (le, re, ltyN) step.path 0 (Just tyRoot) t
+goalLeft : Goal -> Elem
+goalLeft (GDir _ x) = x
+goalLeft (GChk l _) = l
 
-  ||| Steps inside types: a type position is an element position expected
-  ||| at 𝕍 (one sort, one descent).
-  stepTy : Sig -> Ctx -> Step -> Ty -> KM Ty
-  stepTy sig ctx step t = stepElem sig ctx step TopTy t
-
+||| Classifier of a shared former's components: 𝕍 when the parent is
+||| expected at 𝕍 (a type), 𝕌 otherwise (a code).
+compClassifier : Sig -> Maybe Ty -> KM Ty
+compClassifier sig Nothing = pure UniverseTy
+compClassifier sig (Just pe) = do
+  t <- kWhnfT sig pe
+  pure (case t of
+          TopTy => TopTy
+          _ => UniverseTy)
 -- ===== Item-level checking over annotation skeletons =====
 --
 -- (The equation-replay functions kEqElem/kEqTy live in the same mutual
@@ -1979,19 +1557,19 @@ pIntroTy : Payload -> Maybe (Ty, Skel)
 pIntroTy (PIntroTy t sk) = Just (t, sk)
 pIntroTy _ = Nothing
 
-pSwitch : Payload -> Maybe ECert
+pSwitch : Payload -> Maybe Prf
 pSwitch (PSwitch c) = Just c
 pSwitch _ = Nothing
 
-pReflEq : Payload -> Maybe ECert
+pReflEq : Payload -> Maybe Prf
 pReflEq (PReflEq c) = Just c
 pReflEq _ = Nothing
 
-pWD : Payload -> Maybe ECert
+pWD : Payload -> Maybe Prf
 pWD (PWD c) = Just c
 pWD _ = Nothing
 
-pExpose : Payload -> Maybe (Ty, ECert)
+pExpose : Payload -> Maybe (Ty, Prf)
 pExpose (PExpose t c) = Just (t, c)
 pExpose _ = Nothing
 
@@ -2003,11 +1581,11 @@ pNuCoind : Payload -> Maybe (Elem, Skel, Elem, Skel, Elem, Skel)
 pNuCoind (PNuCoind r skR pw skp qw skq) = Just (r, skR, pw, skp, qw, skq)
 pNuCoind _ = Nothing
 
-pSquashElim : Payload -> Maybe (Elem, Skel, Maybe (Ty, ECert), Elem, Skel)
+pSquashElim : Payload -> Maybe (Elem, Skel, Maybe (Ty, Prf), Elem, Skel)
 pSquashElim (PSquashElim e esk ex b bsk) = Just (e, esk, ex, b, bsk)
 pSquashElim _ = Nothing
 
-pQCoh : Payload -> Maybe (List ECert)
+pQCoh : Payload -> Maybe (List Prf)
 pQCoh (PQCoh cs) = Just cs
 pQCoh _ = Nothing
 
@@ -2026,203 +1604,695 @@ isIntro (ZeroElim _) = True
 isIntro Star = True
 isIntro _ = False
 
-||| A bare compare-beta-normal-forms certificate: no bridge, no steps,
-||| the FBeta final. At α-IDENTICAL sides its replay is a foregone
-||| conclusion — the normalizer is a function, so nf(l) = nf(r) on the
-||| nose — which licenses the REFLEXIVITY fast path below: same
-||| acceptance set as running the replay, none of the normalization.
-reflCert : ECert -> Bool
-reflCert (MkECertF Nothing [] FBeta) = True
-reflCert _ = False
-
 mutual
-  ||| Replay a certificate for the element equation Γ ⊢ l ≐ r : ty:
-  ||| β-join both sides, apply the steps (rewrites and unfolds) at
-  ||| their paths, then the final. No δ anywhere but in LUnfold steps.
+  ||| Check a proof of the element equation Γ ⊢ l ≐ r : ty: both sides
+  ||| β-joined, then the proof read against them (⇐). No δ anywhere
+  ||| but at a δ leaf.
   export
-  kEqElem : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
-  kEqElem sig ctx cert l r ty =
-    if reflCert cert && l == r then pure ()
-      else kEqElemGo sig ctx cert l r ty
-
-  kEqElemGo : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
-  kEqElemGo sig ctx cert l r ty = do
-    -- resolve the type bridge first: the rest of the replay happens at
-    -- the (certified-equal) exposed type
-    tyU <- case cert.tyEx of
-             Nothing => pure ty
-             Just (tyX, c) => do
-               case ty of
-                 TopTy => kerr "kernel: a type equation cannot carry a type bridge"
-                 _ => pure ()
-               kEqTy sig ctx c ty tyX
-               pure tyX
+  kEqElem : Sig -> Ctx -> Prf -> Elem -> Elem -> Ty -> KM ()
+  kEqElem sig ctx PReflx l r ty =
+    if l == r then pure () else do
+      l0 <- kJoinElem sig l
+      r0 <- kJoinElem sig r
+      if l0 == r0 then pure ()
+        else kerr "kernel: sides differ under β (an unfolding the join needs is a δ leaf)\n  left:  \{show l0}\n  right: \{show r0}"
+  kEqElem sig ctx prf l r ty = do
     l0 <- kJoinElem sig l
     r0 <- kJoinElem sig r
-    (l1, r1) <- goSteps tyU cert.steps l0 r0
-    case cert.final of
-      FBeta =>
-        if l1 == r1 then pure ()
-          else kerr "kernel: sides differ after replay (β-joined; an unfolding the join needs is an unfold step)\n  left:  \{show l1}\n  right: \{show r1}\n  cert:  \{show cert}"
-      FProp => do
-        -- head exposure suffices for every final's type match below
-        ty' <- kWhnfT sig tyU
-        case ty' of
-          OneTy => pure ()
-          ZeroTy => pure ()
-          -- el-prf-prop: proof irrelevance — an ≡-/∥·∥-headed type IS
-          -- a prop; a neutral takes the judgemental question at Ω
-          Elem.EqTy _ _ _ => pure ()
-          Squash _ => pure ()
-          _ => do
-            ok <- kIsProp sig ctx ty'
-            if ok then pure ()
-              else kerr "kernel: Prop final at a non-propositional type"
-      FWitness mc => do
-        ty' <- kWhnfT sig tyU
-        case (l1, r1, ty') of
-          (Class a, Class b, QuotTy dom rel) => do
-            relInst <- kJoinElem sig (substElem rel (Ext (Ext Id a) b))
-            case relInst of
-              Squash sq => do
-                sq' <- kWhnfT sig sq
-                case sq' of
-                  OneTy => pure ()
-                  _ => kerr "kernel: witness final does not apply"
-              Elem.EqTy wl wr wt =>
-                case mc of
-                  Just c => kEqElem sig ctx c wl wr wt
-                  Nothing => kerr "kernel: witness final needs a certificate at an equality relation"
-              _ => kerr "kernel: witness final at a non-evident relation"
-          _ => kerr "kernel: witness final at a non-class equation"
-      -- el-quot-eq, faithful: the relation instance is inhabited by
-      -- the supplied proof, whatever the relation's shape
-      FWitnessPrf w skW => do
-        ty' <- kWhnfT sig tyU
-        case (l1, r1, ty') of
-          (Class a, Class b, QuotTy _ rel) => do
-            relInst <- kJoinElem sig (substElem rel (Ext (Ext Id a) b))
-            kCheckE sig ctx w relInst skW
-          _ => kerr "kernel: supplied-witness final at a non-class equation"
-      FInj c => do
-        ty' <- kWhnfT sig tyU
-        case (l1, r1, ty') of
-          (Inj1 x, Inj1 y, SumTy a _) => kEqElem sig ctx c x y a
-          (Inj2 x, Inj2 y, SumTy _ b) => kEqElem sig ctx c x y b
-          _ => kerr "kernel: injection final at a non-matching equation"
-      FEtaPi c => do
-        ty' <- kWhnfT sig tyU
-        case ty' of
-          PiTy dom cod =>
-            kEqElem sig (ctx :< dom) c
-              (PiApp (substElem l1 Wk) (CtxVar 0))
-              (PiApp (substElem r1 Wk) (CtxVar 0))
-              cod
-          _ => kerr "kernel: Π-η final at a non-Π type"
-      FEtaSigma c1 c2 => do
-        ty' <- kWhnfT sig tyU
-        case ty' of
-          SigmaTy dom cod => do
-            kEqElem sig ctx c1 (SigmaElim1 l1) (SigmaElim1 r1) dom
-            kEqElem sig ctx c2 (SigmaElim2 l1) (SigmaElim2 r1)
-              (substTy cod (Ext Id (SigmaElim1 l1)))
-          _ => kerr "kernel: Σ-η final at a non-Σ type"
-      FPropExt s skS t skT => do
-        -- code-prop-eq: the sides are prop codes; each direction is an
-        -- implication between their decodings
-        ty' <- kWhnfT sig tyU
-        case ty' of
-          PropTy => do
-            kCheckE sig ctx s (PiTy l1 (substTy r1 Wk)) skS
-            kCheckE sig ctx t (PiTy r1 (substTy l1 Wk)) skT
-          _ => kerr "kernel: propext final at a non-Ω type"
-      -- TYPE-equation finals (ambient 𝕍): componentwise congruences
-      -- whose component equality is extensional and cannot flatten
-      -- into steps — formerly the separate kEqTy replay channel
-      FPrfCong c => do
-        -- prop-lift-eq: the sides MUST be props (the lift's side
-        -- condition is load-bearing — without it a code equation
-        -- could be smuggled through Ω's extensional discipline)
-        ty' <- kWhnfT sig tyU
-        case ty' of
-          TopTy => do
-            okL <- kIsProp sig ctx l1
-            okR <- kIsProp sig ctx r1
-            if okL && okR
-              then kEqElem sig ctx c l1 r1 PropTy
-              else kerr "kernel: prop-lift-eq final at non-prop types"
-          _ => kerr "kernel: prop-lift-eq final on an element equation"
-      FQuotCong c => do
-        ty' <- kWhnfT sig tyU
-        case (ty', l1, r1) of
-          (TopTy, QuotTy d0 r0, QuotTy d1 r1) =>
-            if d0 == d1
-              then kEqElem sig (ctx :< d0 :< substTy d0 Wk) c r0 r1 PropTy
-              else kerr "kernel: quotient-congruence final at unequal domains"
-          (TopTy, _, _) => kerr "kernel: quotient-congruence final at non-quotient types"
-          _ => kerr "kernel: quotient-congruence final on an element equation"
-      FPiCong dc cc => do
-        ty' <- kWhnfT sig tyU
-        case (ty', l1, r1) of
-          (TopTy, Elem.PiTy d0 c0, Elem.PiTy d1 c1) => do
-            kEqElem sig ctx dc d0 d1 TopTy
-            kEqElem sig (ctx :< d1) cc c0 c1 TopTy
-          (TopTy, _, _) => kerr "kernel: Π-congruence final at non-Π types"
-          _ => kerr "kernel: Π-congruence final on an element equation"
-      FSigmaCong dc cc => do
-        ty' <- kWhnfT sig tyU
-        case (ty', l1, r1) of
-          (TopTy, Elem.SigmaTy d0 c0, Elem.SigmaTy d1 c1) => do
-            kEqElem sig ctx dc d0 d1 TopTy
-            kEqElem sig (ctx :< d1) cc c0 c1 TopTy
-          (TopTy, _, _) => kerr "kernel: Σ-congruence final at non-Σ types"
-          _ => kerr "kernel: Σ-congruence final on an element equation"
-      FSumCong lc rc => do
-        ty' <- kWhnfT sig tyU
-        case (ty', l1, r1) of
-          (TopTy, Elem.SumTy l0 r0, Elem.SumTy l1' r1') => do
-            kEqElem sig ctx lc l0 l1' TopTy
-            kEqElem sig ctx rc r0 r1' TopTy
-          (TopTy, _, _) => kerr "kernel: ⊎-congruence final at non-⊎ types"
-          _ => kerr "kernel: ⊎-congruence final on an element equation"
-      -- el-trans through stated middles: the endpoints as written are
-      -- the (β-joined) sides, every point is checked at the equation's
-      -- type with its skeleton, every link certificate replayed between
-      -- its neighbours
-      FChain points certs => do
-        traverse_ (\(pt, sk) => kCheckE sig ctx pt tyU sk) points
-        goLinks tyU (l1 :: map fst points ++ [r1]) certs
+    annotP (ignore (kPrfGo sig ctx prf (GChk l0 r0) (Just ty)))
    where
-    goLinks : Ty -> List Elem -> List ECert -> KM ()
-    goLinks tyU (a :: b :: rest) (c :: cs) = do
-      kEqElem sig ctx c a b tyU
-      goLinks tyU (b :: rest) cs
-    goLinks _ [_] [] = pure ()
-    goLinks _ _ _ = kerr "kernel: chain points and links do not match up"
-
-    annot : String -> KM a -> KM a
-    annot tag (MkKM f) = MkKM $ \st => case f st of
-      Left e => Left (e ++ " @" ++ tag)
+    annotP : KM a -> KM a
+    annotP (MkKM f) = MkKM $ \st => case f st of
+      Left e => Left (e ++ " [proof: " ++ show prf ++ "]")
       Right v => Right v
 
-    goSteps : Ty -> List Step -> Elem -> Elem -> KM (Elem, Elem)
-    goSteps tyU [] l' r' = pure (l', r')
-    goSteps tyU (s :: rest) l' r' =
-      if s.onLhs
-        then do l'' <- annot "step \{show (length rest)}" (stepElem sig ctx s tyU l') >>= kJoinElem sig
-                goSteps tyU rest l'' r'
-        else do r'' <- annot "step \{show (length rest)}" (stepElem sig ctx s tyU r') >>= kJoinElem sig
-                goSteps tyU rest l' r''
-
-  ||| Replay a certificate for the type equation Γ ⊢ A ≐ B (licensed,
-  ||| as at kEqElem).
+  ||| A proof of the type equation Γ ⊢ A ≐ B: an element equation at
+  ||| 𝕍 (one sort, one channel).
   export
-  kEqTy : Sig -> Ctx -> ECert -> Ty -> Ty -> KM ()
-  kEqTy sig ctx cert a b = kEqElem sig ctx cert a b TopTy
-  -- (one sort, one replay channel: a type equation is an element
-  -- equation at 𝕍 — the congruence finals above apply there, steps
-  -- descend with expected classifier 𝕍)
+  kEqTy : Sig -> Ctx -> Prf -> Ty -> Ty -> KM ()
+  kEqTy sig ctx prf a b = kEqElem sig ctx prf a b TopTy
 
+  ||| Both elements join to the same β-normal form.
+  sameB : Sig -> Elem -> Elem -> KM ()
+  sameB sig a b =
+    if a == b then pure () else do
+      a' <- kJoinElem sig a
+      b' <- kJoinElem sig b
+      if a' == b' then pure ()
+        else kerr "kernel: sides differ under β\n  left:  \{show a'}\n  right: \{show b'}"
+
+  ||| Two types agree: join-syntactically, by cumulativity (a 𝕌 code at
+  ||| a 𝕍 position, code-lift-eq), or — the one place replay still
+  ||| unfolds on its own — under the full δβ normal form. The latter
+  ||| goes when head exposure becomes a certified ascription
+  ||| (docs/NovaKernelRewrite.txt); the EQUATION being checked is never
+  ||| widened by it.
+  tyAgree : Sig -> Ty -> Ty -> KM Bool
+  tyAgree sig exp got = do
+    expN <- kJoinTy sig exp
+    gotN <- kJoinTy sig got
+    if expN == gotN || (expN == TopTy && gotN == UniverseTy)
+      then pure True
+      else do
+        e1 <- kTy sig expN
+        e2 <- kTy sig gotN
+        pure (e1 == e2 || (e1 == TopTy && e2 == UniverseTy))
+
+  ||| POSITIONAL TYPE CHECK: a leaf's equation is at the type of the
+  ||| position it sits at — the type flowing down, or, where the node
+  ||| above determines none, the side's own inferred type (typing
+  ||| inversion for neutrals).
+  posTyCheck : Sig -> Ctx -> Maybe Ty -> Elem -> Ty -> KM ()
+  posTyCheck sig ctx mty x t = do
+    exp <- the (KM Ty) $ case mty of
+      Just e => pure e
+      Nothing => do
+        mu <- inferHead sig ctx x
+        case mu of
+          Just u => pure u
+          Nothing => kerr "kernel: proof at a type-undetermined position [not inferable: \{show x}]"
+    ok <- tyAgree sig exp t
+    if ok then pure ()
+      else kerr "kernel: proof type does not match the position [position: \{show exp}; proof: \{show t}]"
+
+  needTy : Maybe Ty -> String -> KM Ty
+  needTy (Just t) _ = pure t
+  needTy Nothing what = kerr "kernel: \{what} at a type-undetermined position"
+
+  ||| ⇒: the equation (with its type) a synthesising proof states.
+  export
+  kPrfS : Sig -> Ctx -> Prf -> KM (Elem, Elem, Ty)
+  kPrfS sig ctx (PRefl p) = do
+    pty <- inferP sig ctx p >>= kWhnfT sig
+    case pty of
+      Elem.EqTy l r t => pure (l, r, t)
+      _ => kerr "kernel: proof leaf is not an equality [\{show p} : \{show pty}]"
+  -- x-δ, stated: the spine is checked against the definition's
+  -- context, and the equation is x[ē] ≐ t[ē] at T[ē]
+  kPrfS sig ctx (PDelta x es) =
+    kSigLookup sig x >>= \entryX => case entryX of
+      Just (SigDef delta _ body ty) => do
+        let args = toList es
+        let dl = toList delta
+        if length args /= length dl
+          then kerr "kernel: δ leaf spine length mismatch for '\{x}'"
+          else pure ()
+        checkSpine 0 args dl
+        pure (SigVar x es, substElem body (embed es), substTy ty (embed es))
+      Just _ => kerr "kernel: δ leaf at a declaration '\{x}'"
+      Nothing => kerr "kernel: δ leaf names unknown definition '\{x}'"
+   where
+    checkSpine : Nat -> List Elem -> List Ty -> KM ()
+    checkSpine i [] _ = pure ()
+    checkSpine i (e :: rest) dl = do
+      case getAt i dl of
+        Just entryTy => checkP sig ctx e (substTy entryTy (embed (cast (take i (toList es)))))
+        Nothing => kerr "kernel: δ leaf spine out of range"
+      checkSpine (S i) rest dl
+  kPrfS sig ctx (PPath sg k theta) = do
+    sg' <- kQSig sig sg
+    entry <- case qEntry sg' k of
+               Just e => pure e
+               Nothing => kerr "kernel: path leaf entry out of range"
+    case qEntryKind entry of
+      QKEq => pure ()
+      _ => kerr "kernel: path leaf at a non-equation entry"
+    -- check the spine entrywise against the reflected binder telescope
+    (tel, _, _) <- liftQ (reflTel sg' (qwAt k) entry)
+    let args = toList theta
+    if length args /= length tel
+      then kerr "kernel: path leaf spine length mismatch"
+      else pure ()
+    checkTelArgs 0 args tel
+    -- the imposed equation, at the spine
+    (wEnd, hd) <- liftQ (walkVals sg' (qwAt k) entry args)
+    (lq, rq, uq) <- liftQ (eqHead hd)
+    l <- liftQ (reflTm sg' wEnd lq)
+    r <- liftQ (reflTm sg' wEnd rq)
+    t <- liftQ (reflCodeTy sg' wEnd uq)
+    pure (l, r, t)
+   where
+    checkTelArgs : Nat -> List Elem -> List Ty -> KM ()
+    checkTelArgs i [] _ = pure ()          -- lengths verified above
+    checkTelArgs i (e :: rest) tel = do
+      case telInst tel i (toList theta) of
+        Just ty => checkP sig ctx e ty
+        Nothing => kerr "kernel: path leaf telescope mismatch"
+      checkTelArgs (S i) rest tel
+  kPrfS sig ctx (PSel sel p) = do
+    e <- kPrfS sig ctx p
+    applySel sig ctx e sel
+  kPrfS sig ctx (PSym p) = do
+    (l, r, t) <- kPrfS sig ctx p
+    pure (r, l, t)
+  kPrfS sig ctx (PTrans p q) =
+    if synthP p && dirP True q
+      then do
+        (a, b, t) <- kPrfS sig ctx p
+        bJ <- kJoinElem sig b
+        c <- kPrfGo sig ctx q (GDir True bJ) (Just t)
+        pure (a, c, t)
+      else if synthP q && dirP False p
+      then do
+        (b, c, t) <- kPrfS sig ctx q
+        bJ <- kJoinElem sig b
+        a <- kPrfGo sig ctx p (GDir False bJ) (Just t)
+        pure (a, c, t)
+      else kerr "kernel: transitivity does not state its equation"
+  kPrfS sig ctx p = kerr "kernel: proof does not state its equation: \{show p}"
+
+  ||| A congruence node: the side(s) decompose by `shape` into the
+  ||| children's parts, `kids` computes each child's context and
+  ||| expected type from the LEFT parts, the children are read against
+  ||| their parts, and `rebuild` reassembles (the produced side under
+  ||| →; unused under ⇐).
+  node : Sig -> Ctx -> Goal
+      -> (Elem -> Maybe (List Elem))
+      -> (List Elem -> Maybe Elem)
+      -> (List Elem -> KM (List (Ctx, Maybe Ty)))
+      -> List Prf -> KM Elem
+  node sig ctx goal shape rebuild kids ps = do
+    (ls, rs) <- the (KM (List Elem, Maybe (List Elem))) $ case goal of
+      GDir d x => case shape x of
+        Just xs => pure (xs, Nothing)
+        Nothing => kerr "kernel: proof shape does not match the side [\{show x}]"
+      GChk l r => case (shape l, shape r) of
+        (Just ls, Just rs) => pure (ls, Just rs)
+        _ => kerr "kernel: proof shape does not match the sides\n  left:  \{show l}\n  right: \{show r}"
+    infos <- kids ls
+    outs <- goKids ps ls rs infos
+    case rebuild outs of
+      Just e => pure e
+      Nothing => kerr "kernel: proof node arity"
+   where
+    goKids : List Prf -> List Elem -> Maybe (List Elem) -> List (Ctx, Maybe Ty) -> KM (List Elem)
+    goKids [] [] _ [] = pure []
+    goKids (p :: ps') (l :: ls) rs ((c, t) :: is) = do
+      (g, rs') <- the (KM (Goal, Maybe (List Elem))) $ case (goal, rs) of
+        (GDir d _, _) => pure (GDir d l, rs)
+        (GChk _ _, Just (r :: rest)) => pure (GChk l r, Just rest)
+        _ => kerr "kernel: proof node arity"
+      o <- kPrfGo sig c p g t
+      os <- goKids ps' ls rs' is
+      pure (o :: os)
+    goKids _ _ _ _ = kerr "kernel: proof node arity"
+
+  ||| One child: the shape has exactly one part.
+  node1 : Sig -> Ctx -> Goal -> (Elem -> Maybe Elem) -> (Elem -> Elem) -> (Ctx, Maybe Ty) -> Prf -> KM Elem
+  node1 sig ctx goal shape rebuild info p =
+    node sig ctx goal (\x => map (\u => [u]) (shape x))
+         (\xs => case xs of
+                   [u] => Just (rebuild u)
+                   _ => Nothing)
+         (\_ => pure [info]) [p]
+
+  ||| The expected type of spine entry i of a signature reference,
+  ||| instantiated by the earlier entries.
+  sigChildTy : Sig -> String -> List Elem -> Nat -> KM (Maybe Ty)
+  sigChildTy sig x es i =
+    kSigLookup sig x >>= \entryX => case entryX of
+      Just (SigDef delta _ _ _) => pure (inst delta)
+      Just (SigDecl delta _ _) => pure (inst delta)
+      _ => pure Nothing
+   where
+    inst : SnocList Ty -> Maybe Ty
+    inst delta = case getAt i (toList delta) of
+      Just entryTy => Just (substTy entryTy (embed (cast (take i es))))
+      Nothing => Nothing
+
+  ||| The whole proof, read against its goal at the position's type
+  ||| (Nothing: undetermined). Under → the produced side is returned
+  ||| (unjoined); under ⇐ the return value is meaningless.
+  kPrfGo : Sig -> Ctx -> Prf -> Goal -> Maybe Ty -> KM Elem
+  kPrfGo sig ctx prf goal mty = case (prf, goal) of
+    -- ----- structure -----
+    (PReflx, GDir _ x) => pure x
+    (PReflx, GChk l r) => do sameB sig l r; pure l
+    (PDeltaAll ns, GDir True x) => unfoldAllK sig ns x
+    (PDeltaAll ns, GDir False x) => kerr "kernel: δ-all runs left to right only"
+    (PDeltaAll ns, GChk l r) => do
+      l' <- unfoldAllK sig ns l
+      sameB sig l' r
+      pure l
+    (PSym q, GDir d x) => kPrfGo sig ctx q (GDir (not d) x) mty
+    (PSym q, GChk l r) => do
+      ignore (kPrfGo sig ctx q (GChk r l) mty)
+      pure l
+    (PTrans q1 q2, GDir True x) =>
+      if dirP True q1 && dirP True q2
+        then do
+          m <- kPrfGo sig ctx q1 (GDir True x) mty >>= kJoinElem sig
+          kPrfGo sig ctx q2 (GDir True m) mty
+        else if synthP q2
+        then do
+          (b, c, t) <- kPrfS sig ctx q2
+          posTyCheck sig ctx mty x t
+          bJ <- kJoinElem sig b
+          ignore (kPrfGo sig ctx q1 (GChk x bJ) mty)
+          pure c
+        else kerr "kernel: transitivity with no computable middle (left to right)"
+    (PTrans q1 q2, GDir False x) =>
+      if dirP False q2 && dirP False q1
+        then do
+          m <- kPrfGo sig ctx q2 (GDir False x) mty >>= kJoinElem sig
+          kPrfGo sig ctx q1 (GDir False m) mty
+        else if synthP q1
+        then do
+          (a, b, t) <- kPrfS sig ctx q1
+          posTyCheck sig ctx mty x t
+          bJ <- kJoinElem sig b
+          ignore (kPrfGo sig ctx q2 (GChk bJ x) mty)
+          pure a
+        else kerr "kernel: transitivity with no computable middle (right to left)"
+    (PTrans q1 q2, GChk l r) =>
+      if dirP True q1
+        then do
+          m <- kPrfGo sig ctx q1 (GDir True l) mty >>= kJoinElem sig
+          kPrfGo sig ctx q2 (GChk m r) mty
+        else if dirP False q2
+        then do
+          m <- kPrfGo sig ctx q2 (GDir False r) mty >>= kJoinElem sig
+          kPrfGo sig ctx q1 (GChk l m) mty
+        else kerr "kernel: transitivity with no computable middle"
+    (PTransAt q1 m q2, GDir True x) => do
+      mJ <- kJoinElem sig m
+      ignore (kPrfGo sig ctx q1 (GChk x mJ) mty)
+      kPrfGo sig ctx q2 (GDir True mJ) mty
+    (PTransAt q1 m q2, GDir False x) => do
+      mJ <- kJoinElem sig m
+      ignore (kPrfGo sig ctx q2 (GChk mJ x) mty)
+      kPrfGo sig ctx q1 (GDir False mJ) mty
+    (PTransAt q1 m q2, GChk l r) => do
+      mJ <- kJoinElem sig m
+      ignore (kPrfGo sig ctx q1 (GChk l mJ) mty)
+      ignore (kPrfGo sig ctx q2 (GChk mJ r) mty)
+      pure l
+    (PConv pt tyX q, _) => do
+      ty <- needTy mty "type conversion"
+      case ty of
+        TopTy => kerr "kernel: a type equation cannot convert its type"
+        _ => pure ()
+      kEqTy sig ctx pt ty tyX
+      kPrfGo sig ctx q goal (Just tyX)
+    -- ----- type-directed leaves (⇐ only) -----
+    (PIrrel, GChk l r) => do
+      ty <- needTy mty "irrelevance"
+      ty' <- kWhnfT sig ty
+      case ty' of
+        OneTy => pure l
+        ZeroTy => pure l
+        -- el-prf-prop: proof irrelevance — an ≡-/∥·∥-headed type IS
+        -- a prop; a neutral takes the judgemental question at Ω
+        Elem.EqTy _ _ _ => pure l
+        Squash _ => pure l
+        _ => do
+          ok <- kIsProp sig ctx ty'
+          if ok then pure l
+            else kerr "kernel: irrelevance at a non-propositional type"
+    (PEtaPi q, GChk l r) => do
+      ty <- needTy mty "Π-η"
+      ty' <- kWhnfT sig ty
+      case ty' of
+        PiTy dom cod => do
+          kEqElem sig (ctx :< dom) q
+            (PiApp (substElem l Wk) (CtxVar 0))
+            (PiApp (substElem r Wk) (CtxVar 0))
+            cod
+          pure l
+        _ => kerr "kernel: Π-η at a non-Π type"
+    (PEtaSigma q1 q2, GChk l r) => do
+      ty <- needTy mty "Σ-η"
+      ty' <- kWhnfT sig ty
+      case ty' of
+        SigmaTy dom cod => do
+          kEqElem sig ctx q1 (SigmaElim1 l) (SigmaElim1 r) dom
+          kEqElem sig ctx q2 (SigmaElim2 l) (SigmaElim2 r)
+            (substTy cod (Ext Id (SigmaElim1 l)))
+          pure l
+        _ => kerr "kernel: Σ-η at a non-Σ type"
+    (PQuotWit mq, GChk l r) => do
+      ty <- needTy mty "quotient witness"
+      ty' <- kWhnfT sig ty
+      case (l, r, ty') of
+        (Class a, Class b, QuotTy dom rel) => do
+          relInst <- kJoinElem sig (substElem rel (Ext (Ext Id a) b))
+          case relInst of
+            Squash sq => do
+              sq' <- kWhnfT sig sq
+              case sq' of
+                OneTy => pure l
+                _ => kerr "kernel: quotient witness does not apply"
+            Elem.EqTy wl wr wt =>
+              case mq of
+                Just q => do kEqElem sig ctx q wl wr wt; pure l
+                Nothing => kerr "kernel: quotient witness needs a proof at an equality relation"
+            _ => kerr "kernel: quotient witness at a non-evident relation"
+        _ => kerr "kernel: quotient witness at a non-class equation"
+    -- el-quot-eq, faithful: the relation instance is inhabited by
+    -- the supplied proof, whatever the relation's shape
+    (PQuotWitPrf w skW, GChk l r) => do
+      ty <- needTy mty "quotient witness"
+      ty' <- kWhnfT sig ty
+      case (l, r, ty') of
+        (Class a, Class b, QuotTy _ rel) => do
+          relInst <- kJoinElem sig (substElem rel (Ext (Ext Id a) b))
+          kCheckE sig ctx w relInst skW
+          pure l
+        _ => kerr "kernel: supplied quotient witness at a non-class equation"
+    (PInj q, GChk l r) => do
+      ty <- needTy mty "injection"
+      ty' <- kWhnfT sig ty
+      case (l, r, ty') of
+        (Inj1 x, Inj1 y, SumTy a _) => do kEqElem sig ctx q x y a; pure l
+        (Inj2 x, Inj2 y, SumTy _ b) => do kEqElem sig ctx q x y b; pure l
+        _ => kerr "kernel: injection proof at a non-matching equation"
+    (PPropExt s skS t skT, GChk l r) => do
+      -- code-prop-eq: the sides are prop codes; each direction is an
+      -- implication between their decodings
+      ty <- needTy mty "propext"
+      ty' <- kWhnfT sig ty
+      case ty' of
+        PropTy => do
+          kCheckE sig ctx s (PiTy l (substTy r Wk)) skS
+          kCheckE sig ctx t (PiTy r (substTy l Wk)) skT
+          pure l
+        _ => kerr "kernel: propext at a non-Ω type"
+    (PPrfCong q, GChk l r) => do
+      -- prop-lift-eq: the sides MUST be props (the lift's side
+      -- condition is load-bearing — without it a code equation
+      -- could be smuggled through Ω's extensional discipline)
+      ty <- needTy mty "prop-lift"
+      ty' <- kWhnfT sig ty
+      case ty' of
+        TopTy => do
+          okL <- kIsProp sig ctx l
+          okR <- kIsProp sig ctx r
+          if okL && okR
+            then do kEqElem sig ctx q l r PropTy; pure l
+            else kerr "kernel: prop-lift-eq at non-prop types"
+        _ => kerr "kernel: prop-lift-eq on an element equation"
+    (PIrrel, GDir _ _) => needBoth
+    (PEtaPi _, GDir _ _) => needBoth
+    (PEtaSigma _ _, GDir _ _) => needBoth
+    (PQuotWit _, GDir _ _) => needBoth
+    (PQuotWitPrf _ _, GDir _ _) => needBoth
+    (PInj _, GDir _ _) => needBoth
+    (PPropExt _ _ _ _, GDir _ _) => needBoth
+    (PPrfCong _, GDir _ _) => needBoth
+    -- ----- synthesising leaves -----
+    -- x-δ left to right: a plain unfolding of the occurrence — no
+    -- positional check is needed, the occurrence is well-typed by the
+    -- invariant and δ preserves its type; spines compared modulo β
+    (PDelta x es, GDir True u) =>
+      case u of
+        SigVar y es' =>
+          if y /= x then kerr "kernel: δ leaf at a reference to '\{y}', stated for '\{x}'"
+          else kSigLookup sig x >>= \entryX => case entryX of
+            Just (SigDef _ _ body _) => do
+              esL <- kJoinSubNorm sig es
+              esU <- kJoinSubNorm sig es'
+              if esL == esU
+                then pure (substElem body (embed es'))
+                else kerr "kernel: δ leaf spine does not match the occurrence of '\{x}'"
+            Just _ => kerr "kernel: δ leaf at a declaration '\{x}'"
+            Nothing => kerr "kernel: δ leaf names unknown definition '\{x}'"
+        _ => kerr "kernel: δ leaf at a non-reference [at \{show u}]"
+    (PRefl _, _) => synthLeaf
+    (PPath _ _ _, _) => synthLeaf
+    (PDelta _ _, _) => synthLeaf
+    (PSel _ _, _) => synthLeaf
+    -- ----- congruences -----
+    (CZeroElim q, _) =>
+      node1 sig ctx goal (\x => case x of ZeroElim u => Just u; _ => Nothing) ZeroElim (ctx, Just ZeroTy) q
+    (CNatIntro1 q, _) =>
+      node1 sig ctx goal (\x => case x of NatIntro1 u => Just u; _ => Nothing) NatIntro1 (ctx, Just NatTy) q
+    (CNatElim m qz qs qn, _) =>
+      let kids : List Elem -> KM (List (Ctx, Maybe Ty))
+          kids [z, s, n] = case m of
+            -- the CONSTANT-MOTIVE reading: the case positions at the
+            -- node's own type (a valid congruence instance whose
+            -- premises are demanded at the constant type)
+            Nothing =>
+              pure [ (ctx, mty)
+                   , (ctx :< NatTy :< fromMaybe TopTy (map (\t => substTy t Wk) mty), map (\t => substTy t (wkSubN 2)) mty)
+                   , (ctx, Just NatTy) ]
+            Just mot => do
+              checkTyP sig (ctx :< NatTy) mot
+              motiveAgrees (substTy mot (Ext Id n))
+              pure [ (ctx, Just (substTy mot (Ext Id NatIntro0)))
+                   , (ctx :< NatTy :< mot, Just (substTy mot (Chain (Ext Wk (NatIntro1 (CtxVar 0))) Wk)))
+                   , (ctx, Just NatTy) ]
+          kids _ = kerr "kernel: proof node arity"
+      in node sig ctx goal (\x => case x of NatElim z s n => Just [z, s, n]; _ => Nothing)
+              (\xs => case xs of [z, s, n] => Just (NatElim z s n); _ => Nothing) kids [qz, qs, qn]
+    (CPiIntro q, _) => do
+      ty <- needTy mty "λ-congruence"
+      ty' <- kWhnfT sig ty
+      case ty' of
+        PiTy a b => node1 sig ctx goal (\x => case x of PiIntro f => Just f; _ => Nothing) PiIntro (ctx :< a, Just b) q
+        _ => kerr "kernel: λ-congruence at a non-Π type"
+    (CPiApp qf qa, _) =>
+      let kids : List Elem -> KM (List (Ctx, Maybe Ty))
+          kids [f, a] = do
+            fTy <- inferHead sig ctx f
+            aTy <- the (KM (Maybe Ty)) $ case fTy of
+              Just t => do
+                t' <- kWhnfT sig t
+                pure (case t' of
+                        PiTy dom _ => Just dom
+                        _ => Nothing)
+              Nothing => pure Nothing
+            pure [(ctx, fTy), (ctx, aTy)]
+          kids _ = kerr "kernel: proof node arity"
+      in node sig ctx goal (\x => case x of PiApp f a => Just [f, a]; _ => Nothing)
+              (\xs => case xs of [f, a] => Just (PiApp f a); _ => Nothing) kids [qf, qa]
+    (CSigmaIntro qu qv, _) => do
+      ty <- needTy mty "pair congruence"
+      ty' <- kWhnfT sig ty
+      case ty' of
+        SigmaTy a b =>
+          let kids : List Elem -> KM (List (Ctx, Maybe Ty))
+              kids [u, v] = pure [(ctx, Just a), (ctx, Just (substTy b (Ext Id u)))]
+              kids _ = kerr "kernel: proof node arity"
+          in node sig ctx goal (\x => case x of SigmaIntro u v => Just [u, v]; _ => Nothing)
+                  (\xs => case xs of [u, v] => Just (SigmaIntro u v); _ => Nothing) kids [qu, qv]
+        _ => kerr "kernel: pair congruence at a non-Σ type"
+    (CSigmaElim1 q, _) =>
+      node sig ctx goal (\x => case x of SigmaElim1 u => Just [u]; _ => Nothing)
+           (\xs => case xs of [u] => Just (SigmaElim1 u); _ => Nothing)
+           (\xs => case xs of
+                     [u] => do mt <- inferHead sig ctx u; pure [(ctx, mt)]
+                     _ => kerr "kernel: proof node arity") [q]
+    (CSigmaElim2 q, _) =>
+      node sig ctx goal (\x => case x of SigmaElim2 u => Just [u]; _ => Nothing)
+           (\xs => case xs of [u] => Just (SigmaElim2 u); _ => Nothing)
+           (\xs => case xs of
+                     [u] => do mt <- inferHead sig ctx u; pure [(ctx, mt)]
+                     _ => kerr "kernel: proof node arity") [q]
+    (CInj1 q, _) => do
+      ty <- needTy mty "inj₁ congruence"
+      ty' <- kWhnfT sig ty
+      case ty' of
+        SumTy a _ => node1 sig ctx goal (\x => case x of Inj1 u => Just u; _ => Nothing) Inj1 (ctx, Just a) q
+        _ => kerr "kernel: inj₁ congruence at a non-⊎ type"
+    (CInj2 q, _) => do
+      ty <- needTy mty "inj₂ congruence"
+      ty' <- kWhnfT sig ty
+      case ty' of
+        SumTy _ b => node1 sig ctx goal (\x => case x of Inj2 u => Just u; _ => Nothing) Inj2 (ctx, Just b) q
+        _ => kerr "kernel: inj₂ congruence at a non-⊎ type"
+    (CSumElim m ql qr qt, _) =>
+      let kids : List Elem -> KM (List (Ctx, Maybe Ty))
+          kids [l, r, t] = do
+            tTy <- inferHead sig ctx t
+            (a, b) <- the (KM (Ty, Ty)) $ case tTy of
+              Just x => do
+                x' <- kWhnfT sig x
+                pure (case x' of
+                        SumTy a b => (a, b)
+                        _ => (TopTy, TopTy))
+              Nothing => pure (TopTy, TopTy)
+            case m of
+              -- the case positions are motive-dependent: undetermined
+              -- without a carried motive
+              Nothing => pure [(ctx :< a, Nothing), (ctx :< b, Nothing), (ctx, tTy)]
+              Just mot => do
+                checkTyP sig (ctx :< SumTy a b) mot
+                motiveAgrees (substTy mot (Ext Id t))
+                pure [ (ctx :< a, Just (substTy mot (Ext Wk (Inj1 (CtxVar 0)))))
+                     , (ctx :< b, Just (substTy mot (Ext Wk (Inj2 (CtxVar 0)))))
+                     , (ctx, Just (SumTy a b)) ]
+          kids _ = kerr "kernel: proof node arity"
+      in node sig ctx goal (\x => case x of SumElim l r t => Just [l, r, t]; _ => Nothing)
+              (\xs => case xs of [l, r, t] => Just (SumElim l r t); _ => Nothing) kids [ql, qr, qt]
+    -- SHARED formers are typed at both 𝕌 (codes) and 𝕍 (types): the
+    -- parent's expected type decides where the components sit. The
+    -- binder-crossing component is under the RIGHT side's domain
+    -- (ty-pi-cong / ty-sigma-cong): under → left to right that is the
+    -- domain the domain proof produces
+    (CPiTy qa qb, _) => binderTy (\x => case x of Elem.PiTy a b => Just (a, b); _ => Nothing) Elem.PiTy qa qb
+    (CSigmaTy qa qb, _) => binderTy (\x => case x of Elem.SigmaTy a b => Just (a, b); _ => Nothing) Elem.SigmaTy qa qb
+    (CSumTy qa qb, _) => do
+      cls <- compClassifier sig mty
+      node sig ctx goal (\x => case x of Elem.SumTy a b => Just [a, b]; _ => Nothing)
+           (\xs => case xs of [a, b] => Just (Elem.SumTy a b); _ => Nothing)
+           (\_ => pure [(ctx, Just cls), (ctx, Just cls)]) [qa, qb]
+    -- child 2 of ≡ is its ∈-type — a term at 𝕍; children 0/1 sit at it
+    (CEqTy ql qr qt, _) =>
+      node sig ctx goal (\x => case x of Elem.EqTy l r t => Just [l, r, t]; _ => Nothing)
+           (\xs => case xs of [l, r, t] => Just (Elem.EqTy l r t); _ => Nothing)
+           (\xs => case xs of
+                     [_, _, t] => pure [(ctx, Just t), (ctx, Just t), (ctx, Just TopTy)]
+                     _ => kerr "kernel: proof node arity") [ql, qr, qt]
+    (CQuotTy qa qr, _) => do
+      cls <- compClassifier sig mty
+      -- the relation lives under the domain twice; under → left to
+      -- right that is the domain the domain proof produces
+      case goal of
+        GDir d x => case x of
+          QuotTy a r => do
+            a' <- kPrfGo sig ctx qa (GDir d a) (Just cls)
+            let dom = if d then a' else a
+            r' <- kPrfGo sig (ctx :< dom :< substTy dom Wk) qr (GDir d r) (Just PropTy)
+            pure (QuotTy a' r')
+          _ => kerr "kernel: proof shape does not match the side [\{show x}]"
+        GChk l r => case (l, r) of
+          (QuotTy a0 r0, QuotTy a1 r1) => do
+            ignore (kPrfGo sig ctx qa (GChk a0 a1) (Just cls))
+            ignore (kPrfGo sig (ctx :< a1 :< substTy a1 Wk) qr (GChk r0 r1) (Just PropTy))
+            pure l
+          _ => kerr "kernel: proof shape does not match the sides\n  left:  \{show l}\n  right: \{show r}"
+    (CSigVar x qs, _) =>
+      node sig ctx goal (\u => case u of
+                                 SigVar y es => if y == x then Just (toList es) else Nothing
+                                 _ => Nothing)
+           (\xs => Just (SigVar x (cast xs)))
+           (\es => traverse (\i => (\t => (ctx, t)) <$> sigChildTy sig x es i) (indices es)) qs
+    (CClass q, _) => do
+      ty <- needTy mty "class congruence"
+      ty' <- kWhnfT sig ty
+      case ty' of
+        QuotTy dom _ => node1 sig ctx goal (\x => case x of Class u => Just u; _ => Nothing) Class (ctx, Just dom) q
+        _ => kerr "kernel: class congruence at a non-quotient type"
+    (CQuotElim m qf qq, _) =>
+      let kids : List Elem -> KM (List (Ctx, Maybe Ty))
+          kids [f, q] = do
+            qTy <- inferHead sig ctx q
+            (a, r) <- the (KM (Ty, Ty)) $ case qTy of
+              Just x => do
+                x' <- kWhnfT sig x
+                pure (case x' of
+                        QuotTy a r => (a, r)
+                        _ => (TopTy, TopTy))
+              Nothing => pure (TopTy, TopTy)
+            case m of
+              Nothing => pure [(ctx :< a, Nothing), (ctx, qTy)]
+              Just mot => do
+                checkTyP sig (ctx :< QuotTy a r) mot
+                motiveAgrees (substTy mot (Ext Id q))
+                pure [(ctx :< a, Just (substTy mot (Ext Wk (Class (CtxVar 0))))), (ctx, Just (QuotTy a r))]
+          kids _ = kerr "kernel: proof node arity"
+      in node sig ctx goal (\x => case x of QuotElim f q => Just [f, q]; _ => Nothing)
+              (\xs => case xs of [f, q] => Just (QuotElim f q); _ => Nothing) kids [qf, qq]
+    (CSquash q, _) =>
+      node1 sig ctx goal (\x => case x of Squash u => Just u; _ => Nothing) Squash (ctx, Just TopTy) q
+    (CQSort sg k qs, _) =>
+      node sig ctx goal (\u => case u of
+                                 QSort sg' k' es => if sg == sg' && k == k' then Just (toList es) else Nothing
+                                 _ => Nothing)
+           (\xs => Just (QSort sg k (cast xs)))
+           (\es => pure (map (\i => (ctx, qSpineChildTy sg k (cast es) i)) (indices es))) qs
+    (CQCtor sg k qs, _) =>
+      node sig ctx goal (\u => case u of
+                                 QCtor sg' k' es => if sg == sg' && k == k' then Just (toList es) else Nothing
+                                 _ => Nothing)
+           (\xs => Just (QCtor sg k (cast xs)))
+           (\es => pure (map (\i => (ctx, qSpineChildTy sg k (cast es) i)) (indices es))) qs
+    (CQElim sg k ms fs qs qw, _) =>
+      node sig ctx goal (\u => case u of
+                                 QElim sg' k' ms' fs' es w =>
+                                   if sg == sg' && k == k' && ms == ms' && fs == fs' then Just (toList es ++ [w]) else Nothing
+                                 _ => Nothing)
+           (\xs => case reverse xs of
+                     w :: esR => Just (QElim sg k ms fs (cast (reverse esR)) w)
+                     _ => Nothing)
+           (\xs => case reverse xs of
+                     _ :: esR =>
+                       let es = reverse esR in
+                       pure (map (\i => (ctx, qSpineChildTy sg k (cast es) i)) (indices es)
+                             ++ [(ctx, Just (QSort sg k (cast es)))])
+                     _ => kerr "kernel: proof node arity") (qs ++ [qw])
+    (COut q, _) =>
+      node sig ctx goal (\x => case x of Out u => Just [u]; _ => Nothing)
+           (\xs => case xs of [u] => Just (Out u); _ => Nothing)
+           (\xs => case xs of
+                     [u] => do mt <- inferHead sig ctx u; pure [(ctx, mt)]
+                     _ => kerr "kernel: proof node arity") [q]
+    -- corec: the carrier is a code, the seed sits at it; the body is
+    -- carrier-dependent (undetermined, like ⊎-elim's cases)
+    (CCorec pf qa qf qx, _) =>
+      node sig ctx goal (\u => case u of
+                                 Corec pf' a f x => if pf == pf' then Just [a, f, x] else Nothing
+                                 _ => Nothing)
+           (\xs => case xs of [a, f, x] => Just (Corec pf a f x); _ => Nothing)
+           (\xs => case xs of
+                     [a, _, _] => pure [(ctx, Just UniverseTy), (ctx :< a, Nothing), (ctx, Just a)]
+                     _ => kerr "kernel: proof node arity") [qa, qf, qx]
+   where
+    needBoth : KM Elem
+    needBoth = kerr "kernel: a type-directed proof needs both sides [\{show prf}]"
+
+    ||| A synthesising leaf read against the goal: its stated equation
+    ||| is at the position's type, and its sides meet the goal's under β.
+    synthLeaf : KM Elem
+    synthLeaf = do
+      (a, b, t) <- kPrfS sig ctx prf
+      case goal of
+        GDir d x => do
+          posTyCheck sig ctx mty x t
+          sameB sig (if d then a else b) x
+          pure (if d then b else a)
+        GChk l r => do
+          posTyCheck sig ctx mty l t
+          sameB sig a l
+          sameB sig b r
+          pure l
+
+    ||| A carried motive's instance at the scrutinee is the node's type.
+    motiveAgrees : Ty -> KM ()
+    motiveAgrees inst = case mty of
+      Nothing => pure ()
+      Just t => do
+        ok <- tyAgree sig t inst
+        if ok then pure ()
+          else kerr "kernel: the carried motive does not instantiate to the position's type"
+
+    indices : List a -> List Nat
+    indices xs = go 0 xs
+     where
+      go : Nat -> List a -> List Nat
+      go _ [] = []
+      go i (_ :: rest) = i :: go (S i) rest
+
+    ||| Π/Σ congruence: the domain at the classifier, the codomain under
+    ||| the right side's domain.
+    binderTy : (Elem -> Maybe (Elem, Elem)) -> (Elem -> Elem -> Elem) -> Prf -> Prf -> KM Elem
+    binderTy shape rebuild qa qb = do
+      cls <- compClassifier sig mty
+      case goal of
+        GDir d x => case shape x of
+          Just (a, b) => do
+            a' <- kPrfGo sig ctx qa (GDir d a) (Just cls)
+            let dom = if d then a' else a
+            b' <- kPrfGo sig (ctx :< dom) qb (GDir d b) (Just cls)
+            pure (rebuild a' b')
+          Nothing => kerr "kernel: proof shape does not match the side [\{show x}]"
+        GChk l r => case (shape l, shape r) of
+          (Just (a0, b0), Just (a1, b1)) => do
+            ignore (kPrfGo sig ctx qa (GChk a0 a1) (Just cls))
+            ignore (kPrfGo sig (ctx :< a1) qb (GChk b0 b1) (Just cls))
+            pure l
+          _ => kerr "kernel: proof shape does not match the sides\n  left:  \{show l}\n  right: \{show r}"
   ||| Γ ⊢ e ⇐ A, kernel-side.
   export
   kCheckE : Sig -> Ctx -> Elem -> Ty -> Skel -> KM ()
@@ -2573,7 +2643,7 @@ mutual
                       kCheckE sig ctx m mty (Nd [] [])
                       goMethods cjs rest
                     goMethods _ _ = kerr "kernel: method count mismatch"
-                let goCoherences : List Nat -> List ECert -> KM ()
+                let goCoherences : List Nat -> List Prf -> KM ()
                     goCoherences [] [] = pure ()
                     goCoherences (ej :: ejs) (coh :: rest) = do
                       (dtel, _, lhs, rhs, cty) <- liftQ (coherenceAt sg mots mths ej)
@@ -3009,11 +3079,11 @@ kCheckTyDefItem sig fuel art =
 -- ===== Entry points =====
 
 export
-kCheckEqElem : Sig -> Ctx -> Nat -> ECert -> Elem -> Elem -> Ty -> Either KErr ()
+kCheckEqElem : Sig -> Ctx -> Nat -> Prf -> Elem -> Elem -> Ty -> Either KErr ()
 kCheckEqElem sig ctx fuel cert l r ty =
   map fst (runKM (kEqElem sig ctx cert l r ty) fuel)
 
 export
-kCheckEqTy : Sig -> Ctx -> Nat -> ECert -> Ty -> Ty -> Either KErr ()
+kCheckEqTy : Sig -> Ctx -> Nat -> Prf -> Ty -> Ty -> Either KErr ()
 kCheckEqTy sig ctx fuel cert a b =
   map fst (runKM (kEqTy sig ctx cert a b) fuel)

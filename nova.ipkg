@@ -16,6 +16,7 @@ modules = Nova.Diagnostic
         , Nova.Kernel.Dormant.Derivation
         , Nova.Compute
         , Nova.Elaboration.Beta
+        , Nova.Elaboration.Cert
         , Nova.Elaboration.Named
         , Nova.Elaboration
         , Nova.Elaboration.Surface
