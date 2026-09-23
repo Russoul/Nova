@@ -146,13 +146,23 @@ implementation's names):
     | qrel u v                                     (SelQRel)
     | qidx i                                       (SelQIdx)
 
-  step ::= (onLhs, path, lic, sels, flip)          (Step)
+  step ::= (onLhs, path, lic, sels, flip, licNorm) (Step)
     onLhs : which side of the equation is rewritten
     path  : child indices from the root to the rewrite point
-    lic   : the step's LICENSE — a proof element p (§3, §4), or a
-            path license  qpath 𝕔 θ  (§4)
+    lic   : the step's LICENSE — a proof element p (§3, §4), a
+            path license  qpath 𝕔 θ  (§4), an UNFOLD license
+            unfold x ē  (x-δ at the path, §4), or an UNFOLD-ALL
+            license  unfold-all x̄  (every addressable occurrence of
+            the named definitions at once, at the root, §4)
     sels  : component selectors applied to that equation (§5)
     flip  : whether the licensed equation is used right-to-left
+    licNorm : steps NORMALIZING the licensed equation's own sides
+            before it is used — its lhs-steps (onLhs) on its lhs, its
+            rhs-steps on its rhs, each replayed by the typed descent
+            at the licence's type in the root context and β-joined
+            (§4). A hypothesis k + Z ≡ k applies at an occurrence of
+            ℕ-elim … k Z because the LICENCE unfolds and computes to
+            meet the goal; the goal is never un-β'd back to it
 
   final ::=                                        (Final)
       beta                                         (FBeta)
@@ -175,6 +185,11 @@ implementation's names):
     | sumCong 𝒞 𝒞                                  (FSumCong)
     | qiitCong 𝒞̄ 𝒞̄                                 (FQiitCong)
     | nuCong 𝒞̄                                     (FNuCong)
+    | chain (p̄ ⟨sk⟩) 𝒞̄                             (FChain)
+        -- el-trans through STATED middles: points p₀ … pₙ, each
+        -- checked at the equation's type with its skeleton, and n + 2
+        -- certificates — l ≐ p₀, pᵢ₋₁ ≐ pᵢ, pₙ ≐ r. A surface chain's
+        -- composite: its links compose, nothing is inverted
 
   The three Ω finals: propext is code-prop-eq — the sides are prop codes
   and s, t are the two implications, CHECKED as typings at their
@@ -194,8 +209,11 @@ implementation's names):
   𝒞 ::= (tyEx?, steps, final)                      (ECert)
     tyEx  : optional TYPE BRIDGE (T′, 𝒞ᵀ) — replay the equation at T′
             instead of the site's type, justified by 𝒞ᵀ ▷ T ≐ T′ (§7)
-    steps : rewrite steps, applied in order
+    steps : rewrite and unfold steps, applied in order
     final : how the sides are closed after the steps
+  A certificate carries NO licence list: every δ the replay performs
+  is a step (docs/NovaKernelRewrite.txt, CONVENTIONS — the kernel
+  never unfolds on its own initiative inside an equation).
 
 Child indexing, shared by paths, the typed descent (§6) and skeletons
 (§8) — binders crossed in parentheses:
@@ -372,6 +390,41 @@ the descent has already computed positionally, so no signature is
 re-checked at step level; a path license at a position whose expected
 type is undetermined or not a sort application is rejected.
 
+An UNFOLD license  unfold x ē  is x-δ for the definition
+(Δ ⊦ x ≔ t : T) ∈ Σ, the equation
+
+  x[ē] ≐ t[ē] : T[ē]
+
+FORWARD (flip = false, no selectors) it is applied by literal
+replacement: the subterm at the path must be x[ē′] with ē′ ≐ ē by
+β-join, and becomes t[ē′]. No positional type check is performed —
+the occurrence is well-typed by the replay invariant and δ preserves
+its type — so ē may mention binders the path crossed. FLIPPED it is
+a REFOLD, and goes through the licence path like a proof license: ē
+is checked against Δ in the root context (⇐ᵖ, §3), the equation
+above is derived, selectors apply, and the typed descent matches
+t[ē] at the position; a refold's spine therefore cannot mention
+crossed binders.
+
+An UNFOLD-ALL license  unfold-all x̄  (forward only, at the root)
+replaces every addressable occurrence (§2 child indexing: carried
+signatures, polynomials, motives and methods are opaque) of the named
+definitions by their bodies at once — one δ-ROUND of a join. It is
+what keeps a computation-heavy join linear: a numeral test unfolds a
+recursive definition hundreds of times, and one occurrence per step
+with a β-join after each would be quadratic on both sides.
+
+LICENCE NORMALIZATION. Before the licensed equation (l, r, A) of a
+proof or path license is matched, its licNorm steps are replayed on
+its own sides: l is β-joined and its lhs-steps applied in order
+(each by this section's rules, at type A, in the root context, then
+β-joined); likewise r with the rhs-steps; then selectors, then flip.
+This is how a candidate the producer stored normalized — a hypothesis
+whose sides it unfolded and rewrote against the store — is licensed
+from its RAW type: the normalization is replayed on the licence, not
+inverted on the goal (an inverted unfold has no position to land on
+once the unfolded body has β-reduced away).
+
 ////////// 5. Selectors //////////
 
 Selectors pass from an equation between same-headed terms to a
@@ -545,12 +598,18 @@ final):
      The bridge is the equation-level counterpart of the item level's
      head-exposure payload (§8): it lets steps land at positions whose
      structure only a lemma-normalized spelling of T exposes.
-  2. Normalize both sides.
-  3. Apply each step in order to its side (§4, §6), renormalizing the
+  2. β-JOIN both sides: every computation rule, NO δ — a definition
+     reference is stuck, whatever its classifier. (The old licensed
+     join, which unfolded the certificate's cited definitions and
+     every type definition freely, is gone: δ is a step.)
+  3. Apply each step in order to its side (§4, §6), β-joining the
      side after each step.
   4. Close by the final:
 
-  beta         nf-equal sides:  l = r  syntactically after ≜.
+  beta         β-joined sides identical:  l = r  syntactically. No
+               δβ rescue — an unfolding the join needs is an unfold
+               step, and a certificate that needs one it lacks is
+               rejected with both sides shown.
                # el-eq via ≜-chains
   prop         nf(T) ⇓ 𝟙 or 𝟘, or T is a PROPOSITION — ≡-/∥·∥-headed,
                # or a neutral that checks at Ω (kIsProp: the raw
@@ -597,6 +656,10 @@ final):
                against the context it was written in, so a proof the
                elaborator did not itself synthesize cannot be moved
                under a hypothesis binder.  # code-prop-eq
+  chain p̄⟨sk⟩ 𝒞̄
+               every point pᵢ checked Σ; Γ ⊦ pᵢ ⇐ T with its skeleton;
+               the certificates replayed in order between consecutive
+               terms of the sequence l, p₀, …, pₙ, r.  # el-trans
 
 Type equations — Σ; Γ ⊦ 𝒞 ▷ T₀ ≐ T₁: no bridge is admissible (a
 bridge on a type equation would be circular), steps apply through the
@@ -940,7 +1003,8 @@ EQUATION REPLAY (A1, A2), and three added by the QIIT extension
       rewrite point under, e.g., a bare ℕ-elim head is undetermined —
       the emitter's remedy is the type bridge (§7), which re-types
       the whole equation at a spelling where the position IS
-      determined.
+      determined. Forward UNFOLD steps (§4) bypass the descent and
+      are exempt from both A1 and A2.
 
   A3  OPAQUE CARRIERS. Rewrite paths do not descend into a carried
       signature 𝒮 or eliminator problem ℰ — their embedded Nova
@@ -976,6 +1040,18 @@ EQUATION REPLAY (A1, A2), and three added by the QIIT extension
       index code from its declaration site into the walk state of
       its use site). Foundation covers the rest; the restriction is
       checking incompleteness only.
+
+One residue of kernel-initiated δ remains, and is the descent's:
+the POSITIONAL TYPE CHECK (§6) compares the expected type at a
+rewrite position with the licence's type by full δβ normalization
+(nf, §1), since the expected type is reconstructed by the descent and
+may differ from the licence's by unfoldings no step addresses (type
+indices). It widens only that comparison of two types, never the
+equation being replayed, and it goes with the descent itself when
+certificates become proof terms carrying their own types
+(docs/NovaKernelRewrite.txt). Likewise head EXPOSURE at introduction
+forms, licence types and finals (kWhnf*) still unfolds freely: that
+is the next migration step (exposure as ascription + certificate).
 
 Two structural caveats restated from docs/NovaPipeline.txt: an
 annotation (motive, ascription, exposure target) is a REPRESENTATIVE,

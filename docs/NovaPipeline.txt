@@ -54,15 +54,15 @@ every judgement from its own Σ using only:
 
   * type synthesis over the annotated tree (annotations supply what
     synthesis cannot invent — see artifact format);
-  * FUEL-BOUNDED beta conversion (Foundation's ≜ rules: the beta
-    family, signature unfolding) — step budgets come
-    from the certificate, exhaustion means
-    REJECT, so the kernel is total: every artifact gets a verdict;
-  * CERTIFICATE REPLAY: at a conversion site, apply the recorded trace
-    steps mechanically — check each step's proof element, rewrite at
-    the given path in the given orientation, compare normal forms
-    (fuel-bounded normalization between the recorded extensional
-    steps).
+  * FUEL-BOUNDED β conversion (Foundation's ≜ rules: the beta family
+    and the eliminators' computation, NEVER signature unfolding) —
+    budgets come with the certificate, exhaustion means REJECT, so the
+    kernel is total: every artifact gets a verdict;
+  * CERTIFICATE REPLAY: at a conversion site, apply the recorded steps
+    mechanically — check each step's licence (a proof element, or a
+    DEFINITION TO UNFOLD: every δ the replay performs is a recorded
+    step), rewrite at the given path in the given orientation, compare
+    β-normal forms.
 
 Consequences of the split:
 
@@ -117,41 +117,52 @@ principle (spellings are unique only up to a hypothesis-sensitive,
 undecidable equality). No consumer may compare annotations
 syntactically; only up to conversion.
 
-////////// Computation in the kernel: bounded, not certified //////////
+////////// Computation in the kernel: β bounded, δ certified //////////
 
-A design alternative was considered and recorded here deliberately:
-move beta itself into the certificate (every ≜-step a recorded
-(rule, path) entry; the kernel a pure single-step replayer comparing
-terms syntactically). Its attractions are real — the kernel becomes
-structurally total, the certificate becomes a literally linearized
-Foundation equality derivation (finest possible audit granularity),
-and no strategy coupling between elaborator and kernel can exist.
+Two kinds of computation meet at a conversion site, and they are
+treated differently.
 
-It loses on measured grounds: computation-heavy discharges (numeral
-tests, unfolding recursive definitions) make traces proportional to
-reduction length with β-duplication blowups; the kernel sheds only the
-fixpoint driver anyway (single-step application is the same clauses,
-and substitution — the genuinely subtle part — stays trusted because
-TYPING needs it); and head-exposure traces would spread annotation
-plumbing to every elimination position.
+β — the beta family, the eliminators' ι, let, ν-β, QIIT-β — is
+confluent, canonical, owned by the theory's own ≜ rules and not
+user-extensible. Its only sin is potential divergence under an
+inconsistent hypothesis, a liveness problem. The kernel therefore
+keeps a β-normalizer, FUEL-BOUNDED, budgets supplied with the
+certificate, exhaustion = reject: certificates stay small and the
+audit story is unchanged (the normalizer mirrors Foundation's ≜
+rules clause for clause). A design that logs every β-step was
+considered and rejected on measured grounds (computation-heavy
+discharges would make traces proportional to reduction length).
 
-The deciding observation: in this theory β was never the dangerous
-part of conversion. It is confluent, canonical, owned by the theory's
-own ≜ rules, and not user-extensible; the undecidable,
-hypothesis-sensitive part of conversion is the EXTENSIONAL part, which
-is already certificate-side. β's only sin is potential divergence
-under inconsistent hypotheses — a liveness problem, cured by fuel.
+δ — signature unfolding — is where a STRATEGY lives: which
+definitions, at which occurrences, how deep. A kernel that unfolds on
+its own initiative fixes one strategy in the trusted base and forces
+every producer to predict it step for step; the certificate's paths
+are meaningful only relative to the normal form that strategy
+computes, and any mismatch is a "bad path" (docs/NovaKernelRewrite.txt,
+CONVENTIONS, records the reasoning). So δ is CERTIFIED: a certificate
+carries UNFOLD steps — one occurrence at a path, or every addressable
+occurrence of named definitions at once (the δ-round of a join) —
+and the kernel's replay join is β-only. The producer's every
+unfolding is recorded; the licence vocabulary (`<def>.eq`,
+`<def>.unfold`) survives as a HINT to the untrusted engine about what
+to unfold and what to leave folded for matching, and the kernel never
+reads it. Consequence, measured: the corpus is accepted with the
+engine's exposure whitelist enforced OR fully open, at the same
+speed — the coupling that used to break a site when the two sides
+normalized differently is gone.
 
-Decision: the kernel keeps the ≜-engine, FUEL-BOUNDED, budgets
-supplied by the certificate, exhaustion = reject. Totality is
-preserved (the verdict gap is closed), certificates stay small (a
-number per site, not a computation log), and the audit story is
-unchanged (the kernel's normalizer mirrors Foundation's ≜ rules
-clause for clause). Full trace-beta remains the documented FALLBACK,
-to be revisited only if per-step auditability is ever needed (e.g.
-exporting kernel derivations to an external checker) or fuel coupling
-bites. The floor in every variant: α-comparison and substitution stay
-trusted — no kernel design knows less than that.
+A licence stated in one spelling and used at a position spelled
+otherwise (a hypothesis k + Z ≡ k at an occurrence of ℕ-elim … k Z)
+carries its own NORMALIZATION steps, replayed on the licence's sides
+before use — never inverted onto the goal, where an unfolded body
+that has β-reduced away leaves no position to refold.
+
+Two places still unfold on the kernel's own initiative, both outside
+equation replay and both slated for the next migration steps: the
+descent's positional TYPE check (two types compared by full δβ) and
+head EXPOSURE at introduction forms, licence types and finals. The
+floor in every variant: α-comparison and substitution stay trusted —
+no kernel design knows less than that.
 
 ////////// Who produces what: the two tactic layers //////////
 

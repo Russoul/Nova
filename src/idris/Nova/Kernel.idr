@@ -59,6 +59,27 @@ public export
 data StepLic : Type where
   LProof : Elem -> StepLic
   LPath : QSig -> Nat -> SubNorm -> StepLic
+  ||| A δ LICENSE — the ONLY way a definition unfolds during replay
+  ||| (docs/NovaKernelRewrite.txt, CONVENTIONS: never δ, x-δ is a
+  ||| proof leaf). The licensed equation is x[ē] ≐ t[ē] : T[ē] for the
+  ||| definition (Δ ⊦ x ≔ t : T). FORWARD (flip = False) it replaces
+  ||| the occurrence x[ē] at the path — matched literally, spine
+  ||| compared modulo β — by t[ē]: no positional check is needed, the
+  ||| occurrence is well-typed by the replay invariant and δ preserves
+  ||| its type, so ē may mention binders the path crossed. FLIPPED it
+  ||| REFOLDS t[ē] into x[ē] through the ordinary licence path, which
+  ||| checks ē against Δ in the root context — so a refold's spine
+  ||| must not mention crossed binders (the root-context discipline of
+  ||| every licence).
+  LUnfold : String -> SubNorm -> StepLic
+  ||| Every addressable occurrence of the named definitions unfolds AT
+  ||| ONCE (forward only, path []): the δ-round of a join. Explicit and
+  ||| deterministic — the kernel unfolds exactly the named definitions
+  ||| at exactly the addressable positions — and linear where one
+  ||| occurrence per step, each followed by a β-join, was quadratic
+  ||| (a numeral computation unfolds a recursive definition hundreds
+  ||| of times).
+  LUnfoldAll : List String -> StepLic
 
 ||| One replay step: at `path` (child indices; binders crossed are
 ||| counted by the walk itself) in the chosen side, rewrite by the
@@ -71,6 +92,15 @@ record Step where
   lic : StepLic
   sels : List Sel
   flip : Bool
+  ||| Steps NORMALIZING the licensed equation's OWN sides before it is
+  ||| used (onLhs selects the licence's lhs or rhs): each is replayed
+  ||| by the typed descent on that side, at the licence's type in the
+  ||| root context, then β-joined. This is how a licence stated in one
+  ||| spelling applies at a position spelled otherwise — a hypothesis
+  ||| k + Z ≡ k at an occurrence of ℕ-elim … k Z: the LICENCE unfolds
+  ||| (and β-reduces) to meet the goal; the goal is never asked to
+  ||| un-β back to the licence, which is not a rewrite at any path.
+  licNorm : List Step
 
 mutual
   public export
@@ -98,7 +128,12 @@ mutual
     ||| the hypothetical proof behind a checked squash-elim
     ||| (el-squash-e-prf): scrutinee inhabiting ∥A∥, plus a body
     ||| proving q[↑] under the raw squashee A
-    PSquashElim : Elem -> Skel -> Elem -> Skel -> Payload
+    ||| The scrutinee's type may arrive EXPOSED (its ∥·∥ head, or the
+    ||| squashee's head, reached by unfolding): the exposed type plus
+    ||| the certificate from the inferred one, as at PExpose — the body's
+    ||| hypothesis is then the squashee in the spelling the producer
+    ||| checked the body against
+    PSquashElim : Elem -> Skel -> Maybe (Ty, ECert) -> Elem -> Skel -> Payload
     ||| QIIT eliminator coherences — one certificate per equation entry
     ||| of the carried signature, replayed in the entry's ᴰ-context
     ||| (the QIIT generalization of quot-elim's wd)
@@ -174,6 +209,14 @@ mutual
     ||| binder to cross), needed when a component's equality is
     ||| extensional and cannot flatten into steps
     FSumCong : ECert -> ECert -> Final
+    ||| TRANSITIVITY through STATED middles (el-trans): the points
+    ||| p₀ … pₙ, each with its skeleton (checked at the equation's
+    ||| type), and n + 2 certificates — l ≐ p₀, then pᵢ₋₁ ≐ pᵢ for each
+    ||| link, then pₙ ≐ r (the endpoint ones bridge the equation's
+    ||| sides to the chain's written ends, δ-apart at most). A surface
+    ||| chain's composite: its links compose without inverting
+    ||| anyone's steps
+    FChain : List (Elem, Skel) -> List ECert -> Final
 
   public export
   record ECert where
@@ -186,18 +229,64 @@ mutual
     tyEx : Maybe (Ty, ECert)
     steps : List Step
     final : Final
-    ||| The site's cited `<def>.eq` unfold licenses (operator-authored,
-    ||| via the using clause). The FAST replay tier joins the sides
-    ||| under α + the computation rules + exactly these unfoldings —
-    ||| the strict conversion subset. Soundness never depends on the
-    ||| list (everything the licensed join equates is δβ-equal, and the
-    ||| full-δβ tier remains the fallback); it only bounds the fast
-    ||| tier's work to what the source names.
-    unfolds : List String
 
 public export
 MkECert : List Step -> Final -> ECert
-MkECert steps final = MkECertF Nothing steps final []
+MkECert steps final = MkECertF Nothing steps final
+
+-- Diagnostics only: a certificate's shape (skeletons elided).
+export
+covering
+Show Sel where
+  show SelSuc = "suc"
+  show SelDom = "dom"
+  show (SelCod u) = "cod(\{show u})"
+  show SelSumL = "inl"
+  show SelSumR = "inr"
+  show SelQDom = "qdom"
+  show (SelQRel u v) = "qrel(\{show u},\{show v})"
+  show (SelQIdx i) = "idx\{show i}"
+
+export
+covering
+Show StepLic where
+  show (LProof p) = "proof \{show p}"
+  show (LPath _ k th) = "path \{show k} \{show th}"
+  show (LUnfold x es) = "unfold \{x} \{show es}"
+  show (LUnfoldAll ns) = "unfold-all \{show ns}"
+
+mutual
+  export
+  covering
+  Show Step where
+    show st = "{\{if st.onLhs then "L" else "R"} @\{show st.path} \{show st.lic}\{if null st.sels then "" else " sels=" ++ show st.sels}\{if st.flip then " flipped" else ""}\{if null st.licNorm then "" else " licNorm=" ++ show st.licNorm}}"
+
+  export
+  covering
+  Show Final where
+    show FBeta = "β"
+    show FProp = "prop"
+    show (FWitness c) = "witness \{show c}"
+    show (FWitnessPrf w _) = "witness-prf \{show w}"
+    show (FInj c) = "inj \{show c}"
+    show (FEtaPi c) = "η→ \{show c}"
+    show (FEtaSigma c1 c2) = "η× \{show c1} \{show c2}"
+    show (FPropExt f _ g _) = "propext \{show f} \{show g}"
+    show (FPrfCong c) = "prf-cong \{show c}"
+    show (FQuotCong c) = "quot-cong \{show c}"
+    show (FPiCong c1 c2) = "Π-cong \{show c1} \{show c2}"
+    show (FSigmaCong c1 c2) = "Σ-cong \{show c1} \{show c2}"
+    show (FSumCong c1 c2) = "⊎-cong \{show c1} \{show c2}"
+    show (FChain pts cs) = "chain \{show (map fst pts)} \{show cs}"
+
+  export
+  covering
+  Show ECert where
+    show (MkECertF tyEx steps final) =
+      let bridge = the String (case tyEx of
+                     Nothing => ""
+                     Just (t, c) => "bridge " ++ show t ++ " by " ++ show c ++ "; ") in
+      "cert(" ++ bridge ++ "steps=" ++ show steps ++ "; final=" ++ show final ++ ")"
 
 -- ===== Fuel monad =====
 
@@ -444,19 +533,18 @@ mutual
   kTy : Sig -> Ty -> KM Ty
   kTy = kElem
 
--- ===== The strict-subset fast tier =====
+-- ===== The β join =====
 --
--- The kernel's side of the αβ-conversion architecture (docs/
--- PerfNotes.md, "The αβ-conversion survey"): a certificate's cited
--- `<def>.eq` licenses bound a JOIN normalizer — α + the computation
--- rules + exactly the licensed term unfoldings, with TYPE heads
--- exposing freely (the head-exposure discipline; per-item type
--- whitelists are future surface syntax) — and head matches use fueled
--- weak-head normalization instead of full normalization. Replay tries
--- this tier first and falls back to the full-δβ path, so acceptance
--- only ever grows: everything the licensed join equates is δβ-equal.
--- The fallback keeps every pre-strict certificate replayable during
--- the migration; a fully migrated corpus lets it be deleted.
+-- The replay normalizer: α + every computation rule (β, ι, let,
+-- ν-β, QIIT-β, code-squash-idem's instances) and NO δ. A definition
+-- reference is STUCK here, like a declaration's: definitions unfold
+-- during replay only through an explicit LUnfold step
+-- (docs/NovaKernelRewrite.txt, CONVENTIONS — the kernel never
+-- unfolds on its own initiative inside an equation, so the producer
+-- never has to predict a strategy and its every δ is recorded).
+-- Head matches at intro forms and licence types still use kWhnf*,
+-- which unfolds freely: that is shape EXPOSURE, the next step of the
+-- migration (ascription + certificate), not equation replay.
 
 mutual
   ||| Weak-head normalization WITH δ: contract only at the head, one
@@ -500,12 +588,16 @@ mutual
     case q' of
       Class a => do burn; kWhnfE sig (substElem f (Ext Id a))
       _ => pure (QuotElim f q')
+  -- code-squash-idem's instances collapse a squash whose squashee
+  -- exposes to a prop; otherwise the squashee stays AS WRITTEN — the
+  -- head is Squash already, and exposing what it wraps would hand
+  -- sub-checks a spelling their certificates were not made against
   kWhnfE sig (Squash t) = do
     t' <- kWhnfT sig t
     case t' of
       p@(Elem.EqTy _ _ _) => do burn; pure p
       p@(Squash _) => do burn; pure p
-      _ => pure (Squash t')
+      _ => pure (Squash t)
   kWhnfE sig (QElim sg k ms fs es w) = do
     w' <- kWhnfE sig w
     case w' of
@@ -530,160 +622,135 @@ mutual
   kWhnfT = kWhnfE
 
 mutual
-  kJoinSubNorm : List String -> Sig -> SubNorm -> KM SubNorm
-  kJoinSubNorm u sig [<] = pure [<]
-  kJoinSubNorm u sig (es :< e) = [| kJoinSubNorm u sig es :< kJoinElem u sig e |]
+  kJoinSubNorm : Sig -> SubNorm -> KM SubNorm
+  kJoinSubNorm sig [<] = pure [<]
+  kJoinSubNorm sig (es :< e) = [| kJoinSubNorm sig es :< kJoinElem sig e |]
 
-  ||| The licensed-join normal form: every computation rule, plus
-  ||| unfolding of exactly the licensed term definitions. The strict
-  ||| conversion subset's normalizer.
-  kJoinElem : List String -> Sig -> Elem -> KM Elem
-  kJoinElem u sig (CtxVar n) = pure (CtxVar n)
-  kJoinElem u sig (ZeroElim t) = ZeroElim <$> kJoinElem u sig t
-  kJoinElem u sig OneIntro = pure OneIntro
-  kJoinElem u sig NatIntro0 = pure NatIntro0
-  kJoinElem u sig (NatIntro1 t) = NatIntro1 <$> kJoinElem u sig t
-  kJoinElem u sig (NatElim z s t) = do
-    z' <- kJoinElem u sig z
-    s' <- kJoinElem u sig s
-    t' <- kJoinElem u sig t
+  ||| The β-join normal form: every computation rule, no δ.
+  kJoinElem : Sig -> Elem -> KM Elem
+  kJoinElem sig (CtxVar n) = pure (CtxVar n)
+  kJoinElem sig (ZeroElim t) = ZeroElim <$> kJoinElem sig t
+  kJoinElem sig OneIntro = pure OneIntro
+  kJoinElem sig NatIntro0 = pure NatIntro0
+  kJoinElem sig (NatIntro1 t) = NatIntro1 <$> kJoinElem sig t
+  kJoinElem sig (NatElim z s t) = do
+    z' <- kJoinElem sig z
+    s' <- kJoinElem sig s
+    t' <- kJoinElem sig t
     case t' of
       NatIntro0 => do burn; pure z'
-      NatIntro1 n => do burn; kJoinElem u sig (substElem s' (Ext (Ext Id n) (NatElim z' s' n)))
+      NatIntro1 n => do burn; kJoinElem sig (substElem s' (Ext (Ext Id n) (NatElim z' s' n)))
       _ => pure (NatElim z' s' t')
-  kJoinElem u sig (PiIntro f) = PiIntro <$> kJoinElem u sig f
-  kJoinElem u sig (PiApp f e) = do
-    e' <- kJoinElem u sig e
-    f' <- kJoinElem u sig f
+  kJoinElem sig (PiIntro f) = PiIntro <$> kJoinElem sig f
+  kJoinElem sig (PiApp f e) = do
+    e' <- kJoinElem sig e
+    f' <- kJoinElem sig f
     case f' of
-      PiIntro g => do burn; kJoinElem u sig (substElem g (Ext Id e'))
+      PiIntro g => do burn; kJoinElem sig (substElem g (Ext Id e'))
       _ => pure (PiApp f' e')
-  kJoinElem u sig (Let a b) = do
+  kJoinElem sig (Let a b) = do
     burn
-    kJoinElem u sig (substElem b (Ext (Ext Id a) Star))
-  kJoinElem u sig (SigmaIntro a b) = [| SigmaIntro (kJoinElem u sig a) (kJoinElem u sig b) |]
-  kJoinElem u sig (SigmaElim1 t) = do
-    t' <- kJoinElem u sig t
+    kJoinElem sig (substElem b (Ext (Ext Id a) Star))
+  kJoinElem sig (SigmaIntro a b) = [| SigmaIntro (kJoinElem sig a) (kJoinElem sig b) |]
+  kJoinElem sig (SigmaElim1 t) = do
+    t' <- kJoinElem sig t
     case t' of
       SigmaIntro a _ => do burn; pure a
       _ => pure (SigmaElim1 t')
-  kJoinElem u sig (SigmaElim2 t) = do
-    t' <- kJoinElem u sig t
+  kJoinElem sig (SigmaElim2 t) = do
+    t' <- kJoinElem sig t
     case t' of
       SigmaIntro _ b => do burn; pure b
       _ => pure (SigmaElim2 t')
-  kJoinElem u sig (Inj1 t) = Inj1 <$> kJoinElem u sig t
-  kJoinElem u sig (Inj2 t) = Inj2 <$> kJoinElem u sig t
-  kJoinElem u sig (SumElim l r t) = do
-    l' <- kJoinElem u sig l
-    r' <- kJoinElem u sig r
-    t' <- kJoinElem u sig t
+  kJoinElem sig (Inj1 t) = Inj1 <$> kJoinElem sig t
+  kJoinElem sig (Inj2 t) = Inj2 <$> kJoinElem sig t
+  kJoinElem sig (SumElim l r t) = do
+    l' <- kJoinElem sig l
+    r' <- kJoinElem sig r
+    t' <- kJoinElem sig t
     case t' of
-      Inj1 a => do burn; kJoinElem u sig (substElem l' (Ext Id a))
-      Inj2 b => do burn; kJoinElem u sig (substElem r' (Ext Id b))
+      Inj1 a => do burn; kJoinElem sig (substElem l' (Ext Id a))
+      Inj2 b => do burn; kJoinElem sig (substElem r' (Ext Id b))
       _ => pure (SumElim l' r' t')
-  kJoinElem u sig Elem.ZeroTy = pure Elem.ZeroTy
-  kJoinElem u sig Elem.OneTy = pure Elem.OneTy
-  kJoinElem u sig Elem.NatTy = pure Elem.NatTy
-  kJoinElem u sig UniverseTy = pure UniverseTy
-  kJoinElem u sig PropTy = pure PropTy
-  kJoinElem u sig TopTy = pure TopTy
-  kJoinElem u sig (Elem.PiTy a b) = [| Elem.PiTy (kJoinElem u sig a) (kJoinElem u sig b) |]
-  kJoinElem u sig (Elem.SigmaTy a b) = [| Elem.SigmaTy (kJoinElem u sig a) (kJoinElem u sig b) |]
-  kJoinElem u sig (Elem.SumTy a b) = [| Elem.SumTy (kJoinElem u sig a) (kJoinElem u sig b) |]
-  kJoinElem u sig (Elem.EqTy l r t) = [| Elem.EqTy (kJoinElem u sig l) (kJoinElem u sig r) (kJoinTy u sig t) |]
-  kJoinElem u sig (QuotTy a r) = [| QuotTy (kJoinElem u sig a) (kJoinElem u sig r) |]
-  kJoinElem u sig (SigVar x es) = do
-    es' <- kJoinSubNorm u sig es
-    -- TYPE definitions (classifier TopTy) expose freely — the
-    -- head-exposure discipline; other definitions unfold only when
-    -- licensed. (The old kJoinTy/kJoinElem split dispatched this on
-    -- POSITION; one sort dispatches it on the entry's classifier,
-    -- which is what "type definition" always meant.)
-    kSigLookup sig x >>= \entryX => case entryX of
-      Just (SigDef _ _ a TopTy) => do
-        burn
-        nfa <- kJoinElem u sig a
-        case es' of
-          [<] => pure nfa
-          _ => kJoinElem u sig (substElem nfa (embed es'))
-      Just (SigDef _ _ a _) =>
-        if elem x u
-          then do
-            burn
-            nfa <- kJoinElem u sig a
-            case es' of
-              [<] => pure nfa
-              _ => kJoinElem u sig (substElem nfa (embed es'))
-          else pure (SigVar x es')
-      _ => pure (SigVar x es')
-  kJoinElem u sig (Class a) = Class <$> kJoinElem u sig a
-  kJoinElem u sig (QuotElim f q) = do
-    q' <- kJoinElem u sig q
-    f' <- kJoinElem u sig f
+  kJoinElem sig Elem.ZeroTy = pure Elem.ZeroTy
+  kJoinElem sig Elem.OneTy = pure Elem.OneTy
+  kJoinElem sig Elem.NatTy = pure Elem.NatTy
+  kJoinElem sig UniverseTy = pure UniverseTy
+  kJoinElem sig PropTy = pure PropTy
+  kJoinElem sig TopTy = pure TopTy
+  kJoinElem sig (Elem.PiTy a b) = [| Elem.PiTy (kJoinElem sig a) (kJoinElem sig b) |]
+  kJoinElem sig (Elem.SigmaTy a b) = [| Elem.SigmaTy (kJoinElem sig a) (kJoinElem sig b) |]
+  kJoinElem sig (Elem.SumTy a b) = [| Elem.SumTy (kJoinElem sig a) (kJoinElem sig b) |]
+  kJoinElem sig (Elem.EqTy l r t) = [| Elem.EqTy (kJoinElem sig l) (kJoinElem sig r) (kJoinTy sig t) |]
+  kJoinElem sig (QuotTy a r) = [| QuotTy (kJoinElem sig a) (kJoinElem sig r) |]
+  -- x-β omitted: a definition reference is STUCK, whatever its
+  -- classifier — δ is an LUnfold step
+  kJoinElem sig (SigVar x es) = SigVar x <$> kJoinSubNorm sig es
+  kJoinElem sig (Class a) = Class <$> kJoinElem sig a
+  kJoinElem sig (QuotElim f q) = do
+    q' <- kJoinElem sig q
+    f' <- kJoinElem sig f
     case q' of
-      Class a => do burn; kJoinElem u sig (substElem f' (Ext Id a))
+      Class a => do burn; kJoinElem sig (substElem f' (Ext Id a))
       _ => pure (QuotElim f' q')
-  kJoinElem u sig (Squash t) = do
-    t' <- kJoinTy u sig t
+  kJoinElem sig (Squash t) = do
+    t' <- kJoinTy sig t
     case t' of
       p@(Elem.EqTy _ _ _) => do burn; pure p
       p@(Squash _) => do burn; pure p
       _ => pure (Squash t')
-  kJoinElem u sig Star = pure Star
-  kJoinElem u sig (QSort sg k es) = [| QSort (kJoinQSig u sig sg) (pure k) (kJoinSubNorm u sig es) |]
-  kJoinElem u sig (QCtor sg k es) = [| QCtor (kJoinQSig u sig sg) (pure k) (kJoinSubNorm u sig es) |]
-  kJoinElem u sig (QElim sg k ms fs es w) = do
-    sg' <- kJoinQSig u sig sg
-    ms' <- traverse (kJoinTy u sig) ms
-    fs' <- traverse (kJoinElem u sig) fs
-    es' <- kJoinSubNorm u sig es
-    w' <- kJoinElem u sig w
+  kJoinElem sig Star = pure Star
+  kJoinElem sig (QSort sg k es) = [| QSort (kJoinQSig sig sg) (pure k) (kJoinSubNorm sig es) |]
+  kJoinElem sig (QCtor sg k es) = [| QCtor (kJoinQSig sig sg) (pure k) (kJoinSubNorm sig es) |]
+  kJoinElem sig (QElim sg k ms fs es w) = do
+    sg' <- kJoinQSig sig sg
+    ms' <- traverse (kJoinTy sig) ms
+    fs' <- traverse (kJoinElem sig) fs
+    es' <- kJoinSubNorm sig es
+    w' <- kJoinElem sig w
     case w' of
       QCtor sgW c theta =>
         if sgW == sg'
           then do burn
                   case qElimBetaRhs sg' ms' fs' c theta of
-                    Right rhs => kJoinElem u sig rhs
+                    Right rhs => kJoinElem sig rhs
                     Left err => kerr "kernel: \{err}"
           else pure (QElim sg' k ms' fs' es' w')
       _ => pure (QElim sg' k ms' fs' es' w')
-  kJoinElem u sig (Elem.NuTy f) = Elem.NuTy <$> kJoinPoly u sig f
-  kJoinElem u sig (Out t) = do
-    t' <- kJoinElem u sig t
+  kJoinElem sig (Elem.NuTy f) = Elem.NuTy <$> kJoinPoly sig f
+  kJoinElem sig (Out t) = do
+    t' <- kJoinElem sig t
     case t' of
-      Corec p a f x => do burn; kJoinElem u sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+      Corec p a f x => do burn; kJoinElem sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
       _ => pure (Out t')
-  kJoinElem u sig (Corec p a f x) =
-    [| Corec (kJoinPoly u sig p) (kJoinElem u sig a) (kJoinElem u sig f) (kJoinElem u sig x) |]
+  kJoinElem sig (Corec p a f x) =
+    [| Corec (kJoinPoly sig p) (kJoinElem sig a) (kJoinElem sig f) (kJoinElem sig x) |]
 
-  kJoinPoly : List String -> Sig -> Poly -> KM Poly
-  kJoinPoly u sig PHole = pure PHole
-  kJoinPoly u sig (PConst a) = [| PConst (kJoinElem u sig a) |]
-  kJoinPoly u sig (PProd f g) = [| PProd (kJoinPoly u sig f) (kJoinPoly u sig g) |]
-  kJoinPoly u sig (PSum f g) = [| PSum (kJoinPoly u sig f) (kJoinPoly u sig g) |]
-  kJoinPoly u sig (PSigma a f) = [| PSigma (kJoinElem u sig a) (kJoinPoly u sig f) |]
-  kJoinPoly u sig (PPi a f) = [| PPi (kJoinElem u sig a) (kJoinPoly u sig f) |]
+  kJoinPoly : Sig -> Poly -> KM Poly
+  kJoinPoly sig PHole = pure PHole
+  kJoinPoly sig (PConst a) = [| PConst (kJoinElem sig a) |]
+  kJoinPoly sig (PProd f g) = [| PProd (kJoinPoly sig f) (kJoinPoly sig g) |]
+  kJoinPoly sig (PSum f g) = [| PSum (kJoinPoly sig f) (kJoinPoly sig g) |]
+  kJoinPoly sig (PSigma a f) = [| PSigma (kJoinElem sig a) (kJoinPoly sig f) |]
+  kJoinPoly sig (PPi a f) = [| PPi (kJoinElem sig a) (kJoinPoly sig f) |]
 
-  kJoinQTm : List String -> Sig -> QTm -> KM QTm
-  kJoinQTm u sig (QVar i) = pure (QVar i)
-  kJoinQTm u sig (QAppE f e) = [| QAppE (kJoinQTm u sig f) (kJoinElem u sig e) |]
-  kJoinQTm u sig (QAppI f a) = [| QAppI (kJoinQTm u sig f) (kJoinQTm u sig a) |]
-  kJoinQTm u sig (QEqC l r t) = [| QEqC (kJoinQTm u sig l) (kJoinQTm u sig r) (kJoinQTm u sig t) |]
+  kJoinQTm : Sig -> QTm -> KM QTm
+  kJoinQTm sig (QVar i) = pure (QVar i)
+  kJoinQTm sig (QAppE f e) = [| QAppE (kJoinQTm sig f) (kJoinElem sig e) |]
+  kJoinQTm sig (QAppI f a) = [| QAppI (kJoinQTm sig f) (kJoinQTm sig a) |]
+  kJoinQTm sig (QEqC l r t) = [| QEqC (kJoinQTm sig l) (kJoinQTm sig r) (kJoinQTm sig t) |]
 
-  kJoinQTy : List String -> Sig -> QTy -> KM QTy
-  kJoinQTy u sig QU = pure QU
-  kJoinQTy u sig (QEl t) = QEl <$> kJoinQTm u sig t
-  kJoinQTy u sig (QPiExt a b) = [| QPiExt (kJoinTy u sig a) (kJoinQTy u sig b) |]
-  kJoinQTy u sig (QPiInd t b) = [| QPiInd (kJoinQTm u sig t) (kJoinQTy u sig b) |]
+  kJoinQTy : Sig -> QTy -> KM QTy
+  kJoinQTy sig QU = pure QU
+  kJoinQTy sig (QEl t) = QEl <$> kJoinQTm sig t
+  kJoinQTy sig (QPiExt a b) = [| QPiExt (kJoinTy sig a) (kJoinQTy sig b) |]
+  kJoinQTy sig (QPiInd t b) = [| QPiInd (kJoinQTm sig t) (kJoinQTy sig b) |]
 
-  kJoinQSig : List String -> Sig -> QSig -> KM QSig
-  kJoinQSig u sig = traverse (kJoinQTy u sig)
+  kJoinQSig : Sig -> QSig -> KM QSig
+  kJoinQSig sig = traverse (kJoinQTy sig)
 
-  ||| Licensed-join normal form of a TYPE — one sort: one join
-  ||| normalizer (the head-exposure discipline dispatches on the
-  ||| entry's classifier at kJoinElem's SigVar clause).
-  kJoinTy : List String -> Sig -> Ty -> KM Ty
+  ||| β-join normal form of a TYPE — one sort, one join.
+  kJoinTy : Sig -> Ty -> KM Ty
   kJoinTy = kJoinElem
 
 -- ===== Path rewriting =====
@@ -1314,90 +1381,123 @@ applySel sig ctx (l, r, _) sel = do
         else kerr "kernel: qidx selector at different signatures or sorts"
     _ => kerr "kernel: selector does not apply"
 
-||| The equation a step licenses (with its type). For a PROOF license:
-||| infer the proof, expose the ≡-prop (an ∥l ≡ r ∈ t∥ type licenses
-||| the same equation — squashed reflection; the squash contracts by
-||| code-squash-idem's syntax-directed instance during nf). For a PATH license: the
-||| imposed equation of the carried signature at the given spine
-||| (el-qiit-path read certificate-side) — the signature itself is
-||| validated by the descent's positional type check, which compares
-||| the licensed type (embedding 𝒮 syntactically) against the rewrite
-||| site's own. Components and orientation apply to both.
-licensed : (unfs : List String) -> Sig -> Ctx -> Step -> KM (Elem, Elem, Ty)
-licensed pol sig ctx step = do
-  (l, r, t) <- base step.lic
-  (l', r', t') <- foldlM (applySel sig ctx) (l, r, t) step.sels
-  lN <- kJoinElem pol sig l'
-  rN <- kJoinElem pol sig r'
-  pure (if step.flip then (rN, lN, t') else (lN, rN, t'))
- where
-  -- equality is Ω-valued: the one license pathway is the equality
-  -- prop itself, standing as the proof's type (squashed spellings
-  -- converge by code-squash-idem's instances during nf)
-  exposeEq : Ty -> KM (Elem, Elem, Ty)
-  exposeEq (Elem.EqTy l r t) = pure (l, r, t)
-  exposeEq _ = kerr "kernel: step proof is not an equality"
-
-  base : StepLic -> KM (Elem, Elem, Ty)
-  base (LProof p) = do
-    pty <- inferP sig ctx p >>= kWhnfT sig
-    exposeEq pty
-  base (LPath sg k theta) = do
-    sg' <- kQSig sig sg
-    entry <- case qEntry sg' k of
-               Just e => pure e
-               Nothing => kerr "kernel: path license entry out of range"
-    case qEntryKind entry of
-      QKEq => pure ()
-      _ => kerr "kernel: path license at a non-equation entry"
-    -- check the spine entrywise against the reflected binder telescope
-    (tel, _, _) <- liftQ (reflTel sg' (qwAt k) entry)
-    let args = toList theta
-    if length args /= length tel
-      then kerr "kernel: path license spine length mismatch"
-      else pure ()
-    checkTelArgs 0 args tel
-    -- the imposed equation, at the spine
-    (wEnd, hd) <- liftQ (walkVals sg' (qwAt k) entry args)
-    (lq, rq, uq) <- liftQ (eqHead hd)
-    l <- liftQ (reflTm sg' wEnd lq)
-    r <- liftQ (reflTm sg' wEnd rq)
-    t <- liftQ (reflCodeTy sg' wEnd uq)
-    pure (l, r, t)
-   where
-    checkTelArgs : Nat -> List Elem -> List Ty -> KM ()
-    checkTelArgs i [] _ = pure ()          -- lengths verified above
-    checkTelArgs i (e :: rest) tel = do
-      case telInst tel i (toList theta) of
-        Just ty => checkP sig ctx e ty
-        Nothing => kerr "kernel: path license telescope mismatch"
-      checkTelArgs (S i) rest tel
-
-  foldlM : (acc -> x -> KM acc) -> acc -> List x -> KM acc
-  foldlM f a [] = pure a
-  foldlM f a (y :: ys) = f a y >>= \a' => foldlM f a' ys
-
-weakenN : Nat -> Elem -> Elem
-weakenN Z e = e
-weakenN (S n) e = weakenN n (substElem e Wk)
-
-weakenTyN : Nat -> Ty -> Ty
-weakenTyN Z t = t
-weakenTyN (S n) t = weakenTyN n (substTy t Wk)
-
--- ===== Typed path descent =====
---
--- Rewriting a subterm by an equation is congruence — and Foundation's
--- congruences demand the component equation AT THE COMPONENT'S TYPE.
--- The descent below computes each position's expected type from the
--- side's root type, so the licensed equation's type can be verified
--- in situ. Two positions are motive-dependent and use the CONSTANT-
--- MOTIVE reading (a valid ℕ-elim/quot-elim congruence instance whose
--- premises are then demanded at the constant type): ℕ-elim's z/s
--- slots. This is the one acknowledged approximation of the equation
--- kernel; the item-level kernel's motive annotations remove it.
-
 mutual
+  ||| The equation a step licenses (with its type). For a PROOF license:
+  ||| infer the proof, expose the ≡-prop (an ∥l ≡ r ∈ t∥ type licenses
+  ||| the same equation — squashed reflection; the squash contracts by
+  ||| code-squash-idem's syntax-directed instance during nf). For a PATH license: the
+  ||| imposed equation of the carried signature at the given spine
+  ||| (el-qiit-path read certificate-side) — the signature itself is
+  ||| validated by the descent's positional type check, which compares
+  ||| the licensed type (embedding 𝒮 syntactically) against the rewrite
+  ||| site's own. Components and orientation apply to both.
+  licensed : Sig -> Ctx -> Step -> KM (Elem, Elem, Ty)
+  licensed sig ctx step = do
+   (l, r, t) <- base step.lic
+   (l', r', t') <- foldlM (applySel sig ctx) (l, r, t) step.sels
+   -- the licence's own normalization: its steps, on its sides, at its type
+   -- on its β-JOINED sides: the producer normalized the β-normal form
+   lN <- kJoinElem sig l' >>= \l0 => normSide t' l0 (filter (\s => s.onLhs) step.licNorm)
+   rN <- kJoinElem sig r' >>= \r0 => normSide t' r0 (filter (\s => not s.onLhs) step.licNorm)
+   pure (if step.flip then (rN, lN, t') else (lN, rN, t'))
+  where
+   normSide : Ty -> Elem -> List Step -> KM Elem
+   normSide t e [] = pure e
+   normSide t e (st :: rest) = do
+     e' <- stepElem sig ctx st t e >>= kJoinElem sig
+     normSide t e' rest
+
+   -- equality is Ω-valued: the one license pathway is the equality
+   -- prop itself, standing as the proof's type (squashed spellings
+   -- converge by code-squash-idem's instances during nf)
+   exposeEq : Ty -> KM (Elem, Elem, Ty)
+   exposeEq (Elem.EqTy l r t) = pure (l, r, t)
+   exposeEq _ = kerr "kernel: step proof is not an equality"
+
+   base : StepLic -> KM (Elem, Elem, Ty)
+   base (LProof p) = do
+     pty <- inferP sig ctx p >>= kWhnfT sig
+     exposeEq pty
+   base (LUnfoldAll _) = kerr "kernel: an unfold-all step is forward-only, at the root"
+   -- x-δ, root-context form: the spine is checked against the
+   -- definition's context, and the licensed equation is x[ē] ≐ t[ē]
+   -- at T[ē]. (The forward direction never comes here — stepElem
+   -- applies it by literal replacement; this is the REFOLD's licence.)
+   base (LUnfold x es) =
+     kSigLookup sig x >>= \entryX => case entryX of
+       Just (SigDef delta _ body ty) => do
+         let args = toList es
+         let dl = toList delta
+         if length args /= length dl
+           then kerr "kernel: unfold license spine length mismatch for '\{x}'"
+           else pure ()
+         checkSpine 0 args dl
+         pure (SigVar x es, substElem body (embed es), substTy ty (embed es))
+       Just _ => kerr "kernel: unfold license at a declaration '\{x}'"
+       Nothing => kerr "kernel: unfold license names unknown definition '\{x}'"
+    where
+     checkSpine : Nat -> List Elem -> List Ty -> KM ()
+     checkSpine i [] _ = pure ()
+     checkSpine i (e :: rest) dl = do
+       case getAt i dl of
+         Just entryTy => checkP sig ctx e (substTy entryTy (embed (cast (take i (toList es)))))
+         Nothing => kerr "kernel: unfold license spine out of range"
+       checkSpine (S i) rest dl
+   base (LPath sg k theta) = do
+     sg' <- kQSig sig sg
+     entry <- case qEntry sg' k of
+                Just e => pure e
+                Nothing => kerr "kernel: path license entry out of range"
+     case qEntryKind entry of
+       QKEq => pure ()
+       _ => kerr "kernel: path license at a non-equation entry"
+     -- check the spine entrywise against the reflected binder telescope
+     (tel, _, _) <- liftQ (reflTel sg' (qwAt k) entry)
+     let args = toList theta
+     if length args /= length tel
+       then kerr "kernel: path license spine length mismatch"
+       else pure ()
+     checkTelArgs 0 args tel
+     -- the imposed equation, at the spine
+     (wEnd, hd) <- liftQ (walkVals sg' (qwAt k) entry args)
+     (lq, rq, uq) <- liftQ (eqHead hd)
+     l <- liftQ (reflTm sg' wEnd lq)
+     r <- liftQ (reflTm sg' wEnd rq)
+     t <- liftQ (reflCodeTy sg' wEnd uq)
+     pure (l, r, t)
+    where
+     checkTelArgs : Nat -> List Elem -> List Ty -> KM ()
+     checkTelArgs i [] _ = pure ()          -- lengths verified above
+     checkTelArgs i (e :: rest) tel = do
+       case telInst tel i (toList theta) of
+         Just ty => checkP sig ctx e ty
+         Nothing => kerr "kernel: path license telescope mismatch"
+       checkTelArgs (S i) rest tel
+
+   foldlM : (acc -> x -> KM acc) -> acc -> List x -> KM acc
+   foldlM f a [] = pure a
+   foldlM f a (y :: ys) = f a y >>= \a' => foldlM f a' ys
+
+  weakenN : Nat -> Elem -> Elem
+  weakenN Z e = e
+  weakenN (S n) e = weakenN n (substElem e Wk)
+
+  weakenTyN : Nat -> Ty -> Ty
+  weakenTyN Z t = t
+  weakenTyN (S n) t = weakenTyN n (substTy t Wk)
+
+ -- ===== Typed path descent =====
+ --
+ -- Rewriting a subterm by an equation is congruence — and Foundation's
+ -- congruences demand the component equation AT THE COMPONENT'S TYPE.
+ -- The descent below computes each position's expected type from the
+ -- side's root type, so the licensed equation's type can be verified
+ -- in situ. Two positions are motive-dependent and use the CONSTANT-
+ -- MOTIVE reading (a valid ℕ-elim/quot-elim congruence instance whose
+ -- premises are then demanded at the constant type): ℕ-elim's z/s
+ -- slots. This is the one acknowledged approximation of the equation
+ -- kernel; the item-level kernel's motive annotations remove it.
+
   ||| Expected type of the child at index i, given (maybe) the parent's
   ||| expected type. Nothing = undetermined there — harmless for path
   ||| positions being passed THROUGH (congruence needs no type at
@@ -1624,152 +1724,224 @@ mutual
       _ => pure Nothing
   inferNeK sig ctx _ = pure Nothing
 
-||| Typed descent through TYPE positions (declared ahead: goE needs it
-||| to cross a ∥-∥ into its squashee): every element child's type is
-||| structurally determined. Defined after goE below.
-goTy : (unfs : List String) -> Sig -> Ctx -> (Elem, Elem, Ty) -> List Nat -> Nat -> Ty -> KM Ty
-
-||| Typed descent: rewrite at the path, checking the licensed type
-||| against each position's expected type.
-goE : (unfs : List String) -> Sig -> Ctx -> (Elem, Elem, Ty) -> List Nat -> Nat -> Maybe Ty -> Elem -> KM Elem
-goE pol sig ctx lic@(le, re, ltyN) [] b mexp u = do
-  expN <- case mexp of
-    Just expTy => kJoinTy pol sig expTy
-    Nothing =>
-      -- the NEUTRAL-SUBTERM rule (spec §6): at a type-undetermined
-      -- rewrite point, the subterm's own ⇒ᴺ-type serves in the
-      -- positional check — any type a neutral inhabits is
-      -- judgementally equal to its synthesized type (typing
-      -- inversion: a neutral's typings factor through its head's
-      -- declared type plus conversion; the multi-typing the check
-      -- guards against lives at INTRO forms, which ⇒ᴺ refuses).
-      -- Binder-crossing paths are excluded: the crossed binders'
-      -- types are untracked here, so the subterm's variables could
-      -- not be resolved against ctx.
-      if b == 0
-        then do
-          mu <- inferNeK sig ctx u
-          case mu of
-            Just uTy => kJoinTy pol sig uTy
-            Nothing => kerr "kernel: step at a type-undetermined position [not inferable: \{show u}]"
-        else kerr "kernel: step at a type-undetermined position [b=\{show b}, at \{show u}]"
-  -- join-syntactic first; on mismatch, a PER-COMPONENT δβ conversion
-  -- rescue — δβ-equal type/subterm pairs whose difference needs an
-  -- unlicensed unfold (a lemma statement or type index outside the
-  -- cited set) stay verifiable. Sound: δβ is a sub-relation of ≐, and
-  -- the rescue widens only this one positional comparison, never the
-  -- equation being replayed. DELIBERATELY full δβ, not
-  -- license-bounded: bounding by names reachable from the compared
-  -- terms is vacuous (that IS full δβ), and the principled bound —
-  -- the transitive closure of cited items' acceptance-time license
-  -- sets — needs Σ to record those sets and is not known to cover
-  -- what the rescues absorb (type indices reach positions no
-  -- citation names). Decision 2026-08: keep full δβ here; revisit
-  -- together with kWhnf* exposure if the kernel ever goes
-  -- fully license-bounded (docs/PerfNotes.md).
-  tyOk <- if expN == weakenTyN b ltyN
-            -- CUMULATIVITY (code-lift-eq): a licensed equation at 𝕌
-            -- applies at a type position (expected 𝕍)
-            then pure True
-            else if expN == TopTy && weakenTyN b ltyN == UniverseTy
-            then pure True
-            else do e1 <- kTy sig expN
-                    e2 <- kTy sig (weakenTyN b ltyN)
-                    pure (e1 == e2 || (e1 == TopTy && e2 == UniverseTy))
-  if not tyOk
-    then kerr "kernel: step type does not match the position"
-    else if u == weakenN b le
-      then pure (weakenN b re)
-      else do
-        u' <- kElem sig u
-        le' <- kElem sig (weakenN b le)
-        if u' == le'
-          then pure (weakenN b re)
-          else kerr "kernel: step does not match the subterm"
-goE pol sig ctx lic (i :: p) b mexp u = do
-  childTy <- childTyE sig ctx b mexp u i
-  let goQSpine : SubNorm -> (SubNorm -> Elem) -> KM Elem
-      goQSpine es re =
-        case subNormAt i es of
-          Just e => do
-            e' <- goE pol sig ctx lic p b childTy e
-            case subNormSet i e' es of
-              Just es' => pure (re es')
-              Nothing => kerr "kernel: bad path"
-          Nothing => kerr "kernel: bad path"
-  case Just () of
-    _ =>
-      case (u, i) of
-        (ZeroElim t', 0) => ZeroElim <$> goE pol sig ctx lic p b childTy t'
-        (NatIntro1 t', 0) => NatIntro1 <$> goE pol sig ctx lic p b childTy t'
-        (NatElim z st t', 0) => (\z' => NatElim z' st t') <$> goE pol sig ctx lic p b childTy z
-        (NatElim z st t', 1) => (\s' => NatElim z s' t') <$> goE pol sig ctx lic p (2 + b) childTy st
-        (NatElim z st t', 2) => (\t'' => NatElim z st t'') <$> goE pol sig ctx lic p b childTy t'
-        (PiIntro f, 0) => PiIntro <$> goE pol sig ctx lic p (1 + b) childTy f
-        (PiApp f e, 0) => (\f' => PiApp f' e) <$> goE pol sig ctx lic p b childTy f
-        (PiApp f e, 1) => PiApp f <$> goE pol sig ctx lic p b childTy e
-        (SigmaElim1 t', 0) => SigmaElim1 <$> goE pol sig ctx lic p b childTy t'
-        (SigmaElim2 t', 0) => SigmaElim2 <$> goE pol sig ctx lic p b childTy t'
-        (Inj1 t', 0) => Inj1 <$> goE pol sig ctx lic p b childTy t'
-        (Inj2 t', 0) => Inj2 <$> goE pol sig ctx lic p b childTy t'
-        (SumElim l r t', 0) => (\l' => SumElim l' r t') <$> goE pol sig ctx lic p (1 + b) childTy l
-        (SumElim l r t', 1) => (\r' => SumElim l r' t') <$> goE pol sig ctx lic p (1 + b) childTy r
-        (SumElim l r t', 2) => SumElim l r <$> goE pol sig ctx lic p b childTy t'
-        (SigmaIntro x y, 0) => (\x' => SigmaIntro x' y) <$> goE pol sig ctx lic p b childTy x
-        (SigmaIntro x y, 1) => SigmaIntro x <$> goE pol sig ctx lic p b childTy y
-        (Elem.PiTy a c, 0) => (\a' => Elem.PiTy a' c) <$> goE pol sig ctx lic p b childTy a
-        (Elem.PiTy a c, 1) => Elem.PiTy a <$> goE pol sig ctx lic p (1 + b) childTy c
-        (Elem.SigmaTy a c, 0) => (\a' => Elem.SigmaTy a' c) <$> goE pol sig ctx lic p b childTy a
-        (Elem.SigmaTy a c, 1) => Elem.SigmaTy a <$> goE pol sig ctx lic p (1 + b) childTy c
-        (Elem.SumTy a c, 0) => (\a' => Elem.SumTy a' c) <$> goE pol sig ctx lic p b childTy a
-        (Elem.SumTy a c, 1) => Elem.SumTy a <$> goE pol sig ctx lic p b childTy c
-        (Elem.EqTy l r t', 0) => (\l' => Elem.EqTy l' r t') <$> goE pol sig ctx lic p b childTy l
-        (Elem.EqTy l r t', 1) => (\r' => Elem.EqTy l r' t') <$> goE pol sig ctx lic p b childTy r
-        (Elem.EqTy l r t', 2) => Elem.EqTy l r <$> goE pol sig ctx lic p b childTy t'
-        (QuotTy a r, 0) => (\a' => QuotTy a' r) <$> goE pol sig ctx lic p b childTy a
-        (QuotTy a r, 1) => QuotTy a <$> goE pol sig ctx lic p (2 + b) childTy r
-        (SigVar x es, _) =>
+  ||| The path WALK, shared by the typed descent (goE) and the untyped
+  ||| forward unfold (goU): `child` yields the information carried down
+  ||| to child i of u (the typed descent's expected type; nothing for
+  ||| the unfold), `leaf` acts at the path's end with the binder count
+  ||| and that information. Child indexing as at pathE.
+  walkE : (child : Nat -> Maybe Ty -> Elem -> Nat -> KM (Maybe Ty))
+       -> (leaf : Nat -> Maybe Ty -> Elem -> KM Elem)
+       -> List Nat -> Nat -> Maybe Ty -> Elem -> KM Elem
+  walkE child leaf [] b mexp u = leaf b mexp u
+  walkE child leaf (i :: p) b mexp u = do
+    childTy <- child b mexp u i
+    let go : Nat -> Maybe Ty -> Elem -> KM Elem
+        go = walkE child leaf p
+    let goQSpine : SubNorm -> (SubNorm -> Elem) -> KM Elem
+        goQSpine es re =
           case subNormAt i es of
             Just e => do
-              e' <- goE pol sig ctx lic p b childTy e
+              e' <- go b childTy e
               case subNormSet i e' es of
-                Just es' => pure (SigVar x es')
+                Just es' => pure (re es')
                 Nothing => kerr "kernel: bad path"
             Nothing => kerr "kernel: bad path"
-        (Class a, 0) => Class <$> goE pol sig ctx lic p b childTy a
-        (Out t', 0) => Out <$> goE pol sig ctx lic p b childTy t'
-        (Corec pf a f x, 0) => (\a' => Corec pf a' f x) <$> goE pol sig ctx lic p b childTy a
-        (Corec pf a f x, 1) => (\f' => Corec pf a f' x) <$> goE pol sig ctx lic p (1 + b) childTy f
-        (Corec pf a f x, 2) => Corec pf a f <$> goE pol sig ctx lic p b childTy x
-        (QuotElim f q, 0) => (\f' => QuotElim f' q) <$> goE pol sig ctx lic p (1 + b) childTy f
-        (QuotElim f q, 1) => QuotElim f <$> goE pol sig ctx lic p b childTy q
-        (Squash t, 0) => Squash <$> goE pol sig ctx lic p b childTy t
-        (QSort sg k es, _) => goQSpine es (\es' => QSort sg k es')
-        (QCtor sg k es, _) => goQSpine es (\es' => QCtor sg k es')
-        (QElim sg k ms fs es w, _) =>
-          if i == length (toList es)
-            then (\w' => QElim sg k ms fs es w') <$> goE pol sig ctx lic p b childTy w
-            else goQSpine es (\es' => QElim sg k ms fs es' w)
-        _ => kerr "kernel: bad or type-undetermined path [i=\{show i}, at \{show u}]"
+    case (u, i) of
+      (ZeroElim t', 0) => ZeroElim <$> go b childTy t'
+      (NatIntro1 t', 0) => NatIntro1 <$> go b childTy t'
+      (NatElim z st t', 0) => (\z' => NatElim z' st t') <$> go b childTy z
+      (NatElim z st t', 1) => (\s' => NatElim z s' t') <$> go (2 + b) childTy st
+      (NatElim z st t', 2) => (\t'' => NatElim z st t'') <$> go b childTy t'
+      (PiIntro f, 0) => PiIntro <$> go (1 + b) childTy f
+      (PiApp f e, 0) => (\f' => PiApp f' e) <$> go b childTy f
+      (PiApp f e, 1) => PiApp f <$> go b childTy e
+      (SigmaElim1 t', 0) => SigmaElim1 <$> go b childTy t'
+      (SigmaElim2 t', 0) => SigmaElim2 <$> go b childTy t'
+      (Inj1 t', 0) => Inj1 <$> go b childTy t'
+      (Inj2 t', 0) => Inj2 <$> go b childTy t'
+      (SumElim l r t', 0) => (\l' => SumElim l' r t') <$> go (1 + b) childTy l
+      (SumElim l r t', 1) => (\r' => SumElim l r' t') <$> go (1 + b) childTy r
+      (SumElim l r t', 2) => SumElim l r <$> go b childTy t'
+      (SigmaIntro x y, 0) => (\x' => SigmaIntro x' y) <$> go b childTy x
+      (SigmaIntro x y, 1) => SigmaIntro x <$> go b childTy y
+      (Elem.PiTy a c, 0) => (\a' => Elem.PiTy a' c) <$> go b childTy a
+      (Elem.PiTy a c, 1) => Elem.PiTy a <$> go (1 + b) childTy c
+      (Elem.SigmaTy a c, 0) => (\a' => Elem.SigmaTy a' c) <$> go b childTy a
+      (Elem.SigmaTy a c, 1) => Elem.SigmaTy a <$> go (1 + b) childTy c
+      (Elem.SumTy a c, 0) => (\a' => Elem.SumTy a' c) <$> go b childTy a
+      (Elem.SumTy a c, 1) => Elem.SumTy a <$> go b childTy c
+      (Elem.EqTy l r t', 0) => (\l' => Elem.EqTy l' r t') <$> go b childTy l
+      (Elem.EqTy l r t', 1) => (\r' => Elem.EqTy l r' t') <$> go b childTy r
+      (Elem.EqTy l r t', 2) => Elem.EqTy l r <$> go b childTy t'
+      (QuotTy a r, 0) => (\a' => QuotTy a' r) <$> go b childTy a
+      (QuotTy a r, 1) => QuotTy a <$> go (2 + b) childTy r
+      (SigVar x es, _) =>
+        case subNormAt i es of
+          Just e => do
+            e' <- go b childTy e
+            case subNormSet i e' es of
+              Just es' => pure (SigVar x es')
+              Nothing => kerr "kernel: bad path"
+          Nothing => kerr "kernel: bad path"
+      (Class a, 0) => Class <$> go b childTy a
+      (Out t', 0) => Out <$> go b childTy t'
+      (Corec pf a f x, 0) => (\a' => Corec pf a' f x) <$> go b childTy a
+      (Corec pf a f x, 1) => (\f' => Corec pf a f' x) <$> go (1 + b) childTy f
+      (Corec pf a f x, 2) => Corec pf a f <$> go b childTy x
+      (QuotElim f q, 0) => (\f' => QuotElim f' q) <$> go (1 + b) childTy f
+      (QuotElim f q, 1) => QuotElim f <$> go b childTy q
+      (Squash t, 0) => Squash <$> go b childTy t
+      (QSort sg k es, _) => goQSpine es (\es' => QSort sg k es')
+      (QCtor sg k es, _) => goQSpine es (\es' => QCtor sg k es')
+      (QElim sg k ms fs es w, _) =>
+        if i == length (toList es)
+          then (\w' => QElim sg k ms fs es w') <$> go b childTy w
+          else goQSpine es (\es' => QElim sg k ms fs es' w)
+      _ => kerr "kernel: bad or type-undetermined path [i=\{show i}, at \{show u}]"
 
-||| Apply one step to an element known (by the replay invariant) to be
-||| well-typed at tyRoot: descend the path computing expected types,
-||| verify the licensed equation's type in situ, rewrite.
-stepElem : (unfs : List String) -> Sig -> Ctx -> Step -> Ty -> Elem -> KM Elem
-stepElem pol sig ctx step tyRoot t = do
-  (le, re, lty) <- licensed pol sig ctx step
-  ltyN <- kJoinTy pol sig lty
-  goE pol sig ctx (le, re, ltyN) step.path 0 (Just tyRoot) t
+  ||| Typed descent: rewrite at the path, checking the licensed type
+  ||| against each position's expected type.
+  goE : Sig -> Ctx -> (Elem, Elem, Ty) -> List Nat -> Nat -> Maybe Ty -> Elem -> KM Elem
+  goE sig ctx lic@(le, re, ltyN) = walkE (childTyE sig ctx) leaf
+   where
+    leaf : Nat -> Maybe Ty -> Elem -> KM Elem
+    leaf b mexp u = do
+      expN <- case mexp of
+        Just expTy => kJoinTy sig expTy
+        Nothing =>
+          -- the NEUTRAL-SUBTERM rule (spec §6): at a type-undetermined
+          -- rewrite point, the subterm's own ⇒ᴺ-type serves in the
+          -- positional check — any type a neutral inhabits is
+          -- judgementally equal to its synthesized type (typing
+          -- inversion: a neutral's typings factor through its head's
+          -- declared type plus conversion; the multi-typing the check
+          -- guards against lives at INTRO forms, which ⇒ᴺ refuses).
+          -- Binder-crossing paths are excluded: the crossed binders'
+          -- types are untracked here, so the subterm's variables could
+          -- not be resolved against ctx.
+          if b == 0
+            then do
+              mu <- inferNeK sig ctx u
+              case mu of
+                Just uTy => kJoinTy sig uTy
+                Nothing => kerr "kernel: step at a type-undetermined position [not inferable: \{show u}]"
+            else kerr "kernel: step at a type-undetermined position [b=\{show b}, at \{show u}]"
+      -- POSITIONAL TYPE CHECK, join-syntactic first, then a full-δβ
+      -- comparison of the two TYPES. This is the one place replay still
+      -- unfolds on its own: the expected type at a position is
+      -- reconstructed by the descent (childTyE) and may differ from the
+      -- licence's type by unfoldings no step addresses (type indices). It
+      -- goes with the descent itself, when certificates become proof
+      -- terms that carry their own types at every node
+      -- (docs/NovaKernelRewrite.txt); the EQUATION being replayed is
+      -- never widened by it.
+      tyOk <- if expN == weakenTyN b ltyN
+                -- CUMULATIVITY (code-lift-eq): a licensed equation at 𝕌
+                -- applies at a type position (expected 𝕍)
+                then pure True
+                else if expN == TopTy && weakenTyN b ltyN == UniverseTy
+                then pure True
+                else do e1 <- kTy sig expN
+                        e2 <- kTy sig (weakenTyN b ltyN)
+                        pure (e1 == e2 || (e1 == TopTy && e2 == UniverseTy))
+      if not tyOk
+        then kerr "kernel: step type does not match the position"
+        -- the subterm and the licence's side are both β-joined: identity,
+        -- no δ rescue (an unfolding the match needs is an LUnfold step)
+        else if u == weakenN b le
+          then pure (weakenN b re)
+          else kerr "kernel: step does not match the subterm\n  subterm: \{show u}\n  licence: \{show (weakenN b le)} ≐ \{show (weakenN b re)}"
 
-goTy pol sig ctx lic p b t = goE pol sig ctx lic p b (Just TopTy) t
--- (one sort, one descent: a type position is an element position
--- expected at 𝕍 — component classifiers thread through childTyE, and
--- an empty path rewrites the type itself by an ≡-at-𝕍 license)
+  ||| Every addressable occurrence of a named definition, unfolded at
+  ||| once (the LUnfoldAll step). Addressable as at walkE: carried
+  ||| signatures, polynomials, motives and methods are opaque.
+  traverseSN : (Elem -> KM Elem) -> SubNorm -> KM SubNorm
+  traverseSN f [<] = pure [<]
+  traverseSN f (es :< e) = [| traverseSN f es :< f e |]
 
-||| Steps inside types: type positions have no element type; every
-||| element child's type is structurally determined.
-stepTy : (unfs : List String) -> Sig -> Ctx -> Step -> Ty -> KM Ty
-stepTy pol sig ctx step t = stepElem pol sig ctx step TopTy t
+  unfoldAllK : Sig -> List String -> Elem -> KM Elem
+  unfoldAllK sig ns t = go t
+   where
+    go : Elem -> KM Elem
+    go (SigVar x es) = do
+      es' <- traverseSN go es
+      if elem x ns
+        then kSigLookup sig x >>= \entryX => case entryX of
+               Just (SigDef _ _ body _) => pure (substElem body (embed es'))
+               _ => pure (SigVar x es')
+        else pure (SigVar x es')
+    go (ZeroElim u) = ZeroElim <$> go u
+    go (NatIntro1 u) = NatIntro1 <$> go u
+    go (NatElim z st u) = [| NatElim (go z) (go st) (go u) |]
+    go (PiIntro f) = PiIntro <$> go f
+    go (PiApp f e) = [| PiApp (go f) (go e) |]
+    go (Let a b) = [| Let (go a) (go b) |]
+    go (SigmaIntro u v) = [| SigmaIntro (go u) (go v) |]
+    go (SigmaElim1 u) = SigmaElim1 <$> go u
+    go (SigmaElim2 u) = SigmaElim2 <$> go u
+    go (Inj1 u) = Inj1 <$> go u
+    go (Inj2 u) = Inj2 <$> go u
+    go (SumElim l r u) = [| SumElim (go l) (go r) (go u) |]
+    go (Elem.PiTy a c) = [| Elem.PiTy (go a) (go c) |]
+    go (Elem.SigmaTy a c) = [| Elem.SigmaTy (go a) (go c) |]
+    go (Elem.SumTy a c) = [| Elem.SumTy (go a) (go c) |]
+    go (Elem.EqTy l r u) = [| Elem.EqTy (go l) (go r) (go u) |]
+    go (QuotTy a r) = [| QuotTy (go a) (go r) |]
+    go (Class a) = Class <$> go a
+    go (QuotElim f q) = [| QuotElim (go f) (go q) |]
+    go (Squash u) = Squash <$> go u
+    go (QSort sg k es) = QSort sg k <$> traverseSN go es
+    go (QCtor sg k es) = QCtor sg k <$> traverseSN go es
+    go (QElim sg k ms fs es w) = [| QElim (pure sg) (pure k) (pure ms) (pure fs) (traverseSN go es) (go w) |]
+    go (Out u) = Out <$> go u
+    go (Corec p a f x) = [| Corec (pure p) (go a) (go f) (go x) |]
+    go u = pure u
+
+  ||| FORWARD UNFOLD at a path: the subterm must be x[ē'] with ē' the
+  ||| licence's ē modulo β (the walked side is β-joined, the step's spine
+  ||| as the producer spelled it), and is replaced by the body at ē'.
+  ||| No positional typing: the occurrence is well-typed by the replay
+  ||| invariant, and x[ē'] ≐ t[ē'] at its type by x-δ. The spine may
+  ||| therefore mention binders the path crossed.
+  goU : Sig -> String -> SubNorm -> Elem -> List Nat -> Elem -> KM Elem
+  goU sig x es body path t = walkE (\_, _, _, _ => pure Nothing) leaf path 0 Nothing t
+   where
+    leaf : Nat -> Maybe Ty -> Elem -> KM Elem
+    leaf b _ (SigVar y es') =
+      if y /= x then kerr "kernel: unfold step at a reference to '\{y}', licensed for '\{x}'"
+      else do
+        esL <- kJoinSubNorm sig es
+        esU <- kJoinSubNorm sig es'
+        if esL == esU
+          then pure (substElem body (embed es'))
+          else kerr "kernel: unfold step spine does not match the occurrence of '\{x}'"
+    leaf b _ u = kerr "kernel: unfold step at a non-reference [at \{show u}]"
+
+  ||| Apply one step to an element known (by the replay invariant) to be
+  ||| well-typed at tyRoot: descend the path computing expected types,
+  ||| verify the licensed equation's type in situ, rewrite. A forward
+  ||| unfold step bypasses the typed descent (goU).
+  stepElem : Sig -> Ctx -> Step -> Ty -> Elem -> KM Elem
+  stepElem sig ctx step tyRoot t =
+    case (step.lic, step.flip, step.sels) of
+      (LUnfoldAll ns, False, []) =>
+        case step.path of
+        [] => unfoldAllK sig ns t
+        _ => kerr "kernel: an unfold-all step acts at the root"
+      (LUnfold x es, False, []) =>
+        kSigLookup sig x >>= \entryX => case entryX of
+          Just (SigDef _ _ body _) => goU sig x es body step.path t
+          Just _ => kerr "kernel: unfold step at a declaration '\{x}'"
+          Nothing => kerr "kernel: unfold step names unknown definition '\{x}'"
+      _ => do
+        (le, re, lty) <- licensed sig ctx step
+        ltyN <- kJoinTy sig lty
+        goE sig ctx (le, re, ltyN) step.path 0 (Just tyRoot) t
+
+  ||| Steps inside types: a type position is an element position expected
+  ||| at 𝕍 (one sort, one descent).
+  stepTy : Sig -> Ctx -> Step -> Ty -> KM Ty
+  stepTy sig ctx step t = stepElem sig ctx step TopTy t
 
 -- ===== Item-level checking over annotation skeletons =====
 --
@@ -1831,8 +2003,8 @@ pNuCoind : Payload -> Maybe (Elem, Skel, Elem, Skel, Elem, Skel)
 pNuCoind (PNuCoind r skR pw skp qw skq) = Just (r, skR, pw, skp, qw, skq)
 pNuCoind _ = Nothing
 
-pSquashElim : Payload -> Maybe (Elem, Skel, Elem, Skel)
-pSquashElim (PSquashElim e esk b bsk) = Just (e, esk, b, bsk)
+pSquashElim : Payload -> Maybe (Elem, Skel, Maybe (Ty, ECert), Elem, Skel)
+pSquashElim (PSquashElim e esk ex b bsk) = Just (e, esk, ex, b, bsk)
 pSquashElim _ = Nothing
 
 pQCoh : Payload -> Maybe (List ECert)
@@ -1860,25 +2032,21 @@ isIntro _ = False
 ||| nose — which licenses the REFLEXIVITY fast path below: same
 ||| acceptance set as running the replay, none of the normalization.
 reflCert : ECert -> Bool
-reflCert (MkECertF Nothing [] FBeta _) = True
+reflCert (MkECertF Nothing [] FBeta) = True
 reflCert _ = False
 
 mutual
-  ||| Replay a certificate for the element equation Γ ⊢ l ≐ r : ty,
-  ||| in the strict-subset join bounded by the certificate's licenses
-  ||| (plus any inherited from the enclosing certificate — sub-replays
-  ||| run under the union, as one discharge produced them all).
+  ||| Replay a certificate for the element equation Γ ⊢ l ≐ r : ty:
+  ||| β-join both sides, apply the steps (rewrites and unfolds) at
+  ||| their paths, then the final. No δ anywhere but in LUnfold steps.
   export
   kEqElem : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
-  kEqElem = kEqElemL []
-
-  kEqElemL : (inh : List String) -> Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
-  kEqElemL inh sig ctx cert l r ty =
+  kEqElem sig ctx cert l r ty =
     if reflCert cert && l == r then pure ()
-      else kEqElemGo (inh ++ cert.unfolds) sig ctx cert l r ty
+      else kEqElemGo sig ctx cert l r ty
 
-  kEqElemGo : (unfs : List String) -> Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
-  kEqElemGo pol sig ctx cert l r ty = do
+  kEqElemGo : Sig -> Ctx -> ECert -> Elem -> Elem -> Ty -> KM ()
+  kEqElemGo sig ctx cert l r ty = do
     -- resolve the type bridge first: the rest of the replay happens at
     -- the (certified-equal) exposed type
     tyU <- case cert.tyEx of
@@ -1887,19 +2055,15 @@ mutual
                case ty of
                  TopTy => kerr "kernel: a type equation cannot carry a type bridge"
                  _ => pure ()
-               kEqTyL (pol) sig ctx c ty tyX
+               kEqTy sig ctx c ty tyX
                pure tyX
-    l0 <- kJoinElem pol sig l
-    r0 <- kJoinElem pol sig r
+    l0 <- kJoinElem sig l
+    r0 <- kJoinElem sig r
     (l1, r1) <- goSteps tyU cert.steps l0 r0
     case cert.final of
       FBeta =>
-        if l1 == r1 then pure () else do
-          -- δβ rescue, as at the step checks: the replacement may have
-          -- introduced vocabulary outside the cited set
-          l2 <- kElem sig l1
-          r2 <- kElem sig r1
-          if l2 == r2 then pure () else kerr "kernel: sides differ after replay"
+        if l1 == r1 then pure ()
+          else kerr "kernel: sides differ after replay (β-joined; an unfolding the join needs is an unfold step)\n  left:  \{show l1}\n  right: \{show r1}\n  cert:  \{show cert}"
       FProp => do
         -- head exposure suffices for every final's type match below
         ty' <- kWhnfT sig tyU
@@ -1918,7 +2082,7 @@ mutual
         ty' <- kWhnfT sig tyU
         case (l1, r1, ty') of
           (Class a, Class b, QuotTy dom rel) => do
-            relInst <- kJoinElem pol sig (substElem rel (Ext (Ext Id a) b))
+            relInst <- kJoinElem sig (substElem rel (Ext (Ext Id a) b))
             case relInst of
               Squash sq => do
                 sq' <- kWhnfT sig sq
@@ -1927,7 +2091,7 @@ mutual
                   _ => kerr "kernel: witness final does not apply"
               Elem.EqTy wl wr wt =>
                 case mc of
-                  Just c => kEqElemL (pol) sig ctx c wl wr wt
+                  Just c => kEqElem sig ctx c wl wr wt
                   Nothing => kerr "kernel: witness final needs a certificate at an equality relation"
               _ => kerr "kernel: witness final at a non-evident relation"
           _ => kerr "kernel: witness final at a non-class equation"
@@ -1937,20 +2101,20 @@ mutual
         ty' <- kWhnfT sig tyU
         case (l1, r1, ty') of
           (Class a, Class b, QuotTy _ rel) => do
-            relInst <- kJoinElem pol sig (substElem rel (Ext (Ext Id a) b))
+            relInst <- kJoinElem sig (substElem rel (Ext (Ext Id a) b))
             kCheckE sig ctx w relInst skW
           _ => kerr "kernel: supplied-witness final at a non-class equation"
       FInj c => do
         ty' <- kWhnfT sig tyU
         case (l1, r1, ty') of
-          (Inj1 x, Inj1 y, SumTy a _) => kEqElemL (pol) sig ctx c x y a
-          (Inj2 x, Inj2 y, SumTy _ b) => kEqElemL (pol) sig ctx c x y b
+          (Inj1 x, Inj1 y, SumTy a _) => kEqElem sig ctx c x y a
+          (Inj2 x, Inj2 y, SumTy _ b) => kEqElem sig ctx c x y b
           _ => kerr "kernel: injection final at a non-matching equation"
       FEtaPi c => do
         ty' <- kWhnfT sig tyU
         case ty' of
           PiTy dom cod =>
-            kEqElemL (pol) sig (ctx :< dom) c
+            kEqElem sig (ctx :< dom) c
               (PiApp (substElem l1 Wk) (CtxVar 0))
               (PiApp (substElem r1 Wk) (CtxVar 0))
               cod
@@ -1959,8 +2123,8 @@ mutual
         ty' <- kWhnfT sig tyU
         case ty' of
           SigmaTy dom cod => do
-            kEqElemL (pol) sig ctx c1 (SigmaElim1 l1) (SigmaElim1 r1) dom
-            kEqElemL (pol) sig ctx c2 (SigmaElim2 l1) (SigmaElim2 r1)
+            kEqElem sig ctx c1 (SigmaElim1 l1) (SigmaElim1 r1) dom
+            kEqElem sig ctx c2 (SigmaElim2 l1) (SigmaElim2 r1)
               (substTy cod (Ext Id (SigmaElim1 l1)))
           _ => kerr "kernel: Σ-η final at a non-Σ type"
       FPropExt s skS t skT => do
@@ -1985,7 +2149,7 @@ mutual
             okL <- kIsProp sig ctx l1
             okR <- kIsProp sig ctx r1
             if okL && okR
-              then kEqElemL (pol) sig ctx c l1 r1 PropTy
+              then kEqElem sig ctx c l1 r1 PropTy
               else kerr "kernel: prop-lift-eq final at non-prop types"
           _ => kerr "kernel: prop-lift-eq final on an element equation"
       FQuotCong c => do
@@ -1993,7 +2157,7 @@ mutual
         case (ty', l1, r1) of
           (TopTy, QuotTy d0 r0, QuotTy d1 r1) =>
             if d0 == d1
-              then kEqElemL (pol) sig (ctx :< d0 :< substTy d0 Wk) c r0 r1 PropTy
+              then kEqElem sig (ctx :< d0 :< substTy d0 Wk) c r0 r1 PropTy
               else kerr "kernel: quotient-congruence final at unequal domains"
           (TopTy, _, _) => kerr "kernel: quotient-congruence final at non-quotient types"
           _ => kerr "kernel: quotient-congruence final on an element equation"
@@ -2001,27 +2165,41 @@ mutual
         ty' <- kWhnfT sig tyU
         case (ty', l1, r1) of
           (TopTy, Elem.PiTy d0 c0, Elem.PiTy d1 c1) => do
-            kEqElemL (pol) sig ctx dc d0 d1 TopTy
-            kEqElemL (pol) sig (ctx :< d1) cc c0 c1 TopTy
+            kEqElem sig ctx dc d0 d1 TopTy
+            kEqElem sig (ctx :< d1) cc c0 c1 TopTy
           (TopTy, _, _) => kerr "kernel: Π-congruence final at non-Π types"
           _ => kerr "kernel: Π-congruence final on an element equation"
       FSigmaCong dc cc => do
         ty' <- kWhnfT sig tyU
         case (ty', l1, r1) of
           (TopTy, Elem.SigmaTy d0 c0, Elem.SigmaTy d1 c1) => do
-            kEqElemL (pol) sig ctx dc d0 d1 TopTy
-            kEqElemL (pol) sig (ctx :< d1) cc c0 c1 TopTy
+            kEqElem sig ctx dc d0 d1 TopTy
+            kEqElem sig (ctx :< d1) cc c0 c1 TopTy
           (TopTy, _, _) => kerr "kernel: Σ-congruence final at non-Σ types"
           _ => kerr "kernel: Σ-congruence final on an element equation"
       FSumCong lc rc => do
         ty' <- kWhnfT sig tyU
         case (ty', l1, r1) of
           (TopTy, Elem.SumTy l0 r0, Elem.SumTy l1' r1') => do
-            kEqElemL (pol) sig ctx lc l0 l1' TopTy
-            kEqElemL (pol) sig ctx rc r0 r1' TopTy
+            kEqElem sig ctx lc l0 l1' TopTy
+            kEqElem sig ctx rc r0 r1' TopTy
           (TopTy, _, _) => kerr "kernel: ⊎-congruence final at non-⊎ types"
           _ => kerr "kernel: ⊎-congruence final on an element equation"
+      -- el-trans through stated middles: the endpoints as written are
+      -- the (β-joined) sides, every point is checked at the equation's
+      -- type with its skeleton, every link certificate replayed between
+      -- its neighbours
+      FChain points certs => do
+        traverse_ (\(pt, sk) => kCheckE sig ctx pt tyU sk) points
+        goLinks tyU (l1 :: map fst points ++ [r1]) certs
    where
+    goLinks : Ty -> List Elem -> List ECert -> KM ()
+    goLinks tyU (a :: b :: rest) (c :: cs) = do
+      kEqElem sig ctx c a b tyU
+      goLinks tyU (b :: rest) cs
+    goLinks _ [_] [] = pure ()
+    goLinks _ _ _ = kerr "kernel: chain points and links do not match up"
+
     annot : String -> KM a -> KM a
     annot tag (MkKM f) = MkKM $ \st => case f st of
       Left e => Left (e ++ " @" ++ tag)
@@ -2031,19 +2209,16 @@ mutual
     goSteps tyU [] l' r' = pure (l', r')
     goSteps tyU (s :: rest) l' r' =
       if s.onLhs
-        then do l'' <- annot "step \{show (length rest)}" (stepElem pol sig ctx s tyU l') >>= kJoinElem pol sig
+        then do l'' <- annot "step \{show (length rest)}" (stepElem sig ctx s tyU l') >>= kJoinElem sig
                 goSteps tyU rest l'' r'
-        else do r'' <- annot "step \{show (length rest)}" (stepElem pol sig ctx s tyU r') >>= kJoinElem pol sig
+        else do r'' <- annot "step \{show (length rest)}" (stepElem sig ctx s tyU r') >>= kJoinElem sig
                 goSteps tyU rest l' r''
 
   ||| Replay a certificate for the type equation Γ ⊢ A ≐ B (licensed,
   ||| as at kEqElem).
   export
   kEqTy : Sig -> Ctx -> ECert -> Ty -> Ty -> KM ()
-  kEqTy = kEqTyL []
-
-  kEqTyL : (inh : List String) -> Sig -> Ctx -> ECert -> Ty -> Ty -> KM ()
-  kEqTyL inh sig ctx cert a b = kEqElemL inh sig ctx cert a b TopTy
+  kEqTy sig ctx cert a b = kEqElem sig ctx cert a b TopTy
   -- (one sort, one replay channel: a type equation is an element
   -- equation at 𝕍 — the congruence finals above apply there, steps
   -- descend with expected classifier 𝕍)
@@ -2130,8 +2305,11 @@ mutual
                   -- raw squashee A; the goal must be a PROP (the
                   -- rule's q : Ω premise)
                   Nothing => case takeP pSquashElim sk of
-                    Just ((scrut, scrutSk, body, bodySk), _) => do
-                      scrutTy <- kInferE sig ctx scrut scrutSk
+                    Just ((scrut, scrutSk, mexp, body, bodySk), _) => do
+                      scrutTy0 <- kInferE sig ctx scrut scrutSk
+                      scrutTy <- case mexp of
+                                   Nothing => pure scrutTy0
+                                   Just (tyX, c) => do kEqTy sig ctx c scrutTy0 tyX; pure tyX
                       scrutTy' <- kWhnfT sig scrutTy
                       case scrutTy' of
                         Squash a => do

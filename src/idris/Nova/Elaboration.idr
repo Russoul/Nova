@@ -75,12 +75,32 @@ import Nova.Profile
 ||| site). Records the lemma-normalization of a candidate's sides so
 ||| the kernel — which derives licensed equations from RAW types by
 ||| beta only — can bridge to the normalized pattern.
-record PStep where
-  constructor MkPStep
-  ppath : List Nat
-  pprf : Elem          -- over the candidate's parametric context
-  psels : List Sel
-  pflip : Bool
+PStep : Type
+PStep = Step
+
+||| A licence over one context, moved by a substitution: a proof
+||| element substitutes; an unfold's spine substitutes; a path
+||| licence's spine and carried signature substitute.
+substLic : StepLic -> Sub -> StepLic
+substLic (LProof p) sigma = LProof (substElem p sigma)
+substLic (LUnfold x es) sigma = LUnfold x (substSubNorm es sigma)
+substLic (LUnfoldAll ns) sigma = LUnfoldAll ns
+substLic (LPath sg k theta) sigma = LPath (substQSig sg sigma) k (substSubNorm theta sigma)
+
+substSel : Sub -> Sel -> Sel
+substSel sigma (SelCod u) = SelCod (substElem u sigma)
+substSel sigma (SelQRel u v) = SelQRel (substElem u sigma) (substElem v sigma)
+substSel sigma sel = sel
+
+||| A step over one context, moved by a substitution — its licence,
+||| its selectors' instantiation elements, and its own licence
+||| normalization; the path is untouched (it addresses the side the
+||| step acts on, not the context).
+substStep : Step -> Sub -> Step
+substStep st sigma =
+  { lic := substLic st.lic sigma
+  , sels := map (substSel sigma) st.sels
+  , licNorm := map (\x => substStep x sigma) st.licNorm } st
 
 record Cand where
   constructor MkCand
@@ -714,9 +734,6 @@ withLocalCands cs act = do
 
 ||| Rewriting-recorded steps are always proof-licensed (path licenses
 ||| are only ever EMITTED, for the data item's eq-lemmas).
-licProof : StepLic -> Elem
-licProof (LProof p) = p
-licProof (LPath _ _ _) = assert_total $ idris_crash "licProof: path license in a rewrite trace"
 
 ||| Strengthen a type away from the k innermost binders
 ||| (Nothing if any of them is mentioned).
@@ -1212,34 +1229,39 @@ orderedParts cs =
 
 -- ===== Step materialization =====
 --
--- A logical rewrite (site path π, candidate, bindings) becomes kernel
--- steps: the candidate's lhs-normalization INVERTED at π (bridging the
--- raw licensed equation to the stored pattern), the main step, then the
--- rhs-normalization at π. PStep proofs live over the candidate's
--- parametric context and are instantiated here.
+-- A logical rewrite (site path π, candidate, bindings) becomes ONE
+-- kernel step at π whose licence carries its own NORMALIZATION: the
+-- candidate's lhs- and rhs-normalization steps (the store's rewrites
+-- and, now, its unfoldings) are applied by the kernel to the raw
+-- licensed equation's sides, at the licence's type, before the
+-- equation is matched at π. (They used to be inverted onto the GOAL
+-- at π — impossible once a normalization step is an unfold: the
+-- unfolded body β-reduces away and no position is left to refold.)
+-- The steps live over the candidate's parametric context and are
+-- instantiated here.
 
 kernelFuel : Nat
 kernelFuel = 1000000
+
+||| The licence normalization of a candidate, instantiated: its
+||| lhs-steps on the licence's lhs, its rhs-steps on the licence's rhs.
+licNormOf : Cand -> Sub -> List Step
+licNormOf c sigma =
+  map (\ps => { onLhs := True } (substStep ps sigma)) c.preL
+    ++ map (\ps => { onLhs := False } (substStep ps sigma)) c.postR
 
 materialize : Cand -> Bindings -> (onLhs : Bool) -> (sitePath : List Nat) -> Maybe (List Step)
 materialize c bs side pi = do
   (prfMain, selsMain) <- c.emit 0 bs
   sigma <- instSub c.params 0 bs
-  let instStep = \ps : PStep => MkStep side (pi ++ ps.ppath) (LProof (substElem ps.pprf sigma)) ps.psels ps.pflip
-  let pre = map (\ps => { flip $= not } (instStep ps)) (reverse c.preL)
-  let post = map instStep c.postR
-  pure (pre ++ [MkStep side pi (LProof prfMain) selsMain False] ++ post)
+  pure [MkStep side pi (LProof prfMain) selsMain False (licNormOf c sigma)]
 
 materializeFlip : Cand -> Bindings -> (onLhs : Bool) -> Maybe (List Step)
 materializeFlip c bs side = do
   (prfMain, selsMain) <- c.emit 0 bs
   sigma <- instSub c.params 0 bs
-  let instStep = \ps : PStep => MkStep side ps.ppath (LProof (substElem ps.pprf sigma)) ps.psels ps.pflip
-  -- flipped whole-equation use at the root: post-normalization is
-  -- inverted (it now bridges INTO the stored rhs pattern), pre applies
-  let pre = map (\ps => { flip $= not } (instStep ps)) (reverse c.postR)
-  let post = map instStep c.preL
-  pure (pre ++ [MkStep side [] (LProof prfMain) selsMain True] ++ post)
+  -- the licence is normalized first, flipped after (kernel: licensed)
+  pure [MkStep side [] (LProof prfMain) selsMain True (licNormOf c sigma)]
 
 -- ===== Rewriting with step recording =====
 
@@ -1598,16 +1620,118 @@ dispUnfs sig ns = filter opens (ns ++ mapMaybe expName ns)
     Just (SigDef _ _ body _) => not (any isHoleName (toList (refsE body [<])))
     _ => True
 
-||| The join normal form of a side — comp plus the site's licensed
-||| unfoldings — extended, under a cited `hyp.rw` / `<lemma>.rw`
-||| license, by the rewrite loop RESTRICTED to the licensed rules
-||| (hypotheses, chain links, named Σ-lemmas; never the whole store).
+-- ===== the LOGGED unfold: δ one contraction at a time, each a Step =====
+--
+-- The kernel never unfolds inside an equation on its own initiative:
+-- every δ it performs during replay is an LUnfold step at a path,
+-- applied to the β-JOINED side and followed by a β-join
+-- (docs/NovaKernelRewrite.txt, CONVENTIONS). So the engine's join
+-- normal form is computed the same way — the β-normal form, then
+-- one licensed unfolding at a time, leftmost-outermost, β between —
+-- and the steps that reproduce it are returned. Only
+-- PATH-ADDRESSABLE positions unfold (the walk mirrors the kernel's
+-- walkE: a carried signature, polynomial, motive or method is
+-- opaque), which is the one difference from the old deep unfElem.
+
+unfLogFuel : Nat
+unfLogFuel = 200
+
+mapAccumSN : (Elem -> acc -> (Elem, acc)) -> SubNorm -> acc -> (SubNorm, acc)
+mapAccumSN f [<] a = ([<], a)
+mapAccumSN f (es :< e) a =
+  let (es', a1) = mapAccumSN f es a
+      (e', a2) = f e a1 in (es' :< e', a2)
+
+unfoldAllE : Sig -> List String -> Elem -> (Elem, SnocList String)
+unfoldAllE sig unfs t0 = go t0 [<]
+ where
+  go : Elem -> SnocList String -> (Elem, SnocList String)
+  go (SigVar x es) used =
+    let (es', u1) = mapAccumSN go es used in
+    if elem x unfs
+      then case cachedSigLookup sig x of
+             Just (SigDef _ _ body _) => (substElem body (embed es'), u1 :< x)
+             _ => (SigVar x es', u1)
+      else (SigVar x es', u1)
+  go (ZeroElim u) used = let (u', u1) = go u used in (ZeroElim u', u1)
+  go (NatIntro1 u) used = let (u', u1) = go u used in (NatIntro1 u', u1)
+  go (NatElim z s u) used =
+    let (z', u1) = go z used
+        (s', u2) = go s u1
+        (u', u3) = go u u2 in (NatElim z' s' u', u3)
+  go (PiIntro f) used = let (f', u1) = go f used in (PiIntro f', u1)
+  go (PiApp f e) used = let (f', u1) = go f used
+                            (e', u2) = go e u1 in (PiApp f' e', u2)
+  go (Let a b) used = let (a', u1) = go a used
+                          (b', u2) = go b u1 in (Let a' b', u2)
+  go (SigmaIntro a b) used = let (a', u1) = go a used
+                                 (b', u2) = go b u1 in (SigmaIntro a' b', u2)
+  go (SigmaElim1 u) used = let (u', u1) = go u used in (SigmaElim1 u', u1)
+  go (SigmaElim2 u) used = let (u', u1) = go u used in (SigmaElim2 u', u1)
+  go (Inj1 u) used = let (u', u1) = go u used in (Inj1 u', u1)
+  go (Inj2 u) used = let (u', u1) = go u used in (Inj2 u', u1)
+  go (SumElim l r u) used =
+    let (l', u1) = go l used
+        (r', u2) = go r u1
+        (u', u3) = go u u2 in (SumElim l' r' u', u3)
+  go (Elem.PiTy a c) used = let (a', u1) = go a used
+                                (c', u2) = go c u1 in (Elem.PiTy a' c', u2)
+  go (Elem.SigmaTy a c) used = let (a', u1) = go a used
+                                   (c', u2) = go c u1 in (Elem.SigmaTy a' c', u2)
+  go (Elem.SumTy a c) used = let (a', u1) = go a used
+                                 (c', u2) = go c u1 in (Elem.SumTy a' c', u2)
+  go (Elem.EqTy l r u) used =
+    let (l', u1) = go l used
+        (r', u2) = go r u1
+        (u', u3) = go u u2 in (Elem.EqTy l' r' u', u3)
+  go (QuotTy a r) used = let (a', u1) = go a used
+                             (r', u2) = go r u1 in (QuotTy a' r', u2)
+  go (Class a) used = let (a', u1) = go a used in (Class a', u1)
+  go (QuotElim f q) used = let (f', u1) = go f used
+                               (q', u2) = go q u1 in (QuotElim f' q', u2)
+  go (Squash u) used = let (u', u1) = go u used in (Squash u', u1)
+  go (QSort sg k es) used = let (es', u1) = mapAccumSN go es used in (QSort sg k es', u1)
+  go (QCtor sg k es) used = let (es', u1) = mapAccumSN go es used in (QCtor sg k es', u1)
+  go (QElim sg k ms fs es w) used =
+    let (es', u1) = mapAccumSN go es used
+        (w', u2) = go w u1 in (QElim sg k ms fs es' w', u2)
+  go (Out u) used = let (u', u1) = go u used in (Out u', u1)
+  go (Corec p a f x) used =
+    let (a', u1) = go a used
+        (f', u2) = go f u1
+        (x', u3) = go x u2 in (Corec p a' f' x', u3)
+  go u used = (u, used)
+
+||| The join normal form of e under the licensed unfoldings, with the
+||| steps (on `side`) that take the kernel from β(e) to it: one
+||| LUnfoldAll ROUND per nesting level — every licensed occurrence at
+||| once, then β — until nothing licensed remains.
+unfLogElem : Sig -> List String -> (side : Bool) -> Elem -> (Elem, List Step)
+unfLogElem sig unfs side e0 = go unfLogFuel (compElem e0) [<]
+ where
+  go : Nat -> Elem -> SnocList Step -> (Elem, List Step)
+  go Z t acc = (t, toList acc)
+  go (S k) t acc =
+    if null unfs then (t, toList acc) else
+    let (t', used) = unfoldAllE sig unfs t in
+    case used of
+      [<] => (t, toList acc)
+      _ => go k (compElem t') (acc :< MkStep side [] (LUnfoldAll (nub (toList used))) [] False [])
+
+unfLogTy : Sig -> List String -> (side : Bool) -> Ty -> (Ty, List Step)
+unfLogTy = unfLogElem
+
+||| The join normal form of a side — β plus the site's licensed
+||| unfoldings, every one an LUnfold step — extended, under a cited
+||| `hyp.rw` / `<lemma>.rw` license, by the rewrite loop RESTRICTED to
+||| the licensed rules (hypotheses, chain links, named Σ-lemmas; never
+||| the whole store).
 rwNfElemS : Sig -> (unfs : List String) -> List Cand -> (side : Bool) -> Elem -> (Elem, List Step)
 rwNfElemS sig unfs cands side e =
-  let start = compElem (unfElem sig True unfs e) in
+  let (start, uSteps) = unfLogElem sig unfs side e in
   if elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
-    then goS rwFuel [start] start []
-    else (start, [])
+    then goS rwFuel [start] start uSteps
+    else (start, uSteps)
  where
   hypCs : List Cand
   hypCs = filter (\c => (elem "hyp.rw" unfs && (c.candName == "hypothesis" || c.candName == "chain link"))
@@ -1617,16 +1741,16 @@ rwNfElemS sig unfs cands side e =
   goS (S fuel) seen t acc =
     case tryCands hypCs (\c => rewriteElemS side c [] 0 t) of
       Just (t', st) =>
-        let t'' = compElem (unfElem sig True unfs t') in
-        if elem t'' seen then (t, acc) else goS fuel (t'' :: seen) t'' (acc ++ st)
+        let (t'', u2) = unfLogElem sig unfs side t' in
+        if elem t'' seen then (t, acc) else goS fuel (t'' :: seen) t'' (acc ++ st ++ u2)
       Nothing => (t, acc)
 
 rwNfTyS : Sig -> (unfs : List String) -> List Cand -> (side : Bool) -> Ty -> (Ty, List Step)
 rwNfTyS sig unfs cands side ty =
-  let start = compTy (unfTy sig True unfs ty) in
+  let (start, uSteps) = unfLogTy sig unfs side ty in
   if elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
-    then goS rwFuel [start] start []
-    else (start, [])
+    then goS rwFuel [start] start uSteps
+    else (start, uSteps)
  where
   hypCs : List Cand
   hypCs = filter (\c => (elem "hyp.rw" unfs && (c.candName == "hypothesis" || c.candName == "chain link"))
@@ -1636,8 +1760,8 @@ rwNfTyS sig unfs cands side ty =
   goS (S fuel) seen t acc =
     case tryCands hypCs (\c => rewriteTyS side c [] 0 t) of
       Just (t', st) =>
-        let t'' = compTy (unfTy sig True unfs t') in
-        if elem t'' seen then (t, acc) else goS fuel (t'' :: seen) t'' (acc ++ st)
+        let (t'', u2) = unfLogTy sig unfs side t' in
+        if elem t'' seen then (t, acc) else goS fuel (t'' :: seen) t'' (acc ++ st ++ u2)
       Nothing => (t, acc)
 
 -- ===== Head exposure and its whitelist =====
@@ -1728,6 +1852,111 @@ mutual
       t'            => Out t'
   exposeE st e = e
 
+  ||| exposeE with its δ-contractions LOGGED as LUnfold steps on `side`
+  ||| (pi the reversed path of the subterm being exposed). Weak-head
+  ||| only, as exposeE: the paths lead along the head spine, which the
+  ||| kernel's β-join preserves — a step's path stands in the joined
+  ||| side as it stands in the weak-head form here.
+  exposeELog : ElabSt -> (side : Bool) -> (pi : List Nat) -> Elem -> (Elem, List Step)
+  exposeELog st side pi (NatElim z s t) =
+    let (t', s1) = exposeELog st side (2 :: pi) t in
+    case t' of
+      NatIntro0   => let (r, s2) = exposeELog st side pi z in (r, s1 ++ s2)
+      NatIntro1 n => let (r, s2) = exposeELog st side pi (substElem s (Ext (Ext Id n) (NatElim z s n))) in (r, s1 ++ s2)
+      _           => (NatElim z s t', s1)
+  exposeELog st side pi (PiApp f e) =
+    let (f', s1) = exposeELog st side (0 :: pi) f in
+    case f' of
+      PiIntro g => let (r, s2) = exposeELog st side pi (substElem g (Ext Id e)) in (r, s1 ++ s2)
+      _         => (PiApp f' e, s1)
+  exposeELog st side pi (Let a b) = exposeELog st side pi (substElem b (Ext (Ext Id a) Star))
+  exposeELog st side pi (SigmaElim1 t) =
+    let (t', s1) = exposeELog st side (0 :: pi) t in
+    case t' of
+      SigmaIntro a _ => let (r, s2) = exposeELog st side pi a in (r, s1 ++ s2)
+      _              => (SigmaElim1 t', s1)
+  exposeELog st side pi (SigmaElim2 t) =
+    let (t', s1) = exposeELog st side (0 :: pi) t in
+    case t' of
+      SigmaIntro _ b => let (r, s2) = exposeELog st side pi b in (r, s1 ++ s2)
+      _              => (SigmaElim2 t', s1)
+  exposeELog st side pi (SumElim l r t) =
+    let (t', s1) = exposeELog st side (2 :: pi) t in
+    case t' of
+      Inj1 a => let (r', s2) = exposeELog st side pi (substElem l (Ext Id a)) in (r', s1 ++ s2)
+      Inj2 b => let (r', s2) = exposeELog st side pi (substElem r (Ext Id b)) in (r', s1 ++ s2)
+      _      => (SumElim l r t', s1)
+  exposeELog st side pi (SigVar x es) =
+    if not (expOK st x) then (SigVar x es, []) else
+    case cachedSigLookup st.sig x of
+      Just (SigDef _ _ a _) =>
+        let (r, s2) = exposeELog st side pi (substElem a (embed es)) in
+        (r, MkStep side (reverse pi) (LUnfold x es) [] False [] :: s2)
+      _ => (SigVar x es, [])
+  exposeELog st side pi (QuotElim f q) =
+    let (q', s1) = exposeELog st side (1 :: pi) q in
+    case q' of
+      Class a => let (r, s2) = exposeELog st side pi (substElem f (Ext Id a)) in (r, s1 ++ s2)
+      _       => (QuotElim f q', s1)
+  exposeELog st side pi (Squash t) =
+    let (t', s1) = exposeTLog st side (0 :: pi) t in
+    case t' of
+      p@(Elem.EqTy _ _ _) => (p, s1)
+      p@(Squash _)        => (p, s1)
+      _                   => (Squash t', s1)
+  exposeELog st side pi (QElim sg k ms fs es w) =
+    let (w', s1) = exposeELog st side (length (toList es) :: pi) w in
+    case w' of
+      QCtor sgW c theta =>
+        if sgW == sg
+          then case qElimBetaRhs sg ms fs c theta of
+                 Right rhs => let (r, s2) = exposeELog st side pi rhs in (r, s1 ++ s2)
+                 Left _ => (QElim sg k ms fs es (QCtor sgW c theta), s1)
+          else (QElim sg k ms fs es (QCtor sgW c theta), s1)
+      _ => (QElim sg k ms fs es w', s1)
+  exposeELog st side pi (Out t) =
+    let (t', s1) = exposeELog st side (0 :: pi) t in
+    case t' of
+      Corec p a f x => let (r, s2) = exposeELog st side pi (mapPoly p (corecFun p a f) (substElem f (Ext Id x))) in (r, s1 ++ s2)
+      _             => (Out t', s1)
+  exposeELog st side pi e = (e, [])
+
+  ||| exposeT, logged (see exposeELog).
+  exposeTLog : ElabSt -> (side : Bool) -> (pi : List Nat) -> Ty -> (Ty, List Step)
+  exposeTLog st side pi (SigVar x es) =
+    if not (expOK st x) then (SigVar x es, []) else
+    case cachedSigLookup st.sig x of
+      Just (SigDef _ _ a _) =>
+        let (r, s2) = exposeTLog st side pi (substTy a (embed es)) in
+        (r, MkStep side (reverse pi) (LUnfold x es) [] False [] :: s2)
+      _ => (SigVar x es, [])
+  exposeTLog st side pi t@(PiApp _ _) = viaE t
+   where
+    viaE : Ty -> (Ty, List Step)
+    viaE u = let (u', s1) = exposeELog st side pi u in
+             case u' of
+               t'@(PiApp _ _) => (t', s1)
+               t' => let (r, s2) = exposeTLog st side pi t' in (r, s1 ++ s2)
+  exposeTLog st side pi t@(SigmaElim1 _) =
+    let (u', s1) = exposeELog st side pi t in
+    case u' of
+      t'@(SigmaElim1 _) => (t', s1)
+      t' => let (r, s2) = exposeTLog st side pi t' in (r, s1 ++ s2)
+  exposeTLog st side pi t@(SigmaElim2 _) =
+    let (u', s1) = exposeELog st side pi t in
+    case u' of
+      t'@(SigmaElim2 _) => (t', s1)
+      t' => let (r, s2) = exposeTLog st side pi t' in (r, s1 ++ s2)
+  exposeTLog st side pi t@(NatElim _ _ _) =
+    let (u', s1) = exposeELog st side pi t in
+    case u' of
+      t'@(NatElim _ _ _) => (t', s1)
+      t' => let (r, s2) = exposeTLog st side pi t' in (r, s1 ++ s2)
+  exposeTLog st side pi t@(Let _ _) =
+    let (u', s1) = exposeELog st side pi t in
+    let (r, s2) = exposeTLog st side pi u' in (r, s1 ++ s2)
+  exposeTLog st side pi t = (t, [])
+
   exposeT : ElabSt -> Ty -> Ty
   -- El retired: a type head is exposed whatever its entry's
   -- classifier — TYPE POSITION is the license (the old El clause's
@@ -1761,12 +1990,6 @@ mutual
 ||| computation only. Type-HEAD positions use exposeT instead.
 engNfE : ElabSt -> Elem -> Elem
 engNfE st e = compElem e
-
-||| The engine's JOIN normal form at the current site: comp plus the
-||| site's licensed unfoldings — for positions that must stay in the
-||| join vocabulary (hop residues).
-engJoinE : ElabSt -> Elem -> Elem
-engJoinE st e = compElem (unfElem st.sig True (st.transp ++ st.eqScope) e)
 
 engNfT : ElabSt -> Ty -> Ty
 engNfT st t = compTy t
@@ -1928,8 +2151,6 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
   lemmaRw : List Cand
   lemmaRw = rw
 
-  toPSteps : List Step -> List PStep
-  toPSteps = map (\s => MkPStep s.path (licProof s.lic) s.sels s.flip)
 
   -- a hypothesis licenses an equation when its (peeled) type IS an
   -- equality prop (the prop is the type — Prf retired; squashed
@@ -1955,7 +2176,7 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
         in if k == 0
              then let (l1, lSteps) = rwNfElemS st.sig (unfsOf st) lemmaRw True (engNfE st l)
                       (r1, rSteps) = rwNfElemS st.sig (unfsOf st) lemmaRw True (engNfE st r)
-                  in Just (MkCand "hypothesis" 0 [] l1 r1 mk (toPSteps lSteps) (toPSteps rSteps))
+                  in Just (MkCand "hypothesis" 0 [] l1 r1 mk lSteps rSteps)
              else Just (MkCand "hypothesis" k (lastEntries k ctx')
                           (engNfE st l) (engNfE st r) mk [] [])
       Nothing => Nothing
@@ -1969,7 +2190,7 @@ hypCands st rw ctx = concatMap closeCand (concatMap candsAt [0 .. minus (length 
   groundEqCand prf (l, r, t) =
     let (l1, lSteps) = rwNfElemS st.sig (unfsOf st) lemmaRw True (engNfE st l)
         (r1, rSteps) = rwNfElemS st.sig (unfsOf st) lemmaRw True (engNfE st r)
-    in MkCand "hypothesis" 0 [] l1 r1 (\wk, _ => Just (weakenElemN wk prf, [])) (toPSteps lSteps) (toPSteps rSteps)
+    in MkCand "hypothesis" 0 [] l1 r1 (\wk, _ => Just (weakenElemN wk prf, [])) lSteps rSteps
 
   pairEqs : Nat -> (proj : Elem) -> Ty -> List (Elem, (Elem, Elem, Ty))
   pairEqs fuel proj ty =
@@ -2104,8 +2325,7 @@ extendCS cs = MkCandSet (map wk cs.all) (map wk cs.rw) (map wk cs.hops)
   wkSel n s = s
 
   wkP : Nat -> PStep -> PStep
-  wkP n = { pprf $= (\e => substElem e (liftK n))
-          , psels $= map (wkSel n) }
+  wkP n ps = substStep ps (liftK n)
 
   wk : Cand -> Cand
   wk c = { lhs $= (\e => substElem e (liftK c.params))
@@ -2140,13 +2360,13 @@ prefixSteps i = map ({ path $= (i ::) })
 ||| Steps of a certificate that is pure steps + beta (flattenable into
 ||| a parent at a path); Nothing when the final is type-directed.
 flatSteps : ECert -> Maybe (List Step)
-flatSteps (MkECertF Nothing steps FBeta _) = Just steps
+flatSteps (MkECertF Nothing steps FBeta) = Just steps
 flatSteps _ = Nothing
 
 ||| ... and with no proofs needed at all (safe under binders, where a
 ||| Γ-level proof reference would go out of scope).
 stepFree : ECert -> Bool
-stepFree (MkECertF Nothing [] FBeta _) = True
+stepFree (MkECertF Nothing [] FBeta) = True
 stepFree _ = False
 
 mutual
@@ -2189,24 +2409,24 @@ mutual
     -- item at a proposition type was the case). The neutral-prop case
     -- stays in spEqStructC, behind the judgemental check it needs
     if isSynProp tyN
-      then Just (MkECertF bridge [] FProp [])
+      then Just (MkECertF bridge [] FProp)
     else if eqFast
-      then Just (MkECertF bridge base FBeta [])
+      then Just (MkECertF bridge base FBeta)
       else
         (do rest <- timed "sp-match" (\_ => candMatchC dep st cs ctx a' b' tyN) >>= unbridged
-            pure (MkECertF bridge (base ++ rest.steps) rest.final []))
+            pure (MkECertF bridge (base ++ rest.steps) rest.final))
         <|> (do rest <- timed "sp-struct" (\_ => spEqStructC dep st cs ctx a' b' tyN) >>= unbridged
-                pure (MkECertF bridge (base ++ rest.steps) rest.final []))
+                pure (MkECertF bridge (base ++ rest.steps) rest.final))
         -- syntactic congruence: one deterministic descent of the two
         -- sides' common structure, children discharged strictly — the
         -- certificate-assembly twin of the decompose splitting (allowed
         -- here; the banned automation is the rwNf positional
         -- candidate search, not this)
         <|> (do congSteps <- timed "sp-cong" (\_ => spCongC dep st cs ctx a' b')
-                pure (MkECertF bridge (base ++ congSteps) FBeta []))
+                pure (MkECertF bridge (base ++ congSteps) FBeta))
    where
     unbridged : ECert -> Maybe ECert
-    unbridged c@(MkECertF Nothing _ _ _) = Just c
+    unbridged c@(MkECertF Nothing _ _) = Just c
     unbridged _ = Nothing
 
     isSynProp : Ty -> Bool
@@ -2410,7 +2630,7 @@ mutual
     firstJ (Nothing :: rest) = firstJ rest
 
     noBridge : ECert -> Maybe ECert
-    noBridge c@(MkECertF Nothing _ _ _) = Just c
+    noBridge c@(MkECertF Nothing _ _) = Just c
     noBridge _ = Nothing
 
     paramTy : Cand -> Nat -> Maybe Ty
@@ -2499,16 +2719,17 @@ mutual
           full <- complete c bs
           steps <- materialize c full True []
           sigma <- instSub c.params 0 full
-          let a' = engJoinE st (substElem c.rhs sigma)
+          -- the residue in the join vocabulary: its unfoldings are steps
+          let (a', uSteps) = unfLogElem st.sig (unfsOf st) True (substElem c.rhs sigma)
           rest <- spEqElemC dep st cs ctx a' b ty >>= noBridge
-          pure (MkECert (steps ++ rest.steps) rest.final))
+          pure (MkECert (steps ++ uSteps ++ rest.steps) rest.final))
       <|> (do bs <- matchElemP c.params 0 0 c.lhs b []
               full <- complete c bs
               steps <- materialize c full False []
               sigma <- instSub c.params 0 full
-              let b' = engJoinE st (substElem c.rhs sigma)
+              let (b', uSteps) = unfLogElem st.sig (unfsOf st) False (substElem c.rhs sigma)
               rest <- spEqElemC dep st cs ctx a b' ty >>= noBridge
-              pure (MkECert (steps ++ rest.steps) rest.final))
+              pure (MkECert (steps ++ uSteps ++ rest.steps) rest.final))
 
   ||| Γ ⊢ A ≐ B, speculatively, with evidence.
   spEqTyC : Nat -> ElabSt -> CandSet -> Ctx -> Ty -> Ty -> Maybe ECert
@@ -2520,11 +2741,11 @@ mutual
     let t0 = nowNs ()
         (a0, aSteps) = rwNfTyS st.sig (unfsOf st) cs.rw True tyA
         (b0, bSteps) = rwNfTyS st.sig (unfsOf st) cs.rw False tyB
-        -- strict: sides get HEAD exposure (logged δ at type heads);
+        -- strict: sides get HEAD exposure, its δ logged as steps;
         -- recursion through go/congFinal re-exposes per level
-        a = exposeT st a0
-        b = exposeT st b0
-        base = bump "rwnf-ty" (nowNs () - t0) (aSteps ++ bSteps) in
+        (a, aExp) = exposeTLog st True [] a0
+        (b, bExp) = exposeTLog st False [] b0
+        base = bump "rwnf-ty" (nowNs () - t0) (aSteps ++ aExp ++ bSteps ++ bExp) in
     ((\rest => MkECert (base ++ rest) FBeta) <$> go a b)
       <|> congFinal a b base
       <|> codeFall a b base
@@ -2541,12 +2762,12 @@ mutual
       -- harmlessly
       _ <- codeOf a
       _ <- codeOf b
-      MkECertF tyEx ss f unfs <- spEqElemC dep st cs ctx a b UniverseTy
+      MkECertF tyEx ss f <- spEqElemC dep st cs ctx a b UniverseTy
       case tyEx of
         -- a bridged element certificate cannot absorb the type-side
         -- normalization steps soundly — keep only the unbridged shape
-        Just _ => if null base then Just (MkECertF tyEx ss f unfs) else Nothing
-        Nothing => Just (MkECertF Nothing (base ++ ss) f unfs)
+        Just _ => if null base then Just (MkECertF tyEx ss f) else Nothing
+        Nothing => Just (MkECertF Nothing (base ++ ss) f)
     -- head-level congruence finals: extensional components (Ω-valued)
     -- cannot be flattened into steps, so prop-lift-eq / ty-quot-cong
     -- carry a nested certificate instead
@@ -3018,7 +3239,7 @@ declView st = mapMaybe view (toList st.sig)
 ||| elements (hypothesis proofs are CtxVar-headed and contribute
 ||| nothing), nested certificates included. Display only.
 hintNamesC : ECert -> List String
-hintNamesC (MkECertF tyEx steps final _) =
+hintNamesC (MkECertF tyEx steps final) =
   (case tyEx of
      Nothing => []
      Just (_, c) => hintNamesC c)
@@ -3034,6 +3255,8 @@ hintNamesC (MkECertF tyEx steps final _) =
   fromStep s = case s.lic of
                  LProof e => headName e
                  LPath _ _ _ => []
+                 LUnfold _ _ => []
+                 LUnfoldAll _ => []
 
   fromFinal : Final -> List String
   fromFinal (FWitness (Just c)) = hintNamesC c
@@ -3045,6 +3268,7 @@ hintNamesC (MkECertF tyEx steps final _) =
   fromFinal (FPiCong c1 c2) = hintNamesC c1 ++ hintNamesC c2
   fromFinal (FSigmaCong c1 c2) = hintNamesC c1 ++ hintNamesC c2
   fromFinal (FSumCong c1 c2) = hintNamesC c1 ++ hintNamesC c2
+  fromFinal (FChain _ cs) = concatMap hintNamesC cs
   fromFinal _ = []
 
 ||| The term-definition names among a collected reference pool.
@@ -3055,6 +3279,25 @@ defNamesOf st acc = nub (filter isDef (toList acc))
   isDef x = case cachedSigLookup st.sig x of
               Just (SigDef _ _ _ _) => True
               _ => False
+
+||| The δβ join WITH ITS STEPS: both sides unfolded under a name set
+||| that starts from the site's licences and the sides' own references
+||| and widens with what each round exposes, until the β-normal forms
+||| agree (or five rounds). The engine-side successor of the kernel's
+||| retired full-δβ rescue: an equation that holds by plain δβ is still
+||| found, and now every unfolding it needs is recorded.
+deltaJoinC : ElabSt -> Elem -> Elem -> Maybe ECert
+deltaJoinC st a b = go 5 (nub (unfsOf st ++ defNamesOf st (refsE b (refsE a [<]))))
+ where
+  go : Nat -> List String -> Maybe ECert
+  go Z ns = Nothing
+  go (S k) ns =
+    let (a', aSt) = unfLogElem st.sig ns True a
+        (b', bSt) = unfLogElem st.sig ns False b in
+    if a' == b' then Just (MkECert (aSt ++ bSt) FBeta)
+    else
+      let ns' = nub (ns ++ defNamesOf st (refsE b' (refsE a' [<]))) in
+      if length ns' == length ns then Nothing else go k ns'
 
 ||| §5.4 (docs/SearchlessElaboration.md): when a SCOPED site is about
 ||| to assume, probe the GLOBAL store once. A discharge the kernel
@@ -3230,7 +3473,7 @@ mutual
             let cs = bump "candN" (cast (length cs0.all)) cs0
             let tyM = bump "sz-att-in" (cast (elemSize a + elemSize b)) ty
             let tyM2 = tyM
-            let mcert = map ({ unfolds := (unfsOf st) }) (spEqElemC (fromMaybe spDepth st.depthOv) st cs ctx a b tyM2)
+            let mcert = spEqElemC (fromMaybe spDepth st.depthOv) st cs ctx a b tyM2
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mcert of
               Nothing => pure (Left site)
@@ -3250,9 +3493,11 @@ mutual
                     -- by plain δβ must not be lost to an overzealous
                     -- rewrite (this rescue lived in the removed
                     -- item-end deletion pass; it belongs at the site)
-                    case kCheckEqElem st.sig ctx kernelFuel (MkECertF Nothing [] FBeta (unfsOf st)) a b ty of
-                      Right () => pure (Right (MkECertF Nothing [] FBeta (unfsOf st)))
-                      Left _ => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
+                    case deltaJoinC st a b of
+                      Just bare => case kCheckEqElem st.sig ctx kernelFuel bare a b ty of
+                        Right () => pure (Right bare)
+                        Left _ => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
+                      Nothing => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
 
   attemptT : Ctx -> Site -> Ty -> Ty -> ElabM (Either Site ECert)
   attemptT ctx site tyA tyB =
@@ -3272,7 +3517,7 @@ mutual
             let t0 = nowNs ()
             let cs = mkCandSet st ctx
             let t1 = bump "cands" (nowNs () - t0) (nowNs ())
-            let mcert = map ({ unfolds := (unfsOf st) }) (spEqTyC (fromMaybe spDepth st.depthOv) st cs ctx tyA tyB)
+            let mcert = spEqTyC (fromMaybe spDepth st.depthOv) st cs ctx tyA tyB
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mcert of
               Nothing => pure (Left site)
@@ -3285,9 +3530,11 @@ mutual
                                    else audit "AUDIT ty | \{st.modPrefix} | \{site} | \{joinBy ", " names}" cert))
                   Left kerrMsg =>
                     -- bare-beta rescue, as at attemptE
-                    case kCheckEqTy st.sig ctx kernelFuel (MkECertF Nothing [] FBeta (unfsOf st)) tyA tyB of
-                      Right () => pure (Right (MkECertF Nothing [] FBeta (unfsOf st)))
-                      Left _ => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
+                    case deltaJoinC st tyA tyB of
+                      Just bare => case kCheckEqTy st.sig ctx kernelFuel bare tyA tyB of
+                        Right () => pure (Right bare)
+                        Left _ => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
+                      Nothing => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
 
   ||| Γ ⊢ a ≐ b : A ↓ — always succeeds; assumes what it cannot discharge.
   convElem : Ctx -> NameEnv -> Site -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM (Maybe ECert)
@@ -3574,60 +3821,34 @@ certOr : Maybe ECert -> ECert
 certOr (Just c) = c
 certOr Nothing = MkECert [] FBeta
 
-||| Expose a type's Π/Σ/quotient head: as written if already rigid
-||| (no annotation needed), else by normalization — in which case the
-||| exposure ships to the kernel as a PExpose payload (exposed type +
-||| conversion certificate).
-exposeCert : ElabSt -> Ctx -> Ty -> Ty -> Maybe (Ty, ECert)
-exposeCert st ctx ty tyX =
-  -- "expose" is the head-exposure engine entry — speculative
-  -- conversion OUTSIDE the committed attempts (which carry "engine").
-  -- The certificate ships INSIDE the skeleton with no committed
-  -- replay of its own, so it is VALIDATED here: an exposure whose
-  -- steps the kernel rejects (a hypothesis rewriting under a code
-  -- binder, say) must not poison the item.
-  timed "expose" $ \_ =>
-    let cs = mkCandSet st ctx in
-    do c <- map ({ unfolds := (unfsOf st) }) (spEqTyC spDepth st cs ctx ty tyX)
-       case kCheckEqTy st.sig ctx kernelFuel c ty tyX of
-         Right () => Just (tyX, c)
-         Left _ => Nothing
-
 preferPi : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
 preferPi st ctx (PiTy a b) = Just (a, b, Nothing)
-preferPi st ctx ty = case exposeHead st ty of
-                       tyX@(PiTy a b) => Just (a, b, Just (tyX, MkECert [] FBeta))
+preferPi st ctx ty = case exposeTLog st True [] ty of
+                       (tyX@(PiTy a b), steps) => Just (a, b, Just (tyX, MkECert steps FBeta))
                        _ => Nothing
 
 preferSigma : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
 preferSigma st ctx (SigmaTy a b) = Just (a, b, Nothing)
-preferSigma st ctx ty = case exposeHead st ty of
-                          tyX@(SigmaTy a b) => Just (a, b, Just (tyX, MkECert [] FBeta))
+preferSigma st ctx ty = case exposeTLog st True [] ty of
+                          (tyX@(SigmaTy a b), steps) => Just (a, b, Just (tyX, MkECert steps FBeta))
                           _ => Nothing
 
 preferSum : ElabSt -> Ctx -> Ty -> Maybe (Ty, Ty, Maybe (Ty, ECert))
 preferSum st ctx (SumTy a b) = Just (a, b, Nothing)
-preferSum st ctx ty = case exposeHead st ty of
-                        tyX@(SumTy a b) => Just (a, b, Just (tyX, MkECert [] FBeta))
+preferSum st ctx ty = case exposeTLog st True [] ty of
+                        (tyX@(SumTy a b), steps) => Just (a, b, Just (tyX, MkECert steps FBeta))
                         _ => Nothing
-
-||| Prop-code exposure at a checking position is whnf-δ only: a prop
-||| stuck up to hypothesis rewriting is NOT unstuck here — the author
-||| writes the exposed prop as an ascription, and the switch's
-||| constraint carries the rewriting (syntax-directed elaboration).
-exposeProp : ElabSt -> Ctx -> Ty -> Elem -> (Elem, Maybe (Ty, ECert))
-exposeProp st ctx ty p = (p, Nothing)
 
 preferNu : ElabSt -> Ctx -> Ty -> Maybe (Poly, Maybe (Ty, ECert))
 preferNu st ctx (NuTy f) = Just (f, Nothing)
-preferNu st ctx ty = case exposeHead st ty of
-                       tyX@(NuTy f) => Just (f, Just (tyX, MkECert [] FBeta))
+preferNu st ctx ty = case exposeTLog st True [] ty of
+                       (tyX@(NuTy f), steps) => Just (f, Just (tyX, MkECert steps FBeta))
                        _ => Nothing
 
 preferQuot : ElabSt -> Ctx -> Ty -> Maybe (Ty, Elem, Maybe (Ty, ECert))
 preferQuot st ctx (QuotTy a r) = Just (a, r, Nothing)
-preferQuot st ctx ty = case exposeHead st ty of
-                         tyX@(QuotTy a r) => Just (a, r, Just (tyX, MkECert [] FBeta))
+preferQuot st ctx ty = case exposeTLog st True [] ty of
+                         (tyX@(QuotTy a r), steps) => Just (a, r, Just (tyX, MkECert steps FBeta))
                          _ => Nothing
 
 ||| The expected type AS a proposition (Prf retired: the prop IS the
@@ -3642,9 +3863,9 @@ preferPrf st ctx ty = if kIsPropB st.kernelSig kernelFuel ctx ty
   -- callers expose for themselves exactly where a shape is needed,
   -- and downstream types keep the user's spelling)
   then Just (ty, Nothing)
-  else case exposeHead st ty of
-         tyX@(Elem.EqTy _ _ _) => Just (tyX, Just (tyX, MkECert [] FBeta))
-         tyX@(Squash _) => Just (tyX, Just (tyX, MkECert [] FBeta))
+  else case exposeTLog st True [] ty of
+         (tyX@(Elem.EqTy _ _ _), steps) => Just (tyX, Just (tyX, MkECert steps FBeta))
+         (tyX@(Squash _), steps) => Just (tyX, Just (tyX, MkECert steps FBeta))
          _ => Nothing
 
 ||| they cannot be accepted anyway.
@@ -5143,9 +5364,7 @@ mutual
         (pUse, exp) <- pure $ case pUse0 of
           Elem.EqTy _ _ _ => (pUse0, exp)
           Squash _ => (pUse0, exp)
-          _ => case exposeProp st ctx ty pUse0 of
-                 (pR, Just e2) => (pR, Just e2)
-                 (pR, Nothing) => (pR, exp)
+          _ => (pUse0, exp)
         case pUse of
           Elem.EqTy l r t => do
             c <- convElem ctx env (sub site "\{site}: checking ⋆") Nothing l r t
@@ -5185,13 +5404,14 @@ mutual
                      _ => exposeCode st p
         case pUse of
           Elem.EqTy l r tA => do
-            (x0', _) <- checkElem ctx env site x0 tA
-            mids <- traverse (\(_, x) => map fst (checkElem ctx env site x tA)) links
+            (x0', x0Sk) <- checkElem ctx env site x0 tA
+            midsSk <- traverse (\(_, x) => checkElem ctx env site x tA) links
+            let mids = map fst midsSk
             cands <- traverse (\(j, _) => linkCand j) links
             adjCerts <- adjacencies tA 1 x0'
                           (zipWith (\(_, mx), (cs, nx) => (headRange mx, cs, nx))
                                    links (zip cands mids))
-            cert <- composite tA l r cands adjCerts
+            cert <- composite tA l r cands ((x0', x0Sk) :: midsSk) adjCerts
             pure (Star, withExpose exp (Nd [PReflEq (certOr cert)] []))
           _ => throwShape site env "chain checked against" ty "an equality proposition"
    where
@@ -5222,39 +5442,34 @@ mutual
       ms <- adjacencies tA (S i) next rest
       pure (m :: ms)
 
-    ||| TRANSITIVITY STITCHING of one adjacency certificate (xᵢ ≐ xᵢ₊₁,
-    ||| flattenable: bridge-free steps + FBeta) into the composite's
-    ||| lhs walk: the lhs steps forward (they start from nf(xᵢ), which
-    ||| is where the previous segment ended), then the rhs steps
-    ||| REVERSED and INVERTED — walking the common normal form back out
-    ||| to xᵢ₊₁ (the flip-toggle is materialize's own inversion
-    ||| discipline; the kernel re-normalizes after every step, so the
-    ||| segments meet on the nose)
-    stitchOne : List Step -> List Step
-    stitchOne steps =
-      filter (\s => s.onLhs) steps
-        ++ map (\s => { flip $= not, onLhs := True } s)
-               (reverse (filter (\s => not s.onLhs) steps))
-
-    ||| the composite certificate for l ≐ r: stitch the adjacency
-    ||| certificates and validate by kernel replay; when stitching is
-    ||| unavailable (a failed adjacency keeps the run honest without a
-    ||| second obligation; an exotic final falls back to one scoped
-    ||| engine call over all the links), degrade exactly as ⋆ does
-    composite : Ty -> Elem -> Elem -> List (List Cand) -> List (Maybe ECert) -> ElabM (Maybe ECert)
-    composite tA l r cands adjCerts = do
+    ||| the composite certificate for l ≐ r: TRANSITIVITY through the
+    ||| chain's stated points (the kernel's FChain final — every point
+    ||| checked at the equation's type, every adjacency certificate
+    ||| replayed between its neighbours; nothing is inverted), validated
+    ||| by kernel replay; when an adjacency failed, or the composite
+    ||| does not replay, degrade exactly as ⋆ does
+    composite : Ty -> Elem -> Elem -> List (List Cand) -> List (Elem, Skel) -> List (Maybe ECert) -> ElabM (Maybe ECert)
+    composite tA l r cands points adjCerts = do
       st <- getSt
       if not (all isJust adjCerts)
         then pure Nothing   -- the failed step already carries the obligation
         else do
-          let stitched = map (map stitchOne . flatSteps) (catMaybes adjCerts)
-          case traverse id stitched of
-            Just segs =>
-              let cert = MkECertF Nothing (concat segs) FBeta (unfsOf st) in
+          -- the equation's sides meet the chain's written ends up to
+          -- the site's licensed unfoldings (u - v against u + realNeg v):
+          -- an ordinary engine certificate at each end
+          let cs = mkCandSet st ctx
+          let ends = case (points, reverse points) of
+                       ((p0, _) :: _, (pn, _) :: _) =>
+                         [| MkPair (spEqElemC spDepth st cs ctx l p0 tA <|> deltaJoinC st l p0)
+                                   (spEqElemC spDepth st cs ctx pn r tA <|> deltaJoinC st pn r) |]
+                       _ => Nothing
+          case ends of
+            Nothing => audit "CHAIN-COMPOSITE-FAIL \{site}: endpoints" fallback
+            Just (c0, cn) =>
+              let cert = MkECert [] (FChain points ([c0] ++ catMaybes adjCerts ++ [cn])) in
               case kCheckEqElem st.sig ctx kernelFuel cert l r tA of
                 Right () => pure (Just cert)
                 Left kerr => audit "CHAIN-COMPOSITE-FAIL \{site}: \{kerr}" fallback
-            Nothing => fallback
      where
       fallback : ElabM (Maybe ECert)
       fallback =
@@ -5268,13 +5483,22 @@ mutual
         -- el-squash-i, general form: w proves the squashee directly,
         -- whatever its shape. At an equality prop, any proof will do
         -- (el-prf-prop): w becomes a proof license for the equation.
-        let pB = exposeCode st p in
+        -- the prop's exposure is RECORDED: whatever this exposes (the
+        -- squashee's head included) rides to the kernel as the exposed
+        -- type plus its unfold steps, so the witness is checked against
+        -- the same spelling on both sides
+        let (pB, pSteps) = exposeELog st True [] p in
+        let exp1 = the (Maybe (Ty, ECert)) $ case pSteps of
+              [] => exp
+              _ => let prior = the (List Step) (case exp of
+                                   Nothing => []
+                                   Just (_, c) => c.steps) in
+                   Just (pB, MkECert (prior ++ pSteps) FBeta)
+        in
         let (pUse, exp) = the (Elem, Maybe (Ty, ECert)) $ case pB of
-              Squash _ => (pB, exp)
-              Elem.EqTy _ _ _ => (pB, exp)
-              _ => case exposeProp st ctx ty pB of
-                     (pR, Just e2) => (pR, Just e2)
-                     (pR, Nothing) => (pR, exp)
+              Squash _ => (pB, exp1)
+              Elem.EqTy _ _ _ => (pB, exp1)
+              _ => (pB, exp1)
         in case pUse of
           Squash sq => do
             (w', wSk) <- checkElem ctx env site w sq
@@ -5302,27 +5526,31 @@ mutual
               Just cert => pure (Star, withExpose exp (Nd [PReflEq cert] []))
               Nothing => do
                 (w', _) <- checkElem ctx env site w pN
-                let cert = MkECertF Nothing [MkStep True [] (LProof w') [] False] FBeta (unfsOf st)
+                let cert = MkECert [MkStep True [] (LProof w') [] False []] FBeta
                 pure (Star, withExpose exp (Nd [PReflEq cert] []))
           _ => throwShape site env "⋆ ⟨witness⟩ checked against" ty "an evident proposition"
   checkElemAt ctx env site (SSquashElim e xn body) ty = do
     st <- getSt
     (e', eTy, eSk) <- inferShaped ctx env site e (squashShape ctx env site (headRange e))
-    case preferPrf st ctx eTy of
-      Nothing => throwShape site env "squash-elim scrutinee has type" eTy "a ∥∥ proposition"
-      Just (p, _) =>
-        case exposeCode st p of
-          Squash a =>
-            -- el-squash-e-prf: body proves q[↑] under a hypothetical
-            -- inhabitant of the raw squashee a; the goal must itself
-            -- be a PROP — no elimination into arbitrary types
-            case preferPrf st ctx ty of
-              Nothing => throwShape site env "squash-elim checked against" ty "a proposition (el-squash-e-prf reaches only further propositions)"
-              Just (q, exp) => do
-                recordBinder (snd xn) ctx env (fst xn) a
-                (body', bodySk) <- checkElem (ctx :< a) (env :< fst xn) site body (substTy q Wk)
-                pure (Star, withExpose exp (Nd [PSquashElim e' eSk body' bodySk] []))
-          _ => throwShape site env "squash-elim scrutinee has type" eTy "a ∥∥ proposition"
+    -- the scrutinee's type exposed to its ∥·∥ and the squashee to its
+    -- head, the exposure RECORDED for the kernel (the body is checked
+    -- under the exposed squashee, so the kernel must bind the same)
+    let (eTyX, eSteps) = exposeELog st True [] eTy
+    let eExp = the (Maybe (Ty, ECert)) $ case eSteps of
+                 [] => Nothing
+                 _ => Just (eTyX, MkECert eSteps FBeta)
+    case eTyX of
+      Squash a =>
+        -- el-squash-e-prf: body proves q[↑] under a hypothetical
+        -- inhabitant of the raw squashee a; the goal must itself
+        -- be a PROP — no elimination into arbitrary types
+        case preferPrf st ctx ty of
+          Nothing => throwShape site env "squash-elim checked against" ty "a proposition (el-squash-e-prf reaches only further propositions)"
+          Just (q, exp) => do
+            recordBinder (snd xn) ctx env (fst xn) a
+            (body', bodySk) <- checkElem (ctx :< a) (env :< fst xn) site body (substTy q Wk)
+            pure (Star, withExpose exp (Nd [PSquashElim e' eSk eExp body' bodySk] []))
+      _ => throwShape site env "squash-elim scrutinee has type" eTy "a ∥∥ proposition"
   checkElemAt ctx env site (SUnsquash nx b w) ty =
     elabUnsquash ctx env site nx b w ty
   checkElemAt ctx env site (SSumSplit na l nb r w) ty =
@@ -6545,14 +6773,12 @@ addLemma name delta ty = withEqScope ["exp:*"] $ do
             pure (foldl PiApp (SigVar name (cast teleArgs)) peeledArgs, the (List Sel) [])
           lRes = rwNfElemS st.sig [] lemmaRw True (engNfE st l)
           rRes = rwNfElemS st.sig [] lemmaRw True (engNfE st r)
-          toP : List Step -> List PStep
-          toP = map (\s => MkPStep s.path (licProof s.lic) s.sels s.flip)
       in modifySt $ \st' =>
            let ls = closeCand (MkCand name k (toList delta') (fst lRes) (fst rRes)
-                                      mk (toP (snd lRes)) (toP (snd rRes))) ++ st'.lemmas
+                                      mk (snd lRes) (snd rRes)) ++ st'.lemmas
                (cs, sh, re, hp) = sigCandParts ls
                new = closeCand (MkCand name k (toList delta') (fst lRes) (fst rRes)
-                                       mk (toP (snd lRes)) (toP (snd rRes)))
+                                       mk (snd lRes) (snd rRes))
            in { lemmas := ls, ownLemmas := new ++ st'.ownLemmas
               , candCs := cs, candShrink := sh
               , candRest := re, candHops := hp, candRw := sh ++ re } st'
@@ -6924,7 +7150,7 @@ elabItemGo irng (SData params decls) = do
     let n = length tel
     let ty = wrapParams ptys (foldr PiTy (Elem.EqTy lE rE uT) tel)
     let body = wrapLams (np + n) Star
-    let cert = MkECert [MkStep True [] (LPath (sgAt sg n) k (varSpine n)) [] False] FBeta
+    let cert = MkECert [MkStep True [] (LPath (sgAt sg n) k (varSpine n)) [] False []] FBeta
     emitCoreDef site nm ty (Nd [] []) body (nestSkel (np + n) (Nd [PReflEq cert] []))
 
   ||| The eliminator def for sort s: motives (code-valued), methods,
@@ -7008,7 +7234,7 @@ elabItemGo irng (SData params decls) = do
                 let dlen = length dtel
                 -- path [1]: the rhs argument of the (bare, El retired)
                 -- motive application C ī ⌊r⌋
-                let swc = MkECert [MkStep True [1] (LPath (sgAt sgJ dlen) ej spineArgs) [] True] FBeta
+                let swc = MkECert [MkStep True [1] (LPath (sgAt sgJ dlen) ej spineArgs) [] True []] FBeta
                 -- the ≡-TYPE IS the eq-prop (Prf retired): children
                 -- l, r and the carried type
                 let eqSk = Nd [] [Nd [] [], Nd [PSwitch swc] [], Nd [] []]
@@ -7055,7 +7281,7 @@ elabItemGo irng (SData params decls) = do
                     let dlen = length dtel
                     let hIdx = minus nH (S j) + nI + 1 + dlen
                     let dVars = map CtxVar (reverse (upto dlen))
-                    pure (MkECert [MkStep True [] (LProof (applyChain (CtxVar hIdx) dVars)) [] False] FBeta))
+                    pure (MkECert [MkStep True [] (LProof (applyChain (CtxVar hIdx) dVars)) [] False []] FBeta))
                 (zipWithIndex 0 eqPs)
     let bodySk = nestSkel (np + bigN) (Nd [PQCoh cohCerts] [])
     emitCoreDef site (nm ++ (if prop then "ElimP" else "Elim")) defTy defTySk body bodySk
