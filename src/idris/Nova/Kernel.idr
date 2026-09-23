@@ -949,6 +949,7 @@ mutual
   kJoinQTy sig (QPiExt a b) = [| QPiExt (kJoinTy sig a) (kJoinQTy sig b) |]
   kJoinQTy sig (QPiInd t b) = [| QPiInd (kJoinQTm sig t) (kJoinQTy sig b) |]
 
+  export
   kJoinQSig : Sig -> QSig -> KM QSig
   kJoinQSig sig = traverse (kJoinQTy sig)
 
@@ -1339,16 +1340,15 @@ mutual
     if expN == gotN || (expN == TopTy && gotN == UniverseTy)
       then pure True
       else case (expN, gotN) of
-        -- a CARRIED SIGNATURE is inert syntax compared after
-        -- normalization (structural identity, as el-qiit-beta fires):
-        -- two sorts at one position and spine agree when their carried
-        -- signatures normalize alike — the one place δ still acts, inside
-        -- a carrier (A3, §9)
+        -- a CARRIED SIGNATURE is inert syntax compared after the
+        -- β-join (structural identity, as el-qiit-beta fires): two
+        -- sorts at one position and spine agree when their carried
+        -- signatures join alike (A3, §9; no δ inside a carrier either)
         (QSort sg0 k0 es0, QSort sg1 k1 es1) =>
           if k0 == k1 && es0 == es1
             then do
-              n0 <- kQSig sig sg0
-              n1 <- kQSig sig sg1
+              n0 <- kJoinQSig sig sg0
+              n1 <- kJoinQSig sig sg1
               pure (n0 == n1)
             else pure False
         _ => pure False
@@ -1542,7 +1542,7 @@ mutual
       Just _ => kerr "kernel: δ leaf at a declaration '\{x}'"
       Nothing => kerr "kernel: δ leaf names unknown definition '\{x}'"
   kPrfS sig ctx (PPath sg k qs) = do
-    sg' <- kQSig sig sg
+    sg' <- kJoinQSig sig sg
     entry <- case qEntry sg' k of
                Just e => pure e
                Nothing => kerr "kernel: path leaf entry out of range"
@@ -2343,8 +2343,8 @@ mutual
             ty' <- kWhnfT sig ty
             case ty' of
               NuTy pT => do
-                p' <- kPoly sig p
-                pT' <- kPoly sig pT
+                p' <- kJoinPoly sig p
+                pT' <- kJoinPoly sig pT
                 if p' == pT' then pure ()
                   else kerr "kernel: corec carries a different polynomial than its ν-type"
                 kCheckE sig ctx aC UniverseTy (skelChild 0 sk)
@@ -2362,15 +2362,16 @@ mutual
             let hyp = Elem.EqTy (CtxVar 0) (substElem a Wk) (substTy aTy Wk)
             kCheckE sig (ctx :< aTy :< hyp) b (weakenTyN 2 ty) (skelChild 1 sk)
           QCtor sgC c theta => do
-            -- el-qiit-intro, SATURATED. The signature is nf(T)'s own —
+            -- el-qiit-intro, SATURATED. The signature is the type's own —
             -- already validated where T was — and the term's must be
-            -- nf-identical to it. FULL normalization here: the carried
-            -- signature is compared structurally, so weak-head is not
-            -- enough.
-            ty' <- kTy sig ty
+            -- identical to it under β. FULL β-join here (no δ: a
+            -- carrier spelled through a definition arrives switched):
+            -- the carried signature is compared structurally, so
+            -- weak-head is not enough.
+            ty' <- kJoinTy sig ty
             case ty' of
               QSort sgT srt es => do
-                sgC' <- kQSig sig sgC
+                sgC' <- kJoinQSig sig sgC
                 if sgC' /= sgT
                   then kerr "kernel: constructor of a different signature"
                   else pure ()
@@ -2398,8 +2399,8 @@ mutual
                 if srt' /= srt
                   then kerr "kernel: constructor of a different sort"
                   else pure ()
-                idxN <- kSubNorm sig idx
-                esN <- kSubNorm sig es
+                idxN <- kJoinSubNorm sig idx
+                esN <- kJoinSubNorm sig es
                 if idxN == esN
                   then pure ()
                   else kerr "kernel: constructor indices do not match the type"
@@ -2967,16 +2968,6 @@ kTele sig ctx ((ty, sk) :: rest) = do
 ||| PROPOSITION — kIsProp's discipline: the raw spelling inferred at
 ||| Ω through the given skeleton first (a bare one reads an eliminator
 ||| head at the constant motive Ω), then whnf.
-||| A carried signature as the kernel normalizes it (its embedded
-||| Nova pieces in nf): the engine's reconstruction reflects telescope
-||| entry types from THIS spelling, the one the kernel checks against.
-export
-kQSigB : Sig -> Nat -> QSig -> Maybe QSig
-kQSigB sig fuel sg =
-  case runKM (kQSig sig sg) fuel of
-    Right (sg', _) => Just sg'
-    Left _ => Nothing
-
 export
 kIsPropB : Sig -> Nat -> Ctx -> Ty -> Skel -> Bool
 kIsPropB sig fuel ctx t sk =

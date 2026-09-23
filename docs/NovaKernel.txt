@@ -74,6 +74,12 @@ of fuel, are exactly:
   x[e˲]              ≜  a[e˲]      (Σ ∋ Γ ⊦ x ≔ a : A)   # el-sig-beta
   x[e˲]              ≜  T[e˲]      (Σ ∋ Γ ⊦ x ≔ T : 𝕍)  # el-sig-beta at 𝕍
 
+The two el-sig-beta clauses (δ) belong to nf, the engine-facing
+normalizer (kInferBare, typing a hole's value). NO VERDICT PATH runs
+them: every rule below compares by the β-JOIN — nf without the δ
+clauses, a definition reference a stuck head — and a δ-apart spelling
+meets the position through a proof (x-δ, δ-all, §4) or a switch (§8).
+
 (El is retired — a small code IS its type, by cumulativity
 code-lift; there are no decoding clauses.)
 
@@ -769,7 +775,7 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
      -------------------------------------               # el-quot-i
      Σ; Γ ⊦ class a ⇐ T ⟨sk⟩
 
-     nf(T) ⇓ ν 𝔽    (the term's carried 𝔽 nf-identical to nf(T)'s)
+     nf(T) ⇓ ν 𝔽    (the term's carried 𝔽 join-identical to nf(T)'s)
      Σ; Γ ⊦ a ⇐ 𝕌 ⟨sk.0⟩    Σ; Γ ▷ a ⊦ f ⇐ ⌊𝔽⌋(a)[↑] ⟨sk.1⟩
      Σ; Γ ⊦ x ⇐ a ⟨sk.2⟩
      ------------------------------------------------------------
@@ -777,7 +783,9 @@ Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
 
      nf(T) ⇓ 𝒮.𝕤 ē    𝒮(𝕔) = 𝔄 ending in El (𝕤 ī)
      Σ; Γ ⊦ θᵢ ⇐ (entry i of ⌊𝔄⌋ᵗ)[θ prefix] ⟨sk.i⟩ (entrywise)
-     nf(⌊ī⌋[θ]) = nf(ē)
+     nf(⌊ī⌋[θ]) = nf(ē)    (T, the term's 𝒮 and both spines under the
+                            β-join — a carrier spelled through a
+                            definition arrives switched)
      ------------------------------------------------------------
      Σ; Γ ⊦ 𝒮.𝕔 θ ⇐ T ⟨sk⟩                          # el-qiit-intro
      # the term's carried 𝒮 and nf(T)'s must be nf-IDENTICAL;
@@ -1035,30 +1043,22 @@ leaves, ascribed where a definition hides a shape — so proof-spine
 typing is β-only, and so is every element a proof carries (a
 selector's instantiation, a δ or path leaf's spine: STATED, §3) and
 every prop-ness test (kIsProp infers through a carried skeleton).
-What remains of kernel-initiated δ (⇒ᴺ at an undetermined position,
-§6, is β-only too: a bare spine's head type is opened along the
-spine by the β-whnf, and a typed head is read from its stated type):
-
-  * el-qiit-intro (§8): the type a constructor is checked at, and
-    the term's own carried signature, are put in FULL nf (kTy, kQSig
-    — δ included) before the carriers are compared structurally and
-    the index spines by nf;
-  * CARRIED SIGNATURES: two sorts at one position and spine agree
-    when their carried signatures normalize alike (tyAgree, §7) — the
-    structural identity el-qiit-beta already fires on (A3: a carrier
-    is inert syntax, compared after nf, never a proof position), and
-    a path leaf's carried signature is normalized the same way (§4);
-  * the engine-facing services (kInferBare: typing a hole's value)
-    run a LIBERAL whnf — never a verdict path.
-
-Measured over the corpus (2026-09-24): the constructor rule's nf
-changes a spelling at 8 checks, all in Qiit/cross.nova (a signature
-embedding Bag ℕ), and at none of them does the δ decide the verdict
-— both carriers unfold alike; the sort agreement's normalized
-comparison and the path leaf's never differ from the raw spelling.
-The residue is latent: the sites can be made β-only (join in place
-of nf, carriers compared modulo β, a δ-apart spelling meeting its
-switch as everywhere else) without a corpus change.
+NO kernel-initiated δ remains on a verdict path. ⇒ᴺ at an
+undetermined position (§6) opens a bare spine's head type by the
+β-whnf, and a typed head is read from its stated type; el-qiit-intro
+(§8) joins the expected type, the term's carried signature and the
+index spines under β; two sorts at one position and spine agree when
+their carried signatures JOIN alike (tyAgree, §7 — the structural
+identity el-qiit-beta fires on; A3: a carrier is inert syntax, never
+a proof position); a path leaf's carried signature (§4) and a corec's
+polynomial against its ν-type's (§8) are joined the same way. The
+last four were made β-only on 2026-09-24 after a corpus-wide
+measurement showed their δ never deciding a verdict (8 spelling
+changes, all in Qiit/cross.nova, both carriers unfolding alike). The
+δ clauses of nf (§1) serve one engine-facing service, kInferBare
+(typing a hole's value), which runs the LIBERAL whnf — never a
+verdict path; the kernel state carries the flag explicitly
+(KSt.liberal), so a verdict path cannot inherit it by accident.
 
 The item level's checking fallthrough (a non-intro term with no
 switch payload) compares inferred and expected by β and cumulativity
@@ -1066,12 +1066,8 @@ ONLY: every position whose spelling is δ-apart carries a switch proof
 — from elaboration, from a reconstructed skeleton (a solved hole, a
 synthesized type, an inline definition's Π-closure), or from the
 data-item emission (a constructor's or eliminator's binder declared at
-an external domain as written, meeting the entry type AS THE KERNEL'S
-RULE REFLECTS IT: from the normalized signature at a constructor
-spine, el-qiit-intro comparing carriers in nf; from the signature as
-written at a sort spine and at an eliminator's methods and eliminee).
-The kernel state carries the liberal flag explicitly (KSt.liberal),
-so a verdict path cannot inherit it by accident.
+an external domain as written, meeting the entry type every kernel
+rule reflects from the carried signature AS WRITTEN, modulo β).
 
 Two structural caveats restated from docs/NovaPipeline.txt: an
 annotation (motive, ascription, exposure target) is a REPRESENTATIVE,

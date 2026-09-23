@@ -186,12 +186,13 @@ unfolds nothing to type it. Proof terms are written in the core's
 own syntax ((x : T by α) .π₂ y reads as the term it is about), and
 every element a proof carries — a selector's instantiation, a δ or
 path leaf's spine — is itself a proof naming that element, so no
-second checker types anything bare. What still unfolds on the
-kernel's own initiative is confined to the identity of carried QIIT
-signatures, compared after normalization, and to a bare spine's head
-type at a position nothing else determines (docs/NovaKernel.txt §9);
-the item level's switch-less fallthrough compares by β alone, every
-δ-apart position carrying its switch proof. The floor in every variant: α-comparison
+second checker types anything bare. Nothing unfolds on the kernel's
+own initiative along a verdict path: carried QIIT signatures and
+polynomials are compared under the β-join like everything else
+(docs/NovaKernel.txt §9), the item level's switch-less fallthrough
+compares by β alone, and every δ-apart position carries its switch
+proof; the δ clauses of nf serve only the engine-facing typing of a
+hole's value. The floor in every variant: α-comparison
 and substitution stay trusted — no kernel design knows less than
 that.
 

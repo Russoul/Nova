@@ -4200,8 +4200,8 @@ mutual
     -- a constructor's argument spine, each entry at the reflected
     -- telescope's type (an external domain written as a definition
     -- meets it unfolded: the entry's switch rides along)
-    QCtor sg k es => Nd [] (qSpineSkels st ctx True sg k es)
-    QSort sg k es => Nd [] (qSpineSkels st ctx False sg k es)
+    QCtor sg k es => Nd [] (qSpineSkels st ctx sg k es)
+    QSort sg k es => Nd [] (qSpineSkels st ctx sg k es)
     -- a non-intro term at a type spelled otherwise than the one it
     -- infers to: the switch proof (a δ bridge) rides along, since the
     -- kernel's switch-less fallthrough compares by β only
@@ -4216,16 +4216,12 @@ mutual
   reSkelI st0 ctx e = fst (reSkelIT (openExp st0) ctx e)
 
   ||| A QIIT spine's entry skeletons, each at its reflected telescope
-  ||| type — spelled as the KERNEL's rule reflects it: a constructor's
-  ||| from the normalized signature (el-qiit-intro compares carriers
-  ||| in nf and walks the normalized telescope), a sort's from the raw
-  ||| one (its rule reads the carried signature as written); a binder
-  ||| declared at the other spelling meets its switch there
-  qSpineSkels : ElabSt -> Ctx -> (norm : Bool) -> QSig -> Nat -> SubNorm -> List Skel
-  qSpineSkels st ctx norm sg0 k es = go 0 (toList es)
+  ||| type — from the carried signature AS WRITTEN, which is how every
+  ||| kernel rule reads it (modulo β); a binder declared at a δ-apart
+  ||| spelling meets its switch there
+  qSpineSkels : ElabSt -> Ctx -> QSig -> Nat -> SubNorm -> List Skel
+  qSpineSkels st ctx sg k es = go 0 (toList es)
    where
-    sg : QSig
-    sg = if norm then fromMaybe sg0 (kQSigB st.kernelSig kernelFuel sg0) else sg0
     go : Nat -> List Elem -> List Skel
     go i [] = []
     go i (x :: rest) =
@@ -4278,8 +4274,8 @@ mutual
     Elem.EqTy l r t => (Nd [] [reSkelE st ctx l t, reSkelE st ctx r t, reSkelI st ctx t], Just PropTy)
     QuotTy a r => (Nd [] [reSkelI st ctx a, reSkelI st (ctx :< a :< substTy a Wk) r], Just UniverseTy)
     Squash t => (Nd [] [reSkelI st ctx t], Just PropTy)
-    QCtor sg k es => (Nd [] (qSpineSkels st ctx True sg k es), Nothing)
-    QSort sg k es => (Nd [] (qSpineSkels st ctx False sg k es), Nothing)
+    QCtor sg k es => (Nd [] (qSpineSkels st ctx sg k es), Nothing)
+    QSort sg k es => (Nd [] (qSpineSkels st ctx sg k es), Nothing)
     -- a ⊎-elim in a TYPE (a relator instance): its scrutinee typed
     -- and exposed, the cases at Ω under the summands
     SumElim l r t =>
@@ -7535,7 +7531,7 @@ elabItemGo irng (SData params decls) = do
                    Nothing => Nd [] []
     -- the expected types as the KERNEL spells them: the eliminator
     -- rule reflects method and eliminee types from the carried
-    -- signature AS WRITTEN (raw; only el-qiit-intro normalizes first)
+    -- signature AS WRITTEN
     let sgK = sgAt sg bigN
     let mSks = map (\(i, cj) =>
                  let k = minus endExtra (S i) in

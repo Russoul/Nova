@@ -449,7 +449,7 @@ mutual
   ||| telescope.
   pathArgs : Sig -> Ctx -> QSig -> Nat -> SubNorm -> KM (List Prf)
   pathArgs sig ctx sg k th = do
-    sg' <- kQSig sig sg
+    sg' <- kJoinQSig sig sg
     entry <- case qEntry sg' k of
                Just e => pure e
                Nothing => kerr "certificate: path leaf entry out of range"
@@ -506,7 +506,7 @@ mutual
     -- (every sort's motive the expected type, weakened into the sort's
     -- context), the coherences by β (docs/NovaKernel.txt, A1/A4)
     QElim sg k mths es w => do
-      sg' <- kQSig sig sg
+      sg' <- kJoinQSig sig sg
       let sortPs = qPositions QKSort sg'
       let pointPs = qPositions QKPoint sg'
       let eqPs = qPositions QKEq sg'
@@ -549,7 +549,7 @@ mutual
       go i (_ :: rest) = i :: go (S i) rest
     spineSkels : QSig -> Nat -> SubNorm -> KM (List Skel)
     spineSkels sg k es = do
-      sg' <- kQSig sig sg
+      sg' <- kJoinQSig sig sg
       let esL = toList es
       traverse (\(i, x) => case qSpineChildTy sg' k es i of
                              Just t => chkSkel sig ctx x t
