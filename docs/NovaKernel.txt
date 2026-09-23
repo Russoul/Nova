@@ -1035,19 +1035,30 @@ leaves, ascribed where a definition hides a shape — so proof-spine
 typing is β-only, and so is every element a proof carries (a
 selector's instantiation, a δ or path leaf's spine: STATED, §3) and
 every prop-ness test (kIsProp infers through a carried skeleton).
-What remains of kernel-initiated δ:
+What remains of kernel-initiated δ (⇒ᴺ at an undetermined position,
+§6, is β-only too: a bare spine's head type is opened along the
+spine by the β-whnf, and a typed head is read from its stated type):
 
-  * ⇒ᴺ at an UNDETERMINED position (§6): a bare spine's head type is
-    opened along the spine by a liberal whnf (the type of h.π₁ needs
-    h's declared type opened, and a bare spine has no place for an
-    ascription) — a typed head (self/chk/ascription, §4) is read from
-    its stated type instead;
+  * el-qiit-intro (§8): the type a constructor is checked at, and
+    the term's own carried signature, are put in FULL nf (kTy, kQSig
+    — δ included) before the carriers are compared structurally and
+    the index spines by nf;
   * CARRIED SIGNATURES: two sorts at one position and spine agree
     when their carried signatures normalize alike (tyAgree, §7) — the
     structural identity el-qiit-beta already fires on (A3: a carrier
-    is inert syntax, compared after nf, never a proof position);
+    is inert syntax, compared after nf, never a proof position), and
+    a path leaf's carried signature is normalized the same way (§4);
   * the engine-facing services (kInferBare: typing a hole's value)
     run a LIBERAL whnf — never a verdict path.
+
+Measured over the corpus (2026-09-24): the constructor rule's nf
+changes a spelling at 8 checks, all in Qiit/cross.nova (a signature
+embedding Bag ℕ), and at none of them does the δ decide the verdict
+— both carriers unfold alike; the sort agreement's normalized
+comparison and the path leaf's never differ from the raw spelling.
+The residue is latent: the sites can be made β-only (join in place
+of nf, carriers compared modulo β, a δ-apart spelling meeting its
+switch as everywhere else) without a corpus change.
 
 The item level's checking fallthrough (a non-intro term with no
 switch payload) compares inferred and expected by β and cumulativity
