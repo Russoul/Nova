@@ -97,6 +97,12 @@ mutual
     DAt : Drv -> Drv -> Drv -> Drv
     ||| π[σ] (§10.4): the substitution lemma as a rule; inference only
     DSubst : Drv -> DSub -> Drv
+    ||| (π : π_T by β?): an ASCRIPTION — π checked at the type π_T
+    ||| derives; under checking at T, β ▷ T ≐ that type (an exposure:
+    ||| the skeleton's expose), or the two agree (β absent); in
+    ||| inference position the type is what π_T derives (the
+    ||| skeleton's intro-ty), β absent
+    DAscribe : Drv -> Drv -> Maybe Drv -> Drv
     -- ----- intro forms -----
     ||| λ_{π_A} π
     DLam : Maybe Drv -> Drv -> Drv
@@ -161,6 +167,7 @@ mutual
 -- ===== Erasure =====
 
 ||| ↑ composed n times.
+export
 wkN : Nat -> Sub
 wkN Z = Id
 wkN (S n) = Chain (wkN n) Wk
@@ -185,6 +192,7 @@ mutual
   erase DProp = Just PropTy
   erase DTop = Just TopTy
   erase (DConv p _ _) = erase p
+  erase (DAscribe p _ _) = erase p
   erase (DSubst p sg) = [| substElem (erase p) (eraseSub sg) |]
   erase (DLam _ p) = PiIntro <$> erase p
   erase (DPair _ u v) = [| SigmaIntro (erase u) (erase v) |]
@@ -258,6 +266,7 @@ atomicD (DInj _) = True
 atomicD (DPropExt _ _) = True
 atomicD (DPrfCong _ _ _) = True
 atomicD (DConv _ _ _) = True
+atomicD (DAscribe _ _ _) = True
 atomicD (DAt _ _ _) = True
 atomicD (DSubst _ _) = True
 atomicD (DPair _ _ _) = True
@@ -328,6 +337,8 @@ mutual
   showDrv (DConv p Nothing b) = "(\{showDrv p} by \{showDrv b})"
   showDrv (DConv p (Just t) b) = "(\{showDrv p} ∷ \{showDrv t} by \{showDrv b})"
   showDrv (DAt p t b) = "(\{showDrv p} : \{showDrv t} by \{showDrv b})"
+  showDrv (DAscribe p t Nothing) = "(\{showDrv p} : \{showDrv t})"
+  showDrv (DAscribe p t (Just b)) = "(\{showDrv p} : \{showDrv t} by \{showDrv b})"
   showDrv (DSubst p (MkDSub d es)) =
     "\{argD p}[↑\{show d}\{concatMap entryD es}]"
   -- intro forms
