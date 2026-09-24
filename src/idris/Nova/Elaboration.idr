@@ -1236,18 +1236,19 @@ kernelFuel : Nat
 kernelFuel = 1000000
 
 ||| A candidate's LICENCE LEAF at complete match bindings, in the use
-||| context (the site's context extended by the `d` binders the
-||| rewriter crossed): the leaf over the pattern context under the
-||| SUBSTITUTION NODE (§10.4) — weakening by the use context's length
-||| past the candidate's base plus d, then the bindings as the typed
-||| extension, each derived at its parameter's type instantiated by
-||| the earlier ones — and the orientation.
+||| context `ctx` (the site's context extended by the `d` binders the
+||| rewriter crossed — the bindings, found at the site, are weakened
+||| by d): the leaf over the pattern context under the SUBSTITUTION
+||| NODE (§10.4) — weakening by the use context's length past the
+||| candidate's base, then the bindings as the typed extension, each
+||| derived at its parameter's type instantiated by the earlier ones —
+||| and the orientation.
 licLeafK : ElabSt -> Ctx -> Cand -> Bindings -> (d : Nat) -> (flip : Bool) -> KM Drv
 licLeafK st ctx c bs d flip = do
   leaf <- case c.leafP of
             Just l => pure l
             Nothing => kerr "proof: the candidate '\{c.candName}' has no licence leaf"
-  let depth = minus (length ctx) c.base + d
+  let depth = minus (length ctx) c.base
   entries <- go (wkN depth) (if c.params == 0 then [] else reverse [0 .. minus c.params 1]) (zip c.paramTys0 c.paramTyDs)
   let node = DSubst leaf (MkDSub depth entries)
   pure (if flip then dSym node else node)
