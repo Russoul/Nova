@@ -1781,19 +1781,21 @@ unfLogTy = unfLogElem
 ||| engine compares, the proof what the kernel checks).
 rwNfElemP : ElabSt -> Ctx -> Maybe Ty -> (unfs : List String) -> List Cand -> Elem -> (Elem, Maybe Drv)
 rwNfElemP st ctx mty unfs cands e =
-  let (start, uP) = unfLogElem st.sig unfs e in
   if elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
-    then goS rwFuel [start] start (Just [uP])
-    else (start, Just uP)
+    -- the RAW side rewritten first (its positions are arguments of
+    -- definitions with declared types: every leaf lands at a typed
+    -- position), then unfolded, then the loop
+    then goS rwFuel [] (compElem e) (Just []) False
+    else let (start, uP) = unfLogElem st.sig unfs e in (start, Just uP)
  where
   hypCs : List Cand
   hypCs = filter (\c => (elem "hyp.rw" unfs && (c.candName == "hypothesis" || c.candName == "chain link"))
                       || elem ("rw:" ++ c.candName) unfs) cands
   done : Elem -> Maybe (List Drv) -> (Elem, Maybe Drv)
   done t acc = (t, map (chainP . reverse) acc)
-  goS : Nat -> List Elem -> Elem -> Maybe (List Drv) -> (Elem, Maybe Drv)
-  goS Z seen t acc = done t acc
-  goS (S fuel) seen t acc =
+  goS : Nat -> List Elem -> Elem -> Maybe (List Drv) -> (unfolded : Bool) -> (Elem, Maybe Drv)
+  goS Z seen t acc _ = done t acc
+  goS (S fuel) seen t acc unfolded =
     case tryCands hypCs (\c => rewriteElemS c [] 0 t) of
       Just (t', hit) =>
         let (t'', u2) = unfLogElem st.sig unfs t' in
@@ -1801,25 +1803,28 @@ rwNfElemP st ctx mty unfs cands e =
           else goS fuel (t'' :: seen) t''
                  (do ps <- acc
                      p <- hitPrf st ctx mty t hit
-                     pure (u2 :: p :: ps))
-      Nothing => done t acc
+                     pure (u2 :: p :: ps)) True
+      Nothing =>
+        if unfolded then done t acc
+          else let (t1, u1) = unfLogElem st.sig unfs t in
+               if t1 == t then done t acc
+                 else goS fuel (t1 :: seen) t1 (map (u1 ::) acc) True
 
 ||| rwNfElemP for a type (at 𝕍; type positions descend as rewriteTyS).
 rwNfTyP : ElabSt -> Ctx -> (unfs : List String) -> List Cand -> Ty -> (Ty, Maybe Drv)
 rwNfTyP st ctx unfs cands ty =
-  let (start, uP) = unfLogTy st.sig unfs ty in
   if elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
-    then goS rwFuel [start] start (Just [uP])
-    else (start, Just uP)
+    then goS rwFuel [] (compTy ty) (Just []) False
+    else let (start, uP) = unfLogTy st.sig unfs ty in (start, Just uP)
  where
   hypCs : List Cand
   hypCs = filter (\c => (elem "hyp.rw" unfs && (c.candName == "hypothesis" || c.candName == "chain link"))
                       || elem ("rw:" ++ c.candName) unfs) cands
   done : Ty -> Maybe (List Drv) -> (Ty, Maybe Drv)
   done t acc = (t, map (chainP . reverse) acc)
-  goS : Nat -> List Ty -> Ty -> Maybe (List Drv) -> (Ty, Maybe Drv)
-  goS Z seen t acc = done t acc
-  goS (S fuel) seen t acc =
+  goS : Nat -> List Ty -> Ty -> Maybe (List Drv) -> (unfolded : Bool) -> (Ty, Maybe Drv)
+  goS Z seen t acc _ = done t acc
+  goS (S fuel) seen t acc unfolded =
     case tryCands hypCs (\c => rewriteTyS c [] 0 t) of
       Just (t', hit) =>
         let (t'', u2) = unfLogTy st.sig unfs t' in
@@ -1827,8 +1832,12 @@ rwNfTyP st ctx unfs cands ty =
           else goS fuel (t'' :: seen) t''
                  (do ps <- acc
                      p <- hitPrf st ctx (Just TopTy) t hit
-                     pure (u2 :: p :: ps))
-      Nothing => done t acc
+                     pure (u2 :: p :: ps)) True
+      Nothing =>
+        if unfolded then done t acc
+          else let (t1, u1) = unfLogTy st.sig unfs t in
+               if t1 == t then done t acc
+                 else goS fuel (t1 :: seen) t1 (map (u1 ::) acc) True
 
 -- ===== Head exposure and its whitelist =====
 --

@@ -3049,16 +3049,6 @@ dropCtx Z ctx = Just ctx
 dropCtx (S n) (ctx :< _) = dropCtx n ctx
 dropCtx (S _) [<] = Nothing
 
-||| The UNDETERMINED position type (approximation A7, §10.5): the type
-||| of a head or scrutinee child that neither states it nor inverts to
-||| it — a stuck eliminator produced by δ-normalization, its motive
-||| lost. The children under it are compared, never typed; a stating
-||| child's type is not compared with it. What the skeleton reader's
-||| undetermined position was; it goes with the engine's normalization
-||| of derivations (step 4).
-undeterminedTy : Ty
-undeterminedTy = SigVar "?undetermined" [<]
-
 ||| A goal for the readings that decompose: one side given, with the
 ||| direction, or both.
 data DGoal : Type where
@@ -3585,7 +3575,7 @@ mutual
         TopTy => k TopTy
         _ => kerr "kernel: a type former checked at a non-classifier [\{show ty}]"
     agree : Ty -> KM ()
-    agree t = if ty == undeterminedTy then pure () else do
+    agree t = do
       ok <- tyAgree sig ty t
       if ok then pure ()
         else kerr "kernel: type mismatch without a conversion\n  inferred: \{show t}\n  expected: \{show ty}"
@@ -3918,8 +3908,7 @@ mutual
                        (fTy', fTy) <- headOfU qf
                        case fTy' of
                          PiTy dom cod => pure [(ctx, fTy), (ctx, dom)]
-                         _ => if fTy' == undeterminedTy then pure [(ctx, fTy), (ctx, undeterminedTy)]
-                                else kerr "kernel: application congruence: the head is not a function"
+                         _ => kerr "kernel: application congruence: the head is not a function"
                      _ => arity) [qf, qa]
     (DProj1 q, _) =>
       node (\x => case x of SigmaElim1 u => Just [u]; _ => Nothing)
@@ -4047,7 +4036,7 @@ mutual
     needBoth = kerr "kernel: a type-directed proof needs both sides [\{showDrv d}]"
 
     agreeAt : Ty -> KM ()
-    agreeAt t = if ty == undeterminedTy then pure () else do
+    agreeAt t = do
       ok <- tyAgree sig ty t
       if ok then pure ()
         else kerr "kernel: the node's type does not agree with the position's\n  node: \{show t}\n  position: \{show ty}"
@@ -4092,20 +4081,24 @@ mutual
     ||| side's head by typing inversion (the neutral-subterm rule, §6:
     ||| a spine's head has a declared type, opened along the spine by
     ||| the β-whnf), never invented.
-    -- … Nothing exactly when the child states nothing and its side's
-    -- head does not invert
-    headOfM : Drv -> KM (Maybe (Ty, Ty))
-    headOfM q =
+
+    -- typing by inversion STRUCTURALLY through the child's nodes, the
+    -- given side's term alongside: an exposure inside the child is
+    -- run where it sits (a stuck head whose scrutinee's type a
+    -- definition hides), an application's codomain instantiated by
+    -- the side's argument; a bare head inverts from its term
+    headOfMT : Drv -> Elem -> KM (Maybe (Ty, Ty))
+    headOfMT q term =
       if dSynth q
         then do
           (_, _, t) <- dInfer sig ctx q
           t' <- kWhnfT sig t
           pure (Just (t', t))
-        else case q of
+        else case (q, term) of
           -- an exposure around a non-stating head: the proof run from
           -- the type the head inverts to
-          DConv q' Nothing beta => do
-            m <- headOfM q'
+          (DConv q' Nothing beta, _) => do
+            m <- headOfMT q' term
             case m of
               Nothing => pure Nothing
               Just (_, t0) => do
@@ -4113,19 +4106,46 @@ mutual
                 t <- dDir sig ctx beta True tJ TopTy
                 t' <- kWhnfT sig t
                 pure (Just (t', t))
+          (DOut q', Out t) => part q' t (\t' => case t' of
+                                           NuTy f => Just (reflectPoly f (Elem.NuTy f))
+                                           _ => Nothing)
+          (DProj1 q', SigmaElim1 t) => part q' t (\t' => case t' of
+                                                   SigmaTy a _ => Just a
+                                                   _ => Nothing)
+          (DProj2 q', SigmaElim2 t) => part q' t (\t' => case t' of
+                                                   SigmaTy _ b => Just (substTy b (Ext Id (SigmaElim1 t)))
+                                                   _ => Nothing)
+          (DApp qf _, PiApp ft at) => part qf ft (\t' => case t' of
+                                                   PiTy _ cod => Just (substTy cod (Ext Id at))
+                                                   _ => Nothing)
           _ => do
-            mt <- inferHead sig ctx headTerm
+            mt <- inferHead sig ctx term
             case mt of
               Just t => do t' <- kWhnfT sig t; pure (Just (t', t))
               Nothing => pure Nothing
+     where
+      part : Drv -> Elem -> (Ty -> Maybe Ty) -> KM (Maybe (Ty, Ty))
+      part q' t pick = do
+        m <- headOfMT q' t
+        case m of
+          Nothing => pure Nothing
+          Just (t', _) => case pick t' of
+            Just ty => do ty' <- kWhnfT sig ty; pure (Just (ty', ty))
+            Nothing => pure Nothing
 
-    -- … or the UNDETERMINED type (A7), audited
+    -- … Nothing exactly when the child states nothing and its side's
+    -- head does not invert
+    headOfM : Drv -> KM (Maybe (Ty, Ty))
+    headOfM q = headOfMT q headTerm
+
+    -- (a head whose type is neither stated nor inverted is REJECTED:
+    -- every position is typed, there is no undetermined position)
     headOfU : Drv -> KM (Ty, Ty)
     headOfU q = do
       m <- headOfM q
       case m of
         Just r => pure r
-        Nothing => pure (audit "DRV-A7 undetermined head type | \{showDrv q} | \{show headTerm}" (undeterminedTy, undeterminedTy))
+        Nothing => kerr "kernel: a head child's type is neither stated nor inverted [\{showDrv q}]"
 
     headOf : Drv -> KM (Ty, Ty)
     headOf q = do
@@ -4141,9 +4161,7 @@ mutual
         Just (t', t) => case pick t' of
           Just (a, b) => pure (a, b, t)
           Nothing => kerr "kernel: \{what}: the scrutinee's type has no shape for it [\{show t'}]"
-        -- the scrutinee's type undetermined (A7): its parts too
-        Nothing => pure (audit "DRV-A7 undetermined scrutinee type | \{what} | \{showDrv q} | \{show headTerm}"
-                               (undeterminedTy, undeterminedTy, undeterminedTy))
+        Nothing => kerr "kernel: \{what}: the scrutinee's type is neither stated nor inverted [\{showDrv q}]"
 
     ||| A node: the side(s) decompose by `shape` into the children's
     ||| parts, `kids` computes each child's context and expected type
@@ -5480,7 +5498,7 @@ mutual
       dt0 <- headDrv qt (part ml sumElimT)
       (tTy, dt) <- scrutTyD dt0 (part ml sumElimT)
       tTy' <- kWhnfT sig tTy
-      case (if tTy' == undeterminedTy then SumTy undeterminedTy undeterminedTy else tTy') of
+      case tTy' of
         SumTy a b => do
           let mot = fromMaybe (substTy ty Wk) mm
           dm <- case mm of
@@ -5546,7 +5564,7 @@ mutual
       dq0 <- headDrv qq (part ml quotElimQ)
       (qTy, dq) <- scrutTyD dq0 (part ml quotElimQ)
       qTy' <- kWhnfT sig qTy
-      case (if qTy' == undeterminedTy then QuotTy undeterminedTy undeterminedTy else qTy') of
+      case qTy' of
         QuotTy a rel => do
           let mot = fromMaybe (substTy ty Wk) mm
           dm <- case mm of
@@ -5728,12 +5746,11 @@ mutual
                         mt <- inferHead sig ctx h
                         case mt of
                           Just t => pure t
-                          Nothing => pure undeterminedTy
+                          Nothing => kerr "re-derive: a head with no inferable type"
                       Nothing => kerr "re-derive: a rewritten head whose side is unknown [\{showDrv df}] in \{showPrf prf}"
       fTy' <- kWhnfT sig fTy
       case fTy' of
         PiTy dom _ => pure dom
-        SigVar "?undetermined" _ => pure undeterminedTy
         _ => do
           -- the shape a definition hides (the head arrives exposed
           -- by headShaped; its domain is read off the exposure)
@@ -5754,15 +5771,12 @@ mutual
                       mt <- inferHead sig ctx h
                       case mt of
                         Just t => pure t
-                        -- the type lost (a stuck eliminator's): the
-                        -- reader's undetermined position (A6)
-                        Nothing => pure undeterminedTy
+                        Nothing => kerr "re-derive: a scrutinee with no inferable type"
                     Nothing => kerr "re-derive: a rewritten scrutinee whose side is unknown"
       t' <- kWhnfT sig t
       case t' of
         SumTy _ _ => pure (t, dq)
         QuotTy _ _ => pure (t, dq)
-        SigVar "?undetermined" _ => pure (t, dq)
         _ => do
           (tX, pt) <- rdExpose sig ctx t
           case pt of

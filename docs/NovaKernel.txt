@@ -1359,19 +1359,22 @@ stays on erasures: the join normalizes |π|, refl compares erasures,
 δ unfolds a definition's stored erasure. Derivations are never
 β-reduced.
 
-THE UNDETERMINED POSITION (A7). A head or scrutinee child that
-neither states its type nor inverts to it from the given side — a
-stuck eliminator that δ-normalization produced, its motive lost
-(quot-elim (y. class (rAbs y)) q from an unfolded realAbs; an ℕ-elim
-head whose scrutinee a lemma rewrites) — reads at the UNDETERMINED
-type: the children under it are compared, never typed, and a stating
-child's type is not compared with it. This is what the skeleton
-reader's undetermined position was (§6), kept for the same proofs —
-12 sites in the corpus after step 4, all under δ-all rounds of the
-engine — and audited (DRV-A7). What removes it is an engine whose
-normalization keeps motives, i.e. one that unfolds definitions'
-DERIVATIONS rather than their erasures (Σ storing the derivation
-beside the erasure); it is the one open item of the migration.
+NO UNDETERMINED POSITION. A head or scrutinee child that neither
+states its type nor inverts to it from the given side — a stuck
+eliminator that δ-normalization produced, its motive lost — is
+REJECTED: an untyped comparison is not a reading. (The skeleton
+reader's undetermined position, §6, and a first version of this
+reader accepted such children with their types uncompared; a leaf
+stated at one quotient and placed under such a head at another would
+have passed. It is gone.) Inversion from the side is STRUCTURAL
+through the child's own nodes — an exposure inside the child is run
+where it sits, an application's codomain instantiated by the side's
+argument — so a child under `by x-δ` types exactly as far as the
+exposure reaches. What the engine must do to meet this: rewrite the
+RAW sides before unfolding (a rewrite then lands at an argument of a
+definition with a declared type), which is how its normalization
+loop is ordered; a proof it still writes under a lost motive is
+rejected and the plain δβ join is tried in its place.
 
 10.6 Items, Σ, the pipeline
 
@@ -1418,10 +1421,12 @@ classifier), which a derivation would only restate.
 
 Gone: Skel, Payload, the child-indexing table of §2, the checked leaf
 [t : T] ⟨sk⟩, the self leaf's bare term, checking-mode inference of
-bare terms, inferHead, the neutral-subterm rule, A1, A2, substPrf,
-skeleton reconstruction, the item-level fallthrough. Remaining kernel
-comparison: tyAgree (β-join, cumulativity, carrier identity) and the
-⇐ reading of conversion proofs against erasures. Remaining
+bare terms, the neutral-subterm rule's UNDETERMINED position, A1, A2,
+substPrf, skeleton reconstruction, the item-level fallthrough.
+Remaining kernel comparison: tyAgree (β-join, cumulativity, carrier
+identity), the ⇐ reading of conversion proofs against erasures, and
+typing by inversion of a head from the given side (inferHead, now
+structural through the child's nodes, 10.5). Remaining
 approximations: A3 (opaque carriers), A4 (β-only coherences in
 re-derived eliminator arguments — the engine writes refl coherences),
 A5 (no η certificate for QIITs).
@@ -1500,8 +1505,11 @@ A5 (no η certificate for QIITs).
      typing is the reader's own and free of the site's whitelist
      (which governs the term); a QIIT eliminator without motives reads
      at the constant motives (dCheck, the sides-given reading) and is
-     re-derived so at a type. The undetermined position (A7) remains
-     at 12 sites — the open item, 10.5.
+     re-derived so at a type. The undetermined position is GONE
+     (10.5): its 12 corpus sites disappeared once the engine's
+     normalization loop rewrites the raw sides before unfolding, and
+     the reader inverts a head's type structurally through the
+     child's nodes; a proof written under a lost motive is rejected.
   5. delete Skel, Payload, PChk, PSelf's bare form, substPrf; rewrite
      §2, §6, §7, §8, §9 from this section.
 

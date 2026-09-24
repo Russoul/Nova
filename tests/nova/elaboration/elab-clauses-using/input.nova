@@ -21,7 +21,9 @@ useDblS : (m : ℕ) → dbl (S m) ≡ S (S (dbl m)) using (dblS)
 useDblS = λm. ⋆
 
 -- named at the CLAUSES, the lemmas close each clause lemma and reach
--- nothing else: the uniqueness proof's step case stays an obligation
+-- nothing else: the uniqueness proof never sees plusZ or sucPlusR —
+-- it closes through the clause lemmas dbl'Z and dbl'S themselves,
+-- which are in the store once accepted
 dbl' : ℕ → ℕ
 dbl' = λn. plus n n
 dbl' Z using (plusZ) = Z
