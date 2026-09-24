@@ -1738,10 +1738,12 @@ unfoldAllE sig unfs t0 = go t0 [<]
   go (QCtor sg k es) used =
     let (sg', u0) = mapAccumQSig go sg used
         (es', u1) = mapAccumSN go es u0 in (QCtor sg' k es', u1)
+  -- (the methods too: every occurrence, wherever the term holds it)
   go (QElim sg k fs es w) used =
     let (sg', u0) = mapAccumQSig go sg used
-        (es', u1) = mapAccumSN go es u0
-        (w', u2) = go w u1 in (QElim sg' k fs es' w', u2)
+        (fsS, u1) = mapAccumSN go ([<] <>< fs) u0
+        (es', u2) = mapAccumSN go es u1
+        (w', u3) = go w u2 in (QElim sg' k (toList fsS) es' w', u3)
   go (Out u) used = let (u', u1) = go u used in (Out u', u1)
   go (Corec p a f x) used =
     let (a', u1) = go a used
@@ -1751,13 +1753,41 @@ unfoldAllE sig unfs t0 = go t0 [<]
 
 ||| The join normal form of e under the licensed unfoldings, with the
 ||| steps (on `side`) that take the kernel from β(e) to it: one
-||| The δ-rounds of a side under the licensed names — every licensed
+||| May head exposure unfold `x` at this site? Under an `<x>.unfold` (or subsuming
+||| `<x>.eq`) citation — or with NOVA_EXPOSE_OPEN=1, the survey escape
+||| hatch that logs what a whitelist would need without enforcing one.
+expOK : ElabSt -> String -> Bool
+expOK st x =
+  surveyMode
+    || elem "exp:*" st.eqScope
+    || elem x st.eqScope || elem ("exp:" ++ x) st.eqScope
+    -- an inline definition unfolds citation-free: it stands for a
+    -- subterm the operator WROTE at the site, and blocking it would
+    -- hide their own text behind a machine name
+    || elem x st.transp
+
+||| The δ-rounds of a side under the licensed names — the HEAD PATH
+||| first, typed (exposure under the same names: the eliminator nodes
+||| it crosses carry their motives, so a stuck eliminator that
+||| unfolding produces, scrutinee of another, is typed by its motive
+||| alone — a δ-all leaf would lose them), then every licensed
 ||| occurrence at once, then β, until nothing licensed remains — each
 ||| round a δ-all leaf: the unfolded, β-joined term and the proof of
 ||| e ≐ e′.
-unfLogElem : Sig -> List String -> Elem -> (Elem, Drv)
-unfLogElem sig unfs e0 = go unfLogFuel (compElem e0) []
+unfLogElem : Sig -> (at : Maybe (Ctx, Maybe Ty)) -> List String -> Elem -> (Elem, Drv)
+unfLogElem sig at unfs e0 =
+  if null unfs then (compElem e0, DReflx) else
+  let (e1, pX) = headPath at
+  in go unfLogFuel (compElem e1) (if isReflx pX then [] else [pX])
  where
+  -- (under the δ licence, the names the rounds unfold: the walk
+  -- changes the proof's shape, never what the rounds compute)
+  headPath : Maybe (Ctx, Maybe Ty) -> (Elem, Drv)
+  headPath Nothing = (compElem e0, DReflx)
+  headPath (Just (ctx, mty)) =
+    case runPA "exposure (unfold) of \{show (compElem e0)} at \{maybe "?" show mty}" (exposeKWT (\x => elem x unfs) sig ctx mty (compElem e0)) of
+      Just (x, p) => (x, p)
+      Nothing => (compElem e0, DReflx)
   go : Nat -> Elem -> List Drv -> (Elem, Drv)
   go Z t acc = (t, chainP (reverse acc))
   go (S k) t acc =
@@ -1767,8 +1797,8 @@ unfLogElem sig unfs e0 = go unfLogFuel (compElem e0) []
       [<] => (t, chainP (reverse acc))
       _ => go k (compElem t') (DDeltaAll (nub (toList used)) :: acc)
 
-unfLogTy : Sig -> List String -> Ty -> (Ty, Drv)
-unfLogTy = unfLogElem
+unfLogTy : Sig -> Ctx -> List String -> Ty -> (Ty, Drv)
+unfLogTy sig ctx = unfLogElem sig (Just (ctx, Just TopTy))
 
 ||| The join normal form of a side — β plus the site's licensed
 ||| unfoldings — extended, under a cited `hyp.rw` / `<lemma>.rw`
@@ -1786,7 +1816,7 @@ rwNfElemP st ctx mty unfs cands e =
     -- definitions with declared types: every leaf lands at a typed
     -- position), then unfolded, then the loop
     then goS rwFuel [] (compElem e) (Just []) False
-    else let (start, uP) = unfLogElem st.sig unfs e in (start, Just uP)
+    else let (start, uP) = unfLogElem st.sig (Just (ctx, mty)) unfs e in (start, Just uP)
  where
   hypCs : List Cand
   hypCs = filter (\c => (elem "hyp.rw" unfs && (c.candName == "hypothesis" || c.candName == "chain link"))
@@ -1798,7 +1828,7 @@ rwNfElemP st ctx mty unfs cands e =
   goS (S fuel) seen t acc unfolded =
     case tryCands hypCs (\c => rewriteElemS c [] 0 t) of
       Just (t', hit) =>
-        let (t'', u2) = unfLogElem st.sig unfs t' in
+        let (t'', u2) = unfLogElem st.sig (Just (ctx, mty)) unfs t' in
         if elem t'' seen then done t acc
           else goS fuel (t'' :: seen) t''
                  (do ps <- acc
@@ -1806,7 +1836,7 @@ rwNfElemP st ctx mty unfs cands e =
                      pure (u2 :: p :: ps)) True
       Nothing =>
         if unfolded then done t acc
-          else let (t1, u1) = unfLogElem st.sig unfs t in
+          else let (t1, u1) = unfLogElem st.sig (Just (ctx, mty)) unfs t in
                if t1 == t then done t acc
                  else goS fuel (t1 :: seen) t1 (map (u1 ::) acc) True
 
@@ -1815,7 +1845,7 @@ rwNfTyP : ElabSt -> Ctx -> (unfs : List String) -> List Cand -> Ty -> (Ty, Maybe
 rwNfTyP st ctx unfs cands ty =
   if elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
     then goS rwFuel [] (compTy ty) (Just []) False
-    else let (start, uP) = unfLogTy st.sig unfs ty in (start, Just uP)
+    else let (start, uP) = unfLogTy st.sig ctx unfs ty in (start, Just uP)
  where
   hypCs : List Cand
   hypCs = filter (\c => (elem "hyp.rw" unfs && (c.candName == "hypothesis" || c.candName == "chain link"))
@@ -1827,7 +1857,7 @@ rwNfTyP st ctx unfs cands ty =
   goS (S fuel) seen t acc unfolded =
     case tryCands hypCs (\c => rewriteTyS c [] 0 t) of
       Just (t', hit) =>
-        let (t'', u2) = unfLogTy st.sig unfs t' in
+        let (t'', u2) = unfLogTy st.sig ctx unfs t' in
         if elem t'' seen then done t acc
           else goS fuel (t'' :: seen) t''
                  (do ps <- acc
@@ -1835,7 +1865,7 @@ rwNfTyP st ctx unfs cands ty =
                      pure (u2 :: p :: ps)) True
       Nothing =>
         if unfolded then done t acc
-          else let (t1, u1) = unfLogTy st.sig unfs t in
+          else let (t1, u1) = unfLogTy st.sig ctx unfs t in
                if t1 == t then done t acc
                  else goS fuel (t1 :: seen) t1 (map (u1 ::) acc) True
 
@@ -1846,19 +1876,6 @@ rwNfTyP st ctx unfs cands ty =
 -- the survey stream for the future per-item `using`-unfold whitelist.
 -- Used wherever conversion or checking needs a TYPE head; equation
 -- SIDES never δ-expand.
-
-||| May head exposure unfold `x` at this site? Under an `<x>.unfold` (or subsuming
-||| `<x>.eq`) citation — or with NOVA_EXPOSE_OPEN=1, the survey escape
-||| hatch that logs what a whitelist would need without enforcing one.
-expOK : ElabSt -> String -> Bool
-expOK st x =
-  surveyMode
-    || elem "exp:*" st.eqScope
-    || elem x st.eqScope || elem ("exp:" ++ x) st.eqScope
-    -- an inline definition unfolds citation-free: it stands for a
-    -- subterm the operator WROTE at the site, and blocking it would
-    -- hide their own text behind a machine name
-    || elem x st.transp
 
 ||| The site's LICENSED UNFOLDINGS: what its using clause cited, plus
 ||| the INLINE DEFINITIONS, which unfold everywhere and cite nothing
@@ -2293,7 +2310,7 @@ rwNfTy st ctx ty = fst (rwNfTyP st ctx (unfsOf st) (mkCandSet st ctx).rw ty)
 ||| same signal a rejected proof gives).
 exposeEP : ElabSt -> Ctx -> Elem -> (Elem, Maybe Drv)
 exposeEP st ctx e =
-  case runPA "exposure" (exposeKW (expOK st) st.sig ctx e) of
+  case runPA "exposure of \{show e}" (exposeKW (expOK st) st.sig ctx e) of
     Just (x, p) => if isReflx p then (x, Nothing) else (x, Just p)
     Nothing => (e, Nothing)
 
@@ -2765,14 +2782,14 @@ mutual
           sigma <- instSub c.params 0 full
           -- the residue in the join vocabulary: its unfoldings are
           -- δ-all leaves
-          let (a', uP) = unfLogElem st.sig (unfsOf st) (substElem c.rhs sigma)
+          let (a', uP) = unfLogElem st.sig (Just (ctx, mty)) (unfsOf st) (substElem c.rhs sigma)
           rest <- spEqElemM dep st cs ctx a' b mty
           pure (dTrans leaf (dTrans uP rest)))
       <|> (do bs <- matchElemP c.params 0 0 c.lhs b []
               full <- complete c bs
               leaf <- atRoot b False c full
               sigma <- instSub c.params 0 full
-              let (b', uP) = unfLogElem st.sig (unfsOf st) (substElem c.rhs sigma)
+              let (b', uP) = unfLogElem st.sig (Just (ctx, mty)) (unfsOf st) (substElem c.rhs sigma)
               rest <- spEqElemM dep st cs ctx a b' mty
               pure (dTrans rest (dSym (dTrans leaf uP))))
 
@@ -3307,8 +3324,9 @@ deltaJoinC st a b = go 5 (nub (unfsOf st ++ defNamesOf st (refsE b (refsE a [<])
   go : Nat -> List String -> Maybe Drv
   go Z ns = Nothing
   go (S k) ns =
-    let (a', pA) = unfLogElem st.sig ns a
-        (b', pB) = unfLogElem st.sig ns b in
+    -- (δ-all leaves only: context-free, as its callers need)
+    let (a', pA) = unfLogElem st.sig Nothing ns a
+        (b', pB) = unfLogElem st.sig Nothing ns b in
     if a' == b' then Just (dTrans pA (dSym pB))
     else
       let ns' = nub (ns ++ defNamesOf st (refsE b' (refsE a' [<]))) in

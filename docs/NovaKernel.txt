@@ -602,7 +602,11 @@ from the child itself.
   (headOfMT): a conversion π by β runs β from the inner's type, an
   observation out π takes ⌊𝔽⌋(ν 𝔽) from the inner's ν, a projection
   the component, an application the codomain instantiated by the
-  side's argument — so a child under `by x-δ` types exactly as far
+  side's argument, a chain its first link's, an ELIMINATOR NODE WITH
+  ITS MOTIVE the motive's instance at the side's scrutinee (whatever
+  its children state: a stuck eliminator that unfolding produced,
+  standing as the scrutinee of another, is typed by its motive
+  alone) — so a child under `by x-δ` types exactly as far
   as the exposure reaches, and a variable the crossed binders bind is
   resolved against them. Any type a neutral inhabits is judgementally
   equal to the one inversion computes (typing inversion; ⇒ᴺ refuses
@@ -677,6 +681,9 @@ the other link reads from the given side with that middle as ITS
 hint — so a chain may mix directions (a rewrite run from the left,
 an unfolding run from the right), and a wrapper over a chain is read
 through first so the chain is never run as a whole from one side.
+The classifiers agree with the reader: a chain STATES through one
+link only when its other link is directional that way with one-way
+leaves excluded (dirable).
 The produced side need not have the shape the other side has: it may
 be the β-normal form of it (a δ exposure's result), which is why a
 node runs from one side and compares at the top rather than
@@ -799,6 +806,25 @@ building instead of checking:
     or quot-elim's case when it does not mention the branch variable;
     a bare QIIT eliminator does not infer), codes at 𝕌, types at 𝕍;
   * a type as a type: formation, falling through to 𝕌 then Ω.
+  When an eliminator's case is an intro form (a map from the quotient
+  or the sum to itself, unfolded: abs, neg) its type does not infer;
+  the scrutinee's own type is then the motive candidate, the case
+  CHECKED there — a checked candidate, never a guess.
+
+Its EXPOSURE WALK (rdExposeWT) — the head path unfolded to the shape
+a node needs, each step a δ leaf inside the node of its position —
+threads the TYPE of the term where it is free (a definition's
+declared type at its spine, a β-reduct's, a projection's component,
+an application's codomain), so that the eliminator nodes it writes
+around a scrutinee exposure carry their CONSTANT MOTIVE at the type
+the position has, and a δ leaf standing at a position spelled
+otherwise (a proof written at the exposed type of its equation)
+arrives ascribed to the position's spelling. The engine's δ-rounds
+(unfLogElem) run this walk FIRST, under the δ licence, and the δ-all
+leaves after: the rounds compute the same normal form, but the head
+path — where a stuck eliminator lands as another's scrutinee, its
+motive otherwise lost to a δ-all leaf — is typed. δ-all enters a
+QIIT eliminator's methods like any other position.
 
 Its δ bridge (rdBridge, the engine's deltaPrf) proves a term equal
 to another spelling by the two HEAD exposures first (a definition

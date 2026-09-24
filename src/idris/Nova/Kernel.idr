@@ -676,7 +676,7 @@ unfoldAllK sig ns t = go t
   -- carried signatures: their embedded Nova pieces unfold too
   go (QSort sg k es) = [| QSort (traverseQSig go sg) (pure k) (traverseSN go es) |]
   go (QCtor sg k es) = [| QCtor (traverseQSig go sg) (pure k) (traverseSN go es) |]
-  go (QElim sg k fs es w) = [| QElim (traverseQSig go sg) (pure k) (pure fs) (traverseSN go es) (go w) |]
+  go (QElim sg k fs es w) = [| QElim (traverseQSig go sg) (pure k) (traverse go fs) (traverseSN go es) (go w) |]
   go (Out u) = Out <$> go u
   go (Corec p a f x) = [| Corec (pure p) (go a) (go f) (go x) |]
   go u = pure u
@@ -992,6 +992,18 @@ mutual
 -- transitivity. No term enters beside the derivation: the element is
 -- its erasure, computed by the readings.
 
+||| A stating derivation whose RIGHT side is never a syntactic part
+||| of a side: a δ leaf unfolds to a definition's body, an intro
+||| form that β-reduces against the node above (an unfolded λ under
+||| an application) — it runs left to right only under a node.
+oneWay : Drv -> Bool
+oneWay (DDelta _ _) = True
+oneWay (DSubst q _) = oneWay q
+oneWay (DConv q _ _) = oneWay q
+oneWay (DAscribe q _ _) = oneWay q
+oneWay (DAt q _ _) = oneWay q
+oneWay _ = False
+
 mutual
  ||| A derivation that STATES its equation and type (the ⇒ reading is
  ||| defined on it): a child the node's rule CHECKS (an argument at the
@@ -1014,8 +1026,8 @@ mutual
  dSynth (DDelta _ _) = True
  dSynth DReflx = False
  dSynth (DSym p) = dSynth p
- dSynth (DTrans p q) = (dSynth p && dDirable True q) || (dSynth q && dDirable False p)
- dSynth (DTransAt p _ q) = (dSynth p && dDirable True q) || (dSynth q && dDirable False p)
+ dSynth (DTrans p q) = (dSynth p && dirable True q) || (dSynth q && dirable False p)
+ dSynth (DTransAt p _ q) = (dSynth p && dirable True q) || (dSynth q && dirable False p)
  dSynth (DDeltaAll _) = False
  dSynth (DIrrel _) = False
  dSynth (DEtaPi _) = False
@@ -1109,8 +1121,8 @@ mutual
    DQuot a r => dCheckable a && dCheckable r
    DSquash q => dCheckable q
    DSym q => dCheckable q
-   DTrans q r => (dCheckable q && dDirable True r) || (dCheckable r && dDirable False q)
-   DTransAt q _ r => (dCheckable q && dDirable True r) || (dCheckable r && dDirable False q)
+   DTrans q r => (dCheckable q && dirable True r) || (dCheckable r && dirable False q)
+   DTransAt q _ r => (dCheckable q && dirable True r) || (dCheckable r && dirable False q)
    _ => False
 
  ||| Can the derivation run DIRECTIONALLY (→) from the side d names
@@ -1162,16 +1174,14 @@ mutual
    go : Bool -> Drv -> Bool
    go = dDirableW ok
 
-||| A stating derivation whose RIGHT side is never a syntactic part
-||| of a side: a δ leaf unfolds to a definition's body, an intro
-||| form that β-reduces against the node above (an unfolded λ under
-||| an application) — it runs left to right only under a node.
-oneWay : Drv -> Bool
-oneWay (DDelta _ _) = True
-oneWay (DSubst q _) = oneWay q
-oneWay (DConv q _ _) = oneWay q
-oneWay (DAscribe q _ _) = oneWay q
-oneWay _ = False
+ ||| Directional by shape alone, one-way leaves excluded from the
+ ||| wrong direction (a δ leaf's right side is a definition's body, an
+ ||| intro form that β-reduces against the node above: it runs left to
+ ||| right only) — what a chain's far link must be for the chain to
+ ||| state through its near one.
+ dirable : Bool -> Drv -> Bool
+ dirable = dDirableW (\d, q => not (oneWay q) || d)
+
 
 ||| Δ without its d newest entries (the substitution node's Δ↓d).
 dropCtx : Nat -> Ctx -> Maybe Ctx
@@ -1784,11 +1794,6 @@ mutual
   ||| side is the middle, unknown here); a conversion or ascription
   ||| asks its inner; a node asks its children at the side's parts —
   ||| which the side must have.
-  ||| Directional by shape alone, one-way leaves excluded from the
-  ||| wrong direction.
-  dirable : Bool -> Drv -> Bool
-  dirable = dDirableW (\d, q => not (oneWay q) || d)
-
   runnable : Bool -> Drv -> Elem -> Bool
   runnable dir d x =
     if dSynth d && not (structuralD d) then not (oneWay d) || dir else case d of
@@ -2161,7 +2166,7 @@ mutual
             let dom = if dir then a' else a
             r' <- dRun sig (ctx :< dom :< substTy dom Wk) qr (DGRun dir r (snd hs)) PropTy
             pure (QuotTy a' r')
-          _ => kerr "kernel: proof shape does not match the side [\{show x}]"
+          _ => kerr "kernel: proof shape does not match the side [\{show x}] at \{showDrv d}"
     (DSquash q, _) => node1 (\x => case x of Squash u => Just u; _ => Nothing) Squash (ctx, TopTy) q
     (DRef x qs, _) =>
       node (\u => case u of
@@ -2330,6 +2335,10 @@ mutual
           t' <- kWhnfT sig t
           pure (Just (t', t))
         else case (q, term) of
+          -- a chain: its links share one type, the first link's left
+          -- side is the term
+          (DTrans q1 _, _) => headOfMT q1 term
+          (DTransAt q1 _ _, _) => headOfMT q1 term
           -- an exposure around a non-stating head: the proof run from
           -- the type the head inverts to
           (DConv q' Nothing beta, _) => do
@@ -2353,12 +2362,44 @@ mutual
           (DApp qf _, PiApp ft at) => part qf ft (\t' => case t' of
                                                    PiTy _ cod => Just (substTy cod (Ext Id at))
                                                    _ => Nothing)
+          -- an eliminator node WITH its motive: the motive's instance
+          -- at the side's scrutinee is its type, whatever its
+          -- children state (the scrutinee's type from the scrutinee
+          -- child, the same way)
+          (DNatElim (Just pM) _ _ _, NatElim _ _ n) => do
+            mot <- dType sig (ctx :< NatTy) pM
+            done (substTy mot (Ext Id n))
+          (DSumElim (Just pM) _ _ qt, SumElim _ _ t) => do
+            m <- headOfMT qt t
+            case m of
+              Just (SumTy a b, _) => do
+                mot <- dType sig (ctx :< SumTy a b) pM
+                done (substTy mot (Ext Id t))
+              _ => pure Nothing
+          (DQuotElim (Just pM) _ _ qq, QuotElim _ q) => do
+            m <- headOfMT qq q
+            case m of
+              Just (QuotTy a r, _) => do
+                mot <- dType sig (ctx :< QuotTy a r) pM
+                done (substTy mot (Ext Id q))
+              _ => pure Nothing
+          (DQElim sg k (Just cs) _ _ _ _, QElim sg' k' _ es w) =>
+            if sg == sg' && k == k'
+              then do
+                mots <- qMotives sig ctx sg cs
+                case (qOrdinal QKSort sg k >>= \o => getAt o mots) of
+                  Just motK => done (substTy motK (Ext (foldl Ext Id (toList es)) w))
+                  Nothing => pure Nothing
+              else pure Nothing
           _ => do
             mt <- inferHead sig ctx term
             case mt of
               Just t => do t' <- kWhnfT sig t; pure (Just (t', t))
               Nothing => pure Nothing
      where
+      done : Ty -> KM (Maybe (Ty, Ty))
+      done t = do t' <- kWhnfT sig t; pure (Just (t', t))
+
       part : Drv -> Elem -> (Ty -> Maybe Ty) -> KM (Maybe (Ty, Ty))
       part q' t pick = do
         m <- headOfMT q' t
@@ -2408,7 +2449,7 @@ mutual
       DGRun dir x hint => do
         xs <- case shape x of
           Just xs => pure xs
-          Nothing => kerr "kernel: proof shape does not match the side [\{show x}]"
+          Nothing => kerr "kernel: proof shape does not match the side [\{show x}] at \{showDrv d}"
         -- the hint's parts, when it has the shape too
         let hs = the (List (Maybe Elem)) $ case the (Maybe (List Elem)) (maybe Nothing shape hint) of
                    Just hs => if length hs == length xs then map Just hs else map (const Nothing) xs
@@ -2451,7 +2492,7 @@ mutual
             let dom = if dir then a' else a
             b' <- dRun sig (ctx :< dom) qb (DGRun dir b (snd hs)) cls
             pure (rebuild a' b')
-          Nothing => kerr "kernel: proof shape does not match the side [\{show x}]"
+          Nothing => kerr "kernel: proof shape does not match the side [\{show x}] at \{showDrv d}"
 
   -- ----- shared pieces of the readings -----
 
@@ -2826,28 +2867,65 @@ mutual
   ||| engine's exposure at a site: what its citations license).
   export
   rdExposeW : (String -> Bool) -> Sig -> Ctx -> Elem -> KM (Elem, Drv)
-  rdExposeW ok sig ctx t = go t
+  rdExposeW ok sig ctx = rdExposeWT ok sig ctx Nothing
+
+  ||| … from a known type of the term (a type at 𝕍, an element at its
+  ||| position's type): the eliminator nodes the walk writes at the
+  ||| top carry the constant motive there.
+  export
+  rdExposeWT : (String -> Bool) -> Sig -> Ctx -> Maybe Ty -> Elem -> KM (Elem, Drv)
+  rdExposeWT ok sig ctx mty0 t = do
+    (r, p, _) <- go mty0 t
+    pure (r, p)
    where
-    go : Elem -> KM (Elem, Drv)
+    -- the walk threads the TYPE of the term where it is free — a
+    -- definition's declared type at its spine, the type of a β-reduct
+    -- (the redex's), a scrutinee's shape — so that an eliminator node
+    -- it writes around a scrutinee exposure carries its motive: such
+    -- a node may stand in a HEAD position (a stuck eliminator that
+    -- unfolding produced, scrutinee of another elimination), where no
+    -- type flows down and the kernel types it by its motive alone
+    go : Maybe Ty -> Elem -> KM (Elem, Drv, Maybe Ty)
     -- a rewritten head or scrutinee child under the exposure of its
-    -- declared type when a definition hides the shape its node needs
-    shapedChild : Elem -> (Ty -> Bool) -> Drv -> KM Drv
-    shapedChild orig want p1 = case p1 of
-      DReflx => pure DReflx
+    -- declared type when a definition hides the shape its node needs;
+    -- with the shaped type (Nothing at refl: nothing computed)
+    shapedChild : Elem -> Maybe Ty -> (Ty -> Bool) -> Drv -> KM (Drv, Maybe Ty)
+    shapedChild orig mt want p1 = case p1 of
+      DReflx => pure (DReflx, Nothing)
       _ => do
-        mt <- inferHead sig ctx orig
-        case mt of
-          Nothing => pure p1
+        mt' <- the (KM (Maybe Ty)) $ case mt of
+                 Just t => pure (Just t)
+                 Nothing => inferHead sig ctx orig
+        case the (Maybe Ty) mt' of
+          Nothing => pure (p1, Nothing)
           Just ty => do
             ty' <- kWhnfT sig ty
-            if want ty' then pure p1 else do
+            if want ty' then pure (p1, Just ty') else do
               -- (the TYPE's exposure is the reader's own need, free of
               -- the site's whitelist, which governs the term)
               (tX, pt) <- rdExposeW (const True) sig ctx ty
               tW <- kWhnfT sig tX
               pure (case pt of
-                      DReflx => p1
-                      _ => if want tW then DConv p1 Nothing pt else p1)
+                      DReflx => (p1, Nothing)
+                      _ => if want tW then (DConv p1 Nothing pt, Just tW) else (p1, Nothing))
+    -- the constant motive at the node's type over the scrutinee's
+    -- (both known), else the motive the eliminator's inference
+    -- determines (Nothing when neither: the node then reads at the
+    -- type flowing down, or is rejected)
+    motiveInf : Elem -> KM (Maybe Drv)
+    motiveInf e =
+      kOrElse (do (d, _) <- rdInfer sig ctx e
+                  pure (case d of
+                          DNatElim m _ _ _ => m
+                          DSumElim m _ _ _ => m
+                          DQuotElim m _ _ _ => m
+                          _ => Nothing))
+              (pure Nothing)
+    motiveOf : Drv -> Maybe Ty -> Maybe Ty -> Elem -> KM (Maybe Drv)
+    motiveOf DReflx _ _ _ = pure Nothing
+    motiveOf _ (Just t) (Just sTy) _ =
+      kOrElse (Just <$> rdTypeBare sig (ctx :< sTy) (substTy t Wk)) (pure Nothing)
+    motiveOf _ _ _ e = motiveInf e
     isPi, isSigma, isNu, isSum, isQuot : Ty -> Bool
     isPi (PiTy _ _) = True
     isPi _ = False
@@ -2859,83 +2937,145 @@ mutual
     isSum _ = False
     isQuot (QuotTy _ _) = True
     isQuot _ = False
-    go (SigVar x es) =
-      if not (ok x) then pure (SigVar x es, DReflx) else
+    -- the type of a projection from the pair's (the shaped type the
+    -- scrutinee child was exposed to, else the β-whnf of the known
+    -- type when it shows the Σ)
+    projTy : Maybe Ty -> Maybe Ty -> Maybe Ty -> (Ty -> Ty -> Ty) -> KM (Maybe Ty)
+    projTy (Just t) _ _ _ = pure (Just t)
+    projTy Nothing mu sTy pick = do
+      st <- the (KM (Maybe Ty)) $ case sTy of
+              Just t => pure (Just t)
+              Nothing => case mu of
+                Just t => Just <$> kWhnfT sig t
+                Nothing => pure Nothing
+      pure (case st of
+              Just (SigmaTy a b) => Just (pick a b)
+              _ => Nothing)
+    -- the type of an application from its head's, when the head's
+    -- β-whnf shows the Π (no exposure: a type is threaded only where
+    -- it is free)
+    appTy : Maybe Ty -> Maybe Ty -> Elem -> KM (Maybe Ty)
+    appTy (Just t) _ _ = pure (Just t)
+    appTy Nothing (Just fTy) e = do
+      f' <- kWhnfT sig fTy
+      pure (case f' of
+              PiTy _ cod => Just (substTy cod (Ext Id e))
+              _ => Nothing)
+    appTy Nothing Nothing _ = pure Nothing
+    -- a δ leaf states at the definition's declared type; where the
+    -- position's type is spelled otherwise (a proof written at the
+    -- exposed type of its equation) the leaf arrives ascribed to the
+    -- position's spelling, the bridge read against both
+    atPos' : Drv -> Ty -> Ty -> KM Drv
+    atPos' leaf tyI t = do
+      ok' <- tyAgree sig t tyI
+      if ok' then pure leaf else do
+        mb <- rdBridgeAny sig ctx tyI t
+        case mb of
+          Just b => do
+            -- the target derived when it can be (the bridge then read
+            -- against both spellings), else the bridge RUN from the
+            -- declared spelling
+            mT <- kOrElse (Just <$> rdTypeBare sig ctx t) (pure Nothing)
+            pure (case mT of
+                    Just dT => DAt leaf dT b
+                    Nothing => DConv leaf Nothing b)
+          Nothing => pure leaf
+    atPos : Drv -> Ty -> Maybe Ty -> KM Drv
+    atPos leaf _ Nothing = pure leaf
+    atPos leaf tyI (Just t) = atPos' leaf tyI t
+    go mty (SigVar x es) =
+      if not (ok x) then pure (SigVar x es, DReflx, mty) else
       kSigLookup sig x >>= \entryX => case entryX of
-        Just (SigDef delta _ a _) => do
+        Just (SigDef delta _ a ty) => do
           qs <- rdSpine sig ctx (toList delta) (toList es)
-          (r, p) <- go (substElem a (embed es))
-          pure (r, dTrans (DDelta x qs) p)
-        _ => pure (SigVar x es, DReflx)
-    go (PiApp f e) = do
-      (f', p0) <- go f
-      p1 <- shapedChild f isPi p0
+          let tyI = substTy ty (embed es)
+          leaf <- atPos (DDelta x qs) tyI mty
+          (r, p, mt) <- go (Just tyI) (substElem a (embed es))
+          pure (r, dTrans leaf p, mt)
+        Just (SigDecl delta _ ty) => pure (SigVar x es, DReflx, Just (substTy ty (embed es)))
+        _ => pure (SigVar x es, DReflx, mty)
+    go mty (PiApp f e) = do
+      (f', p0, mf) <- go Nothing f
+      (p1, _) <- shapedChild f mf isPi p0
+      rt <- appTy mty mf e
       case f' of
         PiIntro g => do
-          (r, p2) <- go (substElem g (Ext Id e))
-          pure (r, dTrans (congOfD p1 (DApp p1 DReflx)) p2)
-        _ => pure (PiApp f' e, congOfD p1 (DApp p1 DReflx))
-    go (Let a b) = go (substElem b (Ext (Ext Id a) Star))
-    go (NatElim z st u) = do
-      (u', p1) <- go u
-      let node = congOfD p1 (DNatElim Nothing DReflx DReflx p1)
+          (r, p2, mt) <- go rt (substElem g (Ext Id e))
+          pure (r, dTrans (congOfD p1 (DApp p1 DReflx)) p2, mt)
+        _ => pure (PiApp f' e, congOfD p1 (DApp p1 DReflx), rt)
+    go mty (Let a b) = go mty (substElem b (Ext (Ext Id a) Star))
+    go mty (NatElim z st u) = do
+      (u', p1, _) <- go (Just NatTy) u
+      mm <- motiveOf p1 mty (Just NatTy) (NatElim z st u)
+      let node = congOfD p1 (DNatElim mm DReflx DReflx p1)
       case u' of
-        NatIntro0 => do (r, p2) <- go z; pure (r, dTrans node p2)
-        NatIntro1 n => do (r, p2) <- go (substElem st (Ext (Ext Id n) (NatElim z st n))); pure (r, dTrans node p2)
-        _ => pure (NatElim z st u', node)
-    go (SigmaElim1 u) = do
-      (u', p0) <- go u
-      p1 <- shapedChild u isSigma p0
+        NatIntro0 => do (r, p2, mt) <- go mty z; pure (r, dTrans node p2, mt)
+        NatIntro1 n => do (r, p2, mt) <- go mty (substElem st (Ext (Ext Id n) (NatElim z st n))); pure (r, dTrans node p2, mt)
+        _ => pure (NatElim z st u', node, mty)
+    go mty (SigmaElim1 u) = do
+      (u', p0, mu) <- go Nothing u
+      (p1, sTy) <- shapedChild u mu isSigma p0
+      rt <- projTy mty mu sTy (\a, _ => a)
       case u' of
-        SigmaIntro a _ => do (r, p2) <- go a; pure (r, dTrans (congOfD p1 (DProj1 p1)) p2)
-        _ => pure (SigmaElim1 u', congOfD p1 (DProj1 p1))
-    go (SigmaElim2 u) = do
-      (u', p0) <- go u
-      p1 <- shapedChild u isSigma p0
+        SigmaIntro a _ => do (r, p2, mt) <- go rt a; pure (r, dTrans (congOfD p1 (DProj1 p1)) p2, mt)
+        _ => pure (SigmaElim1 u', congOfD p1 (DProj1 p1), rt)
+    go mty (SigmaElim2 u) = do
+      (u', p0, mu) <- go Nothing u
+      (p1, sTy) <- shapedChild u mu isSigma p0
+      rt <- projTy mty mu sTy (\_, b => substTy b (Ext Id (SigmaElim1 u)))
       case u' of
-        SigmaIntro _ b => do (r, p2) <- go b; pure (r, dTrans (congOfD p1 (DProj2 p1)) p2)
-        _ => pure (SigmaElim2 u', congOfD p1 (DProj2 p1))
-    go (SumElim l r u) = do
-      (u', p0) <- go u
-      p1 <- shapedChild u isSum p0
-      let node = congOfD p1 (DSumElim Nothing DReflx DReflx p1)
+        SigmaIntro _ b => do (r, p2, mt) <- go rt b; pure (r, dTrans (congOfD p1 (DProj2 p1)) p2, mt)
+        _ => pure (SigmaElim2 u', congOfD p1 (DProj2 p1), rt)
+    go mty (SumElim l r u) = do
+      (u', p0, mu) <- go Nothing u
+      (p1, sTy) <- shapedChild u mu isSum p0
+      mm <- motiveOf p1 mty sTy (SumElim l r u)
+      let node = congOfD p1 (DSumElim mm DReflx DReflx p1)
       case u' of
-        Inj1 a => do (r', p2) <- go (substElem l (Ext Id a)); pure (r', dTrans node p2)
-        Inj2 b => do (r', p2) <- go (substElem r (Ext Id b)); pure (r', dTrans node p2)
-        _ => pure (SumElim l r u', node)
-    go (QuotElim f q) = do
-      (q', p0) <- go q
-      p1 <- shapedChild q isQuot p0
+        Inj1 a => do (r', p2, mt) <- go mty (substElem l (Ext Id a)); pure (r', dTrans node p2, mt)
+        Inj2 b => do (r', p2, mt) <- go mty (substElem r (Ext Id b)); pure (r', dTrans node p2, mt)
+        _ => pure (SumElim l r u', node, mty)
+    go mty (QuotElim f q) = do
+      (q', p0, mq) <- go Nothing q
+      (p1, sTy) <- shapedChild q mq isQuot p0
+      mm <- motiveOf p1 mty sTy (QuotElim f q)
+      let node = congOfD p1 (DQuotElim mm Nothing DReflx p1)
       case q' of
-        Class a => do (r, p2) <- go (substElem f (Ext Id a)); pure (r, dTrans (congOfD p1 (DQuotElim Nothing Nothing DReflx p1)) p2)
-        _ => pure (QuotElim f q', congOfD p1 (DQuotElim Nothing Nothing DReflx p1))
-    go (Out u) = do
-      (u', p0) <- go u
-      p1 <- shapedChild u isNu p0
+        Class a => do (r, p2, mt) <- go mty (substElem f (Ext Id a)); pure (r, dTrans node p2, mt)
+        _ => pure (QuotElim f q', node, mty)
+    go mty (Out u) = do
+      (u', p0, mu) <- go Nothing u
+      (p1, _) <- shapedChild u mu isNu p0
       case u' of
         Corec p a f x => do
-          (r, p2) <- go (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
-          pure (r, dTrans (congOfD p1 (DOut p1)) p2)
-        _ => pure (Out u', congOfD p1 (DOut p1))
-    go (QElim sg k fs es w) = do
-      (w', p1) <- go w
-      let node = congOfD p1 (DQElim sg k Nothing [] (map (const DReflx) fs) (map (const DReflx) (toList es)) p1)
+          (r, p2, mt) <- go mty (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
+          pure (r, dTrans (congOfD p1 (DOut p1)) p2, mt)
+        _ => pure (Out u', congOfD p1 (DOut p1), mty)
+    go mty (QElim sg k fs es w) = do
+      (w', p1, _) <- go (Just (QSort sg k es)) w
+      -- the node carries the signature β-JOINED: the kernel's side
+      -- has it so (its join enters carriers), and a node's carrier
+      -- must match the side's syntactically (A3)
+      sgJ <- kJoinQSig sig sg
+      let node = congOfD p1 (DQElim sgJ k Nothing [] (map (const DReflx) fs) (map (const DReflx) (toList es)) p1)
       case w' of
-        QCtor sgW c theta =>
-          if sgW == sg
+        QCtor sgW c theta => do
+          sgWJ <- kJoinQSig sig sgW
+          if sgWJ == sgJ
             then case qElimBetaRhs sg fs c theta of
-                   Right rhs => do (r, p2) <- go rhs; pure (r, dTrans node p2)
-                   Left _ => pure (QElim sg k fs es w', node)
-            else pure (QElim sg k fs es w', node)
-        _ => pure (QElim sg k fs es w', node)
-    go (Squash u) = do
-      (u', p1) <- go u
+                   Right rhs => do (r, p2, mt) <- go mty rhs; pure (r, dTrans node p2, mt)
+                   Left _ => pure (QElim sg k fs es w', node, mty)
+            else pure (QElim sg k fs es w', node, mty)
+        _ => pure (QElim sg k fs es w', node, mty)
+    go mty (Squash u) = do
+      (u', p1, _) <- go (Just TopTy) u
       let node = congOfD p1 (DSquash p1)
       pure (case u' of
-              Elem.EqTy _ _ _ => (u', node)
-              Squash _ => (u', node)
-              _ => (Squash u', node))
-    go e = pure (e, DReflx)
+              Elem.EqTy _ _ _ => (u', node, mty)
+              Squash _ => (u', node, mty)
+              _ => (Squash u', node, mty))
+    go mty e = pure (e, DReflx, mty)
 
   ||| A term checked at a type whose SHAPE a definition may hide: the
   ||| type exposed by δ (proved) when the β-whnf lacks it, the term
@@ -3219,15 +3359,23 @@ mutual
             tTy' <- kWhnfT sig tTy
             case tTy' of
               SumTy a b => do
-                (_, lTy) <- rdInfer sig (ctx :< a) l
-                base <- case strengthenElem 0 lTy of
-                          Just x => pure x
-                          Nothing => kerr "re-derive: ⊎-elim without a motive, branch type depends on the branch variable"
-                let mot = substTy base Wk
-                dm <- rdTypeBare sig (ctx :< SumTy a b) mot
-                dl <- rdCheck sig (ctx :< a) l (substTy base Wk)
-                dr <- rdCheck sig (ctx :< b) r (substTy base Wk)
-                pure (DSumElim (Just dm) dl dr dt, base)
+                -- the constant motive: the left branch's inferred type,
+                -- or — the branch an intro form (a map from the sum
+                -- to itself, unfolded) — the scrutinee's own type,
+                -- the branches CHECKED there
+                let at : Ty -> KM (Drv, Ty)
+                    at base = do
+                      let mot = substTy base Wk
+                      dm <- rdTypeBare sig (ctx :< SumTy a b) mot
+                      dl <- rdCheck sig (ctx :< a) l (substTy base Wk)
+                      dr <- rdCheck sig (ctx :< b) r (substTy base Wk)
+                      pure (DSumElim (Just dm) dl dr dt, base)
+                kOrElse
+                  (do (_, lTy) <- rdInfer sig (ctx :< a) l
+                      case strengthenElem 0 lTy of
+                        Just x => at x
+                        Nothing => kerr "re-derive: ⊎-elim without a motive, branch type depends on the branch variable")
+                  (at tTy)
               _ => kerr "re-derive: ⊎-elim of a non-⊎ scrutinee"
         QuotElim f q => do
             -- constant motive from the case's type; well-definedness
@@ -3236,14 +3384,22 @@ mutual
             qTy' <- kWhnfT sig qTy
             case qTy' of
               QuotTy a rel => do
-                (_, fTy) <- rdInfer sig (ctx :< a) f
-                base <- case strengthenElem 0 fTy of
-                          Just x => pure x
-                          Nothing => kerr "re-derive: quot-elim without a motive, case type depends on the representative"
-                let mot = substTy base Wk
-                dm <- rdTypeBare sig (ctx :< QuotTy a rel) mot
-                df <- rdCheck sig (ctx :< a) f (substTy base Wk)
-                pure (DQuotElim (Just dm) Nothing df dq, base)
+                -- the constant motive: the case's inferred type, or —
+                -- the case an intro form (a map from the quotient to
+                -- itself, unfolded: abs, neg) — the scrutinee's own
+                -- type, the case CHECKED there
+                let at : Ty -> KM (Drv, Ty)
+                    at base = do
+                      let mot = substTy base Wk
+                      dm <- rdTypeBare sig (ctx :< QuotTy a rel) mot
+                      df <- rdCheck sig (ctx :< a) f (substTy base Wk)
+                      pure (DQuotElim (Just dm) Nothing df dq, base)
+                kOrElse
+                  (do (_, fTy) <- rdInfer sig (ctx :< a) f
+                      case strengthenElem 0 fTy of
+                        Just x => at x
+                        Nothing => kerr "re-derive: quot-elim without a motive, case type depends on the representative")
+                  (at qTy)
               _ => kerr "re-derive: quot-elim of a non-quotient"
         QSort sg k es => do
           sortE <- case qEntry sg k of

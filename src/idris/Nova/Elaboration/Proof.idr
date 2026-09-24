@@ -121,6 +121,11 @@ export
 exposeKW : (String -> Bool) -> Sig -> Ctx -> Elem -> KM (Elem, Drv)
 exposeKW = rdExposeW
 
+||| … from a known type of the term.
+export
+exposeKWT : (String -> Bool) -> Sig -> Ctx -> Maybe Ty -> Elem -> KM (Elem, Drv)
+exposeKWT = rdExposeWT
+
 ||| Head exposure with every definition allowed (the kernel-facing
 ||| helpers below expose freely: a shape a node needs is reached).
 export
@@ -233,6 +238,23 @@ domOf sig (Just t) = do
 export
 wrapAt : Sig -> Ctx -> Maybe Ty -> Nat -> Elem -> List Nat
       -> (Ctx -> Maybe Ty -> Nat -> Elem -> KM (Drv, Elem)) -> KM (Drv, Elem)
+||| The motive of an eliminator node written in a HEAD position (no
+||| type flows down: the scrutinee of another elimination, the
+||| function of an application): the constant motive its inferred
+||| type determines, from the re-derivation of the eliminator. At a
+||| checked position the kernel reads the constant motive itself and
+||| the node carries none.
+elimMotive : Sig -> Ctx -> Maybe Ty -> Elem -> KM (Maybe Drv)
+elimMotive _ _ (Just _) _ = pure Nothing
+elimMotive sig ctx Nothing u =
+  kOrElse (do (d, _) <- rdInfer sig ctx u
+              pure (case d of
+                      DNatElim m _ _ _ => m
+                      DSumElim m _ _ _ => m
+                      DQuotElim m _ _ _ => m
+                      _ => Nothing))
+          (pure Nothing)
+
 wrapAt sig ctx mty b u [] leaf = leaf ctx mty b u
 wrapAt sig ctx mty b u (i :: p) leaf = do
   let go : Ctx -> Maybe Ty -> Nat -> Elem -> KM (Drv, Elem)
@@ -256,7 +278,9 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
     (NatElim z s t, 1) =>
       (\(q, s') => (DNatElim Nothing DReflx q DReflx, NatElim z s' t))
         <$> go (ctx :< NatTy :< fromMaybe TopTy (map (\x => substTy x Wk) mty)) (map (\x => substTy x (wkN 2)) mty) (2 + b) s
-    (NatElim z s t, 2) => (\(q, t') => (DNatElim Nothing DReflx DReflx q, NatElim z s t')) <$> go ctx (Just NatTy) b t
+    (NatElim z s t, 2) => do
+      mm <- elimMotive sig ctx mty u
+      (\(q, t') => (DNatElim mm DReflx DReflx q, NatElim z s t')) <$> go ctx (Just NatTy) b t
     (PiIntro f, 0) =>
       shaped "λ-congruence" (\t => case t of PiTy a c => Just (a, c); _ => Nothing) $ \((a, c), conv) =>
         (\(q, f') => (conv (DLam Nothing q), PiIntro f')) <$> go (ctx :< a) (Just c) (1 + b) f
@@ -287,15 +311,16 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
         (\(q, t') => (conv (DInj2 Nothing q), Inj2 t')) <$> go ctx (Just c) b t
     (SumElim l r t, 0) => do
       ((a, _), pt) <- sumParts t
-      (\(q, l') => (DSumElim Nothing q DReflx pt, SumElim l' r t)) <$> go (ctx :< a) Nothing (1 + b) l
+      (\(q, l') => (DSumElim Nothing q DReflx pt, SumElim l' r t)) <$> go (ctx :< a) (map (\x => substTy x Wk) mty) (1 + b) l
     (SumElim l r t, 1) => do
       ((_, c), pt) <- sumParts t
-      (\(q, r') => (DSumElim Nothing DReflx q pt, SumElim l r' t)) <$> go (ctx :< c) Nothing (1 + b) r
+      (\(q, r') => (DSumElim Nothing DReflx q pt, SumElim l r' t)) <$> go (ctx :< c) (map (\x => substTy x Wk) mty) (1 + b) r
     (SumElim l r t, 2) => do
       tTy <- inferHead sig ctx t
       (q, t') <- go ctx tTy b t
       q' <- exposedChild sig ctx tTy isSumTy q
-      pure (DSumElim Nothing DReflx DReflx q', SumElim l r t')
+      mm <- elimMotive sig ctx mty u
+      pure (DSumElim mm DReflx DReflx q', SumElim l r t')
     (SigmaIntro x y, 0) =>
       shaped "pair congruence" (\ty => case ty of SigmaTy a c => Just (a, c); _ => Nothing) $ \((a, c), conv) =>
         (\(q, x') => (conv (DPair Nothing q DReflx), SigmaIntro x' y)) <$> go ctx (Just a) b x
@@ -344,12 +369,13 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
     (Corec pf a f x, 2) => (\(q, x') => (DCorec pf DReflx DReflx q, Corec pf a f x')) <$> go ctx (Just a) b x
     (QuotElim f q0, 0) => do
       ((a, _), pq) <- quotParts q0
-      (\(q, f') => (DQuotElim Nothing Nothing q pq, QuotElim f' q0)) <$> go (ctx :< a) Nothing (1 + b) f
+      (\(q, f') => (DQuotElim Nothing Nothing q pq, QuotElim f' q0)) <$> go (ctx :< a) (map (\x => substTy x Wk) mty) (1 + b) f
     (QuotElim f q0, 1) => do
       qTy <- inferHead sig ctx q0
       (q, q0') <- go ctx qTy b q0
       q' <- exposedChild sig ctx qTy isQuotTy q
-      pure (DQuotElim Nothing Nothing DReflx q', QuotElim f q0')
+      mm <- elimMotive sig ctx mty u
+      pure (DQuotElim mm Nothing DReflx q', QuotElim f q0')
     (Squash t, 0) => (\(q, t') => (DSquash q, Squash t')) <$> go ctx (Just TopTy) b t
     (QSort sg k es, _) =>
       (\(qs, es') => (DSort sg k qs, QSort sg k es')) <$> spineWrap i es (go ctx (qSpineChildTy sg k es i) b)
@@ -519,7 +545,7 @@ runPE m = map fst (runKM m certFuel)
 ||| engine-bug signal, reported as PROOF-FAIL and dropped (the search
 ||| goes on with its other routes).
 export
-runPA : String -> KM a -> Maybe a
+runPA : Lazy String -> KM a -> Maybe a
 runPA label m = case runKM m certFuel of
   Right (v, _) => Just v
   Left e => audit "PROOF-FAIL \{label} | \{e}" Nothing
