@@ -282,11 +282,13 @@ docs/NovaElaboration.txt, "Modules"); the EQUATION KERNEL with the demotion of
 engine verdicts to proposals — Nova.Kernel provides
 fuel-bounded normalization (mirroring the ≜ rules clause for clause,
 exhaustion = reject), stated spines (every element a proof carries is
-a proof naming it), PROOF-TERM CHECKING
-(every leaf's licensed equation is verified against its position's
-type, computed by the congruence nodes above it — a sibling needs no
-type, a leaf at an undetermined position is typed by its own neutral
-side, the NEUTRAL-SUBTERM rule of the kernel spec's §6), and the
+a proof naming it), DERIVATION READING
+(every leaf's stated equation is verified against its position's
+type, computed by the nodes above it — a head child's from what it
+states or inverts to, never left undetermined, the kernel spec's §6;
+the engine writes no proof at an untyped position: a stuck head's
+type is recovered by re-derivation or the comparison is not made),
+and the
 type-directed leaves (el-zero-prop/el-one-prop, quotient witnesses,
 el-pi-eta/el-sigma-eta). The discharge engine writes a proof term for
 every discharge (rewrites with the stored candidate's normalization
@@ -294,6 +296,8 @@ bridged by transitivity, whole-equation matches with condition
 witnesses, hop chains, S-injectivity as the predecessor congruence),
 and
 convElem/convTy count a discharge ONLY if its proof checks — a
+kernel rejection is the site's obligation, carrying the verdict; no
+second route is tried in its place — a
 kernel rejection is reported on the resulting obligation. A route the
 engine matched but cannot WRITE the proof of (a licence's element at
 the wrong type, a stated type no δ converts to the position's) is

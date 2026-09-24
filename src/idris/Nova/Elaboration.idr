@@ -2399,15 +2399,14 @@ timedM label act = do
 mutual
   ||| Γ ⊢ a ≐ b : A, speculatively; Just = the proof term.
   spEqElemC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe Drv
-  spEqElemC dep st cs ctx a b ty = spEqElemM dep st cs ctx a b (Just ty)
+  spEqElemC dep st cs ctx a b ty = spEqElemM dep st cs ctx a b ty
 
-  ||| The same at a type the engine may not know (Nothing: the argument
-  ||| of a stuck head, whose bare core carries no motive). The proof is
-  ||| then written at undetermined positions — the kernel types every
-  ||| leaf by its own side (the neutral-subterm rule) — and neither the
-  ||| type bridge nor the prop-ness shortcut applies.
-  spEqElemM : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Maybe Ty -> Maybe Drv
-  spEqElemM dep st cs ctx a b mty =
+  ||| The same, the type ALWAYS known: every position a proof is
+  ||| written at is typed (the kernel rejects an untyped one; a stuck
+  ||| eliminator head's type is recovered by re-derivation, spCongC).
+  spEqElemM : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe Drv
+  spEqElemM dep st cs ctx a b ty =
+    let mty = the (Maybe Ty) (Just ty) in
     -- TIER 0 (↓ step 0): α-identical as written — reflexivity, before
     -- any normalization; nested speculative comparisons (congruence
     -- children, side conditions, hop residues) hit this constantly
@@ -2420,9 +2419,8 @@ mutual
     -- TYPE (where the positions the rewrites land on are structurally
     -- determined) and converted back around
     let t0 = nowNs ()
-        bridge = the (Maybe Ty, Maybe Drv) $ case mty of
-                   Just t => let (tX, p) = rwNfTyP st ctx (unfsOf st) cs.rw t in (Just tX, p)
-                   Nothing => (Nothing, Just DReflx)
+        bridge = the (Maybe Ty, Maybe Drv) $
+                   let (tX, p) = rwNfTyP st ctx (unfsOf st) cs.rw ty in (Just tX, p)
         mtyX = fst bridge
         (a', mpA) = rwNfElemP st ctx mtyX (unfsOf st) cs.rw a
         (b', mpB) = rwNfElemP st ctx mtyX (unfsOf st) cs.rw b
@@ -2453,7 +2451,7 @@ mutual
         if eqFast
           then Just (conv mtyX pT (around pA pB DReflx))
           else conv mtyX pT . around pA pB <$>
-                 (timed "sp-match" (\_ => candMatchC dep st cs ctx a' b' mtyX)
+                 (timed "sp-match" (\_ => candMatchC dep st cs ctx a' b' (fromMaybe ty mtyX))
                   <|> timed "sp-struct" (\_ => spEqStructC dep st cs ctx a' b' mtyX tyN)
                   -- syntactic congruence: one deterministic descent of
                   -- the two sides' common structure, children
@@ -2582,16 +2580,14 @@ mutual
         else Nothing
     (PiApp f x, PiApp g y) =>
       if f == g
-        then case neExpose st <$> inferNe st ctx f of
+        -- the head's type by inversion, or — a stuck eliminator
+        -- head, whose bare core carries no motive — by RE-DERIVATION
+        -- (the constant motive off its case, or the scrutinee's own
+        -- type); no type, no comparison: a proof is never written at
+        -- an untyped position
+        then case neExpose st <$> (inferNe st ctx f <|> kInferBare st.sig kernelFuel ctx f) of
                Just (PiTy dom _) => child 1 (spEqElemC dep st cs ctx x y dom)
-               -- the shared head is a stuck eliminator: bare core
-               -- carries no motive, so the argument's type is not
-               -- inferable. Compare the arguments at an UNKNOWN type
-               -- anyway — the kernel validates every leaf against its
-               -- position (the neutral-subterm rule, NovaKernel.txt
-               -- §6), so a wrong guess is a rejected proof, never a
-               -- wrong acceptance
-               _ => child 1 (spEqElemM dep st cs ctx x y Nothing)
+               _ => Nothing
         else Nothing
     (SigmaElim1 u, SigmaElim1 v) =>
       case inferNe st ctx u of
@@ -2607,13 +2603,19 @@ mutual
                Just tyQ => child 1 (spEqElemC dep st cs ctx q q' tyQ)
                _ => Nothing
         else Nothing
-    -- class-congruence: components equal (the witness route lives in
-    -- spEqStructC, which is tried first). The component type is
-    -- unknown here, so only proof-free evidence (pure computation) is
-    -- accepted — likewise for the injections
-    (Class x, Class y) => byBeta (spEqElemM dep st cs ctx x y Nothing)
-    (Inj1 x, Inj1 y) => byBeta (spEqElemM dep st cs ctx x y Nothing)
-    (Inj2 x, Inj2 y) => byBeta (spEqElemM dep st cs ctx x y Nothing)
+    -- class-congruence: components equal at the quotient's carrier
+    -- (the witness route lives in spEqStructC, which is tried first);
+    -- the injections at their summand — each read off the equation's
+    -- type, without which there is no comparison
+    (Class x, Class y) => case neExpose st <$> mty of
+      Just (QuotTy dom _) => child 0 (spEqElemC dep st cs ctx x y dom)
+      _ => Nothing
+    (Inj1 x, Inj1 y) => case neExpose st <$> mty of
+      Just (Elem.SumTy dom _) => child 0 (spEqElemC dep st cs ctx x y dom)
+      _ => Nothing
+    (Inj2 x, Inj2 y) => case neExpose st <$> mty of
+      Just (Elem.SumTy _ cod) => child 0 (spEqElemC dep st cs ctx x y cod)
+      _ => Nothing
     (SumElim l r t, SumElim l' r' t') =>
       -- ⊎-elim congruence at the scrutinee (like quot-elim's)
       if l == l' && r == r'
@@ -2656,9 +2658,6 @@ mutual
         else Nothing
     _ => Nothing
    where
-    byBeta : Maybe Drv -> Maybe Drv
-    byBeta (Just q) = if isReflx q then Just DReflx else Nothing
-    byBeta Nothing = Nothing
     -- the child's proof in the congruence node of child i of a
     child : Nat -> Maybe Drv -> Maybe Drv
     child i mq = do
@@ -2674,9 +2673,9 @@ mutual
 
   ||| Whole-equation matching, conditions included, hops included —
   ||| every acceptance is written as its leaf at once.
-  candMatchC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Maybe Ty -> Maybe Drv
+  candMatchC : Nat -> ElabSt -> CandSet -> Ctx -> Elem -> Elem -> Ty -> Maybe Drv
   candMatchC Z _ _ _ _ _ _ = Nothing
-  candMatchC (S dep) st cs ctx a b mty =
+  candMatchC (S dep) st cs ctx a b ty =
     -- hops: only CHAIN LINKS hop (mkCandSet filters) —
     -- walking the operator's own listed adjacencies is the chain's
     -- explicit trans semantics, not search
@@ -2760,7 +2759,7 @@ mutual
     atRoot : Elem -> Bool -> Cand -> Bindings -> Maybe Drv
     atRoot x flip c bs =
       fst <$> runPA "licence \{c.candName} at the root"
-                (rwPrf st.sig ctx mty x [] (\ctx', b => licLeafK st ctx' c bs b flip))
+                (rwPrf st.sig ctx (Just ty) x [] (\ctx', b => licLeafK st ctx' c bs b flip))
 
     direct : Cand -> Maybe Drv
     direct c =
@@ -2782,15 +2781,15 @@ mutual
           sigma <- instSub c.params 0 full
           -- the residue in the join vocabulary: its unfoldings are
           -- δ-all leaves
-          let (a', uP) = unfLogElem st.sig (Just (ctx, mty)) (unfsOf st) (substElem c.rhs sigma)
-          rest <- spEqElemM dep st cs ctx a' b mty
+          let (a', uP) = unfLogElem st.sig (Just (ctx, Just ty)) (unfsOf st) (substElem c.rhs sigma)
+          rest <- spEqElemM dep st cs ctx a' b ty
           pure (dTrans leaf (dTrans uP rest)))
       <|> (do bs <- matchElemP c.params 0 0 c.lhs b []
               full <- complete c bs
               leaf <- atRoot b False c full
               sigma <- instSub c.params 0 full
-              let (b', uP) = unfLogElem st.sig (Just (ctx, mty)) (unfsOf st) (substElem c.rhs sigma)
-              rest <- spEqElemM dep st cs ctx a b' mty
+              let (b', uP) = unfLogElem st.sig (Just (ctx, Just ty)) (unfsOf st) (substElem c.rhs sigma)
+              rest <- spEqElemM dep st cs ctx a b' ty
               pure (dTrans rest (dSym (dTrans leaf uP))))
 
   ||| Γ ⊢ A ≐ B, speculatively, with its proof.
@@ -2904,9 +2903,9 @@ mutual
         -- unwrapped, there being no wrapper child to descend; mixed
         -- pairs go through congFinal
         (x@(Elem.EqTy _ _ _), y@(Elem.EqTy _ _ _)) =>
-          spEqElemM dep st cs ctx x y (Just TopTy)
+          spEqElemM dep st cs ctx x y TopTy
         (x@(Squash _), y@(Squash _)) =>
-          spEqElemM dep st cs ctx x y (Just TopTy)
+          spEqElemM dep st cs ctx x y TopTy
         -- El retired: mixed decoded-vs-code shapes no longer exist —
         -- a code in type position IS its own spelling
         _ => Nothing
@@ -3520,18 +3519,12 @@ mutual
                                   (if null names then prf
                                      else audit "AUDIT elem | \{st.modPrefix} | \{site} | \{joinBy ", " names}" prf)))
                   Left kerrMsg =>
-                    -- the engine's route overreached (a leaf the
-                    -- kernel's positional rules reject) — before
-                    -- giving up, retry with the BARE δβ join: an
-                    -- equation that holds by plain δβ must not be lost
-                    -- to an overzealous rewrite (this rescue lived in
-                    -- the removed item-end deletion pass; it belongs
-                    -- at the site)
-                    case audit "REPLAY-FAIL elem | \{site} | \{kerrMsg} | \{showDrv prf} | goal: \{show a} ≐ \{show b} : \{show ty}" (deltaJoinC st a b) of
-                      Just bare => case kCheckEqDrv st.sig ctx kernelFuel bare a b ty of
-                        Right () => pure (Right bare)
-                        Left _ => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
-                      Nothing => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
+                    -- the kernel rejected the engine's proof: the site
+                    -- is an obligation carrying the verdict (no second
+                    -- route is tried — a rejection is reported, never
+                    -- papered over)
+                    pure (audit "REPLAY-FAIL elem | \{site} | \{kerrMsg} | \{showDrv prf} | goal: \{show a} ≐ \{show b} : \{show ty}"
+                            (Left (sub site "\{site} [replay failed: \{kerrMsg}]")))
 
   attemptT : Ctx -> Site -> Ty -> Ty -> ElabM (Either Site Drv)
   attemptT ctx site tyA tyB =
@@ -3564,12 +3557,9 @@ mutual
                                   (if null names then prf
                                      else audit "AUDIT ty | \{st.modPrefix} | \{site} | \{joinBy ", " names}" prf)))
                   Left kerrMsg =>
-                    -- bare-δβ rescue, as at attemptE
-                    case audit "REPLAY-FAIL ty | \{site} | \{kerrMsg} | \{showDrv prf} | goal: \{show tyA} ≐ \{show tyB}" (deltaJoinC st tyA tyB) of
-                      Just bare => case kCheckEqDrv st.sig ctx kernelFuel bare tyA tyB TopTy of
-                        Right () => pure (Right bare)
-                        Left _ => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
-                      Nothing => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
+                    -- as at attemptE: reported, not rescued
+                    pure (audit "REPLAY-FAIL ty | \{site} | \{kerrMsg} | \{showDrv prf} | goal: \{show tyA} ≐ \{show tyB}"
+                            (Left (sub site "\{site} [replay failed: \{kerrMsg}]")))
 
   ||| Γ ⊢ a ≐ b : A ↓ — always succeeds; assumes what it cannot discharge.
   convElem : Ctx -> NameEnv -> Site -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM (Maybe Drv)
