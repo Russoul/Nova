@@ -3049,7 +3049,7 @@ dropCtx Z ctx = Just ctx
 dropCtx (S n) (ctx :< _) = dropCtx n ctx
 dropCtx (S _) [<] = Nothing
 
-||| The UNDETERMINED position type (approximation A6, §10.5): the type
+||| The UNDETERMINED position type (approximation A7, §10.5): the type
 ||| of a head or scrutinee child that neither states it nor inverts to
 ||| it — a stuck eliminator produced by δ-normalization, its motive
 ||| lost. The children under it are compared, never typed; a stating
@@ -4119,13 +4119,13 @@ mutual
               Just t => do t' <- kWhnfT sig t; pure (Just (t', t))
               Nothing => pure Nothing
 
-    -- … or the UNDETERMINED type (A6), audited
+    -- … or the UNDETERMINED type (A7), audited
     headOfU : Drv -> KM (Ty, Ty)
     headOfU q = do
       m <- headOfM q
       case m of
         Just r => pure r
-        Nothing => pure (audit "DRV-A6 undetermined head type | \{showDrv q} | \{show headTerm}" (undeterminedTy, undeterminedTy))
+        Nothing => pure (audit "DRV-A7 undetermined head type | \{showDrv q} | \{show headTerm}" (undeterminedTy, undeterminedTy))
 
     headOf : Drv -> KM (Ty, Ty)
     headOf q = do
@@ -4141,8 +4141,8 @@ mutual
         Just (t', t) => case pick t' of
           Just (a, b) => pure (a, b, t)
           Nothing => kerr "kernel: \{what}: the scrutinee's type has no shape for it [\{show t'}]"
-        -- the scrutinee's type undetermined (A6): its parts too
-        Nothing => pure (audit "DRV-A6 undetermined scrutinee type | \{what} | \{showDrv q} | \{show headTerm}"
+        -- the scrutinee's type undetermined (A7): its parts too
+        Nothing => pure (audit "DRV-A7 undetermined scrutinee type | \{what} | \{showDrv q} | \{show headTerm}"
                                (undeterminedTy, undeterminedTy, undeterminedTy))
 
     ||| A node: the side(s) decompose by `shape` into the children's

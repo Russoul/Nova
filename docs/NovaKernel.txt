@@ -1320,6 +1320,20 @@ terms other than this node (the current substPrf, which cannot enter
 skeletons, goes), no rebuild of candidate sets under binders, and
 sharing of a written derivation across its instances.
 
+IMPLEMENTATION (step 4): a candidate records the LENGTH of the base
+context it was built over and its parameters' types with their
+derivations over their prefixes; its LEAF — the licence at the
+pattern variables bridged by the normalization proofs, pL⁻¹ ; lic ;
+pR, the whole of it stating (lic states, pR runs forward, pL⁻¹ runs
+backward) — is built once over the pattern context. A use writes
+leaf[↑ᵈ ▷ (e₁ : π_T₁) … (eₖ : π_Tₖ)] with d the use context's length
+past the base (binders the rewriter crossed included) and each
+binding derived at its parameter's type under the earlier entries.
+Extending a candidate set under a binder weakens the PATTERNS (the
+matcher works in the extended context) and nothing else; the
+hypotheses of the new context are still rebuilt (a rebuild of what a
+wrap could give — the remaining sharing).
+
 10.5 Sides given: the reading against erasures
 
 Conversions are the one place a derivation meets sides it did not
@@ -1345,16 +1359,19 @@ stays on erasures: the join normalizes |π|, refl compares erasures,
 δ unfolds a definition's stored erasure. Derivations are never
 β-reduced.
 
-THE UNDETERMINED POSITION (A6). A head or scrutinee child that
+THE UNDETERMINED POSITION (A7). A head or scrutinee child that
 neither states its type nor inverts to it from the given side — a
 stuck eliminator that δ-normalization produced, its motive lost
-(quot-elim (y. class (rAbs y)) q from an unfolded realAbs) — reads at
-the UNDETERMINED type: the children under it are compared, never
-typed, and a stating child's type is not compared with it. This is
-what the skeleton reader's undetermined position was (§6), kept for
-the same proofs — 16 sites in the corpus, all under δ-all rounds of
-the engine — and audited (DRV-A6). It goes with step 4: an engine
-that normalizes derivations keeps the motive.
+(quot-elim (y. class (rAbs y)) q from an unfolded realAbs; an ℕ-elim
+head whose scrutinee a lemma rewrites) — reads at the UNDETERMINED
+type: the children under it are compared, never typed, and a stating
+child's type is not compared with it. This is what the skeleton
+reader's undetermined position was (§6), kept for the same proofs —
+12 sites in the corpus after step 4, all under δ-all rounds of the
+engine — and audited (DRV-A7). What removes it is an engine whose
+normalization keeps motives, i.e. one that unfolds definitions'
+DERIVATIONS rather than their erasures (Σ storing the derivation
+beside the erasure); it is the one open item of the migration.
 
 10.6 Items, Σ, the pipeline
 
@@ -1469,8 +1486,22 @@ A5 (no η certificate for QIITs).
      demanding only CHECKABLE children at checked positions, and the
      undetermined position (A6) retained for lost-motive eliminators
      under the engine's δ-all rounds;
-  4. the engine: leaves as derivations, candidates as proofs over
-     their context instantiated by [σ], extendCS a wrap;
+  4. DONE (2026-09-24): the engine writes derivations
+     (Nova.Elaboration.Proof on Drv: a typed neutral is its
+     re-derivation, an argument at a domain its checked
+     re-derivation, exposure the kernel's under the site's whitelist,
+     the node skeleton the derivation nodes with refl children, a
+     rewritten head or scrutinee child under the exposure of its type
+     when a definition hides the shape); candidates store one leaf
+     over their pattern context and are instantiated by the
+     substitution node (10.4, IMPLEMENTATION); the engine's discharges
+     read through kCheckEqDrv, the Prf→Drv bridge is gone from the
+     elaborator. Decisions: the exposure of a scrutinee's TYPE for
+     typing is the reader's own and free of the site's whitelist
+     (which governs the term); a QIIT eliminator without motives reads
+     at the constant motives (dCheck, the sides-given reading) and is
+     re-derived so at a type. The undetermined position (A7) remains
+     at 12 sites — the open item, 10.5.
   5. delete Skel, Payload, PChk, PSelf's bare form, substPrf; rewrite
      §2, §6, §7, §8, §9 from this section.
 

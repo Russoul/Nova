@@ -166,13 +166,15 @@ at a position spelled otherwise (a hypothesis k + Z ≡ k at an
 occurrence of ℕ-elim … k Z) is transitivity over the leaf with the
 δ chains that normalized it — never an inversion onto the goal, where
 an unfolded body that has β-reduced away leaves no position to
-refold. The engine writes the proof term AS IT SEARCHES
-(Nova.Elaboration.Proof, its untrusted proof library): a rewrite it
-performs is emitted as the licence's leaf inside the congruence
-skeleton of the position at once, a closing step as its leaf, and
-the search returns the finished proof — there is no certificate
-language between the engine and the kernel, no translation at the
-boundary; the kernel sees the proof term and nothing else.
+refold. The engine writes the DERIVATION AS IT SEARCHES
+(Nova.Elaboration.Proof, its untrusted proof library, on the grammar
+of docs/NovaKernel.txt §10): a rewrite it performs is emitted as the
+licence's leaf inside the node skeleton of the position at once — a
+candidate's leaf built once over its own context and instantiated by
+the substitution node — a closing step as its leaf, and the search
+returns the finished derivation; there is no certificate language
+between the engine and the kernel, no translation at the boundary;
+the kernel reads the derivation and nothing else.
 
 NO δ FOR EXPOSURE: the kernel's weak-head normalizer is β-only.
 A shape a definition hides — the Π of a checked λ, the quotient of a
