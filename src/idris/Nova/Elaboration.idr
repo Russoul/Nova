@@ -1261,7 +1261,7 @@ licLeafK st ctx c bs d flip = do
     e <- case lookup p bs of
            Just e => pure (weakenElemN d e)
            Nothing => kerr "proof: unbound parameter \{show p} of '\{c.candName}'"
-    eD <- rdCheck st.sig ctx e (Nd [] []) (substTy ty sub)
+    eD <- rdCheck st.sig ctx e (substTy ty sub)
     more <- go (Ext sub e) ps rest
     pure ((eD, tyD) :: more)
   go _ _ _ = kerr "proof: parameter telescope mismatch in '\{c.candName}'"
@@ -2100,7 +2100,7 @@ mkCandD : ElabSt -> Ctx -> String -> (k : Nat) -> List Ty -> Elem -> Elem
        -> (Nat -> Bindings -> Maybe Licence) -> Drv -> Drv -> Cand
 mkCandD st baseCtx name k ptys lhs rhs emit preP postP =
   let ptyDs = the (Maybe (List Drv)) (traverse (\(i, ty) => runPA "parameter type of \{name}"
-                                                  (rdType st.sig (patCtxOf baseCtx (take i ptys)) ty (Nd [] [])))
+                                                  (rdType st.sig (patCtxOf baseCtx (take i ptys)) ty))
                                        (zip (if null ptys then [] else [0 .. minus (length ptys) 1]) ptys))
       c0 = MkCand name k ptys lhs rhs emit preP postP (length baseCtx) ptys
                   (fromMaybe [] ptyDs) (patCtxOf baseCtx ptys) Nothing

@@ -8,9 +8,6 @@ modules = Nova.Diagnostic
         , Nova.Kernel.Subst
         , Nova.Kernel
         , Nova.Kernel.QIIT
-        , Nova.Kernel.Dormant.Beta
-        , Nova.Kernel.Dormant.Derivation
-        , Nova.Kernel.Dormant.Tests
         , Nova.Compute
         , Nova.Elaboration.Beta
         , Nova.Elaboration.Named

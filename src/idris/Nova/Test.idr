@@ -11,7 +11,6 @@ import Me.Russoul.Text.Range
 import Nova.Kernel.Syntax
 import Nova.Kernel.Parser
 import Nova.Kernel
-import Nova.Kernel.Dormant.Tests
 import Nova.Diagnostic
 import Nova.Distill
 import Nova.Implicitize
@@ -45,7 +44,6 @@ runParse parser input =
 pools : IO (List TestPool)
 pools = sequence
   [ testsInDir "tests/nova/parser" "Nova Parser"
-  , testsInDir "tests/nova/derivation" "Nova Derivation"
   , testsInDir "tests/nova/elaboration" "Nova Elaboration"
   , testsInDir "tests/nova/evaluation" "Nova Evaluation"
   , testsInDir "tests/nova/distill" "Nova Distill"
@@ -60,7 +58,6 @@ main = do
   args <- getArgs
   case args of
     (_ :: "run" :: parser :: input :: []) => runParse parser input
-    (_ :: "deriv" :: []) => runDerivTests
     (_ :: "elab" :: file :: []) => do
       output <- elabPath file
       putStrLn output

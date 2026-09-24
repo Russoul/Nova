@@ -44,9 +44,7 @@ listSet Z y (_ :: xs) = Just (y :: xs)
 listSet (S n) y (x :: xs) = map (x ::) (listSet n y xs)
 listSet _ _ [] = Nothing
 
-||| The bare skeleton (re-derivation reads no payloads from the engine).
-bare : Skel
-bare = Nd [] []
+||| The skeleton (re-derivation reads no payloads from the engine).
 
 ||| A spine with one child rewritten: the derivations (reflexivity at
 ||| every other entry) and the new spine.
@@ -135,14 +133,14 @@ exposeK = rdExpose
 ||| elimination needs — and the type it states.
 export
 elemToDrv : Sig -> Ctx -> Elem -> KM (Drv, Ty)
-elemToDrv sig ctx e = rdInfer sig ctx e bare
+elemToDrv sig ctx e = rdInfer sig ctx e
 
 ||| An ARGUMENT at the domain the head demands: derived in checking
 ||| mode there (a spine states its type and arrives converted when
 ||| spelled otherwise; an intro form is checked at the domain's parts).
 export
 argDrv : Sig -> Ctx -> Elem -> Ty -> KM Drv
-argDrv sig ctx a dom = rdCheck sig ctx a bare dom
+argDrv sig ctx a dom = rdCheck sig ctx a dom
 
 ||| The spine of a path leaf stated entrywise at the reflected
 ||| telescope.
@@ -153,7 +151,7 @@ pathArgs sig ctx sg k th = do
              Just e => pure e
              Nothing => kerr "proof: path leaf entry out of range"
   (tel, _, _) <- liftQ (reflTel sg' (qwAt k) entry)
-  rdTele sig ctx tel (toList th) bare
+  rdTele sig ctx tel (toList th)
 
 ||| The head of an elimination as a derivation child: reflexivity when
 ||| its declared type already shows the shape the node needs (β — the
@@ -470,14 +468,14 @@ congAt : Sig -> Ctx -> Maybe Ty -> Elem -> Nat -> Drv -> KM Drv
 congAt sig ctx mty t i q =
   fst <$> wrapAt sig ctx mty 0 t [i] (\_, _, _, u => pure (q, u))
 
-||| A prop's derivation at Ω, when the bare type re-derives (an
+||| A prop's derivation at Ω, when the type re-derives (an
 ||| eliminator standing as a prop reads at the constant motive Ω;
 ||| the kernel then reads the derivation — nothing is guessed there);
 ||| Nothing where it does not, leaving the kernel its own judgement by
 ||| shape.
 export
 propDrv : Sig -> Ctx -> Ty -> KM (Maybe Drv)
-propDrv sig ctx ty = kOrElse (Just <$> rdType sig ctx ty (Nd [] [])) (pure Nothing)
+propDrv sig ctx ty = kOrElse (Just <$> rdType sig ctx ty) (pure Nothing)
 
 ||| A proof-irrelevance leaf at a type (exposed to its prop head by δ,
 ||| the exposure around the leaf), the prop derived when it re-derives.
