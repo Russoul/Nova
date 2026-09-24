@@ -1984,7 +1984,7 @@ isPropTyWith probe st ctx t = case t of
              t' => probe st ctx t')
 
 isPropTy : ElabSt -> Ctx -> Ty -> Bool
-isPropTy = isPropTyWith (\st, ctx, t => kIsPropB st.kernelSig kernelFuel ctx t (Nd [] []))
+isPropTy = isPropTyWith (\st, ctx, t => kIsPropD st.kernelSig kernelFuel ctx t)
 
 ||| … the DERIVED question, for the sites whose verdict the kernel
 ||| re-establishes from a derivation (a quot-elim's motive, a ⋆'s
@@ -2845,7 +2845,11 @@ mutual
     congFinal p q = do
       guard (isPropTy st ctx p && isPropTy st ctx q)
       sub <- spEqElemC dep st cs ctx p q PropTy
-      pure (DPrfCong Nothing Nothing sub)
+      -- the sides derived at Ω when they re-derive (an eliminator
+      -- standing as a prop carries its constant motive that way)
+      let dp = runP (propDrv st.sig ctx p)
+      let dq = runP (propDrv st.sig ctx q)
+      pure (DPrfCong (join dp) (join dq) sub)
 
     -- a child's proof in the congruence node of child i of x (at 𝕍)
     child : Elem -> Nat -> Drv -> Maybe Drv

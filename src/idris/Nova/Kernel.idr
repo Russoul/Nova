@@ -1685,7 +1685,7 @@ mutual
         -- a prop; a neutral takes the judgemental question at Ω,
         -- through the carried skeleton (the type AS WRITTEN first)
         _ => do
-          ok <- kIsProp sig ctx ty sk
+          ok <- kIsProp sig ctx ty
           if ok then pure l
             else kerr "kernel: irrelevance at a non-propositional type"
     (PEtaPi q, GChk l r) => do
@@ -1764,8 +1764,8 @@ mutual
       ty' <- kWhnfT sig ty
       case ty' of
         TopTy => do
-          okL <- kIsProp sig ctx l skl
-          okR <- kIsProp sig ctx r skr
+          okL <- kIsProp sig ctx l
+          okR <- kIsProp sig ctx r
           if okL && okR
             then do kEqElem sig ctx q l r PropTy; pure l
             else kerr "kernel: prop-lift-eq at non-prop types"
@@ -2100,15 +2100,16 @@ mutual
             ignore (kPrfGo sig (ctx :< a1) qb (GChk b0 b1) (Just cls))
             pure l
           _ => kerr "kernel: proof shape does not match the sides\n  left:  \{show l}\n  right: \{show r}"
-  ||| Is the type a PROPOSITION (a member of Ω)? Syntactically for the
-  ||| Ω formers and the non-props among the formers; a neutral takes
-  ||| the judgemental question: it infers at Ω (β-only, through the
-  ||| given skeleton — the raw spelling first, since whnf can unfold a
-  ||| prop spine into a stuck eliminator; a bare skeleton falls back to
-  ||| the constant-motive Ω reading of an eliminator head).
-  kIsProp : Sig -> Ctx -> Ty -> Skel -> KM Bool
-  kIsProp sig ctx t sk =
-    case t of
+  ||| Is the type a PROPOSITION (a member of Ω)? By its SHAPE: the Ω
+  ||| formers are, the other formers are not, and a neutral is one
+  ||| exactly when its head's declared type inverts to Ω (inferHead,
+  ||| β-only). Nothing else: an eliminator standing as a prop derives
+  ||| its motive from the derivation that carries it, never from a
+  ||| guess of the kernel's.
+  kIsProp : Sig -> Ctx -> Ty -> KM Bool
+  kIsProp sig ctx t = do
+    t' <- kWhnfT sig t
+    case t' of
       Elem.EqTy _ _ _ => pure True
       Squash _ => pure True
       ZeroTy => pure False
@@ -2122,30 +2123,14 @@ mutual
       SumTy _ _ => pure False
       QuotTy _ _ => pure False
       NuTy _ => pure False
+      QSort _ _ _ => pure False
       _ => do
-        ok <- atOmega t sk
-        if ok then pure True else do
-          t' <- kWhnfT sig t
-          case t' of
-            Elem.EqTy _ _ _ => pure True
-            Squash _ => pure True
-            _ => atOmega t' (Nd [] [])
-   where
-    -- an eliminator standing as a prop (a relator instance, a case
-    -- split on a proposition) is read at the CONSTANT motive Ω (A1):
-    -- its cases are props under their binders
-    propSkel : Elem -> Skel
-    propSkel (SumElim l r _) = Nd [PMotive PropTy (Nd [] [])] [propSkel l, propSkel r, Nd [] []]
-    propSkel (NatElim z st _) = Nd [PMotive PropTy (Nd [] [])] [propSkel z, propSkel st, Nd [] []]
-    propSkel (QuotElim f _) = Nd [PMotive PropTy (Nd [] []), PWD (PIrrel (Nd [] []))] [propSkel f, Nd [] []]
-    propSkel _ = Nd [] []
-    atOmega : Ty -> Skel -> KM Bool
-    atOmega u usk = kTry (do
-      ty <- kInferE sig ctx u (case usk of
-                                 Nd [] [] => propSkel u
-                                 _ => usk)
-      ok <- tyAgree sig PropTy ty
-      if ok then pure () else kerr "kernel: not at Ω")
+        mt <- inferHead sig ctx t'
+        case mt of
+          Just k => do
+            k' <- kWhnfT sig k
+            pure (k' == PropTy)
+          Nothing => pure False
 
   ||| The scrutinee exposure a node carries, applied to the inferred
   ||| type: the proof of inferred ≐ exposed is checked and the exposed
@@ -2249,7 +2234,7 @@ mutual
                           -- prop-ness of the goal AS WRITTEN (kIsProp
                           -- whnfs for itself; whnf-first would unfold
                           -- a ≤-spine into a stuck eliminator)
-                          okQ <- kIsProp sig ctx ty goalSk
+                          okQ <- kIsProp sig ctx ty
                           if okQ
                             then kCheckE sig (ctx :< a) body (substTy ty Wk) bodySk
                             else kerr "kernel: squash-elim checked at a non-prop goal"
@@ -2454,7 +2439,7 @@ mutual
                     -- Testing the MOTIVE, not its instantiation — the
                     -- instance can be a stuck eliminator prop-ness
                     -- cannot be read off (Prf's head used to carry it)
-                    mIsP <- kIsProp sig (ctx :< QuotTy a r) mot motSk
+                    mIsP <- kIsProp sig (ctx :< QuotTy a r) mot
                     if mIsP then pure () else do
                       let wk3 = Chain Wk (Chain Wk Wk)
                       kEqElem sig (ctx :< a :< substTy a Wk :< r) wd
@@ -3545,11 +3530,14 @@ mutual
       (l, r, t) <- dInfer sig ctx d
       -- an ELEMENT's type must agree with the position's; a stating
       -- LEAF's equation is at the position's type (the positional
-      -- check, §7); a spine NODE over a proper equation computes its
-      -- children's types from its own head (§6) and the position's
-      -- type is not compared — the sides' types are equal only
-      -- through the equation itself (a dependent codomain moves with
-      -- the argument)
+      -- check, §7); a SPINE node over a proper equation — an
+      -- application, a projection, an observation, a reference — is
+      -- not compared: its head is a variable or a reference, whose
+      -- typings all factor through one declared type (inversion), so
+      -- the equation's type and the position's are the same up to
+      -- conversion (a dependent codomain moves with the argument).
+      -- An ELIMINATOR node is compared: its type is the motive's
+      -- instance, and the same term types at other motives
       if l == r || posChecked d then agree t else pure ()
       pure (l, r)
    where
@@ -3559,11 +3547,6 @@ mutual
     posChecked (DProj2 _) = False
     posChecked (DOut _) = False
     posChecked (DRef _ _) = False
-    posChecked (DNatElim _ _ _ _) = False
-    posChecked (DSumElim _ _ _ _) = False
-    posChecked (DQuotElim _ _ _ _) = False
-    posChecked (DQElim _ _ _ _ _ _ _) = False
-    posChecked (DLet _ _) = False
     posChecked _ = True
     -- the classifier a shared former is checked at: 𝕌 or 𝕍 (Ω is not
     -- a classifier of formers)
@@ -3750,7 +3733,7 @@ mutual
           -- no derivation: the position's type (given, well-formed)
           -- judged a prop by the kernel itself
           Nothing => do
-            ok <- kIsProp sig ctx ty (Nd [] [])
+            ok <- kIsProp sig ctx ty
             if ok then pure l else kerr "kernel: irrelevance at a non-propositional type [\{show ty}]"
     (DEtaPi q, DGChk l r) => do
       ty' <- kWhnfT sig ty
@@ -4074,7 +4057,7 @@ mutual
       p <- dElemAt sig ctx pP PropTy
       sameB sig p side
     propSide Nothing side = do
-      ok <- kIsProp sig ctx side (Nd [] [])
+      ok <- kIsProp sig ctx side
       if ok then pure () else kerr "kernel: prop-lift at a non-proposition [\{show side}]"
 
     ||| derives; else — a rewrite inside the head — read off the given
@@ -4371,8 +4354,8 @@ mutual
       Just k => do k' <- kWhnfT sig k
                    case k' of
                      PropTy => pure True
-                     _ => kIsProp sig (ctx :< QuotTy a rel) mot (Nd [] [])
-      Nothing => kIsProp sig (ctx :< QuotTy a rel) mot (Nd [] [])
+                     _ => kIsProp sig (ctx :< QuotTy a rel) mot
+      Nothing => kIsProp sig (ctx :< QuotTy a rel) mot
     if mIsP then pure () else case wd of
       Nothing => kerr "kernel: quot-elim without its well-definedness proof at a non-prop motive"
       Just w => do
@@ -4466,7 +4449,7 @@ mutual
   ||| body proves the goal under A.
   squashElimAt : Sig -> Ctx -> Ty -> Drv -> Drv -> KM ()
   squashElimAt sig ctx goal e b = do
-    okQ <- kIsProp sig ctx goal (Nd [] [])
+    okQ <- kIsProp sig ctx goal
     if okQ then pure () else kerr "kernel: squash-elim at a non-prop goal"
     squashElimAtP sig ctx goal e b
 
@@ -5891,9 +5874,9 @@ canary what m fuel x =
 ||| Ω through the given skeleton first (a bare one reads an eliminator
 ||| head at the constant motive Ω), then whnf.
 export
-kIsPropB : Sig -> Nat -> Ctx -> Ty -> Skel -> Bool
-kIsPropB sig fuel ctx t sk =
-  case runKM (kIsProp sig ctx t sk) fuel of
+kIsPropB : Sig -> Nat -> Ctx -> Ty -> Bool
+kIsPropB sig fuel ctx t =
+  case runKM (kIsProp sig ctx t) fuel of
     Right (b, _) => b
     Left _ => False
 
@@ -5996,7 +5979,7 @@ kReDerivePrf sig fuel ctx p l r ty = map fst (runKM (do
 export
 kIsPropD : Sig -> Nat -> Ctx -> Ty -> Bool
 kIsPropD sig fuel ctx t =
-  kIsPropB sig fuel ctx t (Nd [] []) ||
+  kIsPropB sig fuel ctx t ||
   (case runKM (do d <- rdType sig ctx t (Nd [] [])
                   (_, k) <- dTypeK sig ctx d
                   k' <- kWhnfT sig k

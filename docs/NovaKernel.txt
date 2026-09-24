@@ -1414,8 +1414,23 @@ difference between a corpus at its previous speed and one six times
 slower. A checking-form annotation the elaborator cannot derive —
 a squash-elim's goal, a prop-lift's side, an irrelevance's prop, the
 type flowing down — is left to the kernel's own judgement on the
-bare type (kIsProp, on the type's own shape or its head's declared
-classifier), which a derivation would only restate.
+bare type, and that judgement is by SHAPE ALONE: an equation or a
+squash is a prop, the other formers are not, a neutral is one when
+its head's declared type inverts to Ω. Nothing else — in particular
+no constant-motive reading of an eliminator standing as a prop: an
+eliminator-headed prop is derived (at the constant motive, read by
+the kernel) by whoever writes the node — the elaborator for a
+squash-elim's goal, the engine for an irrelevance leaf or a
+prop-lift's sides (propDrv) — or the node is rejected.
+
+Two checks of the same kind, kept: in a checking position a node
+that infers a proper equation must agree with the position's type
+unless it is a SPINE node (an application, a projection, an
+observation, a reference), whose head is a variable or a reference
+and whose typings therefore all factor through one declared type;
+an eliminator node is compared, since the same term types at other
+motives — the check the skeleton reader skipped for every node over
+a proper equation.
 
 10.7 What disappears, what remains
 

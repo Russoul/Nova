@@ -470,14 +470,23 @@ congAt : Sig -> Ctx -> Maybe Ty -> Elem -> Nat -> Drv -> KM Drv
 congAt sig ctx mty t i q =
   fst <$> wrapAt sig ctx mty 0 t [i] (\_, _, _, u => pure (q, u))
 
+||| A prop's derivation at Ω, when the bare type re-derives (an
+||| eliminator standing as a prop reads at the constant motive Ω;
+||| the kernel then reads the derivation — nothing is guessed there);
+||| Nothing where it does not, leaving the kernel its own judgement by
+||| shape.
+export
+propDrv : Sig -> Ctx -> Ty -> KM (Maybe Drv)
+propDrv sig ctx ty = kOrElse (Just <$> rdType sig ctx ty (Nd [] [])) (pure Nothing)
+
 ||| A proof-irrelevance leaf at a type (exposed to its prop head by δ,
-||| the exposure around the leaf; the prop itself is the kernel's
-||| judgement on the position's type).
+||| the exposure around the leaf), the prop derived when it re-derives.
 export
 irrelAt : Sig -> Ctx -> Ty -> KM Drv
 irrelAt sig ctx ty = do
-  (_, pt) <- rdExpose sig ctx ty
-  pure (convWrap pt (DIrrel Nothing))
+  (tyX, pt) <- rdExpose sig ctx ty
+  d <- propDrv sig ctx tyX
+  pure (convWrap pt (DIrrel d))
 
 ||| A type-directed leaf under the exposure of the type's head (the
 ||| leaf is built from the exposed, β-whnf'd type).
