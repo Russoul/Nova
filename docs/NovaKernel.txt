@@ -1192,7 +1192,8 @@ rule in 10.3.
 IMPLEMENTATION (Nova.Kernel.Derivation, step 1 of 10.8): the type
 Drv, one constructor per line above — DVar, DRef, DUnit, DZero, the
 constant types DZeroTy … DTop; DRefl, DPath, DDelta, DReflx, DSym,
-DTrans, DTransAt, DDeltaAll; DIrrel and DPrfCong (their prop
+DTrans, DTransAt (its middle an element derivation), DDeltaAll;
+DIrrel and DPrfCong (their prop
 derivations Maybe), DEtaPi, DEtaSigma, DQuotWit, DQuotWitPrf, DInj,
 DPropExt; DConv (its annotation a Maybe: Nothing is the checking form
 π by β), DAt, DAscribe (annotation and conversion each a Maybe),
@@ -1200,7 +1201,9 @@ DSubst with DSub (depth, entries); DLam, DPair, DInj1, DInj2, DClass,
 DSuc, DCtor, DCorec,
 DLet, DStar, DSq, DSquashElim, DCoind (annotations Maybe, absent
 under checking); DZeroElim, DNatElim, DSumElim, DQuotElim (motive and
-wd each a Maybe), DQElim, DOut, DApp, DProj1, DProj2; DPi, DSigma,
+wd each a Maybe), DQElim (its motives a Maybe: Nothing is the
+checking form at the constant motives), DOut, DApp, DProj1, DProj2;
+DPi, DSigma,
 DSum, DEq, DQuot, DSquash, DNu, DSort. The erasure is
 erase : Drv -> Maybe Elem — Nothing at an equation form in an element
 position (10.5) — with eraseSub for σ, and showDrv prints the
@@ -1351,57 +1354,43 @@ compare, and — motives being mandatory — every position's expected
 type is determined by the node above. The neutral-subterm rule (§6),
 inferHead and the undetermined position disappear.
 
-ONE READING PER DERIVATION. The reader never backtracks: which of the
-readings a derivation gets is a function of its shape and the sides'
-heads, in this order.
+ONE READING PER DERIVATION. The reader never backtracks. A goal is
+the side the derivation runs FROM, its direction, and — when known —
+the other side as a HINT; the reading returns the side it produces
+and the caller compares it with the hint under β. Which reading a
+derivation gets is a function of its shape and the given side, in
+this order.
   1. Structure is read through: transitivity and symmetry link by
      link, an ascription or conversion wrapper at the type it
      converts to — even when the structure states.
   2. A derivation that states or is checkable is checked at the type
-     and its sides compared (β-join).
-  3. Otherwise it is RUN from the side it is runnable from (left
-     first), the produced side compared with the other under β. A
-     derivation is runnable from a side when the side has its shape
-     DOWN TO EVERY CHILD: a stating derivation and refl always;
+     and its given side compared.
+  3. Otherwise it RUNS from the given side when the side has its
+     shape DOWN TO EVERY CHILD (runnable): a stating derivation
+     always, except a ONE-WAY one from the right (a δ leaf's right
+     side is a definition's body, an intro form that β-reduces
+     against the node above — it never is a syntactic part); refl;
      δ-all from the left; symmetry in the flipped direction;
      transitivity when its first link runs from the side and its
-     second from the middle (the stated one, or — when the middle is
-     computed — in the direction alone); a wrapper when its inner
-     does; a node when the side is its former's construct and each
-     child is runnable from the matching part.
-  4. Otherwise both sides decompose along the node, each child
-     choosing its reading against its parts.
-A transitivity link's reading is decided at the middle its neighbour
-produced, so a chain may mix directions (a rewrite run from the left
-followed by an unfolding run from the right); a wrapper over a chain
-is read through first so the chain is never run as a whole from one
-side. The engine's fallbacks (deltaJoinC) are no longer exercised by
-the corpus: every proof it writes is read once.
-
-Erasure |π| is a function of the derivation (drop annotations, keep
-the former; a leaf erases to its term; ⟨π⟩, x-δ, refl, … erase to
-⋆-free equation content and never occur inside an element derivation
-except as a witness node's proof, which erases to ⋆). Computation
-stays on erasures: the join normalizes |π|, refl compares erasures,
-δ unfolds a definition's stored erasure. Derivations are never
-β-reduced.
-
-NO UNDETERMINED POSITION. A head or scrutinee child that neither
-states its type nor inverts to it from the given side — a stuck
-eliminator that δ-normalization produced, its motive lost — is
-REJECTED: an untyped comparison is not a reading. (The skeleton
-reader's undetermined position, §6, and a first version of this
-reader accepted such children with their types uncompared; a leaf
-stated at one quotient and placed under such a head at another would
-have passed. It is gone.) Inversion from the side is STRUCTURAL
-through the child's own nodes — an exposure inside the child is run
-where it sits, an application's codomain instantiated by the side's
-argument — so a child under `by x-δ` types exactly as far as the
-exposure reaches. What the engine must do to meet this: rewrite the
-RAW sides before unfolding (a rewrite then lands at an argument of a
-definition with a declared type), which is how its normalization
-loop is ordered; a proof it still writes under a lost motive is
-rejected and the plain δβ join is tried in its place.
+     second is directional that way by shape (one-way leaves
+     excluded); a wrapper when its inner does; a node when the side
+     is its former's construct and each child is runnable from the
+     matching part.
+  4. Otherwise, given a hint it is runnable from, it runs from the
+     hint and the given side is compared with what that produces.
+  5. Otherwise the decomposition: a type-directed leaf reads at both
+     sides (it needs the hint), anything else reports the mismatch.
+A node passes the hint down at its parts when the hint has its shape
+(else the children get none). Transitivity runs the link at the
+given side and hands its neighbour the middle with the hint; when
+that link cannot run, the link at the hint runs from the hint and
+the other link reads from the given side with that middle as ITS
+hint — so a chain may mix directions (a rewrite run from the left,
+an unfolding run from the right), and a wrapper over a chain is read
+through first so the chain is never run as a whole from one side. A
+stated middle (DTransAt) is an element derivation checked at the
+chain's type. The engine's fallback (deltaJoinC) is exercised by one
+corpus site (leRZeroDist: a proof written under a lost motive).
 
 10.6 Items, Σ, the pipeline
 

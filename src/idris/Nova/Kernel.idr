@@ -2939,7 +2939,8 @@ mutual
  dSynth (DSumElim Nothing _ _ _) = False
  dSynth (DQuotElim (Just _) _ f q) = dCheckable f && dSynth q
  dSynth (DQuotElim Nothing _ _ _) = False
- dSynth (DQElim _ _ _ _ ms es w) = all dCheckable ms && all dCheckable es && dCheckable w
+ dSynth (DQElim _ _ (Just _) _ ms es w) = all dCheckable ms && all dCheckable es && dCheckable w
+ dSynth (DQElim _ _ Nothing _ _ _ _) = False
  dSynth (DOut p) = dSynth p
  dSynth (DApp f a) = dSynth f && dCheckable a
  dSynth (DProj1 p) = dSynth p
@@ -2974,6 +2975,7 @@ mutual
    DNatElim Nothing z st n => dCheckable z && dCheckable st && dCheckable n
    DSumElim Nothing l r t => dCheckable l && dCheckable r && dSynth t
    DQuotElim Nothing _ f q => dCheckable f && dSynth q
+   DQElim _ _ Nothing _ ms es w => all dCheckable ms && all dCheckable es && dCheckable w
    DConv q Nothing _ => dSynth q
    DAscribe q _ _ => dCheckable q
    DLet a b => dSynth a && dCheckable b
@@ -2993,40 +2995,59 @@ mutual
  ||| forward-only δ-all can; structure and nodes can when their parts
  ||| can.
  dDirable : Bool -> Drv -> Bool
- dDirable d p = if dSynth p then True else case p of
+ dDirable = dDirableW (\_, _ => True)
+
+ ||| … with a test on the stating leaves (the reader's `runnable`
+ ||| excludes the one-way ones from the wrong direction).
+ dDirableW : (Bool -> Drv -> Bool) -> Bool -> Drv -> Bool
+ dDirableW ok d p = if dSynth p then ok d p else case p of
    DReflx => True
    DDeltaAll _ => d
-   DSym q => dDirable (not d) q
-   DTrans q r => dDirable d q && dDirable d r
-   DTransAt q _ r => dDirable d q && dDirable d r
-   DConv q _ _ => dDirable d q
-   DAscribe q _ _ => dDirable d q
-   DLam _ q => dDirable d q
-   DPair _ u v => dDirable d u && dDirable d v
-   DInj1 _ q => dDirable d q
-   DInj2 _ q => dDirable d q
-   DClass _ q => dDirable d q
-   DSuc q => dDirable d q
-   DCtor _ _ qs => all (dDirable d) qs
-   DCorec _ a f x => dDirable d a && dDirable d f && dDirable d x
-   DZeroElim _ q => dDirable d q
-   DNatElim _ z s n => dDirable d z && dDirable d s && dDirable d n
-   DSumElim _ l r t => dDirable d l && dDirable d r && dDirable d t
-   DQuotElim _ _ f q => dDirable d f && dDirable d q
-   DQElim _ _ _ _ ms es w => all (dDirable d) ms && all (dDirable d) es && dDirable d w
-   DOut q => dDirable d q
-   DApp f a => dDirable d f && dDirable d a
-   DProj1 q => dDirable d q
-   DProj2 q => dDirable d q
-   DPi a b => dDirable d a && dDirable d b
-   DSigma a b => dDirable d a && dDirable d b
-   DSum a b => dDirable d a && dDirable d b
-   DEq l r t => dDirable d l && dDirable d r && dDirable d t
-   DQuot a r => dDirable d a && dDirable d r
-   DSquash q => dDirable d q
-   DSort _ _ qs => all (dDirable d) qs
-   DRef _ qs => all (dDirable d) qs
+   DSym q => go (not d) q
+   DTrans q r => go d q && go d r
+   DTransAt q _ r => go d q && go d r
+   DConv q _ _ => go d q
+   DAscribe q _ _ => go d q
+   DLam _ q => go d q
+   DPair _ u v => go d u && go d v
+   DInj1 _ q => go d q
+   DInj2 _ q => go d q
+   DClass _ q => go d q
+   DSuc q => go d q
+   DCtor _ _ qs => all (go d) qs
+   DCorec _ a f x => go d a && go d f && go d x
+   DZeroElim _ q => go d q
+   DNatElim _ z s n => go d z && go d s && go d n
+   DSumElim _ l r t => go d l && go d r && go d t
+   DQuotElim _ _ f q => go d f && go d q
+   DQElim _ _ _ _ ms es w => all (go d) ms && all (go d) es && go d w
+   DOut q => go d q
+   DApp f a => go d f && go d a
+   DProj1 q => go d q
+   DProj2 q => go d q
+   DPi a b => go d a && go d b
+   DSigma a b => go d a && go d b
+   DSum a b => go d a && go d b
+   DEq l r t => go d l && go d r && go d t
+   DQuot a r => go d a && go d r
+   DSquash q => go d q
+   DSort _ _ qs => all (go d) qs
+   DRef _ qs => all (go d) qs
    _ => False
+  where
+   go : Bool -> Drv -> Bool
+   go = dDirableW ok
+
+||| A stating derivation whose RIGHT side is never a syntactic part
+||| of a side: a δ leaf unfolds to a definition's body, an intro
+||| form that β-reduces against the node above (an unfolded λ under
+||| an application) — it runs left to right only under a node.
+oneWay : Drv -> Bool
+oneWay (DDelta _ _) = True
+oneWay (DSubst q _) = oneWay q
+oneWay (DConv q _ _) = oneWay q
+oneWay (DAscribe q _ _) = oneWay q
+oneWay _ = False
 
 ||| Δ without its d newest entries (the substitution node's Δ↓d).
 dropCtx : Nat -> Ctx -> Maybe Ctx
@@ -3034,11 +3055,15 @@ dropCtx Z ctx = Just ctx
 dropCtx (S n) (ctx :< _) = dropCtx n ctx
 dropCtx (S _) [<] = Nothing
 
-||| A goal for the readings that decompose: one side given, with the
-||| direction, or both.
+||| A goal for the readings that decompose: the side the derivation
+||| runs FROM, its direction (True: that side is the left one), and
+||| the other side when known — a HINT, consumed only by what cannot
+||| read from one end alone (a chain whose link runs the other way, a
+||| δ-all from the right, a type-directed leaf) and passed down to
+||| children at its parts. The reading returns the produced other
+||| side; the caller compares it with the hint under β.
 data DGoal : Type where
-  DGDir : Bool -> Elem -> DGoal
-  DGChk : Elem -> Elem -> DGoal
+  DGRun : Bool -> Elem -> Maybe Elem -> DGoal
 
 mutual
   ||| ⇒ (10.3): the equation a derivation states, with its type.
@@ -3124,14 +3149,14 @@ mutual
       if dSynth p && dDirable True q
         then do
           (a, b, t) <- dInfer sig ctx p
-          mJ <- kJoinElem sig m
+          mJ <- middleAt sig ctx m t
           sameB sig b mJ
           c <- dDir sig ctx q True mJ t
           pure (a, c, t)
         else if dSynth q && dDirable False p
         then do
           (b, c, t) <- dInfer sig ctx q
-          mJ <- kJoinElem sig m
+          mJ <- middleAt sig ctx m t
           sameB sig b mJ
           a <- dDir sig ctx p False mJ t
           pure (a, c, t)
@@ -3248,7 +3273,7 @@ mutual
           motK <- dTypeK sig (ctx :< QuotTy a rel) pM
           quotElimAt sig ctx (map Just motK) a rel wd f (ql, qr, qTy)
         _ => kerr "kernel: quot-elim of a non-quotient"
-    DQElim sg k cs cohs ms es w => qElimAt sig ctx sg k cs cohs ms es w
+    DQElim sg k (Just cs) cohs ms es w => qElimAt sig ctx sg k cs cohs ms es w
     DOut p => do
       (l, r, tTy) <- dInfer sig ctx p
       tTy' <- kWhnfT sig tTy
@@ -3461,7 +3486,7 @@ mutual
         _ => kerr "kernel: quot-elim of a non-quotient"
     -- the QIIT eliminator without motives: the constant motives at the
     -- type flowing down
-    DQElim sg k [] cohs qm qs qw => do
+    DQElim sg k Nothing cohs qm qs qw => do
       mots <- constMotives sig ctx sg ty
       (l, r, t) <- qElimAtM sig ctx sg k mots cohs qm qs qw
       agree t
@@ -3512,7 +3537,7 @@ mutual
           pure (a, c)
         else kerr "kernel: transitivity does not state its equation"
     DTransAt p m q => do
-      mJ <- kJoinElem sig m
+      mJ <- middleAt sig ctx m ty
       if dCheckable p && dDirable True q
         then do
           (a, b) <- dCheck sig ctx p ty
@@ -3576,34 +3601,9 @@ mutual
     dAtJ sig ctx d l r ty
 
   dAtJ : Sig -> Ctx -> Drv -> Elem -> Elem -> Ty -> KM ()
-  dAtJ sig ctx d l r ty =
-    -- ONE reading per derivation, decided by its shape and the sides'
-    -- heads: transitivity and symmetry are read link by link (each
-    -- link from the side it runs from); a stating or checkable
-    -- derivation is checked at the type and its sides compared; a
-    -- node that RUNS from a side (runnable: the side has its shape
-    -- down to every child) is run from it — the produced side
-    -- compared with the other under β, so the other side need not
-    -- have the shape the proof produces (it may be the β-normal form
-    -- of it: a δ exposure's result); else both sides decompose (each
-    -- child choosing its direction against its parts)
-    if structuralD d
-      then ignore (dGo sig ctx d (DGChk l r) ty)
-      else if dSynth d || dCheckable d
-        then checked
-        else if runnable True d l
-          then do x <- dDir sig ctx d True l ty
-                  sameB sig x r
-          else if runnable False d r
-            then do x <- dDir sig ctx d False r ty
-                    sameB sig x l
-            else ignore (dGo sig ctx d (DGChk l r) ty)
-   where
-    checked : KM ()
-    checked = do
-      (l', r') <- dCheck sig ctx d ty
-      sameB sig l' l
-      sameB sig r' r
+  dAtJ sig ctx d l r ty = do
+    x <- dRun sig ctx d (DGRun True l (Just r)) ty
+    sameB sig x r
 
   ||| Structure is read through even when it states: transitivity and
   ||| symmetry link by link, an ascription or conversion wrapper at the
@@ -3651,22 +3651,28 @@ mutual
     (DCtor sg k qs, QCtor sg' k' es) => if sg == sg' && k == k' && length qs == length (toList es) then Just (zip qs (toList es)) else Nothing
     _ => Nothing
 
+
   ||| Can the derivation RUN from the given side (True: it is the left
   ||| one), decided by shape: a stating derivation can (compare, then
-  ||| produce); refl can; δ-all runs left to right; symmetry flips the
-  ||| direction; transitivity asks its first link at the side and its
-  ||| second at the middle when stated, else for the direction alone;
-  ||| a conversion or ascription
+  ||| produce) unless it is one-way; refl can; δ-all runs left to
+  ||| right; symmetry flips the direction; transitivity asks its first
+  ||| link at the side and its second for the direction alone (its
+  ||| side is the middle, unknown here); a conversion or ascription
   ||| asks its inner; a node asks its children at the side's parts —
   ||| which the side must have.
+  ||| Directional by shape alone, one-way leaves excluded from the
+  ||| wrong direction.
+  dirable : Bool -> Drv -> Bool
+  dirable = dDirableW (\d, q => not (oneWay q) || d)
+
   runnable : Bool -> Drv -> Elem -> Bool
   runnable dir d x =
-    if dSynth d && not (structuralD d) then True else case d of
+    if dSynth d && not (structuralD d) then not (oneWay d) || dir else case d of
       DReflx => True
       DDeltaAll _ => dir
       DSym q => runnable (not dir) q x
-      DTrans q1 q2 => runnable dir (if dir then q1 else q2) x && dDirable dir (if dir then q2 else q1)
-      DTransAt q1 m q2 => runnable dir (if dir then q1 else q2) x && runnable dir (if dir then q2 else q1) m
+      DTrans q1 q2 => runnable dir (if dir then q1 else q2) x && dirable dir (if dir then q2 else q1)
+      DTransAt q1 _ q2 => runnable dir (if dir then q1 else q2) x && dirable dir (if dir then q2 else q1)
       DConv q Nothing _ => runnable dir q x
       DAscribe q _ _ => runnable dir q x
       _ => case nodeParts d x of
@@ -3678,18 +3684,32 @@ mutual
   ||| side is given), producing the other, unjoined.
   export
   dDir : Sig -> Ctx -> Drv -> Bool -> Elem -> Ty -> KM Elem
-  dDir sig ctx d dir x ty =
-    -- one reading, by shape: a stating derivation is checked and the
-    -- given side compared; a structural one (transitivity, symmetry)
-    -- or a non-stating one that runs is decomposed link by link;
-    -- else a checkable one is checked
-    if dSynth d && not (structuralD d)
-      then checked
-      else if runnable dir d x
-        then dGo sig ctx d (DGDir dir x) ty
-        else if dCheckable d
-          then checked
-          else dGo sig ctx d (DGDir dir x) ty
+  dDir sig ctx d dir x ty = dRun sig ctx d (DGRun dir x Nothing) ty
+
+  ||| The reading of a derivation at a goal — ONE per shape, never
+  ||| retried: structure (transitivity, symmetry, the wrappers) is read
+  ||| through; a stating or checkable derivation is checked at the type
+  ||| and its given side compared; a derivation runnable from the given
+  ||| side runs from it; else one runnable from the hint runs from the
+  ||| hint, the given side compared with what that produces; else the
+  ||| decomposition (a type-directed leaf at both sides, or the shape
+  ||| mismatch reported).
+  dRun : Sig -> Ctx -> Drv -> DGoal -> Ty -> KM Elem
+  dRun sig ctx d goal@(DGRun dir x hint) ty =
+    if structuralD d
+      then dGo sig ctx d goal ty
+      else if dSynth d || dCheckable d
+        then checked
+        else if runnable dir d x
+          then dGo sig ctx d goal ty
+          else case hint of
+            Just h => if runnable (not dir) d h
+              then do
+                y <- dGo sig ctx d (DGRun (not dir) h (Just x)) ty
+                sameB sig y x
+                pure h
+              else dGo sig ctx d goal ty
+            Nothing => dGo sig ctx d goal ty
    where
     checked : KM Elem
     checked = do
@@ -3705,67 +3725,57 @@ mutual
   dGo : Sig -> Ctx -> Drv -> DGoal -> Ty -> KM Elem
   dGo sig ctx d goal ty = case (d, goal) of
     -- ----- structure -----
-    (DReflx, DGDir _ x) => pure x
-    (DReflx, DGChk l r) => do sameB sig l r; pure l
-    (DDeltaAll ns, DGDir True x) => unfoldAllK sig ns x
-    (DDeltaAll ns, DGDir False x) => kerr "kernel: δ-all runs left to right only"
-    (DDeltaAll ns, DGChk l r) => do
-      l' <- unfoldAllK sig ns l
-      sameB sig l' r
-      pure l
-    (DSym q, DGDir dir x) => dDir sig ctx q (not dir) x ty
-    (DSym q, DGChk l r) => do dAtJ sig ctx q r l ty; pure l
-    (DTrans q1 q2, DGDir True x) =>
+    (DReflx, DGRun _ x _) => pure x
+    (DDeltaAll ns, DGRun True x _) => unfoldAllK sig ns x
+    (DDeltaAll ns, DGRun False x (Just h)) => do
+      h' <- unfoldAllK sig ns h
+      sameB sig h' x
+      pure h
+    (DDeltaAll ns, DGRun False x Nothing) => kerr "kernel: δ-all runs left to right only"
+    (DSym q, DGRun dir x hint) => dRun sig ctx q (DGRun (not dir) x hint) ty
+    -- transitivity: the link at the given side runs from it (its
+    -- neighbour then reads from the middle, with the hint); else,
+    -- given the hint, the link at the hint runs from it and the other
+    -- reads from the given side towards that middle; else a stating
+    -- far link supplies the middle
+    (DTrans q1 q2, DGRun True x hint) =>
       if runnable True q1 x
         then do
-          m <- dDir sig ctx q1 True x ty >>= kJoinElem sig
-          dDir sig ctx q2 True m ty
-        else if dSynth q2
-        then do
-          (b, c, t) <- dInfer sig ctx q2
-          agreeAt t
-          bJ <- kJoinElem sig b
-          dAt sig ctx q1 x bJ ty
-          pure c
-        else kerr "kernel: transitivity with no computable middle (left to right)"
-    (DTrans q1 q2, DGDir False x) =>
+          m <- dRun sig ctx q1 (DGRun True x Nothing) ty >>= kJoinElem sig
+          dRun sig ctx q2 (DGRun True m hint) ty
+        else case hint of
+          Just h => if runnable False q2 h
+            then do
+              m <- dRun sig ctx q2 (DGRun False h Nothing) ty >>= kJoinElem sig
+              m' <- dRun sig ctx q1 (DGRun True x (Just m)) ty
+              sameB sig m' m
+              pure h
+            else viaStated2
+          Nothing => viaStated2
+    (DTrans q1 q2, DGRun False x hint) =>
       if runnable False q2 x
         then do
-          m <- dDir sig ctx q2 False x ty >>= kJoinElem sig
-          dDir sig ctx q1 False m ty
-        else if dSynth q1
-        then do
-          (a, b, t) <- dInfer sig ctx q1
-          agreeAt t
-          bJ <- kJoinElem sig b
-          dAt sig ctx q2 bJ x ty
-          pure a
-        else kerr "kernel: transitivity with no computable middle (right to left)"
-    (DTrans q1 q2, DGChk l r) =>
-      if runnable True q1 l
-        then do
-          m <- dDir sig ctx q1 True l ty >>= kJoinElem sig
-          dAtJ sig ctx q2 m r ty
-          pure l
-        else if runnable False q2 r
-        then do
-          m <- dDir sig ctx q2 False r ty >>= kJoinElem sig
-          dAtJ sig ctx q1 l m ty
-          pure l
-        else kerr "kernel: transitivity with no computable middle"
-    (DTransAt q1 m q2, DGDir True x) => do
-      mJ <- kJoinElem sig m
-      dAtJ sig ctx q1 x mJ ty
-      dDir sig ctx q2 True mJ ty
-    (DTransAt q1 m q2, DGDir False x) => do
-      mJ <- kJoinElem sig m
-      dAtJ sig ctx q2 mJ x ty
-      dDir sig ctx q1 False mJ ty
-    (DTransAt q1 m q2, DGChk l r) => do
-      mJ <- kJoinElem sig m
-      dAtJ sig ctx q1 l mJ ty
-      dAtJ sig ctx q2 mJ r ty
-      pure l
+          m <- dRun sig ctx q2 (DGRun False x Nothing) ty >>= kJoinElem sig
+          dRun sig ctx q1 (DGRun False m hint) ty
+        else case hint of
+          Just h => if runnable True q1 h
+            then do
+              m <- dRun sig ctx q1 (DGRun True h Nothing) ty >>= kJoinElem sig
+              m' <- dRun sig ctx q2 (DGRun False x (Just m)) ty
+              sameB sig m' m
+              pure h
+            else viaStated1
+          Nothing => viaStated1
+    (DTransAt q1 m q2, DGRun True x hint) => do
+      mJ <- middleAt sig ctx m ty
+      y <- dRun sig ctx q1 (DGRun True x (Just mJ)) ty
+      sameB sig y mJ
+      dRun sig ctx q2 (DGRun True mJ hint) ty
+    (DTransAt q1 m q2, DGRun False x hint) => do
+      mJ <- middleAt sig ctx m ty
+      y <- dRun sig ctx q2 (DGRun False x (Just mJ)) ty
+      sameB sig y mJ
+      dRun sig ctx q1 (DGRun False mJ hint) ty
     -- an ascription around a proof: the position's type converted to
     -- what the annotation derives, the proof read there
     (DAscribe q mT (Just beta), _) => do
@@ -3791,11 +3801,12 @@ mutual
       readAt q t
     (DConv q (Just _) beta, _) => kerr "kernel: an annotated conversion around a non-stating proof"
     -- ----- type-directed leaves (both sides) -----
-    (DIrrel mP, DGChk l r) => do
+    (DIrrel mP, DGRun dir x (Just h)) => do
+      let (l, r) = ordered dir x h
       ty' <- kWhnfT sig ty
       case ty' of
-        OneTy => pure l
-        ZeroTy => pure l
+        OneTy => pure h
+        ZeroTy => pure h
         _ => case mP of
           Just pP => do
             (p, _, k) <- dElemTy sig ctx pP
@@ -3804,28 +3815,31 @@ mutual
               PropTy => pure ()
               _ => kerr "kernel: irrelevance at a non-propositional type"
             ok <- tyAgree sig ty p
-            if ok then pure l else kerr "kernel: irrelevance: the derived prop is not the position's type"
+            if ok then pure h else kerr "kernel: irrelevance: the derived prop is not the position's type"
           -- no derivation: the position's type (given, well-formed)
           -- judged a prop by the kernel itself
           Nothing => do
             ok <- kIsProp sig ctx ty
-            if ok then pure l else kerr "kernel: irrelevance at a non-propositional type [\{show ty}]"
-    (DEtaPi q, DGChk l r) => do
+            if ok then pure h else kerr "kernel: irrelevance at a non-propositional type [\{show ty}]"
+    (DEtaPi q, DGRun dir x (Just h)) => do
+      let (l, r) = ordered dir x h
       ty' <- kWhnfT sig ty
       case ty' of
         PiTy dom cod => do
           dAt sig (ctx :< dom) q (PiApp (substElem l Wk) (CtxVar 0)) (PiApp (substElem r Wk) (CtxVar 0)) cod
-          pure l
+          pure h
         _ => kerr "kernel: Π-η at a non-Π type"
-    (DEtaSigma q1 q2, DGChk l r) => do
+    (DEtaSigma q1 q2, DGRun dir x (Just h)) => do
+      let (l, r) = ordered dir x h
       ty' <- kWhnfT sig ty
       case ty' of
         SigmaTy dom cod => do
           dAt sig ctx q1 (SigmaElim1 l) (SigmaElim1 r) dom
           dAt sig ctx q2 (SigmaElim2 l) (SigmaElim2 r) (substTy cod (Ext Id (SigmaElim1 l)))
-          pure l
+          pure h
         _ => kerr "kernel: Σ-η at a non-Σ type"
-    (DQuotWit mq, DGChk l r) => do
+    (DQuotWit mq, DGRun dir x (Just h)) => do
+      let (l, r) = ordered dir x h
       ty' <- kWhnfT sig ty
       lJ <- kJoinElem sig l
       rJ <- kJoinElem sig r
@@ -3833,51 +3847,55 @@ mutual
         (QuotTy _ rel, Class a, Class b) => do
           inst <- kJoinElem sig (substElem rel (Ext (Ext Id a) b))
           case (inst, mq) of
-            (Squash OneTy, _) => pure l
-            (Elem.EqTy wl wr wt, Just q) => do dAt sig ctx q wl wr wt; pure l
+            (Squash OneTy, _) => pure h
+            (Elem.EqTy wl wr wt, Just q) => do dAt sig ctx q wl wr wt; pure h
             _ => kerr "kernel: quotient witness: the relation instance has no evident shape"
         _ => kerr "kernel: quotient witness at a non-class equation"
-    (DQuotWitPrf w, DGChk l r) => do
+    (DQuotWitPrf w, DGRun dir x (Just h)) => do
+      let (l, r) = ordered dir x h
       ty' <- kWhnfT sig ty
       lJ <- kJoinElem sig l
       rJ <- kJoinElem sig r
       case (ty', lJ, rJ) of
         (QuotTy _ rel, Class a, Class b) => do
           _ <- dElemAt sig ctx w (substElem rel (Ext (Ext Id a) b))
-          pure l
+          pure h
         _ => kerr "kernel: quotient witness at a non-class equation"
-    (DInj q, DGChk l r) => do
+    (DInj q, DGRun dir x (Just h)) => do
+      let (l, r) = ordered dir x h
       ty' <- kWhnfT sig ty
       lJ <- kJoinElem sig l
       rJ <- kJoinElem sig r
       case (ty', lJ, rJ) of
-        (SumTy a _, Inj1 x, Inj1 y) => do dAtJ sig ctx q x y a; pure l
-        (SumTy _ b, Inj2 x, Inj2 y) => do dAtJ sig ctx q x y b; pure l
+        (SumTy a _, Inj1 x, Inj1 y) => do dAtJ sig ctx q x y a; pure h
+        (SumTy _ b, Inj2 x, Inj2 y) => do dAtJ sig ctx q x y b; pure h
         _ => kerr "kernel: injection leaf at a non-matching equation"
-    (DPropExt f g, DGChk l r) => do
+    (DPropExt f g, DGRun dir x (Just h)) => do
+      let (l, r) = ordered dir x h
       ty' <- kWhnfT sig ty
       case ty' of
         PropTy => do
           _ <- dElemAt sig ctx f (PiTy l (substTy r Wk))
           _ <- dElemAt sig ctx g (PiTy r (substTy l Wk))
-          pure l
+          pure h
         _ => kerr "kernel: propext at a non-Ω type"
-    (DPrfCong mP mQ q, DGChk l r) => do
+    (DPrfCong mP mQ q, DGRun dir x (Just h)) => do
+      let (l, r) = ordered dir x h
       case ty of
         TopTy => pure ()
         _ => kerr "kernel: prop-lift on an element equation"
       propSide mP l
       propSide mQ r
       dAtJ sig ctx q l r PropTy
-      pure l
-    (DIrrel _, DGDir _ _) => needBoth
-    (DEtaPi _, DGDir _ _) => needBoth
-    (DEtaSigma _ _, DGDir _ _) => needBoth
-    (DQuotWit _, DGDir _ _) => needBoth
-    (DQuotWitPrf _, DGDir _ _) => needBoth
-    (DInj _, DGDir _ _) => needBoth
-    (DPropExt _ _, DGDir _ _) => needBoth
-    (DPrfCong _ _ _, DGDir _ _) => needBoth
+      pure h
+    (DIrrel _, DGRun _ _ Nothing) => needBoth
+    (DEtaPi _, DGRun _ _ Nothing) => needBoth
+    (DEtaSigma _ _, DGRun _ _ Nothing) => needBoth
+    (DQuotWit _, DGRun _ _ Nothing) => needBoth
+    (DQuotWitPrf _, DGRun _ _ Nothing) => needBoth
+    (DInj _, DGRun _ _ Nothing) => needBoth
+    (DPropExt _ _, DGRun _ _ Nothing) => needBoth
+    (DPrfCong _ _ _, DGRun _ _ Nothing) => needBoth
     -- ----- nodes: children read against the parts -----
     (DZeroElim _ q, _) =>
       node1 (\x => case x of ZeroElim u => Just u; _ => Nothing) ZeroElim (ctx, ZeroTy) q
@@ -4010,19 +4028,16 @@ mutual
     (DQuot qa qr, _) => do
       cls <- compClassifier sig (Just ty)
       case goal of
-        DGDir dir x => case x of
+        DGRun dir x hint => case x of
           QuotTy a r => do
-            a' <- dDir sig ctx qa dir a cls
+            let hs = the (Maybe Elem, Maybe Elem) $ case hint of
+                       Just (QuotTy a1 r1) => (Just a1, Just r1)
+                       _ => (Nothing, Nothing)
+            a' <- dRun sig ctx qa (DGRun dir a (fst hs)) cls
             let dom = if dir then a' else a
-            r' <- dDir sig (ctx :< dom :< substTy dom Wk) qr dir r PropTy
+            r' <- dRun sig (ctx :< dom :< substTy dom Wk) qr (DGRun dir r (snd hs)) PropTy
             pure (QuotTy a' r')
           _ => kerr "kernel: proof shape does not match the side [\{show x}]"
-        DGChk l r => case (l, r) of
-          (QuotTy a0 r0, QuotTy a1 r1) => do
-            dAt sig ctx qa a0 a1 cls
-            dAt sig (ctx :< a1 :< substTy a1 Wk) qr r0 r1 PropTy
-            pure l
-          _ => kerr "kernel: proof shape does not match the sides\n  left:  \{show l}\n  right: \{show r}"
     (DSquash q, _) => node1 (\x => case x of Squash u => Just u; _ => Nothing) Squash (ctx, TopTy) q
     (DRef x qs, _) =>
       node (\u => case u of
@@ -4056,7 +4071,7 @@ mutual
       -- their method types, the spine at the telescope, the eliminee
       -- at the sort (the coherences are a property of the carried
       -- problem, read under ⇒ — the sides share it syntactically)
-      mots <- if null cs then constMotives sig ctx sg ty else qMotives sig ctx sg cs
+      mots <- maybe (constMotives sig ctx sg ty) (qMotives sig ctx sg) cs
       let nM = length qm
       let split : List Elem -> Maybe (List Elem, List Elem, Elem)
           split xs = case reverse xs of
@@ -4084,8 +4099,7 @@ mutual
                                                  Nothing => kerr "kernel: spine entry out of range") (indices es)
                        pure (map (\t => (ctx, t)) mTys ++ map (\t => (ctx, t)) eTys ++ [(ctx, QSort sg k (cast es))])
                      Nothing => arity) (qm ++ qs ++ [qw])
-    (_, DGChk l r) => kerr "kernel: derivation does not read against given sides [\{showDrv d}]"
-    (_, DGDir _ _) => kerr "kernel: derivation does not run directionally [\{showDrv d}]"
+    (_, DGRun _ _ _) => kerr "kernel: derivation does not read against given sides [\{showDrv d}]"
    where
     arity : KM a
     arity = kerr "kernel: proof node arity"
@@ -4097,15 +4111,47 @@ mutual
     -- type, by the reading its shape decides (a stating inner is
     -- checked, not decomposed)
     readAt : Drv -> Ty -> KM Elem
-    readAt q t = case goal of
-      DGDir dir x => dDir sig ctx q dir x t
-      DGChk l r => do dAtJ sig ctx q l r t; pure l
+    readAt q t = dRun sig ctx q goal t
+
+    -- the sides in order, from the given side and the hint
+    ordered : Bool -> Elem -> Elem -> (Elem, Elem)
+    ordered dir x h = if dir then (x, h) else (h, x)
+
 
     agreeAt : Ty -> KM ()
     agreeAt t = do
       ok <- tyAgree sig ty t
       if ok then pure ()
         else kerr "kernel: the node's type does not agree with the position's\n  node: \{show t}\n  position: \{show ty}"
+
+    -- transitivity with neither link runnable: a stating far link
+    -- supplies the middle
+    viaStated2 : KM Elem
+    viaStated2 = case (d, goal) of
+      (DTrans q1 q2, DGRun True x _) =>
+        if dSynth q2
+          then do
+            (b, c, t) <- dInfer sig ctx q2
+            agreeAt t
+            bJ <- kJoinElem sig b
+            m' <- dRun sig ctx q1 (DGRun True x (Just bJ)) ty
+            sameB sig m' bJ
+            pure c
+          else kerr "kernel: transitivity with no computable middle (left to right)"
+      _ => arity
+    viaStated1 : KM Elem
+    viaStated1 = case (d, goal) of
+      (DTrans q1 q2, DGRun False x _) =>
+        if dSynth q1
+          then do
+            (a, b, t) <- dInfer sig ctx q1
+            agreeAt t
+            bJ <- kJoinElem sig b
+            m' <- dRun sig ctx q2 (DGRun False x (Just bJ)) ty
+            sameB sig m' bJ
+            pure a
+          else kerr "kernel: transitivity with no computable middle (right to left)"
+      _ => arity
 
     indices : List a -> List Nat
     indices xs = go 0 xs
@@ -4116,8 +4162,7 @@ mutual
 
     goalSide : Elem
     goalSide = case goal of
-      DGDir _ x => x
-      DGChk l _ => l
+      DGRun _ x _ => x
 
     -- the head's term on the given side (the left one under ▷)
     headTerm : Elem
@@ -4235,32 +4280,28 @@ mutual
     ||| parts, and `rebuild` reassembles.
     node : (Elem -> Maybe (List Elem)) -> (List Elem -> Maybe Elem)
         -> (List Elem -> KM (List (Ctx, Ty))) -> List Drv -> KM Elem
-    node shape rebuild kids qs = do
-      (ls, rs) <- the (KM (List Elem, Maybe (List Elem))) $ case goal of
-        DGDir dir x => case shape x of
-          Just xs => pure (xs, Nothing)
+    node shape rebuild kids qs = case goal of
+      DGRun dir x hint => do
+        xs <- case shape x of
+          Just xs => pure xs
           Nothing => kerr "kernel: proof shape does not match the side [\{show x}]"
-        DGChk l r => case (shape l, shape r) of
-          (Just ls, Just rs) => pure (ls, Just rs)
-          _ => kerr "kernel: proof shape does not match the sides\n  left:  \{show l}\n  right: \{show r}"
-      infos <- kids ls
-      outs <- goKids qs ls rs infos
-      case goal of
-        DGDir _ _ => case rebuild outs of
+        -- the hint's parts, when it has the shape too
+        let hs = the (List (Maybe Elem)) $ case the (Maybe (List Elem)) (maybe Nothing shape hint) of
+                   Just hs => if length hs == length xs then map Just hs else map (const Nothing) xs
+                   Nothing => map (const Nothing) xs
+        infos <- kids xs
+        outs <- goKids dir qs xs hs infos
+        case rebuild outs of
           Just e => pure e
           Nothing => arity
-        DGChk l _ => pure l
      where
-      goKids : List Drv -> List Elem -> Maybe (List Elem) -> List (Ctx, Ty) -> KM (List Elem)
-      goKids [] [] _ [] = pure []
-      goKids (q :: qs') (l :: ls') rs' ((cx, t) :: infos') = do
-        out <- case (goal, rs') of
-          (DGDir dir _, _) => dDir sig cx q dir l t
-          (DGChk _ _, Just (r :: _)) => do dAtJ sig cx q l r t; pure l
-          _ => arity
-        outs <- goKids qs' ls' (map (drop 1) rs') infos'
+      goKids : Bool -> List Drv -> List Elem -> List (Maybe Elem) -> List (Ctx, Ty) -> KM (List Elem)
+      goKids _ [] [] [] [] = pure []
+      goKids dir (q :: qs') (l :: ls') (h :: hs') ((cx, t) :: infos') = do
+        out <- dRun sig cx q (DGRun dir l h) t
+        outs <- goKids dir qs' ls' hs' infos'
         pure (out :: outs)
-      goKids _ _ _ _ = arity
+      goKids _ _ _ _ _ = arity
 
     node1 : (Elem -> Maybe Elem) -> (Elem -> Elem) -> (Ctx, Ty) -> Drv -> KM Elem
     node1 shape rebuild info q =
@@ -4277,19 +4318,16 @@ mutual
     binderTy shape rebuild qa qb = do
       cls <- compClassifier sig (Just ty)
       case goal of
-        DGDir dir x => case shape x of
+        DGRun dir x hint => case shape x of
           Just (a, b) => do
-            a' <- dDir sig ctx qa dir a cls
+            let hs = the (Maybe Elem, Maybe Elem) $ case the (Maybe (Elem, Elem)) (maybe Nothing shape hint) of
+                       Just (a1, b1) => (Just a1, Just b1)
+                       Nothing => (Nothing, Nothing)
+            a' <- dRun sig ctx qa (DGRun dir a (fst hs)) cls
             let dom = if dir then a' else a
-            b' <- dDir sig (ctx :< dom) qb dir b cls
+            b' <- dRun sig (ctx :< dom) qb (DGRun dir b (snd hs)) cls
             pure (rebuild a' b')
           Nothing => kerr "kernel: proof shape does not match the side [\{show x}]"
-        DGChk l r => case (shape l, shape r) of
-          (Just (a0, b0), Just (a1, b1)) => do
-            dAt sig ctx qa a0 a1 cls
-            dAt sig (ctx :< a1) qb b0 b1 cls
-            pure l
-          _ => kerr "kernel: proof shape does not match the sides\n  left:  \{show l}\n  right: \{show r}"
 
   -- ----- shared pieces of the readings -----
 
@@ -4309,6 +4347,11 @@ mutual
 
   ||| An ELEMENT derivation, inferred: its sides coincide.
   export
+  ||| A stated middle (10.2): an element derivation checked at the
+  ||| chain's type, its erasure β-joined for the links to run from.
+  middleAt : Sig -> Ctx -> Drv -> Ty -> KM Elem
+  middleAt sig ctx m ty = dElemAt sig ctx m ty >>= kJoinElem sig
+
   dElemTy : Sig -> Ctx -> Drv -> KM (Elem, Elem, Ty)
   dElemTy sig ctx d = do
     (t, t', ty) <- dInfer sig ctx d
@@ -4754,7 +4797,7 @@ mutual
         _ => pure (Out u', congOfD p1 (DOut p1))
     go (QElim sg k fs es w) = do
       (w', p1) <- go w
-      let node = congOfD p1 (DQElim sg k [] [] (map (const DReflx) fs) (map (const DReflx) (toList es)) p1)
+      let node = congOfD p1 (DQElim sg k Nothing [] (map (const DReflx) fs) (map (const DReflx) (toList es)) p1)
       case w' of
         QCtor sgW c theta =>
           if sgW == sg
@@ -4930,7 +4973,7 @@ mutual
       (tel, _, _) <- liftQ (reflTel sg (qwAt k) sortE)
       des <- rdTele sig ctx tel (toList es) (Nd [] [])
       dw <- rdCheck sig ctx w (Nd [] []) (QSort sg k es)
-      pure (DQElim sg k [] (map (const DReflx) eqPs) dms des dw)
+      pure (DQElim sg k Nothing (map (const DReflx) eqPs) dms des dw)
     Corec p aC f x => rdShaped sig ctx ty (\t => case t of NuTy pf => Just pf; _ => Nothing) $ \_ =>
       [| DCorec (pure p) (rdCheck sig ctx aC (skelChild 0 sk) UniverseTy)
                 (rdCheck sig (ctx :< aC) f (skelChild 1 sk) (substTy (reflectPoly p aC) Wk))
@@ -5220,7 +5263,7 @@ mutual
             motK <- case getAt o mots of
                       Just m => pure m
                       Nothing => kerr "re-derive: eliminator motive missing"
-            pure (DQElim sg k dcs dcohs dms des dw, substTy motK (Ext (foldl Ext Id (toList es)) w))
+            pure (DQElim sg k (Just dcs) dcohs dms des dw, substTy motK (Ext (foldl Ext Id (toList es)) w))
           _ => kerr "re-derive: QIIT eliminator without motives or coherences"
         Elem.ZeroTy => pure (DZeroTy, UniverseTy)
         Elem.OneTy => pure (DOneTy, UniverseTy)
@@ -5446,7 +5489,7 @@ mutual
       [| DTrans (rdPrf sig ctx p ml mR ty) (rdPrf sig ctx q mR mr ty) |]
     PTransAt p m q => do
       mJ <- kJoinElem sig m
-      [| DTransAt (rdPrf sig ctx p ml (Just mJ) ty) (pure m) (rdPrf sig ctx q (Just mJ) mr ty) |]
+      [| DTransAt (rdPrf sig ctx p ml (Just mJ) ty) (rdCheck sig ctx m (Nd [] []) ty) (rdPrf sig ctx q (Just mJ) mr ty) |]
     PConv pt tyX p => do
       -- the target is what the proof produces run from the position's
       -- type when it runs; else its copy, re-derived
@@ -5673,7 +5716,7 @@ mutual
                       Nothing => kerr "re-derive: spine entry out of range"
                rdPrf sig ctx q (getAt i es) (rparts >>= rEs i) t) (zipWithIndex 0 qs)
       dw <- rdPrf sig ctx qw (Just w) (map rW rparts) (QSort sg k (cast es))
-      pure (DQElim sg k dcs (map (const DReflx) eqPs) dms des dw)
+      pure (DQElim sg k (Just dcs) (map (const DReflx) eqPs) dms des dw)
     COut q => DOut <$> headDrv q (part ml outP)
     CCorec pf qa qf qx => do
       da <- rdPrf sig ctx qa (part ml corecA) (part mr corecA) UniverseTy

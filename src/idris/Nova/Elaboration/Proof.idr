@@ -359,9 +359,9 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
       (\(qs, es') => (DCtor sg k qs, QCtor sg k es')) <$> spineWrap i es (go ctx (qSpineChildTy sg k es i) b)
     (QElim sg k fs es w, _) =>
       if i == length (toList es)
-        then (\(q, w') => (DQElim sg k [] [] (map (const DReflx) fs) (map (const DReflx) (toList es)) q, QElim sg k fs es w'))
+        then (\(q, w') => (DQElim sg k Nothing [] (map (const DReflx) fs) (map (const DReflx) (toList es)) q, QElim sg k fs es w'))
                <$> go ctx (Just (QSort sg k es)) b w
-        else (\(qs, es') => (DQElim sg k [] [] (map (const DReflx) fs) qs DReflx, QElim sg k fs es' w))
+        else (\(qs, es') => (DQElim sg k Nothing [] (map (const DReflx) fs) qs DReflx, QElim sg k fs es' w))
                <$> spineWrap i es (go ctx (qSpineChildTy sg k es i) b)
     _ => kerr "proof: bad path [i=\{show i}, at \{show u}]"
  where
@@ -544,7 +544,7 @@ hintNamesP p = go p
   go (DRefl q) = headName q
   go (DSym q) = go q
   go (DTrans q r) = go q ++ go r
-  go (DTransAt q _ r) = go q ++ go r
+  go (DTransAt q m r) = go q ++ go m ++ go r
   go (DAscribe q _ mb) = go q ++ maybe [] go mb
   go (DConv q _ b) = go q ++ go b
   go (DAt q _ b) = go q ++ go b

@@ -3547,7 +3547,7 @@ mutual
                                      else audit "AUDIT ty | \{st.modPrefix} | \{site} | \{joinBy ", " names}" prf)))
                   Left kerrMsg =>
                     -- bare-δβ rescue, as at attemptE
-                    case audit "REPLAY-FAIL ty | \{site} | \{kerrMsg} | \{showDrv prf}" (deltaJoinC st tyA tyB) of
+                    case audit "REPLAY-FAIL ty | \{site} | \{kerrMsg} | \{showDrv prf} | goal: \{show tyA} ≐ \{show tyB}" (deltaJoinC st tyA tyB) of
                       Just bare => case kCheckEqDrv st.sig ctx kernelFuel bare tyA tyB TopTy of
                         Right () => pure (Right bare)
                         Left _ => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
@@ -5589,14 +5589,16 @@ mutual
               -- el-trans through the stated points: the endpoint proofs
               -- bridge the equation's sides to the chain's written
               -- ends; every link is its own proof
-              let prf = chainPrf (l :: map fst points ++ [r]) ([c0] ++ catMaybes adjCerts ++ [cn]) in
+              let prf = chainPrf (map snd points) ([c0] ++ catMaybes adjCerts ++ [cn]) in
               case kCheckEqDrv st.sig ctx kernelFuel prf l r tA of
                 Right () => pure (Just prf)
                 Left kerr => audit "CHAIN-COMPOSITE-FAIL \{site}: \{kerr}" fallback
      where
-      chainPrf : List Elem -> List Drv -> Drv
-      chainPrf [_, _] [c] = c
-      chainPrf (_ :: b :: rest) (c :: cs) = DTransAt c b (chainPrf (b :: rest) cs)
+      -- el-trans-at through the stated points: each point's
+      -- derivation is the middle its neighbouring links meet at
+      chainPrf : List Drv -> List Drv -> Drv
+      chainPrf [] [c] = c
+      chainPrf (b :: rest) (c :: cs) = DTransAt c b (chainPrf rest cs)
       chainPrf _ _ = DReflx
 
       fallback : ElabM (Maybe Drv)
@@ -7550,7 +7552,7 @@ elabItemGo irng (SData params decls) = do
                pure (maybe (reTy st (mctx :< selfTy) m) fst (reInf st (mctx :< selfTy) m)))
              (zip sortPs motsEnd)
     let bodySk = lamsD (np + bigN)
-                   (DQElim sgK s motDs cohCerts mSks (map varD idxAtEnd) wSk)
+                   (DQElim sgK s (Just motDs) cohCerts mSks (map varD idxAtEnd) wSk)
     emitCoreDef site (nm ++ (if prop then "ElimP" else "Elim")) defTy defTySk body bodySk
    where
     upto : Nat -> List Nat

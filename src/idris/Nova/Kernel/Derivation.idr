@@ -66,7 +66,7 @@ mutual
     DTrans : Drv -> Drv -> Drv
     ||| π ; [m] ; π′, middle stated (an erasure: both proofs are read
     ||| against it, it needs no typing of its own)
-    DTransAt : Drv -> Elem -> Drv -> Drv
+    DTransAt : Drv -> Drv -> Drv -> Drv
     ||| δ-all x̄: every addressable occurrence of the named definitions
     ||| unfolded at once
     DDeltaAll : List String -> Drv
@@ -154,7 +154,7 @@ mutual
     ||| 𝒮.𝕤-elim_{π̄_C ; coh̄} π̄_m π̄ π_w: motives (one per sort),
     ||| coherences (one per equation entry), methods, index spine,
     ||| eliminee
-    DQElim : QSig -> Nat -> List Drv -> List Drv -> List Drv -> List Drv -> Drv -> Drv
+    DQElim : QSig -> Nat -> Maybe (List Drv) -> List Drv -> List Drv -> List Drv -> Drv -> Drv
     ||| out π
     DOut : Drv -> Drv
     ||| π π′
@@ -330,7 +330,7 @@ mutual
   showDrv DReflx = "refl"
   showDrv (DSym p) = "\{argD p}⁻¹"
   showDrv (DTrans p q) = "\{showDrv p} ; \{showDrv q}"
-  showDrv (DTransAt p m q) = "(\{showDrv p} ; [\{show m}] ; \{showDrv q})"
+  showDrv (DTransAt p m q) = "(\{showDrv p} ; [\{showDrv m}] ; \{showDrv q})"
   showDrv (DDeltaAll ns) = "δ-all \{show ns}"
   -- type-directed leaves
   showDrv (DIrrel p) = "irrel(\{maybe "" showDrv p})"
@@ -372,7 +372,7 @@ mutual
                  (Nothing, Nothing) => ""
                  (_, _) => "{" ++ maybe "" showDrv m ++ maybe "" wdD wd ++ "}"} \{argD f} \{argD q}"
   showDrv (DQElim _ k cs cohs ms es w) =
-    "𝒮.\{show k}-elim{\{argsD cs} ; \{argsD cohs}} [\{argsD ms}] [\{argsD es}] \{argD w}"
+    "𝒮.\{show k}-elim{\{maybe "" argsD cs} ; \{argsD cohs}} [\{argsD ms}] [\{argsD es}] \{argD w}"
   showDrv (DOut p) = "out \{argD p}"
   showDrv (DApp f a) = "\{hdD f} \{argD a}"
   showDrv (DProj1 p) = "\{argD p} .π₁"
