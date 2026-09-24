@@ -3484,6 +3484,13 @@ mutual
           agree t'
           pure (l', r')
         _ => kerr "kernel: quot-elim of a non-quotient"
+    -- the QIIT eliminator without motives: the constant motives at the
+    -- type flowing down
+    DQElim sg k [] cohs qm qs qw => do
+      mots <- constMotives sig ctx sg ty
+      (l, r, t) <- qElimAtM sig ctx sg k mots cohs qm qs qw
+      agree t
+      pure (l, r)
     DLet a b => do
       (av, _, aTy) <- dElemTy sig ctx a
       let hyp = Elem.EqTy (CtxVar 0) (substElem av Wk) (substTy aTy Wk)
@@ -3996,11 +4003,13 @@ mutual
                                       Just t => pure (ctx, t)
                                       Nothing => kerr "kernel: spine entry out of range") (indices es)) qs
     (DQElim sg k cs _ qm qs qw, _) => do
-      -- motives derived in their sort contexts; the methods at their
-      -- method types, the spine at the telescope, the eliminee at the
-      -- sort (the coherences are a property of the carried problem,
-      -- read under ⇒ — the sides share it syntactically)
-      mots <- qMotives sig ctx sg cs
+      -- motives derived in their sort contexts (none given: the
+      -- CONSTANT motives, every sort's the position's type weakened
+      -- into the sort's context — the checking sugar); the methods at
+      -- their method types, the spine at the telescope, the eliminee
+      -- at the sort (the coherences are a property of the carried
+      -- problem, read under ⇒ — the sides share it syntactically)
+      mots <- if null cs then constMotives sig ctx sg ty else qMotives sig ctx sg cs
       let nM = length qm
       let split : List Elem -> Maybe (List Elem, List Elem, Elem)
           split xs = case reverse xs of
@@ -4202,6 +4211,7 @@ mutual
 
   ||| An annotation derives a TYPE: an element derivation classified
   ||| at 𝕍, or at 𝕌 or Ω by cumulativity.
+  export
   dType : Sig -> Ctx -> Drv -> KM Ty
   dType sig ctx d = fst <$> dTypeK sig ctx d
 
@@ -4214,12 +4224,14 @@ mutual
     if ok then pure (t, k) else kerr "kernel: a type annotation derives no type [\{show t} : \{show k}]"
 
   ||| An ELEMENT derivation, inferred: its sides coincide.
+  export
   dElemTy : Sig -> Ctx -> Drv -> KM (Elem, Elem, Ty)
   dElemTy sig ctx d = do
     (t, t', ty) <- dInfer sig ctx d
     if t == t' then pure (t, t', ty) else kerr "kernel: an element position states a proper equation [\{showDrv d}]"
 
   ||| An ELEMENT derivation checked at a type.
+  export
   dElemAt : Sig -> Ctx -> Drv -> Ty -> KM Elem
   dElemAt sig ctx d ty = do
     (t, t') <- dCheck sig ctx d ty
@@ -4370,6 +4382,23 @@ mutual
   ||| el-qiit-elim over mot/dalg/eprob (§8), the coherences as proofs.
   qElimAt : Sig -> Ctx -> QSig -> Nat -> List Drv -> List Drv -> List Drv -> List Drv -> Drv -> KM (Elem, Elem, Ty)
   qElimAt sig ctx sg k cs cohs qm qs qw = do
+    mots <- qMotives sig ctx sg cs
+    qElimAtM sig ctx sg k mots cohs qm qs qw
+
+  ||| The CONSTANT motives at a type (the checking sugar, §10.3): every
+  ||| sort's motive is the type weakened into the sort's context.
+  constMotives : Sig -> Ctx -> QSig -> Ty -> KM (List Ty)
+  constMotives sig ctx sg ty =
+    traverse (\sj => do
+      sjE <- case qEntry sg sj of
+               Just x => pure x
+               Nothing => kerr "kernel: sort out of range"
+      (tel, _, _) <- liftQ (reflTel sg (qwAt sj) sjE)
+      pure (substTy ty (wkN (S (length tel))))) (qPositions QKSort sg)
+
+  ||| … at given motive TYPES.
+  qElimAtM : Sig -> Ctx -> QSig -> Nat -> List Ty -> List Drv -> List Drv -> List Drv -> Drv -> KM (Elem, Elem, Ty)
+  qElimAtM sig ctx sg k mots cohs qm qs qw = do
     kQSigCheck sig ctx sg
     sortE <- case qEntry sg k of
                Just x => pure x
@@ -4377,7 +4406,6 @@ mutual
     case qEntryKind sortE of
       QKSort => pure ()
       _ => kerr "kernel: eliminator at a non-sort position"
-    mots <- qMotives sig ctx sg cs
     let pointPs = qPositions QKPoint sg
     let eqPs = qPositions QKEq sg
     if length qm /= length pointPs then kerr "kernel: method count mismatch" else pure ()
@@ -4518,11 +4546,19 @@ zipWithIndex : Nat -> List a -> List (Nat, a)
 zipWithIndex _ [] = []
 zipWithIndex i (x :: xs) = (i, x) :: zipWithIndex (S i) xs
 
+export
 dTrans : Drv -> Drv -> Drv
 dTrans DReflx q = q
 dTrans p DReflx = p
 dTrans p q = DTrans p q
 
+export
+dSym : Drv -> Drv
+dSym DReflx = DReflx
+dSym (DSym p) = p
+dSym p = DSym p
+
+export
 congOfD : Drv -> Drv -> Drv
 congOfD DReflx _ = DReflx
 congOfD _ node = node
@@ -4533,11 +4569,49 @@ mutual
   ||| unfolded on the way to the head as a δ leaf inside the node of
   ||| its position, and the proof of t ≐ exposed (refl when β alone
   ||| reached it).
+  export
   rdExpose : Sig -> Ctx -> Elem -> KM (Elem, Drv)
-  rdExpose sig ctx t = go t
+  rdExpose = rdExposeW (const True)
+
+  ||| … under a whitelist of the definitions that may unfold (the
+  ||| engine's exposure at a site: what its citations license).
+  export
+  rdExposeW : (String -> Bool) -> Sig -> Ctx -> Elem -> KM (Elem, Drv)
+  rdExposeW ok sig ctx t = go t
    where
     go : Elem -> KM (Elem, Drv)
+    -- a rewritten head or scrutinee child under the exposure of its
+    -- declared type when a definition hides the shape its node needs
+    shapedChild : Elem -> (Ty -> Bool) -> Drv -> KM Drv
+    shapedChild orig want p1 = case p1 of
+      DReflx => pure DReflx
+      _ => do
+        mt <- inferHead sig ctx orig
+        case mt of
+          Nothing => pure p1
+          Just ty => do
+            ty' <- kWhnfT sig ty
+            if want ty' then pure p1 else do
+              -- (the TYPE's exposure is the reader's own need, free of
+              -- the site's whitelist, which governs the term)
+              (tX, pt) <- rdExposeW (const True) sig ctx ty
+              tW <- kWhnfT sig tX
+              pure (case pt of
+                      DReflx => p1
+                      _ => if want tW then DConv p1 Nothing pt else p1)
+    isPi, isSigma, isNu, isSum, isQuot : Ty -> Bool
+    isPi (PiTy _ _) = True
+    isPi _ = False
+    isSigma (SigmaTy _ _) = True
+    isSigma _ = False
+    isNu (NuTy _) = True
+    isNu _ = False
+    isSum (SumTy _ _) = True
+    isSum _ = False
+    isQuot (QuotTy _ _) = True
+    isQuot _ = False
     go (SigVar x es) =
+      if not (ok x) then pure (SigVar x es, DReflx) else
       kSigLookup sig x >>= \entryX => case entryX of
         Just (SigDef delta _ a _) => do
           qs <- rdSpine sig ctx (toList delta) (toList es) (Nd [] [])
@@ -4545,7 +4619,8 @@ mutual
           pure (r, dTrans (DDelta x qs) p)
         _ => pure (SigVar x es, DReflx)
     go (PiApp f e) = do
-      (f', p1) <- go f
+      (f', p0) <- go f
+      p1 <- shapedChild f isPi p0
       case f' of
         PiIntro g => do
           (r, p2) <- go (substElem g (Ext Id e))
@@ -4560,29 +4635,34 @@ mutual
         NatIntro1 n => do (r, p2) <- go (substElem st (Ext (Ext Id n) (NatElim z st n))); pure (r, dTrans node p2)
         _ => pure (NatElim z st u', node)
     go (SigmaElim1 u) = do
-      (u', p1) <- go u
+      (u', p0) <- go u
+      p1 <- shapedChild u isSigma p0
       case u' of
         SigmaIntro a _ => do (r, p2) <- go a; pure (r, dTrans (congOfD p1 (DProj1 p1)) p2)
         _ => pure (SigmaElim1 u', congOfD p1 (DProj1 p1))
     go (SigmaElim2 u) = do
-      (u', p1) <- go u
+      (u', p0) <- go u
+      p1 <- shapedChild u isSigma p0
       case u' of
         SigmaIntro _ b => do (r, p2) <- go b; pure (r, dTrans (congOfD p1 (DProj2 p1)) p2)
         _ => pure (SigmaElim2 u', congOfD p1 (DProj2 p1))
     go (SumElim l r u) = do
-      (u', p1) <- go u
+      (u', p0) <- go u
+      p1 <- shapedChild u isSum p0
       let node = congOfD p1 (DSumElim Nothing DReflx DReflx p1)
       case u' of
         Inj1 a => do (r', p2) <- go (substElem l (Ext Id a)); pure (r', dTrans node p2)
         Inj2 b => do (r', p2) <- go (substElem r (Ext Id b)); pure (r', dTrans node p2)
         _ => pure (SumElim l r u', node)
     go (QuotElim f q) = do
-      (q', p1) <- go q
+      (q', p0) <- go q
+      p1 <- shapedChild q isQuot p0
       case q' of
         Class a => do (r, p2) <- go (substElem f (Ext Id a)); pure (r, dTrans (congOfD p1 (DQuotElim Nothing Nothing DReflx p1)) p2)
         _ => pure (QuotElim f q', congOfD p1 (DQuotElim Nothing Nothing DReflx p1))
     go (Out u) = do
-      (u', p1) <- go u
+      (u', p0) <- go u
+      p1 <- shapedChild u isNu p0
       case u' of
         Corec p a f x => do
           (r, p2) <- go (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
@@ -4750,6 +4830,23 @@ mutual
           df <- rdCheck sig (ctx :< a) f (skelChild 0 sk) (substTy ty Wk)
           pure (DQuotElim Nothing Nothing df dq')
         _ => kerr "re-derive: quot-elim of a non-quotient"
+    -- a QIIT eliminator at a type: the CONSTANT-MOTIVE instance (every
+    -- sort's motive the type weakened into the sort's context), the
+    -- coherences by β (A4)
+    QElim sg k mths es w => do
+      mots <- constMotives sig ctx sg ty
+      let pointPs = qPositions QKPoint sg
+      let eqPs = qPositions QKEq sg
+      dms <- traverse (\(cj, m) => do
+               mty <- liftQ (methodTy sg mots cj)
+               rdCheck sig ctx m (Nd [] []) mty) (zip pointPs mths)
+      sortE <- case qEntry sg k of
+                 Just x => pure x
+                 Nothing => kerr "re-derive: eliminator sort out of range"
+      (tel, _, _) <- liftQ (reflTel sg (qwAt k) sortE)
+      des <- rdTele sig ctx tel (toList es) (Nd [] [])
+      dw <- rdCheck sig ctx w (Nd [] []) (QSort sg k es)
+      pure (DQElim sg k [] (map (const DReflx) eqPs) dms des dw)
     Corec p aC f x => rdShaped sig ctx ty (\t => case t of NuTy pf => Just pf; _ => Nothing) $ \_ =>
       [| DCorec (pure p) (rdCheck sig ctx aC (skelChild 0 sk) UniverseTy)
                 (rdCheck sig (ctx :< aC) f (skelChild 1 sk) (substTy (reflectPoly p aC) Wk))
@@ -4783,6 +4880,7 @@ mutual
   ||| head definition unfolded to the β-whnf shape — the usual δ-apart
   ||| spelling, a definition against its unfolding — the exposures
   ||| stated, so the proof runs), else by δ-rounds.
+  export
   rdBridgeAny : Sig -> Ctx -> Elem -> Elem -> KM (Maybe Drv)
   rdBridgeAny sig ctx a b = do
     (aX, pa) <- rdExpose sig ctx a
@@ -4797,6 +4895,7 @@ mutual
   ||| A proof of a ≐ b by δ-rounds on both sides: every definition
   ||| occurring unfolds at once, the sides β-join, repeat while new
   ||| names appear. Nothing when the sides never meet.
+  export
   rdBridge : Sig -> Elem -> Elem -> KM (Maybe Drv)
   rdBridge sig a0 b0 = do
     aJ <- kJoinElem sig a0
@@ -5162,6 +5261,7 @@ mutual
 
   ||| A reference's spine at its telescope, each entry with its
   ||| skeleton child.
+  export
   rdSpine : Sig -> Ctx -> List Ty -> List Elem -> Skel -> KM (List Drv)
   rdSpine sig ctx delta es sk =
     if length es /= length delta then kerr "re-derive: substitution length mismatch"
@@ -5177,6 +5277,7 @@ mutual
     go _ _ _ = kerr "re-derive: substitution length mismatch"
 
   ||| A spine at a reflected telescope, each entry with its skeleton child.
+  export
   rdTele : Sig -> Ctx -> List Ty -> List Elem -> Skel -> KM (List Drv)
   rdTele sig ctx tel es sk =
     if length es /= length tel then kerr "re-derive: telescope spine length mismatch"
