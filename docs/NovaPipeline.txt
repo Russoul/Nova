@@ -12,8 +12,8 @@ layers are specified elsewhere:
   * docs/NovaFoundation.txt   — the THEORY. Sole source of truth; every
                                 other layer answers to it.
   * docs/NovaKernel.txt       — the KERNEL, rule by rule: fuel-bounded
-                                normalization, proof checking,
-                                item-level checking over skeletons.
+                                normalization, proof checking, the
+                                readings of derivations (§10).
   * docs/NovaElaboration.txt  — the elaborator: surface syntax,
                                 bidirectional rules, the obligation
                                 lifecycle.
@@ -178,10 +178,13 @@ NO δ FOR EXPOSURE: the kernel's weak-head normalizer is β-only.
 A shape a definition hides — the Π of a checked λ, the quotient of a
 class, the Σ a projection needs, the ≡ behind a hypothesis, the type
 a stated equation sits at — reaches the kernel as a recorded
-conversion (an expose/scrut payload at the item level, a conv/scrut
-node or an ascribed leaf inside a proof), produced by the engine's
-own exposure; a value the elaborator never elaborated (a solved
-hole, a synthesized type) has its skeleton reconstructed. A proof
+conversion (an ascription or a conversion node in the item's
+derivation, a conv/scrut node or an ascribed leaf inside a proof),
+produced by the engine's own exposure and RUN by the kernel from the
+type it knows — no copy of an exposed type enters a derivation; a
+value the elaborator never elaborated (a solved hole, a synthesized
+type, a recovered motive) is RE-DERIVED against its type
+(docs/NovaKernel.txt §10.6). A proof
 element, and the neutral a rewrite sits under, is a TYPED NEUTRAL:
 the spine written as a proof term over self leaves, ascribed where a
 definition hides a shape, so it states its own type and the kernel

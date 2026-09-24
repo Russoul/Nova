@@ -1121,22 +1121,40 @@ annotation is itself a derivation (of a type), never a bare term.
       | x-δ π̄                  x[ū] ≐ t[ū] for (Δ ⊦ x ≔ t : T)   (PDelta)
       | refl | π⁻¹ | π ; π | π ; [m] ; π | δ-all x̄
   -- type-directed leaves (read ⇐ only, §10.5)
-      | irrel(π_P)             P a prop, derived: π_P ⇒ P : Ω
+      | irrel(π_P?)            P a prop: derived, π_P ⇒ P : Ω, or (the
+                               derivation absent) the position's type,
+                               judged a prop by the kernel — a given
+                               type is well-formed; its prop-ness is
+                               the kernel's own question on it
       | η→(π) | η×(π, π) | quot-wit(π?) | quot-wit[π_w]
-      | inj(π) | propext[π_f, π_g] | prop-lift(π_p, π_q, π)
+      | inj(π) | propext[π_f, π_g] | prop-lift(π_p?, π_q?, π)
+                               each side a prop: derived at Ω, or (the
+                               derivation absent) the given side judged
+                               a prop by the kernel
   -- conversion, substitution
       | π ∷ π_T by β           inference: the type converted —
                                π_T ⇒ T′ : 𝕍, β ▷ T ≐ T′
       | π by β                 checking at T: π ⇒ T′, β ▷ T′ ≐ T
-                               (the skeleton's switch)
+                               (the skeleton's switch); in INFERENCE
+                               position β is RUN from T′: π ⇒ t : T′,
+                               β → T′ ≐ T″ gives t : T″ (an
+                               eliminator's scrutinee exposed)
       | (π : π_T by β)         ascription of a STATED equation (PAt;
                                the same reading as π ∷ π_T by β)
-      | (π : π_T by β?)        ASCRIPTION of an element: π CHECKED at
+      | (π : π_T? by β?)       ASCRIPTION of an element: π CHECKED at
                                what π_T derives; under checking at T,
                                β ▷ T ≐ that (an exposure), or the two
                                agree (β absent); in inference position
                                the type is what π_T derives (the
-                               skeleton's intro-ty), β absent
+                               skeleton's intro-ty), β absent. With
+                               π_T ABSENT (checking only) the target
+                               is what β PRODUCES run from T, β → T ≐
+                               T′, and π is checked at T′: an exposure
+                               names no target of its own — the target
+                               is what unfolding reaches, well-formed
+                               because the run is a chain of rule
+                               applications (no copy of an exposed
+                               type ever enters a derivation)
       | π[↑ᵈ ▷ (π₁ : π_T₁) … (πₖ : π_Tₖ)]   SUBSTITUTION (10.4),
                                inference only
   -- intro forms: the subscript is the INFERENCE-mode annotation,
@@ -1174,10 +1192,12 @@ rule in 10.3.
 IMPLEMENTATION (Nova.Kernel.Derivation, step 1 of 10.8): the type
 Drv, one constructor per line above — DVar, DRef, DUnit, DZero, the
 constant types DZeroTy … DTop; DRefl, DPath, DDelta, DReflx, DSym,
-DTrans, DTransAt, DDeltaAll; DIrrel, DEtaPi, DEtaSigma, DQuotWit,
-DQuotWitPrf, DInj, DPropExt, DPrfCong; DConv (its annotation a Maybe:
-Nothing is the checking form π by β), DAt, DSubst with DSub (depth,
-entries); DLam, DPair, DInj1, DInj2, DClass, DSuc, DCtor, DCorec,
+DTrans, DTransAt, DDeltaAll; DIrrel and DPrfCong (their prop
+derivations Maybe), DEtaPi, DEtaSigma, DQuotWit, DQuotWitPrf, DInj,
+DPropExt; DConv (its annotation a Maybe: Nothing is the checking form
+π by β), DAt, DAscribe (annotation and conversion each a Maybe),
+DSubst with DSub (depth, entries); DLam, DPair, DInj1, DInj2, DClass,
+DSuc, DCtor, DCorec,
 DLet, DStar, DSq, DSquashElim, DCoind (annotations Maybe, absent
 under checking); DZeroElim, DNatElim, DSumElim, DQuotElim (motive and
 wd each a Maybe), DQElim, DOut, DApp, DProj1, DProj2; DPi, DSigma,
@@ -1325,6 +1345,17 @@ stays on erasures: the join normalizes |π|, refl compares erasures,
 δ unfolds a definition's stored erasure. Derivations are never
 β-reduced.
 
+THE UNDETERMINED POSITION (A6). A head or scrutinee child that
+neither states its type nor inverts to it from the given side — a
+stuck eliminator that δ-normalization produced, its motive lost
+(quot-elim (y. class (rAbs y)) q from an unfolded realAbs) — reads at
+the UNDETERMINED type: the children under it are compared, never
+typed, and a stating child's type is not compared with it. This is
+what the skeleton reader's undetermined position was (§6), kept for
+the same proofs — 16 sites in the corpus, all under δ-all rounds of
+the engine — and audited (DRV-A6). It goes with step 4: an engine
+that normalizes derivations keeps the motive.
+
 10.6 Items, Σ, the pipeline
 
 An item is a derivation of its type and a derivation of its body:
@@ -1343,6 +1374,28 @@ its type (re-derivation), the successor of skeleton reconstruction
 and of kInferBare; the same service re-derives a hole's solution,
 the one value the elaborator never elaborated (unification produces
 terms, not derivations).
+
+IMPLEMENTATION (step 3 of 10.8): the elaborator returns a derivation
+beside every core term (elabTy, inferElem, checkElem, the spine
+elaborator, the data-item emitters), a checking-mode form where the
+type flowed down and an ascription where the surface wrote one; the
+items reach the kernel through kCheckDefDrv / kCheckTyDefDrv. What it
+did not elaborate is RE-DERIVED — a solved hole against its domain, a
+recovered motive over its quotient, an inferred ≡-domain, an inline
+definition's type over its context, a data expansion's items — by
+the kernel module's re-derivation run over the elaborator's own Σ
+(kReDeriveTy/Chk/Inf/Prf, each result READ before it is handed out:
+a re-derivation that would not read is a failure, never a
+derivation), and the engine's proof terms are bridged the same way at
+the sides their site knows (rdPrf). Re-derivation's δ bridge tries
+the two HEAD exposures first (a definition against its unfolding, the
+exposures stated so the proof runs) and δ-rounds after — the
+difference between a corpus at its previous speed and one six times
+slower. A checking-form annotation the elaborator cannot derive —
+a squash-elim's goal, a prop-lift's side, an irrelevance's prop, the
+type flowing down — is left to the kernel's own judgement on the
+bare type (kIsProp, on the type's own shape or its head's declared
+classifier), which a derivation would only restate.
 
 10.7 What disappears, what remains
 
@@ -1403,8 +1456,19 @@ A5 (no η certificate for QIITs).
          checking-mode intro, a switch, a type former, an eliminator
          at the constant motive is checked at a known type though it
          states nothing on its own.
-  3. the elaborator returns derivations (every (Elem, Skel) site), the
-     data-item emitters build them, re-derivation replaces reSkel;
+  3. DONE (2026-09-24): the elaborator returns derivations at every
+     site, the data-item emitters build them (types re-derived, the
+     coherence binders and the eliminator body built), re-derivation
+     replaced reSkel (10.6, IMPLEMENTATION); the skeleton item entry
+     points and the item canary are gone (the discharge canary stays:
+     0 disagreements, from 82). Decisions forced, folded into 10.2 and
+     10.5: the ascription's optional annotation (the target RUN from
+     the type flowing down), the checking-form conversion read
+     directionally in inference position and around a non-stating
+     child, optional prop derivations at irrel/prop-lift, "stating"
+     demanding only CHECKABLE children at checked positions, and the
+     undetermined position (A6) retained for lost-motive eliminators
+     under the engine's δ-all rounds;
   4. the engine: leaves as derivations, candidates as proofs over
      their context instantiated by [σ], extendCS a wrap;
   5. delete Skel, Payload, PChk, PSelf's bare form, substPrf; rewrite
