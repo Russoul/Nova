@@ -3577,46 +3577,120 @@ mutual
 
   dAtJ : Sig -> Ctx -> Drv -> Elem -> Elem -> Ty -> KM ()
   dAtJ sig ctx d l r ty =
-    -- a proof that runs left to right is read so first — the produced
-    -- side compared with the right one under β, so the right side
-    -- need not have the shape the proof produces (it may be the
-    -- β-normal form of it: a δ exposure's result); then a checkable
-    -- proof is checked at the type and its sides compared; otherwise
-    -- both sides decompose
-    if dDirable True d
-      then kOrElse (do x <- dDir sig ctx d True l ty
-                       sameB sig x r)
-                   rest
-      else rest
+    -- ONE reading per derivation, decided by its shape and the sides'
+    -- heads: transitivity and symmetry are read link by link (each
+    -- link from the side it runs from); a stating or checkable
+    -- derivation is checked at the type and its sides compared; a
+    -- node that RUNS from a side (runnable: the side has its shape
+    -- down to every child) is run from it — the produced side
+    -- compared with the other under β, so the other side need not
+    -- have the shape the proof produces (it may be the β-normal form
+    -- of it: a δ exposure's result); else both sides decompose (each
+    -- child choosing its direction against its parts)
+    if structuralD d
+      then ignore (dGo sig ctx d (DGChk l r) ty)
+      else if dSynth d || dCheckable d
+        then checked
+        else if runnable True d l
+          then do x <- dDir sig ctx d True l ty
+                  sameB sig x r
+          else if runnable False d r
+            then do x <- dDir sig ctx d False r ty
+                    sameB sig x l
+            else ignore (dGo sig ctx d (DGChk l r) ty)
    where
     checked : KM ()
     checked = do
       (l', r') <- dCheck sig ctx d ty
       sameB sig l' l
       sameB sig r' r
-    rest : KM ()
-    rest = if dCheckable d then checked else ignore (dGo sig ctx d (DGChk l r) ty)
+
+  ||| Structure is read through even when it states: transitivity and
+  ||| symmetry link by link, an ascription or conversion wrapper at the
+  ||| type it converts to.
+  structuralD : Drv -> Bool
+  structuralD (DTrans _ _) = True
+  structuralD (DTransAt _ _ _) = True
+  structuralD (DSym _) = True
+  structuralD (DAscribe _ _ _) = True
+  structuralD (DConv _ Nothing _) = True
+  structuralD _ = False
+
+  ||| The children of a node paired with the parts of a side the node
+  ||| decomposes it into (Nothing: the side lacks the node's shape).
+  ||| The same alignment as the decomposing reading's `node`.
+  nodeParts : Drv -> Elem -> Maybe (List (Drv, Elem))
+  nodeParts d x = case (d, x) of
+    (DApp f a, PiApp f' a') => Just [(f, f'), (a, a')]
+    (DProj1 q, SigmaElim1 u) => Just [(q, u)]
+    (DProj2 q, SigmaElim2 u) => Just [(q, u)]
+    (DOut q, Out u) => Just [(q, u)]
+    (DSuc q, NatIntro1 u) => Just [(q, u)]
+    (DZeroElim _ q, ZeroElim u) => Just [(q, u)]
+    (DNatElim _ z s t, NatElim z' s' t') => Just [(z, z'), (s, s'), (t, t')]
+    (DSumElim _ l r t, SumElim l' r' t') => Just [(l, l'), (r, r'), (t, t')]
+    (DQuotElim _ _ f q, QuotElim f' q') => Just [(f, f'), (q, q')]
+    (DQElim sg k _ _ ms es w, QElim sg' k' fs es' w') =>
+      if sg == sg' && k == k' && length ms == length fs && length es == length (toList es')
+        then Just (zip ms fs ++ zip es (toList es') ++ [(w, w')]) else Nothing
+    (DLam _ q, PiIntro f) => Just [(q, f)]
+    (DPair _ u v, SigmaIntro u' v') => Just [(u, u'), (v, v')]
+    (DInj1 _ q, Inj1 u) => Just [(q, u)]
+    (DInj2 _ q, Inj2 u) => Just [(q, u)]
+    (DClass _ q, Class u) => Just [(q, u)]
+    (DCorec pf a f x', Corec pf' a' f' x'') => if pf == pf' then Just [(a, a'), (f, f'), (x', x'')] else Nothing
+    (DLet a b, Let a' b') => Just [(a, a'), (b, b')]
+    (DPi a b, Elem.PiTy a' b') => Just [(a, a'), (b, b')]
+    (DSigma a b, Elem.SigmaTy a' b') => Just [(a, a'), (b, b')]
+    (DSum a b, Elem.SumTy a' b') => Just [(a, a'), (b, b')]
+    (DEq l r t, Elem.EqTy l' r' t') => Just [(l, l'), (r, r'), (t, t')]
+    (DQuot a r, QuotTy a' r') => Just [(a, a'), (r, r')]
+    (DSquash q, Squash u) => Just [(q, u)]
+    (DRef y qs, SigVar y' es) => if y == y' && length qs == length (toList es) then Just (zip qs (toList es)) else Nothing
+    (DSort sg k qs, QSort sg' k' es) => if sg == sg' && k == k' && length qs == length (toList es) then Just (zip qs (toList es)) else Nothing
+    (DCtor sg k qs, QCtor sg' k' es) => if sg == sg' && k == k' && length qs == length (toList es) then Just (zip qs (toList es)) else Nothing
+    _ => Nothing
+
+  ||| Can the derivation RUN from the given side (True: it is the left
+  ||| one), decided by shape: a stating derivation can (compare, then
+  ||| produce); refl can; δ-all runs left to right; symmetry flips the
+  ||| direction; transitivity asks its first link at the side and its
+  ||| second at the middle when stated, else for the direction alone;
+  ||| a conversion or ascription
+  ||| asks its inner; a node asks its children at the side's parts —
+  ||| which the side must have.
+  runnable : Bool -> Drv -> Elem -> Bool
+  runnable dir d x =
+    if dSynth d && not (structuralD d) then True else case d of
+      DReflx => True
+      DDeltaAll _ => dir
+      DSym q => runnable (not dir) q x
+      DTrans q1 q2 => runnable dir (if dir then q1 else q2) x && dDirable dir (if dir then q2 else q1)
+      DTransAt q1 m q2 => runnable dir (if dir then q1 else q2) x && runnable dir (if dir then q2 else q1) m
+      DConv q Nothing _ => runnable dir q x
+      DAscribe q _ _ => runnable dir q x
+      _ => case nodeParts d x of
+             Just kids => all (\(q, y) => runnable dir q y) kids
+             Nothing => False
+
 
   ||| → : the directional run from the side d names (True: the left
   ||| side is given), producing the other, unjoined.
   export
   dDir : Sig -> Ctx -> Drv -> Bool -> Elem -> Ty -> KM Elem
   dDir sig ctx d dir x ty =
-    if dSynth d && not (structural d)
+    -- one reading, by shape: a stating derivation is checked and the
+    -- given side compared; a structural one (transitivity, symmetry)
+    -- or a non-stating one that runs is decomposed link by link;
+    -- else a checkable one is checked
+    if dSynth d && not (structuralD d)
       then checked
-      else if dDirable dir d
-        then kOrElse (dGo sig ctx d (DGDir dir x) ty) (if dCheckable d then checked else dGo sig ctx d (DGDir dir x) ty)
+      else if runnable dir d x
+        then dGo sig ctx d (DGDir dir x) ty
         else if dCheckable d
           then checked
           else dGo sig ctx d (DGDir dir x) ty
    where
-    -- transitivity and symmetry run link by link (a link may only run
-    -- one way), even when they state
-    structural : Drv -> Bool
-    structural (DTrans _ _) = True
-    structural (DTransAt _ _ _) = True
-    structural (DSym _) = True
-    structural _ = False
     checked : KM Elem
     checked = do
       (a, b) <- dCheck sig ctx d ty
@@ -3642,7 +3716,7 @@ mutual
     (DSym q, DGDir dir x) => dDir sig ctx q (not dir) x ty
     (DSym q, DGChk l r) => do dAtJ sig ctx q r l ty; pure l
     (DTrans q1 q2, DGDir True x) =>
-      if dDirable True q1 && dDirable True q2
+      if runnable True q1 x
         then do
           m <- dDir sig ctx q1 True x ty >>= kJoinElem sig
           dDir sig ctx q2 True m ty
@@ -3655,7 +3729,7 @@ mutual
           pure c
         else kerr "kernel: transitivity with no computable middle (left to right)"
     (DTrans q1 q2, DGDir False x) =>
-      if dDirable False q2 && dDirable False q1
+      if runnable False q2 x
         then do
           m <- dDir sig ctx q2 False x ty >>= kJoinElem sig
           dDir sig ctx q1 False m ty
@@ -3668,12 +3742,12 @@ mutual
           pure a
         else kerr "kernel: transitivity with no computable middle (right to left)"
     (DTrans q1 q2, DGChk l r) =>
-      if dDirable True q1
+      if runnable True q1 l
         then do
           m <- dDir sig ctx q1 True l ty >>= kJoinElem sig
           dAtJ sig ctx q2 m r ty
           pure l
-        else if dDirable False q2
+        else if runnable False q2 r
         then do
           m <- dDir sig ctx q2 False r ty >>= kJoinElem sig
           dAtJ sig ctx q1 l m ty
@@ -3701,19 +3775,20 @@ mutual
       t' <- case mT of
         Just pT => do t' <- dType sig ctx pT; dAt sig ctx beta ty t' TopTy; pure t'
         Nothing => do tyJ <- kJoinElem sig ty; dDir sig ctx beta True tyJ TopTy
-      dGo sig ctx q goal t'
+      readAt q t'
     (DAscribe q (Just pT) Nothing, _) => do
       t' <- dType sig ctx pT
       agreeAt t'
-      dGo sig ctx q goal t'
-    (DAscribe q Nothing Nothing, _) => dGo sig ctx q goal ty
-    -- a conversion around a non-stating child (a rewritten head or
-    -- scrutinee under an exposure): the child's type is what it
-    -- inverts to, the proof bridges it to the position's type
+      readAt q t'
+    (DAscribe q Nothing Nothing, _) => readAt q ty
+    -- a conversion around a child (a rewritten head or scrutinee
+    -- under an exposure, a leaf at a position spelled otherwise): the
+    -- child's type is what it states or inverts to, the proof bridges
+    -- it to the position's type
     (DConv q Nothing beta, _) => do
       (_, t) <- headOf q
       dAt sig ctx beta t ty TopTy
-      dGo sig ctx q goal t
+      readAt q t
     (DConv q (Just _) beta, _) => kerr "kernel: an annotated conversion around a non-stating proof"
     -- ----- type-directed leaves (both sides) -----
     (DIrrel mP, DGChk l r) => do
@@ -4017,6 +4092,14 @@ mutual
 
     needBoth : KM Elem
     needBoth = kerr "kernel: a type-directed proof needs both sides [\{showDrv d}]"
+
+    -- the inner of a conversion or ascription read at the converted
+    -- type, by the reading its shape decides (a stating inner is
+    -- checked, not decomposed)
+    readAt : Drv -> Ty -> KM Elem
+    readAt q t = case goal of
+      DGDir dir x => dDir sig ctx q dir x t
+      DGChk l r => do dAtJ sig ctx q l r t; pure l
 
     agreeAt : Ty -> KM ()
     agreeAt t = do
@@ -4530,7 +4613,7 @@ kCheckEqDrv sig ctx fuel d l r ty =
   map fst (runKM (do
     lJ <- kJoinElem sig l
     rJ <- kJoinElem sig r
-    dAt sig ctx d lJ rJ ty) fuel)
+    kCatch (dAt sig ctx d lJ rJ ty) (\e => kerr (e ++ dump "EQUATION" d))) fuel)
 
 -- ===== Re-derivation: a term with its skeleton, or a proof term, as a derivation =====
 --

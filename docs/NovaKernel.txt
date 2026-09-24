@@ -1351,6 +1351,33 @@ compare, and — motives being mandatory — every position's expected
 type is determined by the node above. The neutral-subterm rule (§6),
 inferHead and the undetermined position disappear.
 
+ONE READING PER DERIVATION. The reader never backtracks: which of the
+readings a derivation gets is a function of its shape and the sides'
+heads, in this order.
+  1. Structure is read through: transitivity and symmetry link by
+     link, an ascription or conversion wrapper at the type it
+     converts to — even when the structure states.
+  2. A derivation that states or is checkable is checked at the type
+     and its sides compared (β-join).
+  3. Otherwise it is RUN from the side it is runnable from (left
+     first), the produced side compared with the other under β. A
+     derivation is runnable from a side when the side has its shape
+     DOWN TO EVERY CHILD: a stating derivation and refl always;
+     δ-all from the left; symmetry in the flipped direction;
+     transitivity when its first link runs from the side and its
+     second from the middle (the stated one, or — when the middle is
+     computed — in the direction alone); a wrapper when its inner
+     does; a node when the side is its former's construct and each
+     child is runnable from the matching part.
+  4. Otherwise both sides decompose along the node, each child
+     choosing its reading against its parts.
+A transitivity link's reading is decided at the middle its neighbour
+produced, so a chain may mix directions (a rewrite run from the left
+followed by an unfolding run from the right); a wrapper over a chain
+is read through first so the chain is never run as a whole from one
+side. The engine's fallbacks (deltaJoinC) are no longer exercised by
+the corpus: every proof it writes is read once.
+
 Erasure |π| is a function of the derivation (drop annotations, keep
 the former; a leaf erases to its term; ⟨π⟩, x-δ, refl, … erase to
 ⋆-free equation content and never occur inside an element derivation
