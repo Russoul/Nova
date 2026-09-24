@@ -2,48 +2,50 @@
 
 ////////// Preface //////////
 
-This file writes out every rule the kernel (Nova.Kernel)
-implements: the fuel-bounded normalizer, proof-spine typing,
-proof-term checking for equality, and item-level re-checking over
-annotation skeletons. It exists so the kernel can be audited against
-docs/NovaFoundation.txt clause by clause — every rule below is an
-instance or a derivable composite of Foundation's rules, and each one
-names its justification.
+This file writes out every rule the kernel (Nova.Kernel) implements:
+the fuel-bounded normalizer and the readings of DERIVATIONS — proof
+terms whose erasures are the core terms. It exists so the kernel can
+be audited against docs/NovaFoundation.txt clause by clause — every
+rule below is an instance or a derivable composite of Foundation's
+rules, and each one names its justification.
 
 Position in the pipeline (docs/NovaPipeline.txt): everything upstream
 — elaborator, discharge engine, AI — is untrusted and merely PROPOSES;
 the kernel re-establishes each judgement from its own signature Σ and
 is the only component whose verdict counts. Nothing here searches and
 nothing here chooses: every rule is syntax-directed, every premise is
-checked mechanically, and the sole inputs beyond the core term are the
-proof terms and the skeleton the elaborator hands over.
+checked mechanically, and the sole input beyond Σ is the derivation.
+There is no bare-term checker: a core term is never checked, only
+read off a derivation as its erasure (§8 says how a bare value the
+elaborator never elaborated gets a derivation — by re-derivation,
+whose result is read like any other).
 
 Notation is Foundation's (contexts Γ, signature Σ, elements t, types
-T, judgemental equality ≐, definitional contraction ≜), with three
-kernel-only judgement forms added:
+T, judgemental equality ≐, definitional contraction ≜), with these
+kernel judgement forms:
 
-  nf(t) ⇓ t′ , nf(T) ⇓ T′        fuel-bounded normalization
-  Σ; Γ ⊦ ᾱ ⇐ˢ Δ ⇝ ū              stated spines (§3): each entry a
-                                 proof naming its element
-  Σ; Γ ⊦ π ▷ t₀ ≐ t₁ : T         proof checking — ONE channel; a
-                                 type equation is the T = 𝕍 instance.
-                                 Foundation's ≐ is derived notation
-                                 for a ⋆-typing, and a proof term is
-                                 precisely the evidence it is checked
-                                 by
-  Σ; Γ ⊦ t ⇐ T ⟨sk⟩              item-level checking (skeleton sk)
-  Σ; Γ ⊦ t ⇒ T ⟨sk⟩              item-level inference
-  Σ; Γ ⊦ T : 𝕍 ⟨sk⟩             item-level formation
-  Σ; Γ ⊦ 𝒮 qsig ⟨sk⟩             item-level QIIT signature checking (§8)
-  Σ; Γ ⊦ 𝔽 poly ⟨sk⟩             item-level polynomial checking (inside
-                                 ν formation — Foundation's poly-* rules)
+  nf(t) ⇓ t′ , nf(T) ⇓ T′        fuel-bounded normalization (§1)
+  Σ; Γ ⊦ π ⇒ l ≐ r : T           INFERENCE: the derivation states its
+                                 equation and its type (§3)
+  Σ; Γ ⊦ π ⇐ T ⇒ l ≐ r           CHECKING at a known type (§3)
+  Σ; Γ ⊦ π ▷ l ≐ r : T           reading AGAINST GIVEN SIDES — the one
+                                 place a derivation meets sides it did
+                                 not produce: a conversion's proof (§7)
+  Σ; Γ ⊦ π → x ⇝ y               the directional RUN: one side given,
+                                 the other produced (§7)
 
-Every kernel judgement is decided inside a FUEL MONAD: a computation
-either returns, fails with a reason, or exhausts its fuel — and fuel
-exhaustion is REJECTION, so the kernel is total and every artifact
-gets a verdict. Fuel is supplied per entry point by the producer's
-margin (the elaborator knows its own step counts); one unit is spent
-per ≜-contraction, nothing else costs fuel.
+An ELEMENT derivation is a π whose two sides coincide; we write
+Σ; Γ ⊦ π ⇒ t : T for it, and Σ; Γ ⊦ π ⇐ T ⇒ t. Foundation's type
+judgement is the T = 𝕍 instance of element typing (docs/
+NovaFoundation.txt, no-type dissolution) and a type equation is the
+T = 𝕍 instance of an element equation — one channel throughout.
+
+An accepted item enters Σ as its ERASURE (Δ ⊦ x ≔ |π| : |π_T|), since
+δ and β read erasures; the derivation is consumed by the check.
+
+The kernel invariant is one-directional — kernel accepts the
+derivation ⟹ its erasure is Foundation-derivable at the stated type.
+Rejection claims nothing.
 
 ////////// 1. Normalization: nf, one fuel per contraction //////////
 
@@ -136,1105 +138,166 @@ hypotheses a well-formed term may have no normal form (see
 NovaFoundation.txt, preface), and the fuel bound is what keeps the
 kernel total in that world. Exhaustion never certifies anything.
 
-////////// 2. Proof terms //////////
 
-The certificate of an equation is a PROOF TERM (Prf): a term-shaped
-tree whose leaves justify equations and whose inner nodes are the
-congruence rules of the Foundation, one per former, with a proof in
-every child position. The kernel CHECKS a proof against its goal: it
-decomposes the goal's sides along the proof's nodes, computes each
-child's type from the node (the type flowing down, the inferred type
-of a neutral head, or a carried motive), and demands of each leaf the
-equation at its position. No paths, no rewrite steps, no finals: what
-used to be "rewrite the goal at a path" is a chain of congruence nodes
-around the leaf, and the goal is never edited, only compared.
-(docs/NovaKernelRewrite.txt: proofs are terms with proof leaves.)
+////////// 2. Derivations //////////
 
-The grammar (constructors in parentheses are the implementation's
-names):
-
-  Proofs are written IN THE CORE'S OWN SYNTAX: a congruence node is
-  spelled as the former it is the congruence of, with proofs in the
-  children's places, and a term-shaped proof reads like the term it
-  is about. α, β, … range over proofs.
-
-  π ::=                                            (Prf)
-    -- leaves that STATE their equation (⇒, §4)
-      [t]               SELF: a variable or a signature reference as
-                        its own reflexivity, at its declared type;
-                        also Z, (), 𝟘, 𝟙, ℕ at theirs   (PSelf)
-    | [t : T]           CHECKED reflexivity: t checked at T (with a
-                        skeleton), stating t ≐ t : T      (PChk)
-    | ⟨α⟩               reflection: α states its equation at an
-                        equality prop l ≡ r ∈ A — the licensed
-                        equation l ≐ r : A              (PRefl)
-    | qpath 𝕔 ᾱ         an imposed QIIT equation, its
-                        spine STATED (§3)               (PPath)
-    | x-δ ᾱ             x[ū] ≐ t[ū] for (Δ ⊦ x ≔ t : T),
-                        ū stated by ᾱ (§3)              (PDelta)
-    | (α : T′ by β)     ASCRIPTION: the stated equation of α at T′,
-                        β ▷ A ≐ T′                       (PAt)
-    -- structure
-    | refl              the sides join under β          (PReflx)
-    | α⁻¹                                               (PSym)
-    | α ; β             transitivity, middle COMPUTED   (PTrans)
-    | α ; [m] ; β       transitivity, middle STATED     (PTransAt)
-    | (α ∷ T′ by β)     the equation's TYPE converted: β ▷ T ≐ T′,
-                        α read at T′                    (PConv)
-    | δ-all x̄           every addressable occurrence of the named
-                        definitions unfolded at once   (PDeltaAll)
-    -- type-directed leaves (⇐ only, §7)
-    | irrel ⟨sk⟩ | η→(α) | η×(α, β) | quot-wit(α?) | quot-wit[w ⟨sk⟩]
-    | inj(α) | propext[s ⟨sk⟩, t ⟨sk⟩] | prop-lift ⟨sk, sk′⟩ (α)
-    -- (irrel and prop-lift carry the SKELETON of the type(s) whose
-    -- prop-ness they assert: a neutral prop infers at Ω through it)
-    -- congruences (§6), spelled as the formers; eliminators carry an
-    -- OPTIONAL motive in braces
-      𝟘-elim α   S α   ℕ-elim{M?} α β γ   λ α   α β   (α, β)
-      α .π₁   α .π₂   inj₁ α   inj₂ α   ⊎-elim{M?} α β γ
-      α → β   α × β   α ⊎ β   α ≡ β ∈ γ   α / β   x[ᾱ]
-      class α   quot-elim{M?} α β   ∥α∥   𝒮.𝕤[ᾱ]   𝒮.𝕔[ᾱ]
-      𝒮.𝕤-elim{C̄?} [ᾱ] [β̄] γ   out α   corec 𝔽 α β γ
-
-  A TYPED NEUTRAL is a spine of elimination nodes over a self or
-  checked leaf, ascribed wherever a definition hides the shape the
-  next elimination needs:  ([a] : A × (A → A) by α) .π₂  types the
-  head a.π₂ as A → A from a's declared type IsNatAlgebra A, opened by
-  the recorded δ proof α. Such a proof STATES its equation (⇒), so a
-  node above it takes the type it states instead of reading one off
-  the side. A proof element — a lemma applied to arguments — is the
-  same thing: [sym] [ℕ] [x] [y] [h], arguments that are spines as
-  typed neutrals ascribed to the domain where spelled otherwise, any
-  other argument as [t : A] checked at the domain.
-
-Substitution acts on a proof as on a term (every element it carries
-— proof elements, spines, stated middles, converted types, motives —
-under the binders its nodes cross): a proof spelled in Γ is placed
-under b binders as π[↑ᵇ].
-
-Three READINGS of one proof (§7): ⇒ a leaf (with symmetry and
-transitivity over it) states its equation and type; → given one
-side, the proof produces the other — the reading transitivity uses to
-find its middles; ⇐ given both sides, everything is verified — the
-only reading the type-directed leaves have. Which readings a proof
-supports is decided from its SHAPE before any check (synthP, dirP in
-the implementation): the kernel never guesses a direction.
-
-The engine WRITES proof terms as it searches (Nova.Elaboration.Proof,
-its proof library, untrusted): a licence applied at a position
-becomes its reflection leaf inside the congruence skeleton along the
-path (typed as the nodes of §6 type their children — a conversion
-where a shape is δ-hidden, a typed neutral for a scrutinee, a checked
-leaf for an argument), a δ-round a δ-all leaf, a closing step by the
-type's shape its type-directed leaf, the rewrites of one side a
-right-nested chain ending in refl, the two sides' chains joined
-through the closing leaf, an equation proved at an exposed type a
-conv around the whole. There is no intermediate language: what the
-search returns, what the item's skeleton carries, and what the kernel
-checks is the proof term.
-
-Child indexing, shared by the congruence nodes (§6), the engine's
-paths and skeletons (§8) — binders crossed in parentheses:
-
-  elements:  𝟘-elim t → 0            S t → 0
-             ℕ-elim z s t → 0, 1(2), 2
-             λ f → 0(1)              f e → 0, 1
-             let a b → 0, 1(2)       # body under value + unfolding-equation binders
-             (a , b) → 0, 1          t.π₁ / t.π₂ → 0
-             inj₁ t / inj₂ t → 0     ⊎-elim l r t → 0(1), 1(1), 2
-             a →ᶜ b → 0, 1(1)        a ×ᶜ b → 0, 1(1)
-             a ⊎ᶜ b → 0, 1
-             (l ≡ r ∈ T) → 0, 1, 2ᵗ  a /ᶜ r → 0, 1(2)
-             x[e˲] → 0.. (left to right)
-             class a → 0             quot-elim f q → 0(1), 1
-             ∥T∥ → 0ᵗ
-             𝒮.𝕤 ē (code) → 0.. (the index spine)
-             𝒮.𝕔 θ → 0.. (the argument spine)
-             𝒮.𝕤-elim m̄ ē w → 0..n-1 (the index spine), n (the eliminee)
-                              (the methods m̄ are proof positions of
-                               the congruence node, not path children)
-             out t → 0               corec 𝔽 a f x → 0, 1(1), 2
-             ν 𝔽 (code) → (none)
-  types:     A → B → 0, 1(1)         A × B → 0, 1(1)
-             A ⊎ B → 0, 1            A / r → 0, 1ᵉ(2)
-             x[e˲] → 0..ᵉ
-             𝒮.𝕤 ē → 0..ᵉ            ν 𝔽 → (none)
-  (ᶜ marks universe codes; ᵉ marks descent into an element child, ᵗ into
-   a type child. The quotient relation is an Ω-valued element child. A
-   carried signature 𝒮, eliminator problem ℰ and polynomial 𝔽 have NO
-   child positions — a congruence node carries them and they must
-   match the sides' syntactically, approximation A3 (§9); only spines
-   and eliminees have proof positions.)
-
-////////// 3. Stated spines: Σ; Γ ⊦ ᾱ ⇐ˢ Δ ⇝ ū //////////
-
-Nothing a proof term carries is typed by a checker of its own. A
-proof ELEMENT — the lemma instantiation behind a reflection leaf —
-arrives as a TYPED NEUTRAL (§2, §4): a proof term that states its
-own type, read by the ⇒ rules of §4 and §7 with no unfolding. The
-elements the former proof-spine checker (inferP/checkP) typed bare
-— a δ or path leaf's spine — are STATED the same way: each is a proof α whose ⇒-reading is a
-reflexivity u ≐ u : U, and the element it names is u, at U.
-
-  Σ; Γ ⊦ αᵢ ⇒ uᵢ ≐ uᵢ : Uᵢ    Uᵢ agrees with Δᵢ[u₀, …, uᵢ₋₁]   (each i)
-  -----------------------------------------------------------------
-  Σ; Γ ⊦ ᾱ ⇐ˢ Δ ⇝ ū
-
-"agrees" is §7's type agreement (tyAgree): β-join, cumulativity (a 𝕌
-or Ω code at a 𝕍 position) and the identity of carried signatures
-modulo their β-join (A3, §9) — never δ. The two sides must be
-syntactically ONE element (the reading of a self leaf [t], a checked
-leaf [t : T], an ascription, or an elimination spine over them; a
-proof that states an equation between two spellings names no
-element). Entry i's telescope type is instantiated by the preceding
-entries (sub-norm-ext), so a dependent telescope is walked in order.
-
-What this buys: the kernel unfolds nothing to type a spine. An entry
-whose type a definition hides is ascribed by its producer, (α : T′ by
-β) — as a proof element's Π is shown to the next application — and
-an entry that is an intro form (a numeral, a constructor spine, a
-code) is a checked leaf [t : T] with its skeleton, typed by the item
-level's ⇐ (§8) rather than by a second checker: universe codes, sort
-codes, constructor spines and eliminator chains inside a lemma
-instantiation meet the one set of rules the item level has, with the
-item level's payloads (an eliminator in argument position carries
-its constant motive, A1, and reflexive coherences, A4).
-
-let-expressions remain outside proof terms: a let is always a redex
-(§1), so the elaborator emits proofs let-free; a lemma whose body
-wants one is referenced through Σ, where the item level checks lets
-directly (§8).
-
-////////// 4. What a leaf licenses (⇒) //////////
-
-A stating leaf licenses one equation, derived — never assumed — from
-its licence. The base of every typed neutral is a SELF leaf, at the
-declared type, no unfolding (a reference's spine checked against its
-context, β-only):
-
-  Γ‖ᵢ = T                    Σ ∋ (Δ ⊦ x ≔ a : A)   Σ; Γ ⊦ e˲ ⇐ Δ
-  ------------------         -------------------------------------
-  [☐ᵢ] ⇒ ☐ᵢ ≐ ☐ᵢ : T          [x[e˲]] ⇒ x[e˲] ≐ x[e˲] : A[e˲]
-
-  Σ; Γ ⊦ t ⇐ T ⟨sk⟩           # the item-level checker (§8): an intro
-  ------------------------    # form as a proof argument, at the
-  [t : T] ⇒ t ≐ t : T         # domain, with its skeleton
-
-Reflection (el-reflect read certificate-side): the proof is a stated
-equation at an equality prop — the equality prop itself, Prf retired
-— and the judgemental equation is extracted:
-
-  α ⇒ p₀ ≐ p₁ : P    nf_β(P) ⇓ (l ≡ r ∈ A)
-  ------------------------------------------
-  ⟨α⟩ ⇒  l ≐ r : A
-
-Equality is Ω-valued, so this is the ONE pathway — squashed spellings
-normalize to the prop by code-squash-idem's instances. Any other type
-is rejected. nf_β is the β-whnf: an equality hidden behind a
-definition arrives ascribed, ⟨(α : l ≡ r ∈ A by β)⟩. Γ is the context
-AT THE LEAF: the binders the congruence nodes above it crossed are in
-scope (a proof spelled at the root arrives weakened, §2).
-
-  (α : T′ by β) :   α ⇒ l ≐ r : A    β ▷ A ≐ T′ : 𝕍
-                    ------------------------------------
-                    (α : T′ by β) ⇒  l ≐ r : T′
-  # equal types have equal PERs; the ASCRIPTION — how a stated
-  # equation meets a position spelled otherwise (§7, the positional
-  # check is β-only), how a spine's head shows the Π the next
-  # application needs, how a proof's type shows its ≡
-
-A PATH leaf  qpath 𝕔 ᾱ  cites an imposed equation of its carried
-signature: the kernel demands 𝒮(𝕔) = 𝔄 ending in El (l ≡ r), reads
-the spine ᾱ ⇐ˢ ⌊𝔄⌋ᵗ ⇝ θ (stated entrywise, §3; the signature's
-embedded pieces normalized, as the sort's are), and the leaf states
-
-  ⌊l⌋[θ] ≐ ⌊r⌋[θ] : ⌊El 𝕦⌋[θ]
-
-— Foundation's el-qiit-path read certificate-side, exactly as
-el-reflect is above. That the carried signature is the one at the
-position follows from the positional type check (§7): the stated
-type embeds 𝒮 syntactically.
-
-A δ leaf  x-δ ᾱ  is x-δ for the definition (Δ ⊦ x ≔ t : T) ∈ Σ:
-
-  Σ; Γ ⊦ ᾱ ⇐ˢ Δ ⇝ ē
-  ------------------------------
-  x-δ ᾱ ⇒  x[ē] ≐ t[ē] : T[ē]
-
-Read LEFT TO RIGHT (the → reading at the side x[ē′]) it is applied by
-literal replacement — ē′ ≐ ē by β-join, the side becomes t[ē′] — with
-neither the spine reading nor the positional type check: the
-occurrence is well-typed by the invariant and δ preserves its type.
-Every other reading (a refold, a check against both sides) goes
-through the rule above.
-
-  π⁻¹   :  swaps the sides
-  π₁ ; π₂ : when π₁ ⇒ a ≐ b : A and π₂ runs → from nf(b) to c at A:
-           a ≐ c : A; symmetrically when π₂ states and π₁ runs ←.
-
-δ-all x̄ states nothing: it is a function of the side it acts on (→,
-left to right only; under ⇐ it unfolds the left side and compares).
-It is what keeps a computation-heavy join linear: a numeral test
-unfolds a recursive definition hundreds of times, and one occurrence
-per leaf with a β-join after each would be quadratic on both sides.
-
-LICENCE NORMALIZATION is not a separate mechanism any more. A
-candidate the producer stored normalized — a hypothesis whose sides
-it unfolded and computed against the store, so that k + Z ≡ k
-applies at an occurrence of ℕ-elim … k Z — is licensed from its RAW
-type by transitivity over the leaf:  (norm_l)⁻¹ ; ⟨h⟩ ; norm_r  with
-norm_l, norm_r the δ-all/x-δ chains that turned the raw sides into the
-stored ones. The proof STATES its equation (the leaf states, norm_r
-runs → from its rhs, norm_l runs → from its lhs behind the ⁻¹), so it
-sits at a position like any leaf; the goal is never un-β'd back to
-the raw spelling (an inverted unfold has no position to land on once
-the unfolded body has β-reduced away).
-
-////////// 5. Injectivity //////////
-
-There is NO injectivity node. A proof passes from an equation to a
-component equation only the way the theory does: by a CONGRUENCE
-whose β-reduct is the component. S-injectivity is the predecessor
-congruence — Foundation notes it as derivable (an ℕ-elim retraction
-of S) — and the engine derives it so: from a licence h for S x ≐ S y
-it emits
-
-  [λk. ℕ-elim Z (k ih. k) k : ℕ → ℕ] ⟨h⟩   ⇒  pred (S x) ≐ pred (S y) : ℕ
-
-a spine node over a checked head, STATING its equation (§4); read at
-the position x ≐ y, its stated sides join to the goal's by β (§7: a
-stating node is also a leaf). The retraction is inlined as a checked
-λ rather than referenced through Σ so that the join needs no δ.
-
-Foundation's TYPE-CONSTRUCTOR injectivity rules (code-pi-inj,
-code-sum-inj, code-quot-inj, QIIT code injectivity indexwise) have no
-proof-term form: no proof in the corpus ever cited one, and the
-selectors that used to spell them (with their instantiation elements)
-are gone. A component equation of a code equation is therefore not
-extracted (tests/nova/elaboration/elab-injectivity records this: the
-sites end in obligations). Should a proof need one, the node to add is
-the rule itself, its binder-crossing instantiation stated (§3) as the
-selectors' were.
-
-What does NOT hold, as before: point constructors of a QIIT are NOT
-injective (equation constructors may merge them — a quotient's cls is
-the canonical counterexample), and equations between equality props
-have no injectivity (equality is Ω-valued and inherits Ω's
-anti-structural discipline: code-prop-eq equates all true equations).
-Injectivity is a TYPE/CODE phenomenon only, exactly as in Foundation.
-
-////////// 6. Congruence nodes and the position's type //////////
-
-A congruence node is one Foundation congruence rule (or a derived
-instance: el-sub-cong through the former's binders). Read against a
-goal it DECOMPOSES the side(s) — under → the one given side, under ⇐
-both, which must have the node's head — and reads each child against
-its part at the child's expected type, computed from the node:
-
-  𝟘-elim[π]       child : 𝟘
-  S[π]            child : ℕ
-  ℕ-elim{M?}[πz; πs; πn]
-                  no motive: CONSTANT-MOTIVE reading (A1, §9) —
-                    z : E,  s : E[↑][↑] under Γ ▷ ℕ ▷ E[↑],  n : ℕ
-                  motive M (checked Γ ▷ ℕ ⊦ M : 𝕍, and M[id, n] ≐ E):
-                    z : M[id, Z],  s : M[↑², S ☐₁] under Γ ▷ ℕ ▷ M,
-                    n : ℕ
-  λ[π]            child : B under Γ ▷ A       when nf(E) ⇓ A → B
-  app[πf; πa]     f : ⇒ᴺ(f),  a : A  when nf(⇒ᴺ(f)) ⇓ A → B
-  pair[πu; πv]    u : A,  v : B[id, u]        when nf(E) ⇓ A × B
-  π₁[π] / π₂[π]   child : ⇒ᴺ(t)
-  inj₁[π]         child : A                   when nf(E) ⇓ A ⊎ B
-  inj₂[π]         child : B                   when nf(E) ⇓ A ⊎ B
-  ⊎-elim{M?}[πl; πr; πt]
-                  t : ⇒ᴺ(t) ⇓ A ⊎ B;
-                  no motive: l, r UNDETERMINED (under Γ ▷ A, Γ ▷ B)
-                  motive M (checked over Γ ▷ A ⊎ B, M[id, t] ≐ E):
-                    l : M[↑, inj₁ ☐₀] under Γ ▷ A, likewise r
-  Π[πa; πb], Σ[πa; πb]
-                  a : 𝕂,  b : 𝕂 under Γ ▷ A₁ — the RIGHT domain
-                  (ty-pi-cong / ty-sigma-cong; under → left to right
-                  that is the domain the domain proof produces)
-  ⊎[πa; πb]       both : 𝕂
-  ≡[πl; πr; πt]   l, r : T (the left side's ∈-type),  t : 𝕍
-                  # code-eq-cong (admissible)
-  quot[πa; πr]    a : 𝕂,  r : Ω under Γ ▷ A₁ ▷ A₁[↑]
-  x[π̄]            child i : Δᵢ[e˲ prefix]  # the telescope entry
-  class[π]        child : A                   when nf(E) ⇓ A / r
-  quot-elim{M?}[πf; πq]
-                  q : ⇒ᴺ(q) ⇓ A / R;  no motive: f UNDETERMINED
-                  (under Γ ▷ A); motive M (over Γ ▷ A / R,
-                  M[id, q] ≐ E): f : M[↑, class ☐₀]
-  ∥π∥             child : 𝕍
-  𝒮.𝕤[π̄], 𝒮.𝕔[π̄]  child i : entry i of the reflected telescope,
-                  instantiated by the preceding children
-  𝒮.𝕤-elim{C̄?}[π̄m; π̄; πw]
-                  methods: no motives — UNDETERMINED; motives C̄
-                  (C_𝕤[ē, w] ≐ E): m_𝕔 : 𝔄ᴰ⟨𝒮.𝕔 δ⟩ at C̄;
-                  spine as above; w : 𝒮.𝕤 ē
-  out[π]          child : ⇒ᴺ(t)
-  corec 𝔽[πa; πf; πx]
-                  a : 𝕌,  f UNDETERMINED (under Γ ▷ a),  x : a
-
-  𝕂 is the components' classifier: 𝕍 when the node's own type is 𝕍
-  (a type), 𝕌 otherwise (a code). E is the node's own type; ⇒ᴺ is
-  neutral-spine inference (context variables, applications,
-  projections, out, signature references, eliminator heads — the
-  heads whose types are recoverable without annotations), read off
-  the LEFT side's part, in the context at the node. Every "when
-  nf(·) ⇓ …" above is the β-whnf: a shape a definition hides reaches
-  the node only through a conversion — `conv` around the node for the
-  type flowing down, `scrut T′ πᵀ [node]` for a scrutinee's inferred
-  type (the node then reads its children from T′). ⇒ᴺ itself still
-  exposes the heads ALONG a spine by δ (the type of h.π₁ needs h's
-  declared type opened; a bare spine has no place for an ascription):
-  the residue of neutral-spine typing (§9), shared with proof-spine
-  typing; what ⇒ᴺ returns is the head's declared type, which a scrut
-  node converts.
-
-A child's expected type may be UNDETERMINED (—): harmless for a node
-merely passed THROUGH (refl at a sibling compares, needing no type)
-and consequential only at a stating leaf, where the POSITIONAL TYPE
-CHECK (§7) then falls back on the leaf's own side: any type a
-neutral inhabits is judgementally equal to its ⇒ᴺ-type — typing
-inversion — so the leaf's stated type is compared with nf(⇒ᴺ(u)) for
-u the side's part at the leaf (the NEUTRAL-SUBTERM rule). Since the
-node carries the context, this holds under binders too: a variable
-the crossed binders bind is resolved against them. The multi-typing
-that makes the positional check load-bearing lives at INTRO forms
-(a class spelling inhabits every quotient that relates its
-representative), and ⇒ᴺ refuses intro heads — the historical
-exploits stay dead.
-
-The carried heads — a signature variable's name, a QIIT signature
-and position, an eliminator's motives and methods, a polynomial —
-must match the sides' syntactically (A3, §9).
-
-Soundness note: the positional check is load-bearing. Equality is
-type-relative in this theory (a class equation at one quotient says
-nothing at another), and the two historical exploits
-(docs/NovaPipeline.txt, "Why this shape") both die on exactly this
-check or on proof-argument checking (§3). The invariant every
-reading maintains: the side(s) a proof is read against are
-well-typed at the node's type, so a node is a rule instance whose
-typing premises hold — under ⇐ both sides (the goal's are; a
-computed or stated middle is, by the equation just checked), under
-→ the given side.
-
-////////// 7. Proof checking: the three readings //////////
-
-Element equations — Σ; Γ ⊦ π ▷ t₀ ≐ t₁ : T. Both sides are β-JOINED
-(every computation rule, NO δ — a definition reference is stuck,
-whatever its classifier), then the proof is read against them (⇐).
-A type equation is the T = 𝕍 instance — one channel.
-
-  refl at α-identical sides is accepted without normalizing (the
-  normalizer is a function: same acceptance set, none of the work).
-
-The ⇐ reading, given l, r (β-joined) and the position's type E
-(possibly —):
-
-  refl          nf(l) = nf(r)
-  π⁻¹           π ⇐ (r, l)
-  π₁ ; π₂       if π₁ runs →: m = nf(π₁ → l), π₂ ⇐ (m, r);
-                else if π₂ runs ←: m = nf(π₂ ← r), π₁ ⇐ (l, m);
-                else reject (no computable middle)
-  π₁ ; [m] ; π₂ π₁ ⇐ (l, nf(m)), π₂ ⇐ (nf(m), r)   # el-trans; the
-                middle is NOT checked at T — it is equal to l by the
-                first premise, hence well-typed
-  conv πᵀ T′ π  πᵀ ▷ E ≐ T′ at 𝕍 (E ≠ 𝕍), then π ⇐ (l, r) at T′
-                # equal types have equal PERs (el-ty-coe)
-  δ-all x̄       nf(unfold-all(l)) = nf(r)
-  stating leaf  π ⇒ a ≐ b : A;  POSITIONAL TYPE CHECK  A ≐ E  (E
-                undetermined: E := ⇒ᴺ(l), §6);  nf(a) = nf(l),
-                nf(b) = nf(r)
-  congruence    both sides decompose by the node (§6); children ⇐
-                their parts — or, for a node that STATES (a spine over
-                a typed head, §4) when the sides lack its shape, the
-                stated sides meet the goal's under β at the position's
-                type (a leaf reading; §5's derived injectivity)
-  irrel ⟨sk⟩    nf(E) ⇓ 𝟙 or 𝟘, or E is a PROPOSITION — ≡-/∥·∥-
-                headed, or a neutral that infers at Ω through the
-                carried skeleton sk (kIsProp: the raw spelling first,
-                since whnf can unfold a prop spine into a stuck
-                eliminator; a bare sk reads an eliminator head at the
-                constant motive Ω)  # el-one-prop / el-zero-prop /
-                el-prf-prop (proof irrelevance)
-  quot-wit π?   sides class a ≐ class b, nf(E) ⇓ A / r; by the shape
-                of nf(r[id, a, b]) (an Ω code): ⇓ ∥𝟙∥ accepted;
-                ⇓ (wl ≡ wr ∈ W) — π ▷ wl ≐ wr : W   # el-quot-eq with
-                the witness RE-DERIVED from the relation's shape
-  quot-wit-prf w σ
-                sides class a ≐ class b, nf(E) ⇓ A / r; check
-                Σ; Γ ⊦ w ⇐ r[id, a, b] with skeleton σ (§8)
-                # el-quot-eq, faithful: an ARBITRARY Ω-valued relation
-  inj π         nf(E) ⇓ A ⊎ B; l, r same-tag injections; π ▷ x ≐ y
-                at the branch type   # congruence at el-sum-i₁/i₂,
-                as a leaf so el-one-prop can close 𝟙 payloads beneath
-  η→ π          nf(E) ⇓ A → B;  Σ; Γ ▷ A ⊦ π ▷ l[↑] ☐₀ ≐ r[↑] ☐₀ : B
-  η× π₁ π₂      nf(E) ⇓ A × B;  π₁ ▷ l.π₁ ≐ r.π₁ : A,
-                π₂ ▷ l.π₂ ≐ r.π₂ : B[id, l.π₁]      # el-sigma-eta
-  propext f σ g σ′
-                nf(E) ⇓ Ω, sides prop codes p, q; the two
-                implications checked as typings, AS FUNCTIONS over Γ
-                (Γ ⊦ f ⇐ p → q and symmetrically — prop-lift; the
-                form a surface term can hand over)  # code-prop-eq
-  prop-lift ⟨sk, sk′⟩ π
-                E = 𝕍, both sides PROPOSITIONS (kIsProp through
-                their skeletons — the lift's load-bearing side
-                condition); π ▷ l ≐ r : Ω
-                # prop-lift-eq
-
-The → reading, given one side x, a direction (left to right, or
-right to left), and E; it produces the other side, unjoined (the
-consumer joins):
-
-  refl          x
-  π⁻¹           π in the opposite direction
-  π₁ ; π₂       left to right: if both run →, π₂ → nf(π₁ → x); else
-                if π₂ states b ≐ c : A (A ≐ E): π₁ ⇐ (x, nf(b)), c.
-                Right to left symmetrically.
-  π₁ ; [m] ; π₂ left to right: π₁ ⇐ (x, nf(m)), then π₂ → nf(m)
-  conv πᵀ T′ π  πᵀ ▷ E ≐ T′, then π → x at T′
-  δ-all x̄       left to right: unfold-all(x); right to left: reject
-  x-δ ē         left to right at x = y[ē′]: y = x, nf(ē′) = nf(ē),
-                result t[ē′] — no other check (§4)
-  stating leaf  π ⇒ a ≐ b : A;  A ≐ E (positional check);
-                nf(a) = nf(x), result b   (swapped right to left)
-  congruence    x decomposes by the node; children → their parts;
-                the node rebuilt from the results
-  type-directed leaves: reject (they need both sides)
-
-The ⇒ reading is §4 for the leaves; a TYPED NEUTRAL extends it to
-the elimination nodes over them (the head β-whnf'd for its shape — a
-hidden one arrives ascribed, §4):
-
-  α ⇒ f₀ ≐ f₁ : F   nf_β(F) ⇓ A → B   β ⇒ a₀ ≐ a₁ : A′   A′ ≐ A (β)
-  ------------------------------------------------------------------
-  α β ⇒ f₀ a₀ ≐ f₁ a₁ : B[id, a₀]
-
-  α ⇒ t₀ ≐ t₁ : F   nf_β(F) ⇓ A × B         α ⇒ t₀ ≐ t₁ : F   nf_β(F) ⇓ ν 𝔽
-  ----------------------------------        -------------------------------
-  α .π₁ ⇒ t₀.π₁ ≐ t₁.π₁ : A                 out α ⇒ out t₀ ≐ out t₁ : ⌊𝔽⌋(ν 𝔽)
-  α .π₂ ⇒ t₀.π₂ ≐ t₁.π₂ : B[id, t₀.π₁]
-
-  α ⇒ n₀ ≐ n₁ : ℕ
-  -------------------------
-  S α ⇒ S n₀ ≐ S n₁ : ℕ
-
-A node states its equation only when its head is a typed neutral
-(typedP: a self or checked leaf, an ascription, or such a node); a
-node over a δ or reflection leaf is read by decomposition, as any
-congruence. Under → and ⇐ an elimination node whose head child is
-typed takes the head's STATED type for its children instead of
-reading one off the side (§6).
-
-POSITIONAL TYPE CHECK, A ≐ E: join-syntactic, or cumulativity (a
-licence at 𝕌 at a position typed 𝕍 — code-lift-eq; a licence at Ω
-there — prop-lift-eq, its side condition established by the
-statement: a stated Ω equation's sides are props). Nothing else: a
-stated equation whose type is spelled otherwise than its position's
-(by unfoldings no leaf addresses — type indices, a hypothesis at the
-quotient's definition) arrives CONVERTED, `π at E by πᵀ` (§4), the
-conversion a δ chain the producer records.
-
-Type equations — Σ; Γ ⊦ π ▷ T₀ ≐ T₁ (E = 𝕍): no conv is admissible
-(circular); the type formers are congruence nodes like any other,
-their components at the classifier 𝕍 (§6), and the extensional
-components that cannot be reached by any leaf are closed by
-prop-lift (a prop codomain equal only by propext, under Π[refl; …]).
-A universe-code equation is already a type equation by cumulativity
-(code-lift-eq) — no transport is involved.
-
-////////// 8. The item level: skeletons //////////
-
-The kernel re-checks whole items bidirectionally. Its input is the
-core term plus a SKELETON — a tree positionally aligned with the term
-(same child indexing as §2), each node carrying zero or more
-payloads:
-
-  payload ::=
-      motive T ⟨sk⟩       (PMotive)   eliminator motive + its skeleton
-    | intro-ty T ⟨sk⟩     (PIntroTy)  ascribed type of an intro form
-                                      in inference position
-    | switch π            (PSwitch)   inferred ≐ expected, at a
-                                      checked non-intro term
-    | refl-eq π           (PReflEq)   the equation behind a ⋆ at an
-                                      equality prop (el-eq-i)
-    | wd π                (PWD)       quot-elim well-definedness
-    | expose T π          (PExpose)   head exposure at a checked intro
-    | scrut T π           (PScrut)    head exposure of an ELIMINATION's
-                                      scrutinee type (the function
-                                      applied, the pair projected, the
-                                      ⊎/quotient/ν scrutinee): the
-                                      inferred type converted to T
-    | squash-wit e ⟨sk⟩   (PSquashWit) the witness behind a checked
-                                      ⋆ : ∥A∥ (el-squash-i)
-    | squash-elim e ⟨ske⟩  (PSquashElim) el-squash-e-prf: scrutinee e
-        b ⟨skb⟩ ⟨skq⟩                 (inhabiting ∥A∥), a body b
-                                      proving q[↑] under the raw
-                                      squashee A, and the GOAL's
-                                      skeleton (its prop-ness)
-    | qmotives C̄ ⟨sk̄⟩     (PQMotives) QIIT eliminator MOTIVES, one type
-                                      per sort entry of the carried
-                                      signature (the core eliminator
-                                      carries only the methods)
-    | qcoh π₁ … πₖ        (PQCoh)    QIIT eliminator coherences, one
-                                      proof per equation entry
-                                      of the carried signature
-
-A payload is consumed when used (a node may carry several; order is
-immaterial). Missing children default to empty nodes.
-
-Checking  Σ; Γ ⊦ t ⇐ T ⟨sk⟩ :
-
-  1. If sk carries switch π: infer Σ; Γ ⊦ t ⇒ T′ ⟨sk∖switch⟩ and
-     check π ▷ T′ ≐ T. (The conversion is CERTIFIED, never decided
-     by the kernel.)
-  2. Otherwise, if sk carries expose T′ π: check π ▷ T ≐ T′ and
-     continue checking at T′. (No formation check of T′ precedes the
-     replay, and none is needed: replay is EXTRINSIC — spelling
-     surgery presupposing neither side — both sides entering as bare
-     syntax, each step's license carrying its own components'
-     typedness (the equality prop a proof element STATES presupposes
-     the equation's sides). Read declaratively it is a CONDITIONAL:
-     given Γ ⊦ T : 𝕍 — an invariant of this pass, every expected
-     type being built from the item's checked type by nf and
-     structural decomposition — a successful replay makes nf(T′) a
-     well-formed type ≐ T. And nf(T′) is all the continuation
-     consumes: step 3 normalizes before matching the head, so the
-     intro checks against the exposed head and coercion —
-     judgementally the identity — transports the result. Raw T′ is
-     never established well-formed (≜-expansion does not reflect
-     formation) and never needs to be: it is a REPRESENTATIVE, like
-     every annotation. This is PExpose; its equation-level twin is
-     the bridge, where the same conditional reading applies.)
-  3. Then by the head of t:
-
-     nf(T) ⇓ A → B    Σ; Γ ▷ A ⊦ f ⇐ B ⟨sk.0⟩
-     -----------------------------------------          # el-pi-i
-     Σ; Γ ⊦ λ f ⇐ T ⟨sk⟩
-
-     Σ; Γ ⊦ a ⇒ A ⟨sk.0⟩
-     Σ; Γ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b ⇐ T[↑ ∘ ↑] ⟨sk.1⟩
-     --------------------------------------------------------
-     Σ; Γ ⊦ let a b ⇐ T ⟨sk⟩                            # el-let
-     # T lives over Γ, so checking b at T[↑ ∘ ↑] is fully general,
-     # not an approximation: under the unfolding hypothesis
-     # (id, a, ⋆) ∘ (↑ ∘ ↑) ≐ id (el-reflect on ☐₀ plus el-prf-prop),
-     # so any valid body type is ≐ T[↑ ∘ ↑]. The definiens is
-     # INFERRED — an intro-form definiens carries intro-ty on sk.0,
-     # the ascription route.
-
-     nf(T) ⇓ A × B    Σ; Γ ⊦ u ⇐ A ⟨sk.0⟩   Σ; Γ ⊦ v ⇐ B[id,u] ⟨sk.1⟩
-     ---------------------------------------------------------------
-     Σ; Γ ⊦ (u , v) ⇐ T ⟨sk⟩                            # el-sigma-i
-
-     nf(T) ⇓ (l ≡ r ∈ A)   sk carries refl-eq π   π ▷ l ≐ r : A
-     ---------------------------------------------------------------
-     Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                       # el-eq-i over replay
-     # disambiguated from the squash rules below by nf(T)'s prop head
-
-  el-nu-coind rides ⋆ too — COINDUCTION at an equality prop over a
-  ν-type, the payload carrying the invariant, the endpoint proof and
-  the one-step closure, each with its skeleton (all three are checked
-  terms, not replay certificates — the premises are prop
-  inhabitations, exactly the item-level checker's job):
-
-     nf(T) ⇓ (l ≡ r ∈ E)    nf(E) ⇓ ν 𝔽
-     sk carries coind R ⟨skR⟩, p̂ ⟨skp⟩, q̂ ⟨skq⟩
-     Σ; Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ⊦ R ⇐ Ω ⟨skR⟩
-     Σ; Γ ⊦ p̂ ⇐ R[id, l, r] ⟨skp⟩
-     Σ; Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ▷ R ⊦ q̂ ⇐ lift_𝔽(R) (out ☐₂) (out ☐₁) ⟨skq⟩
-     -------------------------------------------------------------------
-     Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                       # el-nu-coind
-     # lift_𝔽 is the RELATOR (Foundation, coinductive section) —
-     # KERNEL-computed from 𝔽 and R, like out's result type; the
-     # closure's type is the rule's shape, never elaborator-supplied
-
-     nf(T) ⇓ A ⊎ B    Σ; Γ ⊦ a ⇐ A ⟨sk.0⟩
-     -------------------------------------               # el-sum-i₁
-     Σ; Γ ⊦ inj₁ a ⇐ T ⟨sk⟩                (inj₂ analogously at B)
-
-     nf(T) ⇓ A / r    Σ; Γ ⊦ a ⇐ A ⟨sk.0⟩
-     -------------------------------------               # el-quot-i
-     Σ; Γ ⊦ class a ⇐ T ⟨sk⟩
-
-     nf(T) ⇓ ν 𝔽    (the term's carried 𝔽 join-identical to nf(T)'s)
-     Σ; Γ ⊦ a ⇐ 𝕌 ⟨sk.0⟩    Σ; Γ ▷ a ⊦ f ⇐ ⌊𝔽⌋(a)[↑] ⟨sk.1⟩
-     Σ; Γ ⊦ x ⇐ a ⟨sk.2⟩
-     ------------------------------------------------------------
-     Σ; Γ ⊦ corec 𝔽 a f x ⇐ T ⟨sk⟩                      # el-nu-i
-
-     nf(T) ⇓ 𝒮.𝕤 ē    𝒮(𝕔) = 𝔄 ending in El (𝕤 ī)
-     Σ; Γ ⊦ θᵢ ⇐ (entry i of ⌊𝔄⌋ᵗ)[θ prefix] ⟨sk.i⟩ (entrywise)
-     nf(⌊ī⌋[θ]) = nf(ē)    (T, the term's 𝒮 and both spines under the
-                            β-join — a carrier spelled through a
-                            definition arrives switched)
-     ------------------------------------------------------------
-     Σ; Γ ⊦ 𝒮.𝕔 θ ⇐ T ⟨sk⟩                          # el-qiit-intro
-     # the term's carried 𝒮 and nf(T)'s must be nf-IDENTICAL;
-     # equal-but-different spellings go through expose/switch, as
-     # everywhere. The term's 𝒮 is NOT re-checked here — it is nf(T)'s
-     # signature, already validated where T was.
-
-     nf(T) ⇓ ∥A∥    sk carries squash-wit e ⟨ske⟩   Σ; Γ ⊦ e ⇐ A ⟨ske⟩
-     -------------------------------------------------------------------
-     Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                                  # el-squash-i
-
-     T a PROPOSITION (kIsProp through ⟨skT⟩, on the RAW spelling —
-     el-squash-e-prf's q : Ω premise)
-     sk carries squash-elim e ⟨ske⟩ b ⟨skb⟩ ⟨skT⟩
-     Σ; Γ ⊦ e ⇒ ∥A∥ ⟨ske⟩    Σ; Γ ▷ A ⊦ b ⇐ T[↑] ⟨skb⟩
-     ----------------------------------------------------------
-     Σ; Γ ⊦ ⋆ ⇐ T ⟨sk⟩                            # el-squash-e-prf
-     # disambiguated from el-squash-i above purely by which payload sk
-     # carries; both erase to the same ⋆ (realizer irrelevance)
-
-     Σ; Γ ⊦ t ⇐ 𝟘 ⟨sk.0⟩
-     ----------------------------                        # el-zero-e
-     Σ; Γ ⊦ 𝟘-elim t ⇐ T ⟨sk⟩
-
-     otherwise: infer Σ; Γ ⊦ t ⇒ T′ ⟨sk⟩ and demand nf(T′) = nf(T)
-     — a mismatch without a switch proof is rejection.
-
-Inference  Σ; Γ ⊦ t ⇒ T ⟨sk⟩ :
-
-  If sk carries intro-ty T ⟨skT⟩: check Σ; Γ ⊦ T : 𝕍 ⟨skT⟩, then
-  Σ; Γ ⊦ t ⇐ T ⟨sk∖intro-ty⟩, and return T. (This is the ascription
-  route: how introduction forms sit in inference position.)
-
-  Otherwise by the head — variables and signature references (el-var,
-  el-sig-var; the reference's substitution checked entrywise against its
-  telescope, each entry against sk's children), (), Z, S t, spines:
-
-     Σ; Γ ⊦ f ⇒ Tf ⟨sk.0⟩   nf(Tf) ⇓ A → B   Σ; Γ ⊦ a ⇐ A ⟨sk.1⟩
-     ------------------------------------------------------------
-     Σ; Γ ⊦ f a ⇒ B[id, a]                              # el-pi-e
-
-     (projections analogously: el-sigma-e₁/₂)
-
-  let infers when its body does (definiens inferred, as in checking):
-
-     Σ; Γ ⊦ a ⇒ A ⟨sk.0⟩
-     Σ; Γ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b ⇒ B ⟨sk.1⟩
-     ------------------------------------------------------------
-     Σ; Γ ⊦ let a b ⇒ B[id, a, ⋆]                       # el-let
-
-  ℕ-elim demands its motive — the REAL rule, no approximation here:
-
-     sk carries motive M ⟨skM⟩       Σ; Γ ▷ ℕ ⊦ M : 𝕍 ⟨skM⟩
-     Σ; Γ ⊦ z ⇐ M[id, Z] ⟨sk.0⟩
-     Σ; Γ ▷ ℕ ▷ M ⊦ s ⇐ M[(↑, S ☐₀) ∘ ↑] ⟨sk.1⟩
-     Σ; Γ ⊦ t ⇐ ℕ ⟨sk.2⟩
-     ------------------------------------------------------------
-     Σ; Γ ⊦ ℕ-elim z s t ⇒ M[id, t]                     # el-nat-e
-
-  ⊎-elim demands its motive; the scrutinee's type is inferred (its
-  head is neutral or an injection in the emitted fragment):
-
-     sk carries motive M ⟨skM⟩
-     Σ; Γ ⊦ t ⇒ Tt ⟨sk.2⟩    nf(Tt) ⇓ A ⊎ B
-     Σ; Γ ▷ A ⊎ B ⊦ M : 𝕍 ⟨skM⟩
-     Σ; Γ ▷ A ⊦ l ⇐ M[↑, inj₁ ☐₀] ⟨sk.0⟩
-     Σ; Γ ▷ B ⊦ r ⇐ M[↑, inj₂ ☐₀] ⟨sk.1⟩
-     ------------------------------------------------------------
-     Σ; Γ ⊦ ⊎-elim l r t ⇒ M[id, t]                     # el-sum-e
-
-  quot-elim demands motive AND well-definedness:
-
-     sk carries motive M ⟨skM⟩ and wd π
-     Σ; Γ ⊦ q ⇒ Tq ⟨sk.1⟩    nf(Tq) ⇓ A / r
-     Σ; Γ ▷ A/r ⊦ M : 𝕍 ⟨skM⟩
-     Σ; Γ ▷ A ⊦ f ⇐ M[↑, class ☐₀] ⟨sk.0⟩
-     M a prop (kIsProp through ⟨skM⟩) ⟹ well-definedness holds OUTRIGHT
-     (el-prf-prop — the ElimP rationale; the MOTIVE is tested, whose
-     spine shape survives where a stuck instance's prop-ness is
-     unreadable); otherwise:
-     Σ; Γ ▷ A ▷ A[↑] ▷ r ⊦ π ▷ f[↑³, ☐₂] ≐ f[↑³, ☐₁] : M[↑³, class ☐₂]
-     ------------------------------------------------------------
-     Σ; Γ ⊦ quot-elim f q ⇒ M[id, q]                    # el-quot-e
-  (the well-definedness hypothesis binds the relation instance
-  directly — prop-lift)
-
-  out is fully inference-driven — no motive, no skeleton payload
-  beyond the scrutinee's:
-
-     Σ; Γ ⊦ t ⇒ Tt ⟨sk.0⟩    nf(Tt) ⇓ ν 𝔽
-     ------------------------------------------------------------
-     Σ; Γ ⊦ out t ⇒ ⌊𝔽⌋(ν 𝔽)                           # el-nu-e
-
-  The QIIT eliminator carries its own motives and methods (ℰ = C̄ ; m̄
-  in the TERM, Foundation's design), so no motive payload is needed —
-  only the coherences, which are equations, arrive as proof terms:
-
-     Σ; Γ ⊦ 𝒮 qsig ⟨sk𝒮⟩    𝒮(𝕤) = 𝔎    sk carries qcoh π₁ … πₖ
-     for each sort position 𝕤ⱼ of 𝒮 (𝒮(𝕤ⱼ) = 𝔎ⱼ):
-         Σ; Γ·⌊𝔎ⱼ⌋ᵗ ▷ 𝒮.𝕤ⱼ δ ⊦ C_𝕤ⱼ : 𝕍 ⟨skC.j⟩             # mot
-     for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄; δ = ⌊𝔄⌋ᵗ's variables):
-         Σ; Γ ⊦ m_𝕔 ⇐ 𝔄ᴰ⟨𝒮.𝕔 δ⟩ ⟨skm.𝕔⟩                     # dalg
-     for each equation position 𝕔ⱼ of 𝒮
-         (𝒮(𝕔ⱼ) = 𝔄ⱼ ending in El (l ≡ r), sides at code 𝕤′ ī):
-         Σ; Γ·𝔄ⱼᴰᵗ ⊦ πⱼ ▷ ⟦l⟧ ≐ ⟦r⟧ : C_𝕤′[⌊ī⌋[πᴰ], ⌊l⌋[πᴰ]]  # eprob
-     Σ; Γ ⊦ ēᵢ ⇐ (entry i of ⌊𝔎⌋ᵗ)[ē prefix] ⟨sk.i⟩ (entrywise)
-     Σ; Γ ⊦ w ⇐ 𝒮.𝕤 ē ⟨sk.n⟩
-     ------------------------------------------------------------
-     Σ; Γ ⊦ 𝒮.𝕤-elim m̄ ē w ⇒ C_𝕤[ē, w]               # el-qiit-elim
-     # the core carries the methods m̄ only; the motives C̄ (with their
-     # skeletons skC.j) arrive in the node's qmotives payload, the
-     # coherences in its qcoh payload — the term carries what β reads
-
-  ⌊·⌋, ⌊·⌋ᵗ, ·ᴰ⟨·⟩, ·ᴰᵗ, ⟦·⟧, θ⟨φ⟩ and πᴰ are Foundation's QIIT
-  meta-operations, implemented as (trusted) kernel functions; the
-  coherence replay in the ᴰ-context is the QIIT generalization of
-  quot-elim's wd proof, one per equation entry.
-
-  Universe codes infer at 𝕌 with components checked at 𝕌 (their
-  binder children under the domain code itself — a code is a type,
-  code-lift), EXCEPT the quotient code's relation, checked at Ω:
-  el-*-in-universe. Squash ∥A∥ infers
-  at Ω with A checked as a type; an equality prop (l ≡ r ∈ A) infers
-  at Ω with A checked as a type and the sides checked at A (code-eq). A sort application 𝒮.𝕤 ē infers at 𝕌
-  when 𝒮 additionally passes the SMALLNESS scan — every external Π
-  domain of every entry checkable at 𝕌 or at Ω
-  (code-qiit) — with the spine checked as under formation below.
-
-  Anything else in inference position (a bare intro form with no
-  ascription payload) is rejected.
-
-Formation  Σ; Γ ⊦ T : 𝕍 ⟨sk⟩ : structural over the type formers
-(ty-pi/sigma/sum/prf/quot/nu/ty-prop; el-sig-var at type entries);
-anything that is not a large former falls through to checking at 𝕌
-(cumulativity, code-lift);
-a ν type's polynomial checked structurally (poly-hole/-const/-prod/
--sum/-sigma/-pi: each embedded code at 𝕌, the context growing by the
-binders' domain codes, skeleton children along in binder order),
-the squashee of ∥·∥ checked as a type, the quotient's relation and
-the sides/∈-type of an equality prop checked at Ω's rules,
-signature-type
-arguments checked against their telescope — all with skeleton
-children along. A sort
-application adds ty-qiit: Σ; Γ ⊦ 𝒮 qsig ⟨sk𝒮⟩, 𝒮(𝕤) = 𝔎 U-ended, and
-ē checked entrywise against ⌊𝔎⌋ᵗ (each entry's type instantiated by
-the preceding entries).
-
-SIGNATURE CHECKING  Σ; Γ ⊦ 𝒮 qsig ⟨sk⟩ is Foundation's qctx / qty /
-qtm system read as an algorithm — the ToS is syntax-directed by
-construction (qiit-terms are variables and application chains, so
-qiit-type checking and qiit-term inference need no annotations, and
-entry heads classify themselves). The only judgements with content are
-the embedded NOVA pieces — external Π domains checked as types over
-the Nova zone, external application arguments checked as elements —
-each with its own skeleton child: a former carrying 𝒮 aligns skeleton
-children with 𝒮's embedded Nova pieces in left-to-right order, before
-the former's own children. Signature checking burns fuel only through
-the Nova checking it triggers; the ToS layer itself is structural
-recursion.
-
-Items. A definition (Δ ⊦ x ≔ t : T) is checked by: telescope entries
-as types left to right, T as a type under Δ, then Δ ⊦ t ⇐ T; a type
-definition likewise without the body. Acceptance EXTENDS the kernel's
-Σ with the entry; the kernel's Σ is the authoritative one, and an
-item is checked from it alone — the elaborator's opinion of any
-earlier item is never consulted. (The kernel accepts Foundation's
-general form — nonempty Δ, x[e˲] references with checked
-substitutions — but the elaborator only ever produces CLOSED items:
-surface parameters are Π-binders, so Δ = ε and every reference
-carries the empty substitution.)
-
-////////// 9. Acknowledged approximations and their scope //////////
-
-The kernel is deliberately dumber than the theory; where it accepts
-by an approximation, the approximation is an INSTANCE of a Foundation
-rule (so soundness is unaffected) that may reject spellings the
-theory would accept (incompleteness only). There are two confined to
-EQUATION REPLAY (A1, A2), and three added by the QIIT extension
-(A3–A5):
-
-  A1  CONSTANT MOTIVE. In proof-argument checking (§3) an ℕ-elim
-      argument is checked by the el-nat-e instance whose motive is
-      T[↑], a ⊎-elim argument by the el-sum-e instance likewise, and
-      a QIIT eliminator argument by the el-qiit-elim instance whose
-      every sort motive is T weakened into the sort's context (the
-      core carries no motives; in INFERENCE position a bare QIIT
-      eliminator has no type at all — a spine references its Elim
-      definition folded);
-      a congruence node without a carried motive (§6) types the z/s
-      positions of an ℕ-elim by the same reading (a ⊎-elim's and a
-      quot-elim's case positions stay undetermined). A node MAY carry
-      its motive, which lifts the limit at that node; the engine's
-      translation emits none yet. The ITEM level (§8) carries real
-      motives and has no such limit.
-
-  A2  NEUTRAL SPINES ONLY (⇒ᴺ). Argument and scrutinee positions of
-      a congruence node are typed only when the applied head is a
-      variable, application chain, projection, out, signature
-      reference or eliminator head. A leaf under, e.g., a bare
-      ℕ-elim head is undetermined — the emitter's remedy is conv
-      (§7), which re-types the whole equation at a spelling where
-      the position IS determined. A δ leaf read left to right (§4)
-      is exempt from both A1 and A2.
-
-  A3  OPAQUE CARRIERS. No congruence node descends into a carried
-      signature 𝒮, eliminator problem ℰ or polynomial 𝔽 — their
-      embedded Nova pieces have no proof positions (§2); a node
-      carrying one demands the sides' to match syntactically. The
-      remedy for a signature-piece equation is a lemma respelling
-      the whole former, via conv or expose.
-
-  A4  β-ONLY COHERENCES IN SPINES. A checked leaf [t : T] (§3)
-      accepts 𝒮.𝕔 θ introductions, universe and sort codes, and
-      eliminators in ARGUMENT position (A1's constant reading) — but
-      its reconstructed skeleton carries reflexive coherences only,
-      so a spine eliminator's coherences are verified by pure β
-      alone.
-      An eliminator whose coherences need real replay is referenced
-      through Σ, where the item level carries the full apparatus
-      (coherences as PQCoh proofs, §8).
-
-  A5  NO η CERTIFICATE FOR QIITs. el-qiit-eta (like el-nat-eta,
-      el-sum-eta and el-quot-eta before it) has no replay final; for
-      ν the gap is CLOSED, by el-nu-coind as a ⋆-payload (§8) — the
-      admissible relational form, not el-nu-eta itself (whose
-      candidate h would be a carried higher-order payload; the
-      relational form subsumes it via graph invariants);
-      uniqueness arguments live in the elaborator as lemmas, not in
-      kernel proof terms (an el-sum-eta instance is proven as an
-      ordinary ⊎-elim lemma at an equality motive, β closing both
-      cases). The Π/Σ η finals are unaffected.
-
-  A6  FIRST-ORDER SIGNATURE FRAGMENT. The signature checker (§8)
-      covers the fragment the elaborator emits: no equation-code
-      binders, no external λ (infinitary recursive arguments). Sort
-      entries MAY carry inductive index binders (induction-induction
-      — Con/Ty-style signatures check; the entry walk rebases each
-      index code from its declaration site into the walk state of
-      its use site). Foundation covers the rest; the restriction is
-      checking incompleteness only.
-
-NO δ FOR EXPOSURE (docs/NovaKernelRewrite.txt, CONVENTIONS): the
-kernel's weak-head normalizer is β-only. Every shape a definition
-hides — the Π of a checked λ, the Σ of a projected pair, the quotient
-of a class, the ≡ behind a proof's type, the type a stated equation
-sits at — reaches the kernel through a recorded conversion: the
-expose/scrut payloads at the item level (§8), conv/scrut nodes and
-the ascribed leaves inside a proof (§2, §4, §7). The producer records
-them from its own exposure (the engine's whitelist governs matching,
-not shapes: a value the elaborator never elaborated — a solved hole,
-a synthesized type — has its skeleton RECONSTRUCTED with the
-whitelist open). Proof elements and the neutrals a rewrite sits under
-are TYPED NEUTRALS (§2, §4, §7): spines of elimination nodes over self
-leaves, ascribed where a definition hides a shape — so proof-spine
-typing is β-only, and so is every element a proof carries (a δ or
-path leaf's spine: STATED, §3) and
-every prop-ness test (kIsProp infers through a carried skeleton).
-NO kernel-initiated δ remains on a verdict path. ⇒ᴺ at an
-undetermined position (§6) opens a bare spine's head type by the
-β-whnf, and a typed head is read from its stated type; el-qiit-intro
-(§8) joins the expected type, the term's carried signature and the
-index spines under β; two sorts at one position and spine agree when
-their carried signatures JOIN alike (tyAgree, §7 — the structural
-identity el-qiit-beta fires on; A3: a carrier is inert syntax, never
-a proof position); a path leaf's carried signature (§4) and a corec's
-polynomial against its ν-type's (§8) are joined the same way. The
-last four were made β-only on 2026-09-24 after a corpus-wide
-measurement showed their δ never deciding a verdict (8 spelling
-changes, all in Qiit/cross.nova, both carriers unfolding alike). The
-δ clauses of nf (§1) serve one engine-facing service, kInferBare
-(typing a hole's value), which runs the LIBERAL whnf — never a
-verdict path; the kernel state carries the flag explicitly
-(KSt.liberal), so a verdict path cannot inherit it by accident.
-
-The item level's checking fallthrough (a non-intro term with no
-switch payload) compares inferred and expected by β and cumulativity
-ONLY: every position whose spelling is δ-apart carries a switch proof
-— from elaboration, from a reconstructed skeleton (a solved hole, a
-synthesized type, an inline definition's Π-closure), or from the
-data-item emission (a constructor's or eliminator's binder declared at
-an external domain as written, meeting the entry type every kernel
-rule reflects from the carried signature AS WRITTEN, modulo β).
-
-Two structural caveats restated from docs/NovaPipeline.txt: an
-annotation (motive, ascription, exposure target) is a REPRESENTATIVE,
-never a canonical type — no consumer compares annotations
-syntactically, only up to certified conversion; and the kernel
-invariant is one-directional — kernel accepts the annotated tree ⟹
-the erasure is Foundation-derivable at the stated type. Rejection
-claims nothing.
-
-////////// 10. Derivations: the kernel on proof terms alone (DRAFT) //////////
-
-STATUS. §2–§9 describe the kernel as implemented: an item is a core
-term plus a SKELETON, a tree aligned with the term that carries what
-β does not read, and equations are proof terms. This section drafts
-the design that replaces the pair: the kernel's input is a proof
-term ALONE, and the core term is its ERASURE. Nothing below is
-implemented yet; when it is, §8 goes and §2, §6, §7, §9 are rewritten
-to the grammar here. Decisions taken in the draft are marked DECIDED.
-
-10.1 The observation
-
-The proof-term language already synthesizes. The ⇒ reading (§7) of a
-typed neutral such as [x] .π₂ y produces both sides and the type of
-the equation it states, and an element's derivation IS such a proof:
-one whose two sides coincide. The checked leaf [t : T] ⟨sk⟩ is the
-one place where a bare term and a skeleton still enter together, and
-every awkwardness of the pair lives there or in the item level that
-mirrors it — child indexing by position, "bad path", motives whose
-binder depth the skeleton does not record, a substitution that cannot
-enter skeletons, skeleton reconstruction for values the elaborator
-never elaborated. Give the intro forms and the eliminators their own
-nodes, carrying what β does not read, and the term becomes an OUTPUT:
-the erasure |π| of the derivation. A substitution node π[σ] then
-synthesizes |π|[σ] : A[σ] by computing, and there is nothing to
-compare it with.
-
-One language, then: a DERIVATION is a proof term, a proof term is a
-derivation, read BIDIRECTIONALLY:
-
-  Σ; Γ ⊦ π ⇒ l ≐ r : T        inference: the type is an output
-  Σ; Γ ⊦ π ⇐ T ⇒ l ≐ r        checking: the type is known
-
-In BOTH modes the sides are synthesized from the derivation; the
-mode only decides where the type comes from. An element derivation
-is a π with l = r syntactically; we write Σ; Γ ⊦ π ⇒ t : T for it.
-Checking is the elaborator's usual mode, and in it an intro node
-needs no annotation — the type flowing down supplies what the
-annotation would (10.3); the annotated forms below are the
-INFERENCE-mode forms, the successor of the skeleton's intro-ty
-ascription.
-
-10.2 Grammar
-
-Spelled in the core's own syntax, as in §2: a node is the former it
-derives, with derivations in the children's places; a subscript is an
+A derivation is a term-shaped tree: a node is the former it derives,
+with derivations in the children's places; a subscript is an
 ANNOTATION — what the former's computation rule does not read and its
-typing rule needs. α, β, π, … range over derivations; a type
-annotation is itself a derivation (of a type), never a bare term.
+typing rule needs — and is itself a derivation (of a type), never a
+bare term. Read BIDIRECTIONALLY (§3), a derivation SYNTHESIZES its
+equation's two sides and, in inference mode, its type. The core term
+is the erasure |π| (erase: drop annotations, keep the former; a leaf
+erases to its term; an equation form — ⟨π⟩, x-δ, refl, … — has no
+erasure in an element position and occurs inside an element
+derivation only as a witness node's proof, which erases to ⋆).
+Computation stays on erasures: the join normalizes |π|, refl compares
+erasures, δ unfolds a definition's stored erasure. Derivations are
+never β-reduced.
+
+One grammar serves elements and equations: an element derivation is
+one whose sides coincide; a node whose children state PROPER
+equations (lᵢ ≠ rᵢ) is a congruence, read by the same rule with the
+result F(l̄) ≐ F(r̄). α, β, π, … range over derivations; constructors
+of the implementation (Nova.Kernel.Derivation, type Drv) in
+parentheses.
 
   -- leaves
-  π ::= ☐ᵢ                     variable                         (el-var)
-      | x[π̄]                   signature reference, spine derived
+  π ::= ☐ᵢ                     variable                    (DVar)
+      | x[π̄]                   signature reference, its spine
+                               derived entrywise (§3)      (DRef)
       | () | Z | 𝟘 | 𝟙 | ℕ | 𝕌 | Ω | 𝕍
+                               (DUnit, DZero, DZeroTy, DOneTy,
+                                DNatTy, DUniverse, DProp, DTop)
       | ⟨π⟩                    REFLECTION: π ⇒ p : (l ≡ r ∈ A)
-                               states l ≐ r : A                 (PRefl)
-      | qpath 𝕔 π̄              an imposed QIIT equation          (PPath)
-      | x-δ π̄                  x[ū] ≐ t[ū] for (Δ ⊦ x ≔ t : T)   (PDelta)
-      | refl | π⁻¹ | π ; π | π ; [m] ; π | δ-all x̄
-  -- type-directed leaves (read ⇐ only, §10.5)
+                               states l ≐ r : A            (DRefl)
+      | qpath 𝕔 π̄              an imposed QIIT equation, its
+                               spine derived                (DPath)
+      | x-δ π̄                  x[ū] ≐ t[ū] for (Δ ⊦ x ≔ t : T),
+                               ū derived                    (DDelta)
+  -- structure
+      | refl                   the sides join under β      (DReflx)
+      | π⁻¹                                                 (DSym)
+      | π ; π                  transitivity, middle COMPUTED (DTrans)
+      | π ; [π_m] ; π          transitivity, middle STATED — an
+                               element derivation checked at the
+                               chain's type                 (DTransAt)
+      | δ-all x̄                every addressable occurrence of the
+                               named definitions unfolded at once,
+                               left to right                (DDeltaAll)
+  -- type-directed leaves (read against given sides only, §7)
       | irrel(π_P?)            P a prop: derived, π_P ⇒ P : Ω, or (the
-                               derivation absent) the position's type,
-                               judged a prop by the kernel — a given
-                               type is well-formed; its prop-ness is
-                               the kernel's own question on it
-      | η→(π) | η×(π, π) | quot-wit(π?) | quot-wit[π_w]
-      | inj(π) | propext[π_f, π_g] | prop-lift(π_p?, π_q?, π)
-                               each side a prop: derived at Ω, or (the
-                               derivation absent) the given side judged
-                               a prop by the kernel
-  -- conversion, substitution
-      | π ∷ π_T by β           inference: the type converted —
-                               π_T ⇒ T′ : 𝕍, β ▷ T ≐ T′
-      | π by β                 checking at T: π ⇒ T′, β ▷ T′ ≐ T
-                               (the skeleton's switch); in INFERENCE
-                               position β is RUN from T′: π ⇒ t : T′,
-                               β → T′ ≐ T″ gives t : T″ (an
-                               eliminator's scrutinee exposed)
-      | (π : π_T by β)         ascription of a STATED equation (PAt;
-                               the same reading as π ∷ π_T by β)
+                               derivation absent) the position's
+                               type judged a prop by the kernel (its
+                               prop-ness is the kernel's own question
+                               on a given, well-formed type) (DIrrel)
+      | η→(π) | η×(π, π)                     (DEtaPi, DEtaSigma)
+      | quot-wit(π?) | quot-wit[π_w]         (DQuotWit, DQuotWitPrf)
+      | inj(π)                               (DInj)
+      | propext[π_f, π_g]                    (DPropExt)
+      | prop-lift(π_p?, π_q?, π)             (DPrfCong) each side a
+                               prop: derived at Ω, or (absent) the
+                               given side judged a prop by the kernel
+  -- conversion, ascription, substitution
+      | π ∷ π_T by β           inference: the type CONVERTED —
+                               π_T ⇒ T′ : 𝕍, β ▷ T ≐ T′   (DConv, annotated)
+      | π by β                 checking at T: π ⇒ T′, β ▷ T′ ≐ T; in
+                               inference position β is RUN from T′:
+                               π ⇒ t : T′, β → T′ ⇝ T″ gives t : T″
+                               (an eliminator's scrutinee exposed)
+                                                  (DConv, annotation absent)
+      | (π : π_T by β)         ascription of a STATED equation, the
+                               same reading as π ∷ π_T by β    (DAt)
       | (π : π_T? by β?)       ASCRIPTION of an element: π CHECKED at
                                what π_T derives; under checking at T,
                                β ▷ T ≐ that (an exposure), or the two
-                               agree (β absent); in inference position
-                               the type is what π_T derives (the
-                               skeleton's intro-ty), β absent. With
-                               π_T ABSENT (checking only) the target
-                               is what β PRODUCES run from T, β → T ≐
-                               T′, and π is checked at T′: an exposure
-                               names no target of its own — the target
-                               is what unfolding reaches, well-formed
-                               because the run is a chain of rule
-                               applications (no copy of an exposed
-                               type ever enters a derivation)
-      | π[↑ᵈ ▷ (π₁ : π_T₁) … (πₖ : π_Tₖ)]   SUBSTITUTION (10.4),
-                               inference only
+                               agree (β absent); in inference
+                               position the type is what π_T derives,
+                               β absent. With π_T ABSENT (checking
+                               only) the target is what β PRODUCES run
+                               from T, β → T ⇝ T′, and π is checked at
+                               T′: an exposure names no target of its
+                               own — the target is what unfolding
+                               reaches, well-formed because the run is
+                               a chain of rule applications (no copy
+                               of an exposed type enters a
+                               derivation)                  (DAscribe)
+      | π[↑ᵈ ▷ (π₁ : π_T₁) … (πₖ : π_Tₖ)]   SUBSTITUTION (§4),
+                               inference only               (DSubst)
   -- intro forms: the subscript is the INFERENCE-mode annotation,
   -- what the type would have supplied; absent under checking
-      | λ_{π_A} π              domain
-      | (π, π)_{π_B}           the Σ's family, over Γ ▷ A
+      | λ_{π_A} π              domain                       (DLam)
+      | (π, π)_{π_B}           the Σ's family, over Γ ▷ A   (DPair)
       | inj₁_{π_B} π | inj₂_{π_A} π        the other summand
-      | class_{π_R} π          the relation, over Γ ▷ A ▷ A[↑]
-      | S π
-      | 𝒮.𝕔 π̄                  constructor, signature carried
-      | corec_𝔽 π π π
-      | let π π                the core's let (definiens inferred)
+                                                  (DInj1, DInj2)
+      | class_{π_R} π          the relation, over Γ ▷ A ▷ A[↑] (DClass)
+      | S π                                                 (DSuc)
+      | 𝒮.𝕔 π̄                  constructor, signature carried (DCtor)
+      | corec_𝔽 π π π          polynomial carried            (DCorec)
+      | let π π                the core's let (definiens inferred) (DLet)
       | ⋆_{π_P} by π           el-eq-i: π_P ⇒ (l ≡ r ∈ A) : Ω,
-                               π ▷ l ≐ r : A; checking: ⋆ by π
+                               π ▷ l ≐ r : A; checking: ⋆ by π (DStar)
       | sq(π)                  el-squash-i: π ⇒ e : A gives ⋆ : ∥A∥;
-                               checking at ∥A∥: sq(π) with π ⇐ A
+                               checking at ∥A∥: π ⇐ A        (DSq)
       | squash-elim_{π_Q} π (x. π)   el-squash-e-prf: the goal prop
+                                                  (DSquashElim)
       | coind_{π_P} R π_p π_q        el-nu-coind: the equation prop
-  -- eliminators: motives mandatory (10.3 for the checking sugar)
-      | 𝟘-elim_{π_T} π
-      | ℕ-elim_{π_M} π π π
-      | ⊎-elim_{π_M} π π π
+                                                  (DCoind)
+  -- eliminators: motives MANDATORY in inference; under checking an
+  -- eliminator without its motive reads at the CONSTANT motive (§3)
+      | 𝟘-elim_{π_T} π                                      (DZeroElim)
+      | ℕ-elim_{π_M} π π π                                  (DNatElim)
+      | ⊎-elim_{π_M} π π π                                  (DSumElim)
       | quot-elim_{π_M ; wd} π π      wd a proof, or absent when M is
-                                      a prop (10.3)
-      | 𝒮.𝕤-elim_{π̄_C ; coh̄} π̄ π̄ π   motives (one per sort), coherences
-      | out π
-      | π π | π .π₁ | π .π₂
+                                      a prop                (DQuotElim)
+      | 𝒮.𝕤-elim_{π̄_C ; coh̄} π̄ π̄ π   motives (one per sort, absent
+                                      under checking), coherences (one
+                                      per equation entry), methods,
+                                      index spine, eliminee (DQElim)
+      | out π                                               (DOut)
+      | π π | π .π₁ | π .π₂                    (DApp, DProj1, DProj2)
   -- types and codes
       | Π π π | Σ π π | π ⊎ π | π ≡ π ∈ π | π / π | ∥π∥ | ν 𝔽 | 𝒮.𝕤 π̄
+        (DPi, DSigma, DSum, DEq, DQuot, DSquash, DNu, DSort)
 
-Binders are as in the core (a child under a binder is read in the
-extended context); the annotations' contexts are given with each
-rule in 10.3.
+Binders are as in the core: a child under a binder is read in the
+extended context (the annotations' contexts are given with each
+rule). A carried signature 𝒮, eliminator problem and polynomial 𝔽 are
+INERT SYNTAX — they have no child positions (A3, §9); their embedded
+Nova pieces are checked when the carrier is (§8).
 
-IMPLEMENTATION (Nova.Kernel.Derivation, step 1 of 10.8): the type
-Drv, one constructor per line above — DVar, DRef, DUnit, DZero, the
-constant types DZeroTy … DTop; DRefl, DPath, DDelta, DReflx, DSym,
-DTrans, DTransAt (its middle an element derivation), DDeltaAll;
-DIrrel and DPrfCong (their prop
-derivations Maybe), DEtaPi, DEtaSigma, DQuotWit, DQuotWitPrf, DInj,
-DPropExt; DConv (its annotation a Maybe: Nothing is the checking form
-π by β), DAt, DAscribe (annotation and conversion each a Maybe),
-DSubst with DSub (depth, entries); DLam, DPair, DInj1, DInj2, DClass,
-DSuc, DCtor, DCorec,
-DLet, DStar, DSq, DSquashElim, DCoind (annotations Maybe, absent
-under checking); DZeroElim, DNatElim, DSumElim, DQuotElim (motive and
-wd each a Maybe), DQElim (its motives a Maybe: Nothing is the
-checking form at the constant motives), DOut, DApp, DProj1, DProj2;
-DPi, DSigma,
-DSum, DEq, DQuot, DSquash, DNu, DSort. The erasure is
-erase : Drv -> Maybe Elem — Nothing at an equation form in an element
-position (10.5) — with eraseSub for σ, and showDrv prints the
-grammar above. The old congruence nodes (§6) are these nodes read with
-children whose sides differ; the old checked leaf [t : T] ⟨sk⟩ has no
-successor — a checked term is the derivation of it. The old self leaf
-[t] is the variable or reference leaf.
+showDrv prints the grammar above in the core's own syntax (an
+annotation in braces, a substitution as [↑ᵈ ▷ …]); the elaborator's
+diagnostics and the engine's audits print derivations so.
+
+Substitution acts on a derivation through the substitution node
+alone (§4). Weakening a derivation under binders — a hypothesis
+under three binders — is ⟨☐ᵢ⟩[↑³].
 
 DECIDED: motives are mandatory on eliminator nodes — knowing the
 type of an ℕ-elim determines its motive's INSTANCE at the scrutinee,
 not the motive. In checking mode an eliminator written without one
 is read at the constant motive T[↑], a legitimate instance the rule
-accepts (what A1 did, made explicit); the engine writes that form
-when it derives an eliminator it did not elaborate. A1 and A2 (§9)
-are then not approximations of this kernel.
+accepts; the engine writes that form when it derives an eliminator it
+did not elaborate. The domain (not the full type) annotates an intro
+node: the domain suffices for synthesis and is what the elaborator
+has.
 
-10.3 The two readings
+////////// 3. The two readings: ⇒ and ⇐ //////////
 
 Inference: every node reads its children (⇒ or ⇐, as its rule says),
 obtaining lᵢ ≐ rᵢ : Tᵢ, checks the side conditions its rule imposes
 on the Tᵢ and the annotations, and states F(l̄) ≐ F(r̄) : T, where T
-is computed from the annotations and the LEFT sides (§6's
-convention). Checking at T: an intro node reads its children at the
-parts of nf(T) — the domain, the family's instance, the summand, the
-carrier — and needs no annotation; any other node infers and its
-type must AGREE with T, or arrives converted (π by β). Type agreement
-(tyAgree: β-join, cumulativity at 𝕍 for 𝕌 and Ω codes, carrier
-identity under β) is the only comparison; there is no checking of
-bare terms. Written for element derivations (l = r), the rules are
-the rules of §8 with the skeleton payloads read off the annotations
-or the type; a few, to fix the shape:
+is computed from the annotations and the LEFT sides. Checking at T:
+an intro node reads its children at the parts of nf(T) — the domain,
+the family's instance, the summand, the carrier — and needs no
+annotation; any other node infers and its type must AGREE with T, or
+arrives converted (π by β). TYPE AGREEMENT (tyAgree) is the only
+comparison: syntactic identity, then the β-join, then cumulativity
+(a 𝕌 or Ω code at a 𝕍 position — code-lift-eq, prop-lift-eq), and two
+sort applications at one position and spine agree when their carried
+signatures join alike (A3). Never δ. There is no checking of bare
+terms.
 
   Σ; Γ ⊦ π_A ⇒ A : 𝕍      Σ; Γ ▷ A ⊦ π ⇒ b : B
   --------------------------------------------------          # el-pi-i ⇒
@@ -1253,9 +316,8 @@ or the type; a few, to fix the shape:
   ---------------------------------------------------------------------
   Σ; Γ ⊦ (π_u, π_v)_{π_B} ⇒ (u, v) : Σ A B                   # el-sigma-i
 
-  Σ; Γ ▷ ℕ ⊦ π_M ⇒ M : 𝕍    Σ; Γ ⊦ π_z ⇒ z : Z′    Z′ agrees M[id, Z]
-  Σ; Γ ▷ ℕ ▷ M ⊦ π_s ⇒ s : S′    S′ agrees M[(↑, S ☐₀) ∘ ↑]
-  Σ; Γ ⊦ π_n ⇒ n : N′    N′ agrees ℕ
+  Σ; Γ ▷ ℕ ⊦ π_M ⇒ M : 𝕍    Σ; Γ ⊦ π_z ⇐ M[id, Z] ⇒ z
+  Σ; Γ ▷ ℕ ▷ M ⊦ π_s ⇐ M[(↑, S ☐₀) ∘ ↑] ⇒ s    Σ; Γ ⊦ π_n ⇐ ℕ ⇒ n
   ---------------------------------------------------------------------
   Σ; Γ ⊦ ℕ-elim_{π_M} π_z π_s π_n ⇒ ℕ-elim z s n : M[id, n]   # el-nat-e
 
@@ -1273,23 +335,134 @@ or the type; a few, to fix the shape:
   ---------------------------------------------------------------------
   Σ; Γ ⊦ π by β ⇐ T ⇒ t                                     # conversion ⇐
 
+  Σ; Γ ⊦ π ⇒ t : T′         Σ; Γ ⊦ β → T′ ⇝ T″
+  ---------------------------------------------------------------------
+  Σ; Γ ⊦ π by β ⇒ t : nf(T″)                      # conversion, run ⇒
+  # a checking-form conversion in inference position: the scrutinee
+  # of an elimination whose type a definition hides, exposed by the
+  # δ chain β run from the inferred type
+
+  Σ; Γ ⊦ π_T ⇒ T′ : 𝕍    Σ; Γ ⊦ π ⇐ T′ ⇒ t    Σ; Γ ⊦ β ▷ T ≐ T′ : 𝕍
+  ---------------------------------------------------------------------
+  Σ; Γ ⊦ (π : π_T by β) ⇐ T ⇒ t                             # ascription ⇐
+  # β absent: T′ agrees T; π_T absent: T′ := nf(β → T), π checked there
+
+  Σ; Γ ⊦ π_T ⇒ T : 𝕍    Σ; Γ ⊦ π ⇐ T ⇒ t
+  ---------------------------------------------------------------------
+  Σ; Γ ⊦ (π : π_T) ⇒ t : T                                  # ascription ⇒
+  # how an introduction form sits in inference position
+
+The remaining element rules are Foundation's, read the same way — an
+annotation where the skeleton used to carry a payload, the type
+flowing down otherwise: el-sigma-i, el-sum-i₁/₂ (the summand), el-
+quot-i (the relation), el-nu-i (the carried 𝔽 join-identical to
+nf(T)'s), el-qiit-intro (the term's carried 𝒮 and nf(T)'s join alike
+— a carrier spelled through a definition arrives converted; the spine
+entrywise at ⌊𝔄⌋ᵗ, nf(⌊ī⌋[θ]) = nf(ē)), el-let (the definiens
+inferred; the body at T[↑ ∘ ↑] under the value and its unfolding
+equation — fully general: under the hypothesis (id, a, ⋆) ∘ (↑ ∘ ↑)
+≐ id), el-squash-i, el-squash-e-prf (the goal prop annotated, or the
+type flowing down, judged a prop by shape: §8), el-nu-coind (the
+invariant, the endpoint proof and the one-step closure at the relator
+lift_𝔽(R) — kernel-computed from 𝔽 and R), el-zero-e, el-sum-e, el-
+quot-e (below), el-qiit-elim (below), el-nu-e (out: no motive, the
+scrutinee's ν 𝔽 read off its derived type), el-pi-e, el-sigma-e₁/₂,
+el-var, el-sig-var, the universe codes (components at 𝕌 — a code is a
+type, code-lift; the quotient code's relation at Ω), ∥A∥ at Ω, an
+equality prop at Ω with the sides at A, a sort application at 𝕌 when
+𝒮 passes the SMALLNESS scan (every external Π domain re-derived and
+read at 𝕌 or at Ω, code-qiit — §8) and at 𝕍 otherwise. A shared
+former checked at a classifier (𝕌, Ω or 𝕍) reads its components at
+that classifier — cumulativity, the checking sugar.
+
 quot-elim: with the motive M and the relation instance read off the
 scrutinee's derived type (nf(Tq) ⇓ A / r), the well-definedness proof
 wd ▷ f[↑³, ☐₂] ≐ f[↑³, ☐₁] : M[↑³, class ☐₂] under Γ ▷ A ▷ A[↑] ▷ r is
-demanded unless M derives at Ω (kIsProp becomes: the motive's own
-derivation, no skeleton to thread). squash-elim, coind and the QIIT
-eliminator follow §8 likewise, each payload an annotation. A
-reference's spine x[π̄] is §3's stated spine, each entry a derivation
-read ⇒ against the telescope; a δ leaf's and a path leaf's spines the
-same.
+demanded unless M derives at Ω (the motive's own derivation is asked;
+its classifier is the kernel's conclusion, no skeleton to thread) —
+el-prf-prop, the ElimP rationale. The QIIT eliminator: each sort's
+motive derived over Γ·⌊𝔎ⱼ⌋ᵗ ▷ 𝒮.𝕤ⱼ δ; each point method checked at
+𝔄ᴰ⟨𝒮.𝕔 δ⟩; each equation entry's coherence read ▷ ⟦l⟧ ≐ ⟦r⟧ :
+C_𝕤′[⌊ī⌋[πᴰ], ⌊l⌋[πᴰ]] in the ᴰ-context (the QIIT generalization of wd,
+one per equation entry); the index spine entrywise at ⌊𝔎⌋ᵗ; the
+eliminee at 𝒮.𝕤 ē; the type C_𝕤[ē, w]. ⌊·⌋, ⌊·⌋ᵗ, ·ᴰ⟨·⟩, ·ᴰᵗ, ⟦·⟧,
+θ⟨φ⟩ and πᴰ are Foundation's QIIT meta-operations, implemented as
+(trusted) kernel functions.
 
-For nodes whose children state PROPER equations (lᵢ ≠ rᵢ) the reading
-is the congruence rule (§6): the result is F(l̄) ≐ F(r̄), the type
-computed as above from the left sides. This is what makes one grammar
-serve both: a congruence proof is a derivation with equations at the
-leaves.
+CHECKING SUGAR: under checking at T an eliminator without its motive
+reads at the constant motive — ℕ-elim at T[↑] over Γ ▷ ℕ, ⊎-elim at
+T[↑] over the sum, quot-elim at T[↑] over the quotient (wd absent:
+demanded unless T is a prop), the QIIT eliminator at every sort's
+motive T weakened into the sort's context (constMotives). Each is an
+instance the rule accepts; A1 of the former kernel made explicit.
 
-10.4 The substitution node                                    DECIDED
+STATED SPINES (el-sig-var, qpath, x-δ): a reference's, path leaf's or
+δ leaf's spine is derived ENTRYWISE — each entry a derivation read ⇒
+whose type agrees with the telescope entry instantiated by the
+preceding entries' LEFT sides (sub-norm-ext) — so a dependent
+telescope is walked in order and the kernel unfolds nothing to type
+a spine (an entry whose type a definition hides arrives ascribed by
+its producer). A spine may carry proper equations: the congruence at
+the spine, the entry types instantiated by the left entries.
+
+  Γ‖ᵢ = T                     Σ ∋ (Δ ⊦ x ≔ a : A)   Σ; Γ ⊦ π̄ ⇒ ē ⇐ˢ Δ
+  ------------------          ---------------------------------------
+  ☐ᵢ ⇒ ☐ᵢ ≐ ☐ᵢ : T             x[π̄] ⇒ x[ē] ≐ x[ē] : A[ē]
+
+  α ⇒ p₀ ≐ p₁ : P    nf_β(P) ⇓ (l ≡ r ∈ A)
+  ------------------------------------------          # el-reflect
+  ⟨α⟩ ⇒  l ≐ r : A
+  # equality is Ω-valued, so this is the ONE pathway — squashed
+  # spellings normalize to the prop by code-squash-idem's instances;
+  # an equality hidden behind a definition arrives ascribed,
+  # ⟨(α : π_T by β)⟩; Γ is the context AT THE LEAF
+
+  Σ; Γ ⊦ π̄ ⇒ ē ⇐ˢ Δ        (Δ ⊦ x ≔ t : T) ∈ Σ
+  ------------------------------                      # x-δ
+  x-δ π̄ ⇒  x[ē] ≐ t[ē] : T[ē]
+
+  qpath 𝕔 π̄: 𝒮(𝕔) = 𝔄 ending in El (l ≡ r), π̄ ⇒ θ ⇐ˢ ⌊𝔄⌋ᵗ (the
+  signature's embedded pieces joined, as the sort's are), stating
+  ⌊l⌋[θ] ≐ ⌊r⌋[θ] : ⌊El 𝕦⌋[θ]                       # el-qiit-path
+
+  π⁻¹    : swaps the sides
+  π₁ ; π₂ : when π₁ ⇒ a ≐ b : A and π₂ runs → from nf(b) to c: a ≐ c :
+           A; symmetrically when π₂ states and π₁ runs ←; in checking
+           mode the type flows down into both links
+  π₁ ; [π_m] ; π₂ : π_m ⇐ T ⇒ m; π₁ ▷ a ≐ nf(m), π₂ from nf(m)   # el-trans
+  δ-all x̄  states nothing: a function of the side it acts on (→, left
+           to right only). It keeps a computation-heavy join linear:
+           a numeral test unfolds a recursive definition hundreds of
+           times, and one occurrence per leaf with a β-join after
+           each would be quadratic on both sides.
+
+The classifiers of a derivation's shape (decided before any reading):
+STATING (dSynth) — a leaf, a node over stating heads and CHECKABLE
+children at its checked positions, an annotated intro, an eliminator
+with its motive, a chain one of whose links states and whose other
+link runs the other way, a substitution of a stating derivation;
+CHECKABLE (dCheckable) — stating, or a checking-mode intro over
+checkable children, an eliminator at the constant motive, a switch
+π by β, an ascription, a type former; DIRECTIONAL by shape (dDirable,
+§7). The kernel never guesses a reading.
+
+Two checks of the same kind: in a checking position a node that
+infers a proper equation must agree with the position's type unless
+it is a SPINE node (an application, a projection, an observation, a
+reference), whose head is a variable or a reference and whose typings
+therefore all factor through one declared type (a dependent codomain
+moves with the argument); an eliminator node is compared, since the
+same term types at other motives.
+
+Type equations — π ▷ T₀ ≐ T₁ at 𝕍: no conversion is admissible
+(circular); the type formers are nodes like any other, their
+components at the classifier 𝕍, and the extensional components that
+no leaf reaches are closed by prop-lift (a prop codomain equal only
+by propext, under Π refl …). A universe-code equation is already a
+type equation by cumulativity (code-lift-eq) — no transport is
+involved.
+
+////////// 4. The substitution node //////////
 
   σ ::= ↑ᵈ ▷ (π₁ : π_T₁) … (πₖ : π_Tₖ)      d ≥ 0, k ≥ 0
 
@@ -1315,15 +488,16 @@ kernel would need a Γ-type whose substitution is T, and σ is not
 invertible. Harmless: what the engine substitutes are licences,
 reflected typed neutrals, which infer; a checking-mode derivation
 placed under a substitution is written in its inference form.
+Substitution acts on derivations through this node ONLY: there is no
+function substituting into a derivation (the erasure of π[σ] is
+|π|[σ], computed on the erasure).
 
 What it buys: a candidate stores its licence ONCE, a proof over its
 own context, and is instantiated by wrapping (lic[σ]); a hypothesis
-under three binders is ⟨☐ᵢ⟩[↑³]; there is no substitution on proof
-terms other than this node (the current substPrf, which cannot enter
-skeletons, goes), no rebuild of candidate sets under binders, and
-sharing of a written derivation across its instances.
+under three binders is ⟨☐ᵢ⟩[↑³]; and a written derivation is shared
+across its instances.
 
-IMPLEMENTATION (step 4): a candidate records the LENGTH of the base
+IMPLEMENTATION (the engine, Nova.Elaboration): a candidate records the LENGTH of the base
 context it was built over and its parameters' types with their
 derivations over their prefixes; its LEAF — the licence at the
 pattern variables bridged by the normalization proofs, pL⁻¹ ; lic ;
@@ -1337,34 +511,148 @@ matcher works in the extended context) and nothing else; the
 hypotheses of the new context are still rebuilt (a rebuild of what a
 wrap could give — the remaining sharing).
 
-10.5 Sides given: the reading against erasures
+
+////////// 5. Injectivity //////////
+
+There is NO injectivity node. A proof passes from an equation to a
+component equation only the way the theory does: by a CONGRUENCE
+whose β-reduct is the component. S-injectivity is the predecessor
+congruence — Foundation notes it as derivable (an ℕ-elim retraction
+of S) — and the engine derives it so: from a licence h for S x ≐ S y
+it emits
+
+  (pred : Π ℕ ℕ) ⟨h⟩   ⇒  pred (S x) ≐ pred (S y) : ℕ
+  pred = λk. ℕ-elim Z (k ih. k) k, an ascribed λ
+
+an application node over an ascribed head, STATING its equation;
+read against the position x ≐ y (§7) its stated sides join to the
+goal's by β. The retraction is inlined as an ascribed λ rather than
+referenced through Σ so that the join needs no δ.
+
+Foundation's TYPE-CONSTRUCTOR injectivity rules (code-pi-inj,
+code-sum-inj, code-quot-inj, QIIT code injectivity indexwise) have no
+derivation form: no proof in the corpus ever cited one. A component
+equation of a code equation is therefore not extracted
+(tests/nova/elaboration/elab-injectivity records this: the sites end
+in obligations). Should a proof need one, the node to add is the rule
+itself, its binder-crossing instantiation derived as a spine's
+entries are (§3).
+
+What does NOT hold, as before: point constructors of a QIIT are NOT
+injective (equation constructors may merge them — a quotient's cls is
+the canonical counterexample), and equations between equality props
+have no injectivity (equality is Ω-valued and inherits Ω's
+anti-structural discipline: code-prop-eq equates all true equations).
+Injectivity is a TYPE/CODE phenomenon only, exactly as in Foundation.
+
+////////// 6. Nodes over proper equations: the position's type //////////
+
+A node whose children state proper equations is one Foundation
+congruence rule (or a derived instance: el-sub-cong through the
+former's binders). Read against a goal (§7) it DECOMPOSES the given
+side — which must have the node's former as its head — and reads each
+child against its part at the child's expected type, computed from
+the node: the types of §3's rules, with a head child's type taken
+from the child itself.
+
+  𝟘-elim_{π_T} π    child : 𝟘             S π       child : ℕ
+  ℕ-elim_{M?} πz πs πn
+                    motive M (Γ ▷ ℕ ⊦ π_M ⇒ M : 𝕍, M[id, n] agrees E):
+                    z : M[id, Z],  s : M[↑², S ☐₁] under Γ ▷ ℕ ▷ M,
+                    n : ℕ; no motive: the constant motive E[↑]
+  λ π               child : B under Γ ▷ A   when nf(E) ⇓ Π A B
+  π_f π_a           f : HEAD(f),  a : A     when nf(HEAD(f)) ⇓ Π A B
+  (π_u, π_v)        u : A,  v : B[id, u]    when nf(E) ⇓ Σ A B
+  π .π₁ / π .π₂     child : HEAD(π)
+  inj₁ π / inj₂ π   child : the summand     when nf(E) ⇓ A ⊎ B
+  ⊎-elim_{M?} πl πr πt
+                    t : HEAD(t) ⇓ A ⊎ B; motive M over Γ ▷ A ⊎ B
+                    (M[id, t] agrees E): l : M[↑, inj₁ ☐₀] under Γ ▷ A,
+                    likewise r; no motive: the constant motive
+  Π πa πb, Σ πa πb  a : 𝕂,  b : 𝕂 under Γ ▷ A′ — the domain the
+                    domain child PRODUCES (ty-pi-cong / ty-sigma-cong
+                    over the right domain)
+  πa ⊎ πb           both : 𝕂
+  πl ≡ πr ∈ πt      l, r : T (the left side's ∈-type),  t : 𝕍
+                    # code-eq-cong (admissible)
+  πa / πr           a : 𝕂,  r : Ω under Γ ▷ A′ ▷ A′[↑]
+  x[π̄]              child i : Δᵢ[e˲ prefix]  # the telescope entry
+  class π           child : A               when nf(E) ⇓ A / r
+  quot-elim_{M?} πf πq
+                    q : HEAD(q) ⇓ A / R; motive M over Γ ▷ A / R
+                    (M[id, q] agrees E): f : M[↑, class ☐₀]; no
+                    motive: the constant motive
+  ∥π∥               child : 𝕍
+  𝒮.𝕤 π̄, 𝒮.𝕔 π̄     child i : entry i of the reflected telescope,
+                    instantiated by the preceding children
+  𝒮.𝕤-elim_{C̄?} π̄m π̄ πw
+                    motives C̄ (C_𝕤[ē, w] agrees E): m_𝕔 : 𝔄ᴰ⟨𝒮.𝕔 δ⟩ at
+                    C̄; no motives: the constant motives; spine as
+                    above; w : 𝒮.𝕤 ē
+  out π             child : HEAD(π)
+  corec_𝔽 πa πf πx  a : 𝕌,  f : ⌊𝔽⌋(a)[↑] under Γ ▷ a,  x : a
+  let πa πb         a : HEAD(a); b : E[↑ ∘ ↑] under Γ ▷ A ▷ (☐₀ ≡ a[↑])
+
+  𝕂 is the components' classifier: 𝕍 when the node's own type is 𝕍
+  (a type), 𝕌 otherwise (a code). E is the node's own type (the type
+  flowing down). HEAD(π) is the head child's type: what the child
+  STATES when it does (a variable, a reference, an ascribed or
+  converted child, a spine over one), else what it INVERTS to from
+  the given side, STRUCTURALLY through the child's own nodes
+  (headOfMT): a conversion π by β runs β from the inner's type, an
+  observation out π takes ⌊𝔽⌋(ν 𝔽) from the inner's ν, a projection
+  the component, an application the codomain instantiated by the
+  side's argument — so a child under `by x-δ` types exactly as far
+  as the exposure reaches, and a variable the crossed binders bind is
+  resolved against them. Any type a neutral inhabits is judgementally
+  equal to the one inversion computes (typing inversion; ⇒ᴺ refuses
+  intro heads, where the multi-typing lives — a class spelling
+  inhabits every quotient that relates its representative). A head
+  or scrutinee child that neither states nor inverts is REJECTED:
+  there is NO UNDETERMINED POSITION — an untyped comparison is not a
+  reading. Every "when nf(·) ⇓ …" is the β-whnf: a shape a
+  definition hides reaches the node only through a conversion —
+  (π : by β) around the node for the type flowing down, π by β around
+  a scrutinee child for its inferred type.
+
+The carried heads — a signature variable's name, a QIIT signature
+and position, a polynomial — must match the sides' syntactically
+(A3, §9).
+
+Soundness note: the positional check is load-bearing. Equality is
+type-relative in this theory (a class equation at one quotient says
+nothing at another), and the two historical exploits
+(docs/NovaPipeline.txt, "Why this shape") both die on exactly this
+check or on the stated spines (§3). The invariant every reading
+maintains: the side(s) a derivation is read against are well-typed
+at the node's type, so a node is a rule instance whose typing
+premises hold — under ▷ both sides (the goal's are; a computed or
+stated middle is, by the equation just checked), under → the given
+side.
+
+////////// 7. Reading against given sides //////////
 
 Conversions are the one place a derivation meets sides it did not
 produce: in π by β the proof β is read against the two erasures T′
-and T — the third reading, Σ; Γ ⊦ β ▷ l ≐ r : T. For a proof that
-SYNTHESIZES (a leaf, a node over synthesizing children) this is
-checking at T followed by the β-join comparison of the synthesized
-sides with the given ones — the `stated` reading of the current
-kernel, made the rule. Only the proofs that synthesize nothing keep
-§7's decomposition of given sides by shape: refl, δ-all, the
-type-directed leaves, and the nodes over them, with transitivity's
-directional run (→) inside. Every leaf under it is a derivation and
-states its type, so the POSITIONAL CHECK always has a stated type to
-compare, and — motives being mandatory — every position's expected
-type is determined by the node above. The neutral-subterm rule (§6),
-inferHead and the undetermined position disappear.
+and T — Σ; Γ ⊦ β ▷ l ≐ r : T; an element equation the engine
+discharges is read the same way (kCheckEqDrv); a type equation is
+the T = 𝕍 instance. Both sides are β-JOINED first (every computation
+rule, NO δ — a definition reference is stuck, whatever its
+classifier), then the derivation is read against them; refl at
+α-identical sides is accepted without normalizing (the normalizer is
+a function: same acceptance set, none of the work).
 
-ONE READING PER DERIVATION. The reader never backtracks. A goal is
+ONE READING PER DERIVATION. The reader never backtracks. A GOAL is
 the side the derivation runs FROM, its direction, and — when known —
 the other side as a HINT; the reading returns the side it produces
-and the caller compares it with the hint under β. Which reading a
-derivation gets is a function of its shape and the given side, in
-this order.
+and the caller compares it with the hint under β (sameB). Which
+reading a derivation gets is a function of its shape and the given
+side, in this order (dRun):
   1. Structure is read through: transitivity and symmetry link by
      link, an ascription or conversion wrapper at the type it
      converts to — even when the structure states.
-  2. A derivation that states or is checkable is checked at the type
-     and its given side compared.
+  2. A derivation that states or is checkable is CHECKED at the type
+     (§3) and its given side compared.
   3. Otherwise it RUNS from the given side when the side has its
      shape DOWN TO EVERY CHILD (runnable): a stating derivation
      always, except a ONE-WAY one from the right (a δ leaf's right
@@ -1378,8 +666,9 @@ this order.
      matching part.
   4. Otherwise, given a hint it is runnable from, it runs from the
      hint and the given side is compared with what that produces.
-  5. Otherwise the decomposition: a type-directed leaf reads at both
-     sides (it needs the hint), anything else reports the mismatch.
+  5. Otherwise the decomposition (dGo): a type-directed leaf reads at
+     both sides (it needs the hint), anything else reports the
+     mismatch.
 A node passes the hint down at its parts when the hint has its shape
 (else the children get none). Transitivity runs the link at the
 given side and hands its neighbour the middle with the hint; when
@@ -1387,165 +676,286 @@ that link cannot run, the link at the hint runs from the hint and
 the other link reads from the given side with that middle as ITS
 hint — so a chain may mix directions (a rewrite run from the left,
 an unfolding run from the right), and a wrapper over a chain is read
-through first so the chain is never run as a whole from one side. A
-stated middle (DTransAt) is an element derivation checked at the
-chain's type. The engine's fallback (deltaJoinC) is exercised by one
-corpus site (leRZeroDist: a proof written under a lost motive).
+through first so the chain is never run as a whole from one side.
+The produced side need not have the shape the other side has: it may
+be the β-normal form of it (a δ exposure's result), which is why a
+node runs from one side and compares at the top rather than
+decomposing both sides one level at a time (a one-level shape match
+would misalign a δ head against its unfolding's application).
 
-10.6 Items, Σ, the pipeline
+The → reading (dGo under a goal with the direction), given one side x
+and E; it produces the other side, unjoined (the consumer joins):
 
-An item is a derivation of its type and a derivation of its body:
-Σ; Δ ⊦ π_T ⇒ T : 𝕍 and Σ; Δ ⊦ π ⇒ t : T′ with T′ agreeing T. Σ stores
-(Δ ⊦ x ≔ |π| : |π_T|): erasures, as now, since δ and β read them. The
-elaborator's output is the derivation; the distiller prints erasures;
-the round trip is surface → derivation → erasure → surface.
+  refl          x
+  π⁻¹           π in the opposite direction
+  π₁ ; π₂       as above; without a hint and neither link runnable, a
+                stating far link supplies the middle
+  π₁ ; [π_m] ; π₂  π_m ⇐ E ⇒ m; π₁ ▷ x ≐ nf(m), then π₂ from nf(m)
+  (π : by β), π by β   the type converted (§3), π read there
+  δ-all x̄       left to right: unfold-all(x); right to left: with a
+                hint h, unfold-all(h) compared with x; else reject
+  stating leaf  π ⇒ a ≐ b : A; A agrees E (§3); nf(a) = nf(x),
+                result b (swapped right to left)
+  node          x decomposes by the node (§6); children from their
+                parts; the node rebuilt from the results
+  type-directed leaves: need both sides (below)
 
-DECIDED: the engine's speculative search keeps comparing ERASURES
-(β-joins, rewrites, matching are on terms), and typing enters only
-where a proof is written: a proof's leaves are derivations. What the
-proof library does today with elemToPrf/argPrf/chkSkel — stating a
-neutral, deriving an intro-form argument at its domain, the constant
-motive of an eliminator argument — becomes DERIVING the term against
-its type (re-derivation), the successor of skeleton reconstruction
-and of kInferBare; the same service re-derives a hole's solution,
-the one value the elaborator never elaborated (unification produces
-terms, not derivations).
+The type-directed leaves, given l, r (β-joined) and E:
 
-IMPLEMENTATION (step 3 of 10.8): the elaborator returns a derivation
-beside every core term (elabTy, inferElem, checkElem, the spine
-elaborator, the data-item emitters), a checking-mode form where the
-type flowed down and an ascription where the surface wrote one; the
-items reach the kernel through kCheckDefDrv / kCheckTyDefDrv. What it
-did not elaborate is RE-DERIVED — a solved hole against its domain, a
-recovered motive over its quotient, an inferred ≡-domain, an inline
-definition's type over its context, a data expansion's items — by
-the kernel module's re-derivation run over the elaborator's own Σ
-(kReDeriveTy/Chk/Inf/Prf, each result READ before it is handed out:
-a re-derivation that would not read is a failure, never a
-derivation), and the engine's proof terms are bridged the same way at
-the sides their site knows (rdPrf). Re-derivation's δ bridge tries
-the two HEAD exposures first (a definition against its unfolding, the
-exposures stated so the proof runs) and δ-rounds after — the
-difference between a corpus at its previous speed and one six times
-slower. A checking-form annotation the elaborator cannot derive —
-a squash-elim's goal, a prop-lift's side, an irrelevance's prop, the
-type flowing down — is left to the kernel's own judgement on the
-bare type, and that judgement is by SHAPE ALONE: an equation or a
-squash is a prop, the other formers are not, a neutral is one when
-its head's declared type inverts to Ω. Nothing else — in particular
-no constant-motive reading of an eliminator standing as a prop: an
-eliminator-headed prop is derived (at the constant motive, read by
-the kernel) by whoever writes the node — the elaborator for a
-squash-elim's goal, the engine for an irrelevance leaf or a
-prop-lift's sides (propDrv) — or the node is rejected.
+  irrel(π_P?)   nf(E) ⇓ 𝟙 or 𝟘, or E is a PROPOSITION: π_P ⇒ P : Ω with
+                P agreeing E, or (π_P absent) E judged a prop by SHAPE
+                (kIsProp: an ≡ or ∥·∥ is, the other formers are not,
+                a neutral is one exactly when its head's declared type
+                inverts to Ω — inferHead, β-only; nothing else, in
+                particular no constant-motive reading of an
+                eliminator standing as a prop: such a prop is DERIVED
+                by whoever writes the node, or the node is rejected)
+                # el-one-prop / el-zero-prop / el-prf-prop
+  quot-wit(π?)  sides class a ≐ class b, nf(E) ⇓ A / r; by the shape
+                of nf(r[id, a, b]) (an Ω code): ⇓ ∥𝟙∥ accepted;
+                ⇓ (wl ≡ wr ∈ W) — π ▷ wl ≐ wr : W   # el-quot-eq with
+                the witness RE-DERIVED from the relation's shape
+  quot-wit[π_w] sides class a ≐ class b, nf(E) ⇓ A / r;
+                π_w ⇐ r[id, a, b]   # el-quot-eq, faithful: an
+                ARBITRARY Ω-valued relation
+  inj(π)        nf(E) ⇓ A ⊎ B; l, r same-tag injections; π ▷ x ≐ y
+                at the branch type   # congruence at el-sum-i₁/i₂,
+                as a leaf so el-one-prop can close 𝟙 payloads beneath
+  η→(π)         nf(E) ⇓ Π A B;  Σ; Γ ▷ A ⊦ π ▷ l[↑] ☐₀ ≐ r[↑] ☐₀ : B
+  η×(π₁, π₂)    nf(E) ⇓ Σ A B;  π₁ ▷ l.π₁ ≐ r.π₁ : A,
+                π₂ ▷ l.π₂ ≐ r.π₂ : B[id, l.π₁]      # el-sigma-eta
+  propext[π_f, π_g]
+                nf(E) ⇓ Ω, sides prop codes p, q; π_f ⇐ Π p q[↑] and
+                π_g ⇐ Π q p[↑] — the two implications as functions
+                over Γ (prop-lift; the form a surface term can hand
+                over)   # code-prop-eq
+  prop-lift(π_p?, π_q?, π)
+                E = 𝕍, both sides PROPOSITIONS (derived at Ω, or
+                judged by shape — the lift's load-bearing side
+                condition); π ▷ l ≐ r : Ω   # prop-lift-eq
 
-Two checks of the same kind, kept: in a checking position a node
-that infers a proper equation must agree with the position's type
-unless it is a SPINE node (an application, a projection, an
-observation, a reference), whose head is a variable or a reference
-and whose typings therefore all factor through one declared type;
-an eliminator node is compared, since the same term types at other
-motives — the check the skeleton reader skipped for every node over
-a proper equation.
+////////// 8. Items, Σ, re-derivation //////////
 
-10.7 What disappears, what remains
+Items. A definition arrives as two derivations, Σ; Δ ⊦ π_T ⇒ T : 𝕍
+and Σ; Δ ⊦ π ⇐ T ⇒ t (kCheckDefDrv); a type definition as the first
+alone (kCheckTyDefDrv). Acceptance EXTENDS the kernel's Σ with the
+ERASURES (Δ ⊦ x ≔ t : T); the kernel's Σ is the authoritative one,
+and an item is checked from it alone — the elaborator's opinion of
+any earlier item is never consulted. (The kernel accepts Foundation's
+general form — nonempty Δ, x[e˲] references with derived spines — but
+the elaborator only ever produces CLOSED items: surface parameters
+are Π-binders, so Δ = ε and every reference carries the empty
+spine.) The distiller prints erasures; the round trip is surface →
+derivation → erasure → surface (docs/NovaPerfectSurface.txt).
 
-Gone: Skel, Payload, the child-indexing table of §2, the checked leaf
-[t : T] ⟨sk⟩, the self leaf's bare term, checking-mode inference of
-bare terms, the neutral-subterm rule's UNDETERMINED position, A1, A2,
-substPrf, skeleton reconstruction, the item-level fallthrough.
-Remaining kernel comparison: tyAgree (β-join, cumulativity, carrier
-identity), the ⇐ reading of conversion proofs against erasures, and
-typing by inversion of a head from the given side (inferHead, now
-structural through the child's nodes, 10.5). Remaining
-approximations: A3 (opaque carriers), A4 (β-only coherences in
-re-derived eliminator arguments — the engine writes refl coherences),
-A5 (no η certificate for QIITs).
+Formation is the T = 𝕍 instance of checking: the type formers'
+nodes read their components at 𝕍 (their binder children under the
+domain), anything that is not a large former falls through to 𝕌 and
+then to Ω by cumulativity; a ν's polynomial and a sort's signature
+are carriers, checked as below; the squashee of ∥·∥ as a type, the
+quotient's relation at Ω, an equality prop's sides at its ∈-type.
 
-10.8 Migration order
+CARRIERS — a polynomial 𝔽 (ν 𝔽, corec_𝔽) and a QIIT signature 𝒮
+(𝒮.𝕤, 𝒮.𝕔, 𝒮.𝕤-elim, qpath) — are inert syntax in a derivation (A3):
+their embedded Nova pieces come without derivations. They are
+checked when the carrier is read: a polynomial structurally (poly-
+hole/-const/-prod/-sum/-sigma/-pi: each embedded code at 𝕌, the
+context growing by the binders' domain codes — kCheckPolyK); a
+signature by Foundation's qctx / qty / qtm system read as an
+algorithm (the ToS is syntax-directed by construction: qiit-terms are
+variables and application chains, entry heads classify themselves —
+kQSigCheck), the only judgements with content being the embedded
+NOVA pieces — external Π domains as types over the Nova zone,
+external application arguments as elements. Each embedded piece is a
+BARE term, and the kernel checks it the only way it checks anything:
+its derivation is BUILT by re-derivation (below) and READ, the
+erasure compared with the piece (kCheckBare, kCheckTyBare). The
+fragment is the one the elaborator emits (A6, §9). Smallness (code-
+qiit's side condition) is the same scan at 𝕌 or Ω over each external
+domain in its own external context (kQSigSmall). Signature checking
+burns fuel only through the Nova checking it triggers.
 
-  1. DONE (2026-09-24): this grammar and its erasure as data,
-     Nova.Kernel.Derivation, beside Prf;
-  2. DONE (2026-09-24): the readings of every node in the kernel
-     (dInfer, dCheck, dAt with the directional run dDir and the
-     decomposition dGo), the item and equation entry points
-     (kCheckDefDrv, kCheckTyDefDrv, kCheckEqDrv), and a RE-DERIVATION
-     of what the elaborator emits today (a term with its skeleton, a
-     proof term) into derivations (rdCheck, rdInfer, rdType, rdPrf —
-     the embryo of step 3's re-derivation), run as a CANARY under
-     NOVA_DRV=1 at every kernel entry point: what the checker accepts
-     is re-derived and read, a disagreement audited as DRV-DISAGREE.
-     Over the corpus the readings agree with the checker on every
-     item and on all 2049 discharges the re-derivation can express;
-     82 remain untranslatable — annotation copies (a conversion's
-     target, an exposure's) whose eliminators lost their motives and
-     well-definedness proofs, witnesses copied without their proofs,
-     stuck-eliminator heads with no motive — exactly what step 3
-     supplies when annotations are the elaborator's own derivations.
-     Decisions the implementation forced, folded into 10.2–10.5:
-       * the ascription form (π : π_T by β?) beside the switch-
-         flavoured conversion (10.2);
-       * the reading against given sides tries the DIRECTIONAL run
-         first for any proof that runs left to right, then checks a
-         checkable derivation at the type and compares, then
-         decomposes; transitivity and symmetry always run link by link
-         (a link may run one way only);
-       * positional agreement as §6/§7 have it: an element's type and
-         a stating leaf's type agree with the position's; a spine node
-         over a proper equation is not compared (a dependent codomain
-         moves with the argument), an eliminator node compares its
-         motive's instance at the left scrutinee;
-       * a head or scrutinee child that does not derive is typed by
-         inversion from the given side (inferHead, β-only): the
-         neutral-subterm rule of §6 STAYS — 10.5 and 10.7 overstate
-         its disappearance; what disappears is the undetermined
-         position, since motives are mandatory;
-       * checking sugar: an eliminator without its motive reads at the
-         constant motive; a type former checked at 𝕌 or 𝕍 reads its
-         components there; a reference's, sort's or constructor's spine
-         may carry proper equations (the congruence at the spine), the
-         entry types instantiated by the LEFT entries;
-       * "checkable" (dCheckable) beside "stating" (dSynth): a
-         checking-mode intro, a switch, a type former, an eliminator
-         at the constant motive is checked at a known type though it
-         states nothing on its own.
-  3. DONE (2026-09-24): the elaborator returns derivations at every
-     site, the data-item emitters build them (types re-derived, the
-     coherence binders and the eliminator body built), re-derivation
-     replaced reSkel (10.6, IMPLEMENTATION); the skeleton item entry
-     points and the item canary are gone (the discharge canary stays:
-     0 disagreements, from 82). Decisions forced, folded into 10.2 and
-     10.5: the ascription's optional annotation (the target RUN from
-     the type flowing down), the checking-form conversion read
-     directionally in inference position and around a non-stating
-     child, optional prop derivations at irrel/prop-lift, "stating"
-     demanding only CHECKABLE children at checked positions, and the
-     undetermined position (A6) retained for lost-motive eliminators
-     under the engine's δ-all rounds;
-  4. DONE (2026-09-24): the engine writes derivations
-     (Nova.Elaboration.Proof on Drv: a typed neutral is its
-     re-derivation, an argument at a domain its checked
-     re-derivation, exposure the kernel's under the site's whitelist,
-     the node skeleton the derivation nodes with refl children, a
-     rewritten head or scrutinee child under the exposure of its type
-     when a definition hides the shape); candidates store one leaf
-     over their pattern context and are instantiated by the
-     substitution node (10.4, IMPLEMENTATION); the engine's discharges
-     read through kCheckEqDrv, the Prf→Drv bridge is gone from the
-     elaborator. Decisions: the exposure of a scrutinee's TYPE for
-     typing is the reader's own and free of the site's whitelist
-     (which governs the term); a QIIT eliminator without motives reads
-     at the constant motives (dCheck, the sides-given reading) and is
-     re-derived so at a type. The undetermined position is GONE
-     (10.5): its 12 corpus sites disappeared once the engine's
-     normalization loop rewrites the raw sides before unfolding, and
-     the reader inverts a head's type structurally through the
-     child's nodes; a proof written under a lost motive is rejected.
-  5. delete Skel, Payload, PChk, PSelf's bare form, substPrf; rewrite
-     §2, §6, §7, §8, §9 from this section.
+RE-DERIVATION (rdCheck, rdInfer, rdType — the kernel module's, but
+UNTRUSTED: a builder whose every result is read before it counts).
+What the elaborator did not elaborate — a solved hole against its
+domain, a recovered motive over its quotient, an inferred type
+standing as an annotation, an inline definition's type over its
+context, a data expansion's items, an engine leaf (a typed neutral,
+an argument at a domain), a carrier's embedded piece — is DERIVED
+against its type by the same bidirectional walk the reader takes,
+building instead of checking:
 
-Open at the time of writing: whether the annotation of an intro node
-should be the FULL type (λ_{Π A B}) rather than the domain — the
-domain suffices for synthesis and is what the elaborator has; and
-whether a proof-level let (α ≔ π in π′) is wanted for sharing beyond
-what [σ] gives — deferred to the let-sharing item.
+  * checking at T by the term's shape: an intro form at the parts of
+    T, the shape EXPOSED by a proved δ chain when a definition hides
+    it (rdShaped: the derivation wrapped (π : by β) with β the
+    exposure run from T); an eliminator at the CONSTANT motive (the
+    checking sugar, coherences refl); ⋆ at an equality prop as the
+    refl witness; anything else inferred and ascribed;
+  * inference by the head: variables, references with their spines
+    derived entrywise, spines whose scrutinee's type is exposed by a
+    proved δ chain when its head is hidden (π by β around the
+    scrutinee), an eliminator without a motive at the constant
+    motive read off its base case's type (an ℕ-elim's z, a ⊎-elim's
+    or quot-elim's case when it does not mention the branch variable;
+    a bare QIIT eliminator does not infer), codes at 𝕌, types at 𝕍;
+  * a type as a type: formation, falling through to 𝕌 then Ω.
+
+Its δ bridge (rdBridge, the engine's deltaPrf) proves a term equal
+to another spelling by the two HEAD exposures first (a definition
+against its unfolding, the exposures stated so the proof runs) and
+δ-rounds after. The elaborator's services (kReDeriveTy/TyK/Chk/Inf)
+each READ their result — a re-derivation that would not read is a
+failure, never a derivation; kInferBare types a hole's value the same
+way (re-derived, read, the type returned); kIsPropD asks whether a
+type is a prop on the bare type and, failing that, on its
+re-derivation at Ω.
+
+A checking-form annotation the elaborator cannot derive — a
+squash-elim's goal, a prop-lift's side, an irrelevance's prop, the
+type flowing down — is left to the kernel's own judgement on the bare
+type, by SHAPE ALONE (kIsProp, §7): an equation or a squash is a
+prop, the other formers are not, a neutral is one when its head's
+declared type inverts to Ω. An eliminator-headed prop is derived (at
+the constant motive, read by the kernel) by whoever writes the node —
+the elaborator for a squash-elim's goal, the engine for an
+irrelevance leaf or a prop-lift's sides — or the node is rejected.
+
+The engine (docs/NovaPipeline.txt; Nova.Elaboration.Proof, untrusted)
+WRITES derivations as it searches: a licence applied at a position is
+its leaf inside the nodes along the path — the candidate's leaf built
+once over its pattern context and instantiated by the substitution
+node (§4) — with refl at the siblings, a rewritten head or scrutinee
+child under the exposure of its type when a definition hides the
+shape, a δ-round a δ-all leaf, a closing step by the type's shape
+its type-directed leaf, the rewrites of one side a chain, the two
+sides' chains joined through the closing leaf, an equation proved at
+an exposed type an ascription around the whole. There is no
+intermediate language: what the search returns and what the kernel
+reads is the derivation.
+
+////////// 9. Acknowledged approximations and their scope //////////
+
+The kernel is deliberately dumber than the theory; where it accepts
+by an approximation, the approximation is an INSTANCE of a Foundation
+rule (so soundness is unaffected) that may reject spellings the
+theory would accept (incompleteness only).
+
+  A3  OPAQUE CARRIERS. No node descends into a carried signature 𝒮,
+      eliminator problem or polynomial 𝔽 — their embedded Nova pieces
+      have no proof positions (§2); a node carrying one demands the
+      sides' to match syntactically; two sorts at one position and
+      spine agree when their carried signatures JOIN alike (tyAgree,
+      §3 — the structural identity el-qiit-beta fires on); a path
+      leaf's carried signature and a corec's polynomial against its
+      ν-type's are joined the same way. The remedy for a signature-
+      piece equation is a lemma respelling the whole former, via a
+      conversion or an exposure.
+
+  A4  β-ONLY COHERENCES IN RE-DERIVED ELIMINATORS. A QIIT eliminator
+      the engine re-derives in argument position (the constant
+      motives, §8) carries reflexive coherences, so its coherences
+      are verified by pure β alone. An eliminator whose coherences
+      need real proofs is referenced through Σ, where the elaborator
+      writes them (the data-item emitter).
+
+  A5  NO η CERTIFICATE FOR QIITs. el-qiit-eta (like el-nat-eta,
+      el-sum-eta and el-quot-eta) has no leaf; for ν the gap is
+      CLOSED, by el-nu-coind as a witness node (§2) — the admissible
+      relational form, not el-nu-eta itself (whose candidate h would
+      be a carried higher-order payload; the relational form subsumes
+      it via graph invariants); uniqueness arguments live in the
+      elaborator as lemmas, not in kernel derivations (an el-sum-eta
+      instance is proven as an ordinary ⊎-elim lemma at an equality
+      motive, β closing both cases). The Π/Σ η leaves are unaffected.
+
+  A6  FIRST-ORDER SIGNATURE FRAGMENT. The signature checker (§8)
+      covers the fragment the elaborator emits: no equation-code
+      binders, no external λ (infinitary recursive arguments). Sort
+      entries MAY carry inductive index binders (induction-induction
+      — Con/Ty-style signatures check; the entry walk rebases each
+      index code from its declaration site into the walk state of
+      its use site). Foundation covers the rest; the restriction is
+      checking incompleteness only. Embedded pieces are re-derived
+      (§8), so what the fragment's pieces may contain is what re-
+      derivation infers or checks by shape.
+
+(A1, the constant motive, and A2, neutral spines only, of the former
+kernel are not approximations of this one: motives are mandatory, the
+constant motive is explicit checking sugar, and a head is typed by
+what it states or inverts to — never left undetermined, §6.)
+
+NO δ FOR EXPOSURE: the kernel's weak-head normalizer is β-only. Every
+shape a definition hides — the Π of a checked λ, the Σ of a projected
+pair, the quotient of a class, the ≡ behind a proof's type, the type
+a stated equation sits at — reaches the kernel through a recorded
+conversion: an ascription or conversion node, an ascribed leaf (§2,
+§3). The producer records them from its own exposure (the engine's
+whitelist governs matching, not shapes; the exposure of a scrutinee's
+TYPE for typing is re-derivation's own and free of the whitelist).
+Every element a derivation carries is derived (a spine's entries,
+§3) and every prop-ness test is by shape or by a derivation (§7).
+NO kernel-initiated δ remains on a verdict path: inversion of a
+head's type (§6) opens a bare spine's head type by the β-whnf, and a
+stated head is read from its statement; el-qiit-intro joins the
+expected type, the term's carried signature and the index spines
+under β. The δ clauses of nf (§1) — the liberal normalizer kElem/
+kTy/kQSig — serve no verdict path; the kernel state carries the flag
+explicitly (KSt.liberal), so a verdict path cannot inherit it by
+accident.
+
+Two structural caveats restated from docs/NovaPipeline.txt: an
+annotation (motive, ascription, exposure target) is a REPRESENTATIVE,
+never a canonical type — no consumer compares annotations
+syntactically, only up to certified conversion (an exposure's target
+is not even spelled: it is what the run produces, §2); and the kernel
+invariant is one-directional — kernel accepts the derivation ⟹ the
+erasure is Foundation-derivable at the stated type. Rejection claims
+nothing.
+
+////////// 10. History: from skeletons to derivations //////////
+
+Until 2026-09-24 the kernel's input was a core term plus a SKELETON —
+a tree aligned with the term, carrying what β does not read (motives,
+ascribed types, switch and exposure proofs, witnesses) — and equations
+were proof terms (Prf) whose leaves stated equations and whose nodes
+were congruences, with a checked leaf [t : T] ⟨sk⟩ as the one place
+a bare term and a skeleton entered together. Every awkwardness of the
+pair lived there or in the item level that mirrored it: child
+indexing by position, motives whose binder depth the skeleton did
+not record, a substitution that could not enter skeletons, skeleton
+reconstruction for values the elaborator never elaborated, a
+neutral-subterm rule with an UNDETERMINED position, a bare-term
+checker of its own (kCheckE/kInferE) with the constant-motive (A1)
+and neutral-spine (A2) approximations.
+
+The observation: the proof-term language already synthesized — the
+⇒ reading of a typed neutral produced both sides and the type, and an
+element's derivation IS such a proof, one whose sides coincide. Give
+the intro forms and the eliminators their own nodes, carrying what β
+does not read, and the term becomes an OUTPUT, the erasure.
+
+The migration, all on 2026-09-24: (1) the grammar and its erasure as
+data, beside Prf; (2) the readings of every node, the entry points,
+and a re-derivation of what the elaborator emitted (terms with
+skeletons, proof terms) run as a CANARY at every kernel entry point
+(over the corpus the readings agreed with the checker on every item
+and every discharge the re-derivation could express); (3) the
+elaborator returns derivations at every site, the data-item emitters
+build them, re-derivation replaced skeleton reconstruction; (4) the
+engine writes derivations, candidates store one leaf and are
+instantiated by the substitution node, the undetermined position
+removed (its corpus sites disappeared once the engine's normalization
+loop rewrites the raw sides before unfolding and the reader inverts
+a head's type structurally through the child's nodes — a proof
+written under a lost motive is rejected); the reading against given
+sides made deterministic (§7: one reading per derivation, hinted
+goals, one-way leaves); the QIIT eliminator's motives an explicit
+absence; the stated middle a derivation; (5) Skel, Payload, Prf, the
+proof-term reader, the bare-term checker and the bridge deleted, the
+embedded pieces of carriers checked by re-derivation, this document
+rewritten.
+
+Open: whether a proof-level let (α ≔ π in π′) is wanted for sharing
+beyond what [σ] gives — deferred to the let-sharing item; the
+hypotheses of an extended candidate set are still rebuilt per
+extension (a wrap could share them).

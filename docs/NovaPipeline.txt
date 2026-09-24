@@ -304,12 +304,18 @@ elab-reject-cross-quotient): the parametric 𝟙-lemma dies writing its
 proof argument, the cross-quotient transport dies at the positional
 type of its leaf.
 
-The ITEM-LEVEL kernel is implemented: bidirectional re-checking of
-whole core items over ANNOTATION SKELETONS — trees positionally
-aligned with the core term carrying eliminator motives, expected types
-at checked intro forms, switch/refl-eq/well-definedness certificates, and
-head-exposure payloads (an expected type whose Π/Σ/quotient structure
-whnf-δ exposes ships as the exposed type plus its δ proof.
+The kernel reads DERIVATIONS alone (docs/NovaKernel.txt): an item
+is a derivation of its type and a derivation of its body — proof
+terms in the core's own syntax whose nodes carry what β does not read
+(eliminator motives, the annotations of intro forms in inference
+position, conversion and exposure proofs, witnesses) and whose
+ERASURE is the core term; there is no bare-term checker, and a value
+the elaborator never elaborated (a hole's solution, a recovered
+motive, a carrier's embedded piece) gets its derivation by
+RE-DERIVATION, read like any other. An expected type whose
+Π/Σ/quotient structure a definition hides is exposed by an ascription
+whose δ proof is RUN from the type (no copy of the exposed type
+enters the derivation).
 Elaboration is SYNTAX-DIRECTED: it never rewrites an expected type by
 lemmas or hypotheses to find a shape — a shape that holds only up to
 an equation is written as an ascription, whose switch carries the
@@ -322,7 +328,7 @@ definitional and every item was so admitted. Two consequences of that discipline
 load-bearing:
 
   * proofs carry a TYPE CONVERSION (the equation-level counterpart
-    of the exposure payload): a conversion site whose leaves sit at
+    of the exposure ascription): a conversion site whose leaves sit at
     positions only a lemma-normalized type determines is checked at
     that exposed type, justified by a nested TYPE proof — equal types
     have equal PERs, and a bogus conversion dies in checking like any

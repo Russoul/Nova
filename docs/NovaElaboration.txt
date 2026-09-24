@@ -1234,9 +1234,9 @@ componentwise at F × G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 # [refl/w], NOT [⋆/w], and the difference is what a type can hold. A
 # goal — or a hypothesis after w — may NAME the eliminated proof, and
 # then something must stand in its place inside a TYPE. ⋆ cannot: it is
-# an INTRODUCTION, so the kernel wants the el-eq-i payload certifying
-# its equation, and a lifted definition's type is checked with an empty
-# skeleton (ty-pi descends into a domain with that child's, no more). A
+# an INTRODUCTION, so the kernel wants the el-eq-i witness derivation
+# certifying its equation, and a lifted definition's type is re-derived
+# from its bare spelling (no witness proof is recoverable there). A
 # REFERENCE can: a term whose inferred type already IS the expected one
 # needs no payload at all (the kernel's no-switch path).
 #
