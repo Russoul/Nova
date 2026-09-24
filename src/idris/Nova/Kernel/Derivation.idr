@@ -1,0 +1,374 @@
+module Nova.Kernel.Derivation
+
+-- DERIVATIONS: the kernel on proof terms alone (docs/NovaKernel.txt
+-- §10, a draft under migration). A derivation is a proof term whose
+-- readings synthesize the equation it states — for an element
+-- derivation both sides are the same term, its ERASURE. The core term
+-- is an output of the derivation, never an input beside it; nothing
+-- here is a skeleton aligned with a term.
+--
+-- This module is the grammar and its erasure as data (§10.8, step 1).
+-- The readings (§10.3–10.5) live in Nova.Kernel, beside the current
+-- proof terms, until the migration retires those.
+
+import Data.List
+import Data.Maybe
+import Data.SnocList
+
+import Nova.Kernel.Syntax
+import Nova.Kernel.Subst
+
+%default covering
+
+mutual
+  ||| A substitution as the grammar spells it (§10.4): a weakening by
+  ||| `depth` binders followed by a typed extension — entry i is a
+  ||| derivation and the derivation of the telescope type it is checked
+  ||| against, over Δ↓depth ▷ T₁ … Tᵢ₋₁. The only shape the engine
+  ||| performs; general substitutions have no node.
+  public export
+  record DSub where
+    constructor MkDSub
+    depth : Nat
+    entries : List (Drv, Drv)
+
+  ||| The derivation grammar, spelled as §10.2 spells it. A node is the
+  ||| former it derives, with derivations in the children's places; a
+  ||| `Maybe Drv` annotation is the INFERENCE-mode form (what the type
+  ||| flowing down would supply under checking), absent under checking.
+  public export
+  data Drv : Type where
+    -- ----- leaves -----
+    ||| ☐ᵢ                                                    (el-var)
+    DVar : Nat -> Drv
+    ||| x[π̄]: a signature reference, its spine stated entrywise (§3)
+    DRef : String -> List Drv -> Drv
+    ||| ()  Z  and the constant types 𝟘 𝟙 ℕ 𝕌 Ω 𝕍
+    DUnit : Drv
+    DZero : Drv
+    DZeroTy : Drv
+    DOneTy : Drv
+    DNatTy : Drv
+    DUniverse : Drv
+    DProp : Drv
+    DTop : Drv
+    ||| ⟨π⟩ REFLECTION: π ⇒ p : (l ≡ r ∈ A) states l ≐ r : A
+    DRefl : Drv -> Drv
+    ||| qpath 𝕔 π̄: an imposed QIIT equation, its spine stated
+    DPath : QSig -> Nat -> List Drv -> Drv
+    ||| x-δ π̄: x[ū] ≐ t[ū] for (Δ ⊦ x ≔ t : T), ū stated by π̄
+    DDelta : String -> List Drv -> Drv
+    ||| refl: the sides join under β
+    DReflx : Drv
+    ||| π⁻¹
+    DSym : Drv -> Drv
+    ||| π ; π′, middle computed
+    DTrans : Drv -> Drv -> Drv
+    ||| π ; [m] ; π′, middle stated (an erasure: both proofs are read
+    ||| against it, it needs no typing of its own)
+    DTransAt : Drv -> Elem -> Drv -> Drv
+    ||| δ-all x̄: every addressable occurrence of the named definitions
+    ||| unfolded at once
+    DDeltaAll : List String -> Drv
+    -- ----- type-directed leaves (read ▷ only, §10.5) -----
+    ||| irrel(π_P): the position's type is 𝟙, 𝟘, or the prop π_P derives
+    DIrrel : Drv -> Drv
+    ||| η→(π)
+    DEtaPi : Drv -> Drv
+    ||| η×(π, π′)
+    DEtaSigma : Drv -> Drv -> Drv
+    ||| quot-wit(π?): class a ≐ class b by the relation's shape
+    DQuotWit : Maybe Drv -> Drv
+    ||| quot-wit[π_w]: the witness derived at the relation instance
+    DQuotWitPrf : Drv -> Drv
+    ||| inj(π): same-tag injections, the payloads equal
+    DInj : Drv -> Drv
+    ||| propext[π_f, π_g]: the two implications, derived as functions
+    DPropExt : Drv -> Drv -> Drv
+    ||| prop-lift(π_p, π_q, π): both sides props (derived at Ω), π at Ω
+    DPrfCong : Drv -> Drv -> Drv -> Drv
+    -- ----- conversion, ascription, substitution -----
+    ||| π ∷ π_T by β (inference: the type converted to what π_T
+    ||| derives) — π by β (checking at T, the annotation absent: the
+    ||| skeleton's switch)
+    DConv : Drv -> Maybe Drv -> Drv -> Drv
+    ||| (π : π_T by β): a STATED equation ascribed to the type π_T
+    ||| derives, β ▷ its type ≐ that
+    DAt : Drv -> Drv -> Drv -> Drv
+    ||| π[σ] (§10.4): the substitution lemma as a rule; inference only
+    DSubst : Drv -> DSub -> Drv
+    -- ----- intro forms -----
+    ||| λ_{π_A} π
+    DLam : Maybe Drv -> Drv -> Drv
+    ||| (π, π′)_{π_B}: the Σ's family, over Γ ▷ A
+    DPair : Maybe Drv -> Drv -> Drv -> Drv
+    ||| inj₁_{π_B} π — the other summand
+    DInj1 : Maybe Drv -> Drv -> Drv
+    ||| inj₂_{π_A} π
+    DInj2 : Maybe Drv -> Drv -> Drv
+    ||| class_{π_R} π: the relation, over Γ ▷ A ▷ A[↑]
+    DClass : Maybe Drv -> Drv -> Drv
+    ||| S π
+    DSuc : Drv -> Drv
+    ||| 𝒮.𝕔 π̄: a constructor, the signature carried
+    DCtor : QSig -> Nat -> List Drv -> Drv
+    ||| corec_𝔽 π_a π_f π_x
+    DCorec : Poly -> Drv -> Drv -> Drv -> Drv
+    ||| let π_a π_b: the core's let, definiens inferred
+    DLet : Drv -> Drv -> Drv
+    ||| ⋆_{π_P} by π (el-eq-i): π_P ⇒ (l ≡ r ∈ A) : Ω, π ▷ l ≐ r : A;
+    ||| checking at the prop: ⋆ by π
+    DStar : Maybe Drv -> Drv -> Drv
+    ||| sq(π) (el-squash-i): π ⇒ e : A gives ⋆ : ∥A∥
+    DSq : Drv -> Drv
+    ||| squash-elim_{π_Q} π (x. π′) (el-squash-e-prf): the goal prop
+    DSquashElim : Maybe Drv -> Drv -> Drv -> Drv
+    ||| coind_{π_P} R π_p π_q (el-nu-coind): the equation prop, the
+    ||| invariant R (a prop over ν𝔽 ▷ ν𝔽), the endpoint proof, the
+    ||| one-step closure
+    DCoind : Maybe Drv -> Drv -> Drv -> Drv -> Drv
+    -- ----- eliminators: motives mandatory, absent only as the
+    -- ----- checking sugar (the constant motive, §10.3) -----
+    ||| 𝟘-elim_{π_T} π
+    DZeroElim : Maybe Drv -> Drv -> Drv
+    ||| ℕ-elim_{π_M} π_z π_s π_n
+    DNatElim : Maybe Drv -> Drv -> Drv -> Drv -> Drv
+    ||| ⊎-elim_{π_M} π_l π_r π_t
+    DSumElim : Maybe Drv -> Drv -> Drv -> Drv -> Drv
+    ||| quot-elim_{π_M ; wd} π_f π_q: wd absent when the motive is a prop
+    DQuotElim : Maybe Drv -> Maybe Drv -> Drv -> Drv -> Drv
+    ||| 𝒮.𝕤-elim_{π̄_C ; coh̄} π̄_m π̄ π_w: motives (one per sort),
+    ||| coherences (one per equation entry), methods, index spine,
+    ||| eliminee
+    DQElim : QSig -> Nat -> List Drv -> List Drv -> List Drv -> List Drv -> Drv -> Drv
+    ||| out π
+    DOut : Drv -> Drv
+    ||| π π′
+    DApp : Drv -> Drv -> Drv
+    ||| π .π₁  π .π₂
+    DProj1 : Drv -> Drv
+    DProj2 : Drv -> Drv
+    -- ----- types and codes -----
+    DPi : Drv -> Drv -> Drv
+    DSigma : Drv -> Drv -> Drv
+    DSum : Drv -> Drv -> Drv
+    DEq : Drv -> Drv -> Drv -> Drv
+    DQuot : Drv -> Drv -> Drv
+    DSquash : Drv -> Drv
+    DNu : Poly -> Drv
+    DSort : QSig -> Nat -> List Drv -> Drv
+
+-- ===== Erasure =====
+
+||| ↑ composed n times.
+wkN : Nat -> Sub
+wkN Z = Id
+wkN (S n) = Chain (wkN n) Wk
+
+mutual
+  ||| The ERASURE of an element derivation: drop the annotations, keep
+  ||| the former; a witness node erases to ⋆, a substitution node to
+  ||| the substituted erasure. Nothing at an equation form (a
+  ||| reflection, a δ leaf, refl, …) in an element position: those
+  ||| state equations and derive no element — they occur only where a
+  ||| node takes a proof, which the erasure does not enter.
+  export
+  erase : Drv -> Maybe Elem
+  erase (DVar i) = Just (CtxVar i)
+  erase (DRef x ps) = SigVar x . cast <$> traverse erase ps
+  erase DUnit = Just OneIntro
+  erase DZero = Just NatIntro0
+  erase DZeroTy = Just ZeroTy
+  erase DOneTy = Just OneTy
+  erase DNatTy = Just NatTy
+  erase DUniverse = Just UniverseTy
+  erase DProp = Just PropTy
+  erase DTop = Just TopTy
+  erase (DConv p _ _) = erase p
+  erase (DSubst p sg) = [| substElem (erase p) (eraseSub sg) |]
+  erase (DLam _ p) = PiIntro <$> erase p
+  erase (DPair _ u v) = [| SigmaIntro (erase u) (erase v) |]
+  erase (DInj1 _ p) = Inj1 <$> erase p
+  erase (DInj2 _ p) = Inj2 <$> erase p
+  erase (DClass _ p) = Class <$> erase p
+  erase (DSuc p) = NatIntro1 <$> erase p
+  erase (DCtor sg k ps) = QCtor sg k . cast <$> traverse erase ps
+  erase (DCorec f a g x) = [| Corec (pure f) (erase a) (erase g) (erase x) |]
+  erase (DLet a b) = [| Let (erase a) (erase b) |]
+  erase (DStar _ _) = Just Star
+  erase (DSq _) = Just Star
+  erase (DSquashElim _ _ _) = Just Star
+  erase (DCoind _ _ _ _) = Just Star
+  erase (DZeroElim _ p) = ZeroElim <$> erase p
+  erase (DNatElim _ z s n) = [| NatElim (erase z) (erase s) (erase n) |]
+  erase (DSumElim _ l r t) = [| SumElim (erase l) (erase r) (erase t) |]
+  erase (DQuotElim _ _ f q) = [| QuotElim (erase f) (erase q) |]
+  erase (DQElim sg k _ _ ms es w) =
+    [| (\fs, xs, w' => QElim sg k fs (cast xs) w') (traverse erase ms) (traverse erase es) (erase w) |]
+  erase (DOut p) = Out <$> erase p
+  erase (DApp f a) = [| PiApp (erase f) (erase a) |]
+  erase (DProj1 p) = SigmaElim1 <$> erase p
+  erase (DProj2 p) = SigmaElim2 <$> erase p
+  erase (DPi a b) = [| PiTy (erase a) (erase b) |]
+  erase (DSigma a b) = [| SigmaTy (erase a) (erase b) |]
+  erase (DSum a b) = [| SumTy (erase a) (erase b) |]
+  erase (DEq l r t) = [| EqTy (erase l) (erase r) (erase t) |]
+  erase (DQuot a r) = [| QuotTy (erase a) (erase r) |]
+  erase (DSquash p) = Squash <$> erase p
+  erase (DNu f) = Just (NuTy f)
+  erase (DSort sg k ps) = QSort sg k . cast <$> traverse erase ps
+  -- equation forms derive no element
+  erase _ = Nothing
+
+  ||| The substitution a DSub denotes: ↑ᵈ extended by the entries'
+  ||| erasures.
+  export
+  eraseSub : DSub -> Maybe Sub
+  eraseSub (MkDSub d es) = foldl Ext (wkN d) <$> traverse (erase . fst) es
+
+||| Is the derivation an ELEMENT derivation — does it erase?
+export
+derivesElem : Drv -> Bool
+derivesElem = isJust . erase
+
+-- ===== Printing, in the core's syntax =====
+
+||| A node that prints without parentheses in argument position.
+atomicD : Drv -> Bool
+atomicD (DVar _) = True
+atomicD (DRef _ _) = True
+atomicD DUnit = True
+atomicD DZero = True
+atomicD DZeroTy = True
+atomicD DOneTy = True
+atomicD DNatTy = True
+atomicD DUniverse = True
+atomicD DProp = True
+atomicD DTop = True
+atomicD (DRefl _) = True
+atomicD DReflx = True
+atomicD (DSym _) = True
+atomicD (DTransAt _ _ _) = True
+atomicD (DIrrel _) = True
+atomicD (DEtaPi _) = True
+atomicD (DEtaSigma _ _) = True
+atomicD (DQuotWit _) = True
+atomicD (DQuotWitPrf _) = True
+atomicD (DInj _) = True
+atomicD (DPropExt _ _) = True
+atomicD (DPrfCong _ _ _) = True
+atomicD (DConv _ _ _) = True
+atomicD (DAt _ _ _) = True
+atomicD (DSubst _ _) = True
+atomicD (DPair _ _ _) = True
+atomicD (DSq _) = True
+atomicD (DProj1 _) = True
+atomicD (DProj2 _) = True
+atomicD (DSquash _) = True
+atomicD (DSort _ _ _) = True
+atomicD (DCtor _ _ _) = True
+atomicD _ = False
+
+mutual
+  ||| Argument position: atoms bare, anything else parenthesised.
+  argD : Drv -> String
+  argD p = if atomicD p then showDrv p else "(" ++ showDrv p ++ ")"
+
+  ||| Head position: applications chain to the left.
+  hdD : Drv -> String
+  hdD p@(DApp _ _) = showDrv p
+  hdD p = argD p
+
+  argsD : List Drv -> String
+  argsD ps = concat (intersperse ", " (map showDrv ps))
+
+  entryD : (Drv, Drv) -> String
+  entryD (e, t) = " ▷ " ++ showDrv e ++ " : " ++ showDrv t
+
+  wdD : Drv -> String
+  wdD w = " ; " ++ showDrv w
+
+  ||| An annotation in braces, or nothing (the checking form).
+  annD : Maybe Drv -> String
+  annD Nothing = ""
+  annD (Just a) = "{" ++ showDrv a ++ "}"
+
+  export
+  covering
+  showDrv : Drv -> String
+  -- leaves
+  showDrv (DVar i) = "☐\{show i}"
+  showDrv (DRef x ps) = if null ps then x else "\{x}[\{argsD ps}]"
+  showDrv DUnit = "()"
+  showDrv DZero = "Z"
+  showDrv DZeroTy = "𝟘"
+  showDrv DOneTy = "𝟙"
+  showDrv DNatTy = "ℕ"
+  showDrv DUniverse = "𝕌"
+  showDrv DProp = "Ω"
+  showDrv DTop = "𝕍"
+  showDrv (DRefl p) = "⟨\{showDrv p}⟩"
+  showDrv (DPath _ k ps) = "path \{show k} [\{argsD ps}]"
+  showDrv (DDelta x ps) = "\{x}-δ [\{argsD ps}]"
+  showDrv DReflx = "refl"
+  showDrv (DSym p) = "\{argD p}⁻¹"
+  showDrv (DTrans p q) = "\{showDrv p} ; \{showDrv q}"
+  showDrv (DTransAt p m q) = "(\{showDrv p} ; [\{show m}] ; \{showDrv q})"
+  showDrv (DDeltaAll ns) = "δ-all \{show ns}"
+  -- type-directed leaves
+  showDrv (DIrrel p) = "irrel(\{showDrv p})"
+  showDrv (DEtaPi p) = "η→(\{showDrv p})"
+  showDrv (DEtaSigma p q) = "η×(\{showDrv p}, \{showDrv q})"
+  showDrv (DQuotWit mp) = "quot-wit(\{maybe "" showDrv mp})"
+  showDrv (DQuotWitPrf w) = "quot-wit[\{showDrv w}]"
+  showDrv (DInj p) = "inj(\{showDrv p})"
+  showDrv (DPropExt f g) = "propext[\{showDrv f}, \{showDrv g}]"
+  showDrv (DPrfCong p q r) = "prop-lift(\{showDrv p}, \{showDrv q}, \{showDrv r})"
+  -- conversion, ascription, substitution
+  showDrv (DConv p Nothing b) = "(\{showDrv p} by \{showDrv b})"
+  showDrv (DConv p (Just t) b) = "(\{showDrv p} ∷ \{showDrv t} by \{showDrv b})"
+  showDrv (DAt p t b) = "(\{showDrv p} : \{showDrv t} by \{showDrv b})"
+  showDrv (DSubst p (MkDSub d es)) =
+    "\{argD p}[↑\{show d}\{concatMap entryD es}]"
+  -- intro forms
+  showDrv (DLam a p) = "λ\{annD a} \{showDrv p}"
+  showDrv (DPair b u v) = "(\{showDrv u}, \{showDrv v})\{annD b}"
+  showDrv (DInj1 b p) = "inj₁\{annD b} \{argD p}"
+  showDrv (DInj2 a p) = "inj₂\{annD a} \{argD p}"
+  showDrv (DClass r p) = "class\{annD r} \{argD p}"
+  showDrv (DSuc p) = "S \{argD p}"
+  showDrv (DCtor _ k ps) = "𝒮.\{show k}[\{argsD ps}]"
+  showDrv (DCorec _ a f x) = "corec \{argD a} \{argD f} \{argD x}"
+  showDrv (DLet a b) = "let \{argD a} \{argD b}"
+  showDrv (DStar mp p) = "⋆\{annD mp} by \{argD p}"
+  showDrv (DSq p) = "sq(\{showDrv p})"
+  showDrv (DSquashElim mq e b) = "squash-elim\{annD mq} \{argD e} \{argD b}"
+  showDrv (DCoind mp r p q) = "coind\{annD mp} \{argD r} \{argD p} \{argD q}"
+  -- eliminators
+  showDrv (DZeroElim mt p) = "𝟘-elim\{annD mt} \{argD p}"
+  showDrv (DNatElim m z s n) = "ℕ-elim\{annD m} \{argD z} \{argD s} \{argD n}"
+  showDrv (DSumElim m l r t) = "⊎-elim\{annD m} \{argD l} \{argD r} \{argD t}"
+  showDrv (DQuotElim m wd f q) =
+    "quot-elim\{case (m, wd) of
+                 (Nothing, Nothing) => ""
+                 (_, _) => "{" ++ maybe "" showDrv m ++ maybe "" wdD wd ++ "}"} \{argD f} \{argD q}"
+  showDrv (DQElim _ k cs cohs ms es w) =
+    "𝒮.\{show k}-elim{\{argsD cs} ; \{argsD cohs}} [\{argsD ms}] [\{argsD es}] \{argD w}"
+  showDrv (DOut p) = "out \{argD p}"
+  showDrv (DApp f a) = "\{hdD f} \{argD a}"
+  showDrv (DProj1 p) = "\{argD p} .π₁"
+  showDrv (DProj2 p) = "\{argD p} .π₂"
+  -- types and codes
+  showDrv (DPi a b) = "\{argD a} → \{argD b}"
+  showDrv (DSigma a b) = "\{argD a} × \{argD b}"
+  showDrv (DSum a b) = "\{argD a} ⊎ \{argD b}"
+  showDrv (DEq l r t) = "\{argD l} ≡ \{argD r} ∈ \{argD t}"
+  showDrv (DQuot a r) = "\{argD a} / \{argD r}"
+  showDrv (DSquash p) = "∥\{showDrv p}∥"
+  showDrv (DNu f) = "ν \{show f}"
+  showDrv (DSort _ k ps) = "𝒮.\{show k}[\{argsD ps}]"
+
+export
+covering
+Show Drv where
+  show = showDrv

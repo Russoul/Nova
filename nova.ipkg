@@ -12,6 +12,7 @@ modules = Nova.Diagnostic
         , Nova.Kernel.Subst
         , Nova.Kernel
         , Nova.Kernel.QIIT
+        , Nova.Kernel.Derivation
         , Nova.Kernel.Dormant.Beta
         , Nova.Kernel.Dormant.Derivation
         , Nova.Compute

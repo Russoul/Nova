@@ -1162,7 +1162,22 @@ annotation is itself a derivation (of a type), never a bare term.
 
 Binders are as in the core (a child under a binder is read in the
 extended context); the annotations' contexts are given with each
-rule in 10.3. The old congruence nodes (§6) are these nodes read with
+rule in 10.3.
+
+IMPLEMENTATION (Nova.Kernel.Derivation, step 1 of 10.8): the type
+Drv, one constructor per line above — DVar, DRef, DUnit, DZero, the
+constant types DZeroTy … DTop; DRefl, DPath, DDelta, DReflx, DSym,
+DTrans, DTransAt, DDeltaAll; DIrrel, DEtaPi, DEtaSigma, DQuotWit,
+DQuotWitPrf, DInj, DPropExt, DPrfCong; DConv (its annotation a Maybe:
+Nothing is the checking form π by β), DAt, DSubst with DSub (depth,
+entries); DLam, DPair, DInj1, DInj2, DClass, DSuc, DCtor, DCorec,
+DLet, DStar, DSq, DSquashElim, DCoind (annotations Maybe, absent
+under checking); DZeroElim, DNatElim, DSumElim, DQuotElim (motive and
+wd each a Maybe), DQElim, DOut, DApp, DProj1, DProj2; DPi, DSigma,
+DSum, DEq, DQuot, DSquash, DNu, DSort. The erasure is
+erase : Drv -> Maybe Elem — Nothing at an equation form in an element
+position (10.5) — with eraseSub for σ, and showDrv prints the
+grammar above. The old congruence nodes (§6) are these nodes read with
 children whose sides differ; the old checked leaf [t : T] ⟨sk⟩ has no
 successor — a checked term is the derivation of it. The old self leaf
 [t] is the variable or reference leaf.
@@ -1336,7 +1351,8 @@ A5 (no η certificate for QIITs).
 
 10.8 Migration order
 
-  1. this grammar and its erasure as data (Nova.Kernel), beside Prf;
+  1. DONE (2026-09-24): this grammar and its erasure as data,
+     Nova.Kernel.Derivation, beside Prf;
   2. the ⇒ reading of every node in the kernel, sharing kEqElem's
      leaves and the ⇐ reading; the item entry point on derivations;
   3. the elaborator returns derivations (every (Elem, Skel) site), the
