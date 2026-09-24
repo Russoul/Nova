@@ -66,6 +66,13 @@ export
 surveyMode : Bool
 surveyMode = unsafePerformIO (map isJust (getEnv "NOVA_SURVEY"))
 
+||| NOVA_DRV=1: the kernel re-derives every accepted item and discharge
+||| into the derivation grammar and reads it (docs/NovaKernel.txt §10,
+||| the migration's canary), auditing disagreements.
+export
+drvCanary : Bool
+drvCanary = unsafePerformIO (map isJust (getEnv "NOVA_DRV"))
+
 ||| Print an audit line to stderr under NOVA_AUDIT=1, returning `x`
 ||| unchanged — the scope-migration survey hook (which discharge sites
 ||| consume which Σ-lemmas), same non-trusted-path discipline as bump.

@@ -2888,7 +2888,7 @@ mutual
  ||| defined on it).
  dSynth : Drv -> Bool
  dSynth (DVar _) = True
- dSynth (DRef _ _) = True
+ dSynth (DRef _ ps) = all dCheckable ps
  dSynth DUnit = True
  dSynth DZero = True
  dSynth DZeroTy = True
@@ -2932,7 +2932,7 @@ mutual
  dSynth (DClass (Just _) p) = dSynth p
  dSynth (DClass Nothing _) = False
  dSynth (DSuc p) = dSynth p
- dSynth (DCtor _ _ ps) = all dSynth ps
+ dSynth (DCtor _ _ ps) = False
  dSynth (DCorec _ a f x) = dSynth a && dSynth f && dSynth x
  dSynth (DLet a b) = dSynth a && dSynth b
  dSynth (DStar (Just _) _) = True
@@ -2962,7 +2962,7 @@ mutual
  dSynth (DQuot a r) = dSynth a && dSynth r
  dSynth (DSquash p) = dSynth p
  dSynth (DNu _) = True
- dSynth (DSort _ _ ps) = all dSynth ps
+ dSynth (DSort _ _ ps) = all dCheckable ps
 
  ||| Can the derivation be CHECKED at a known type — it states, or it
  ||| is a checking-mode form (an intro without its annotation, an
@@ -2975,6 +2975,8 @@ mutual
    DInj2 Nothing q => dCheckable q
    DClass Nothing q => dCheckable q
    DCtor _ _ qs => all dCheckable qs
+   DRef _ qs => all dCheckable qs
+   DSort _ _ qs => all dCheckable qs
    DStar Nothing _ => True
    DSq q => dCheckable q
    DSquashElim Nothing e b => dSynth e && dCheckable b
@@ -3219,8 +3221,8 @@ mutual
       (e, _, a) <- dElemTy sig ctx p
       pure (Star, Star, Squash a)
     DSquashElim (Just pQ) e b => do
-      q <- dElemAt sig ctx pQ PropTy
-      squashElimAt sig ctx q e b
+      q <- dPropAt sig ctx pQ
+      squashElimAtP sig ctx q e b
       pure (Star, Star, q)
     DCoind (Just pP) r p q => do
       prop <- dElemAt sig ctx pP PropTy
@@ -3322,9 +3324,9 @@ mutual
         QKSort => pure ()
         _ => kerr "kernel: not a sort position"
       (tel, _, _) <- liftQ (reflTel sg (qwAt k) sortE)
-      es <- dTele sig ctx tel ps
+      esE <- dTeleE sig ctx tel ps
       small <- kTry (kQSigSmall sig ctx sg)
-      pure (QSort sg k (cast es), QSort sg k (cast es), if small then UniverseTy else TopTy)
+      pure (QSort sg k (cast (map fst esE)), QSort sg k (cast (map snd esE)), if small then UniverseTy else TopTy)
     _ => kerr "kernel: derivation in inference position needs its annotation [\{showDrv d}]"
 
   ||| ⇐ T (10.3): the sides a derivation states at a known type. An
@@ -3398,15 +3400,15 @@ mutual
             QKPoint => pure ()
             _ => kerr "kernel: not a point-constructor position"
           (tel, _, _) <- liftQ (reflTel sgC' (qwAt c) entry)
-          args <- dTele sig ctx tel ps
+          argsE <- dTeleE sig ctx tel ps
+          let args = map fst argsE
           (wEnd, hd) <- liftQ (walkVals sgC' (qwAt c) entry args)
           (srt', idx) <- liftQ (pointHead sgC' wEnd hd)
           if srt' /= srt then kerr "kernel: constructor of a different sort" else pure ()
           idxN <- kJoinSubNorm sig idx
           esN <- kJoinSubNorm sig es
           if idxN == esN then pure () else kerr "kernel: constructor indices do not match the type"
-          let t = QCtor sgC c (cast args)
-          pure (t, t)
+          pure (QCtor sgC c (cast args), QCtor sgC c (cast (map snd argsE)))
         _ => kerr "kernel: constructor checked at a non-QIIT type"
     DStar Nothing p => do
       ty' <- kWhnfT sig ty
@@ -3418,8 +3420,16 @@ mutual
       case ty' of
         Squash a => do _ <- dElemAt sig ctx p a; pure (Star, Star)
         _ => kerr "kernel: sq(π) at a non-∥∥ type"
-    DSquashElim Nothing e b => do
-      squashElimAt sig ctx ty e b
+    DSquashElim mQ e b => do
+      -- the goal a prop: by its derivation when carried (the annotated
+      -- form in checking position: agreeing with the type flowing
+      -- down), else by the kernel's prop-ness test on the type
+      case mQ of
+        Just pQ => do
+          q <- dPropAt sig ctx pQ
+          agree q
+          squashElimAtP sig ctx q e b
+        Nothing => squashElimAt sig ctx ty e b
       pure (Star, Star)
     DCoind Nothing r p q => do
       coindAt sig ctx ty r p q
@@ -3554,20 +3564,26 @@ mutual
   ||| the given ones under β; one that does not decomposes them.
   export
   dAt : Sig -> Ctx -> Drv -> Elem -> Elem -> Ty -> KM ()
-  dAt sig ctx d l r ty =
-    if dSynth d
-      then checked
-      -- a proof that runs left to right is read so first — the
-      -- produced side compared with the right one under β, so the
-      -- right side need not have the shape the proof produces (it may
-      -- be the β-normal form of it: a δ exposure's result); then a
-      -- checkable proof is checked and compared; otherwise both sides
-      -- decompose
-      else if dDirable True d
-        then kOrElse (do x <- dDir sig ctx d True l ty
-                         sameB sig x r)
-                     rest
-        else rest
+  dAt sig ctx d l0 r0 ty = do
+    -- the sides β-joined first (the reader meets no redex: a type
+    -- flowing down, an inferred type, a stated middle may carry one)
+    l <- kJoinElem sig l0
+    r <- kJoinElem sig r0
+    dAtJ sig ctx d l r ty
+
+  dAtJ : Sig -> Ctx -> Drv -> Elem -> Elem -> Ty -> KM ()
+  dAtJ sig ctx d l r ty =
+    -- a proof that runs left to right is read so first — the produced
+    -- side compared with the right one under β, so the right side
+    -- need not have the shape the proof produces (it may be the
+    -- β-normal form of it: a δ exposure's result); then a checkable
+    -- proof is checked at the type and its sides compared; otherwise
+    -- both sides decompose
+    if dDirable True d
+      then kOrElse (do x <- dDir sig ctx d True l ty
+                       sameB sig x r)
+                   rest
+      else rest
    where
     checked : KM ()
     checked = do
@@ -3582,7 +3598,7 @@ mutual
   export
   dDir : Sig -> Ctx -> Drv -> Bool -> Elem -> Ty -> KM Elem
   dDir sig ctx d dir x ty =
-    if dSynth d
+    if dSynth d && not (structural d)
       then checked
       else if dDirable dir d
         then kOrElse (dGo sig ctx d (DGDir dir x) ty) (if dCheckable d then checked else dGo sig ctx d (DGDir dir x) ty)
@@ -3590,6 +3606,13 @@ mutual
           then checked
           else dGo sig ctx d (DGDir dir x) ty
    where
+    -- transitivity and symmetry run link by link (a link may only run
+    -- one way), even when they state
+    structural : Drv -> Bool
+    structural (DTrans _ _) = True
+    structural (DTransAt _ _ _) = True
+    structural (DSym _) = True
+    structural _ = False
     checked : KM Elem
     checked = do
       (a, b) <- dCheck sig ctx d ty
@@ -4131,46 +4154,63 @@ mutual
             (UniverseTy, UniverseTy) => UniverseTy
             _ => TopTy)
 
-  ||| A signature reference at a stated spine.
+  ||| A signature reference at a stated spine (each entry may state a
+  ||| proper equation: the congruence at the reference, the entry types
+  ||| instantiated by the LEFT entries).
   dRefAt : Sig -> Ctx -> String -> List Drv -> Ctx -> Ty -> KM (Elem, Elem, Ty)
   dRefAt sig ctx x ps delta ty = do
-    es <- dSpine sig ctx (toList delta) ps
-    let esN = the SubNorm (cast es)
-    pure (SigVar x esN, SigVar x esN, substTy ty (embed esN))
+    es <- dSpineE sig ctx (toList delta) ps
+    let lN = the SubNorm (cast (map fst es))
+    let rN = the SubNorm (cast (map snd es))
+    pure (SigVar x lN, SigVar x rN, substTy ty (embed lN))
 
   ||| A stated SPINE (§3): entry i an element derivation at the
   ||| telescope entry instantiated by the earlier entries.
   dSpine : Sig -> Ctx -> List Ty -> List Drv -> KM (List Elem)
-  dSpine sig ctx delta qs =
+  dSpine sig ctx delta qs = do
+    es <- dSpineE sig ctx delta qs
+    traverse (\(l, r) => if l == r then pure l else kerr "kernel: a spine entry states a proper equation") es
+
+  ||| A spine whose entries may state proper equations, each at the
+  ||| telescope entry instantiated by the earlier LEFT entries.
+  dSpineE : Sig -> Ctx -> List Ty -> List Drv -> KM (List (Elem, Elem))
+  dSpineE sig ctx delta qs =
     if length qs /= length delta
       then kerr "kernel: spine length mismatch"
       else go 0 qs []
    where
-    go : Nat -> List Drv -> List Elem -> KM (List Elem)
+    go : Nat -> List Drv -> List (Elem, Elem) -> KM (List (Elem, Elem))
     go i [] acc = pure (reverse acc)
     go i (q :: rest) acc = do
       ty <- case getAt i delta of
-              Just t => pure (substTy t (embed (cast (reverse acc))))
+              Just t => pure (substTy t (embed (cast (map fst (reverse acc)))))
               Nothing => kerr "kernel: spine entry type undetermined"
-      e <- dElemAt sig ctx q ty
-      go (S i) rest (e :: acc)
+      lr <- dCheck sig ctx q ty
+      go (S i) rest (lr :: acc)
 
   ||| A stated spine at a reflected TELESCOPE (a constructor's, a
   ||| sort's, a path's).
   dTele : Sig -> Ctx -> List Ty -> List Drv -> KM (List Elem)
-  dTele sig ctx tel qs =
+  dTele sig ctx tel qs = do
+    es <- dTeleE sig ctx tel qs
+    traverse (\(l, r) => if l == r then pure l else kerr "kernel: a telescope entry states a proper equation") es
+
+  ||| A telescope spine whose entries may state proper equations, each
+  ||| at the entry type instantiated by the earlier LEFT entries.
+  dTeleE : Sig -> Ctx -> List Ty -> List Drv -> KM (List (Elem, Elem))
+  dTeleE sig ctx tel qs =
     if length qs /= length tel
       then kerr "kernel: telescope spine length mismatch"
       else go 0 qs []
    where
-    go : Nat -> List Drv -> List Elem -> KM (List Elem)
+    go : Nat -> List Drv -> List (Elem, Elem) -> KM (List (Elem, Elem))
     go i [] acc = pure (reverse acc)
     go i (q :: rest) acc = do
-      ty <- case telInst tel i (reverse acc) of
+      ty <- case telInst tel i (map fst (reverse acc)) of
               Just t => pure t
               Nothing => kerr "kernel: telescope entry type undetermined"
-      e <- dElemAt sig ctx q ty
-      go (S i) rest (e :: acc)
+      lr <- dCheck sig ctx q ty
+      go (S i) rest (lr :: acc)
 
   ||| The substitution node's entries (10.4): the telescope derived
   ||| over the growing Γ, each entry an element of Δ at the entry type
@@ -4263,16 +4303,37 @@ mutual
     let t = QElim sg k mths (cast es) w
     pure (t, t, substTy motK (Ext (foldl Ext Id es) w))
 
+  ||| A derivation of a PROP: an element derivation classified at Ω, or
+  ||| whose erasure is ≡-/∥·∥-headed.
+  dPropAt : Sig -> Ctx -> Drv -> KM Ty
+  dPropAt sig ctx pQ = do
+    (q, q', k) <- dInfer sig ctx pQ
+    if q == q' then pure () else kerr "kernel: a prop annotation states a proper equation"
+    k' <- kWhnfT sig k
+    case k' of
+      PropTy => pure q
+      _ => do
+        qW <- kWhnfT sig q
+        case qW of
+          Elem.EqTy _ _ _ => pure q
+          Squash _ => pure q
+          _ => kerr "kernel: the annotation derives no proposition [\{show q} : \{show k}]"
+
   ||| el-squash-e-prf at a goal prop: the scrutinee derives ∥A∥, the
   ||| body proves the goal under A.
   squashElimAt : Sig -> Ctx -> Ty -> Drv -> Drv -> KM ()
   squashElimAt sig ctx goal e b = do
+    okQ <- kIsProp sig ctx goal (Nd [] [])
+    if okQ then pure () else kerr "kernel: squash-elim at a non-prop goal"
+    squashElimAtP sig ctx goal e b
+
+  ||| … the goal's prop-ness already established.
+  squashElimAtP : Sig -> Ctx -> Ty -> Drv -> Drv -> KM ()
+  squashElimAtP sig ctx goal e b = do
     (_, _, eTy) <- dElemTy sig ctx e
     eTy' <- kWhnfT sig eTy
     case eTy' of
       Squash a => do
-        okQ <- kIsProp sig ctx goal (Nd [] [])
-        if okQ then pure () else kerr "kernel: squash-elim at a non-prop goal"
         _ <- dElemAt sig (ctx :< a) b (substTy goal Wk)
         pure ()
       _ => kerr "kernel: squash-elim scrutinee has a non-∥∥ type"
@@ -4532,6 +4593,7 @@ mutual
               _ => kerr "re-derive: ⋆ at a non-∥∥ type"
           Nothing => case takeP pSquashElim sk of
             Just ((scrut, scrutSk, mexp, body, bodySk, _), _) => do
+              dQ <- rdTypeBare sig ctx ty
               (de0, sTy0) <- rdInfer sig ctx scrut scrutSk
               (de, sTy) <- the (KM (Drv, Ty)) $ case mexp of
                 Nothing => pure (de0, sTy0)
@@ -4543,9 +4605,15 @@ mutual
               case sTy' of
                 Squash a => do
                   db <- rdCheck sig (ctx :< a) body bodySk (substTy ty Wk)
-                  pure (DSquashElim Nothing de db)
+                  pure (DSquashElim (Just dQ) de db)
                 _ => kerr "re-derive: squash-elim scrutinee has a non-∥∥ type"
-            Nothing => kerr "re-derive: ⋆ without a payload"
+            Nothing => do
+              -- no payload (an annotation's copy of a witness): at an
+              -- equality prop, reflexivity — the kernel decides
+              ty' <- kWhnfT sig ty
+              case ty' of
+                Elem.EqTy _ _ _ => pure (DStar Nothing DReflx)
+                _ => kerr "re-derive: ⋆ without a payload"
     Inj1 a => rdShaped sig ctx ty (\t => case t of SumTy d _ => Just d; _ => Nothing) $ \dom =>
       DInj1 Nothing <$> rdCheck sig ctx a (skelChild 0 sk) dom
     Inj2 a => rdShaped sig ctx ty (\t => case t of SumTy _ c => Just c; _ => Nothing) $ \cod =>
@@ -5002,14 +5070,24 @@ mutual
     rdPrf sig ctx prf (Just lJ) (Just rJ) ty
 
   ||| A proof term re-derived, the goal's sides where known (Nothing
-  ||| under a computed middle) and its type.
+  ||| under a computed middle) and its type; the sides β-joined first.
   rdPrf : Sig -> Ctx -> Prf -> Maybe Elem -> Maybe Elem -> Ty -> KM Drv
-  rdPrf sig ctx prf ml mr ty = case prf of
-    PSelf t => fst <$> rdInfer sig ctx t (Nd [] [])
+  rdPrf sig ctx prf ml0 mr0 ty = do
+    ml <- traverse (kJoinElem sig) ml0
+    mr <- traverse (kJoinElem sig) mr0
+    rdPrfAt sig ctx prf ml mr ty
+
+  rdPrfAt : Sig -> Ctx -> Prf -> Maybe Elem -> Maybe Elem -> Ty -> KM Drv
+  rdPrfAt sig ctx prf ml mr ty = case prf of
+    -- a stating leaf whose declared type is spelled otherwise than the
+    -- position's arrives converted (the proof library's PAt by δ)
+    PSelf t => do
+      (d, t') <- rdInfer sig ctx t (Nd [] [])
+      atPos d t'
     PChk t t' sk => do
       d <- rdCheck sig ctx t sk t'
       dT <- rdTypeBare sig ctx t'
-      pure (DAscribe d dT Nothing)
+      atPos (DAscribe d dT Nothing) t'
     PRefl p => DRefl <$> rdPrf sig ctx p Nothing Nothing TopTy
     PPath sg k qs => DPath sg k <$> traverse (\q => rdPrf sig ctx q Nothing Nothing TopTy) qs
     PDelta x qs => DDelta x <$> traverse (\q => rdPrf sig ctx q Nothing Nothing TopTy) qs
@@ -5265,6 +5343,19 @@ mutual
       dx <- rdPrf sig ctx qx (part ml corecX) (part mr corecX) a
       pure (DCorec pf da df dx)
    where
+    -- the derivation at the position's type: as is when its type agrees
+    -- by β, else under the δ bridge
+    atPos : Drv -> Ty -> KM Drv
+    atPos d t = case ty of
+      TopTy => pure d
+      _ => do
+        ok <- tyAgree sig ty t
+        if ok then pure d else do
+          mb <- rdBridge sig t ty
+          case mb of
+            Just b => do dTy <- rdTypeBare sig ctx ty; pure (DConv d (Just dTy) b)
+            Nothing => pure d
+
     rFs : Nat -> (List Elem, List Elem, Elem) -> Maybe Elem
     rFs j (fs', _, _) = getAt j fs'
     rEs : Nat -> (List Elem, List Elem, Elem) -> Maybe Elem
@@ -5473,6 +5564,7 @@ mutual
 ||| that just accepted is audited (NOVA_AUDIT=1), never a verdict.
 canary : String -> KM () -> Nat -> a -> a
 canary what m fuel x =
+  if not drvCanary then x else
   case runKM m fuel of
     Right _ => x
     Left e => audit "DRV-DISAGREE \{what} | \{e}" x

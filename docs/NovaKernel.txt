@@ -1129,7 +1129,14 @@ annotation is itself a derivation (of a type), never a bare term.
                                π_T ⇒ T′ : 𝕍, β ▷ T ≐ T′
       | π by β                 checking at T: π ⇒ T′, β ▷ T′ ≐ T
                                (the skeleton's switch)
-      | (π : π_T by β)         ascription of a STATED equation (PAt)
+      | (π : π_T by β)         ascription of a STATED equation (PAt;
+                               the same reading as π ∷ π_T by β)
+      | (π : π_T by β?)        ASCRIPTION of an element: π CHECKED at
+                               what π_T derives; under checking at T,
+                               β ▷ T ≐ that (an exposure), or the two
+                               agree (β absent); in inference position
+                               the type is what π_T derives (the
+                               skeleton's intro-ty), β absent
       | π[↑ᵈ ▷ (π₁ : π_T₁) … (πₖ : π_Tₖ)]   SUBSTITUTION (10.4),
                                inference only
   -- intro forms: the subscript is the INFERENCE-mode annotation,
@@ -1353,8 +1360,49 @@ A5 (no η certificate for QIITs).
 
   1. DONE (2026-09-24): this grammar and its erasure as data,
      Nova.Kernel.Derivation, beside Prf;
-  2. the ⇒ reading of every node in the kernel, sharing kEqElem's
-     leaves and the ⇐ reading; the item entry point on derivations;
+  2. DONE (2026-09-24): the readings of every node in the kernel
+     (dInfer, dCheck, dAt with the directional run dDir and the
+     decomposition dGo), the item and equation entry points
+     (kCheckDefDrv, kCheckTyDefDrv, kCheckEqDrv), and a RE-DERIVATION
+     of what the elaborator emits today (a term with its skeleton, a
+     proof term) into derivations (rdCheck, rdInfer, rdType, rdPrf —
+     the embryo of step 3's re-derivation), run as a CANARY under
+     NOVA_DRV=1 at every kernel entry point: what the checker accepts
+     is re-derived and read, a disagreement audited as DRV-DISAGREE.
+     Over the corpus the readings agree with the checker on every
+     item and on all 2049 discharges the re-derivation can express;
+     82 remain untranslatable — annotation copies (a conversion's
+     target, an exposure's) whose eliminators lost their motives and
+     well-definedness proofs, witnesses copied without their proofs,
+     stuck-eliminator heads with no motive — exactly what step 3
+     supplies when annotations are the elaborator's own derivations.
+     Decisions the implementation forced, folded into 10.2–10.5:
+       * the ascription form (π : π_T by β?) beside the switch-
+         flavoured conversion (10.2);
+       * the reading against given sides tries the DIRECTIONAL run
+         first for any proof that runs left to right, then checks a
+         checkable derivation at the type and compares, then
+         decomposes; transitivity and symmetry always run link by link
+         (a link may run one way only);
+       * positional agreement as §6/§7 have it: an element's type and
+         a stating leaf's type agree with the position's; a spine node
+         over a proper equation is not compared (a dependent codomain
+         moves with the argument), an eliminator node compares its
+         motive's instance at the left scrutinee;
+       * a head or scrutinee child that does not derive is typed by
+         inversion from the given side (inferHead, β-only): the
+         neutral-subterm rule of §6 STAYS — 10.5 and 10.7 overstate
+         its disappearance; what disappears is the undetermined
+         position, since motives are mandatory;
+       * checking sugar: an eliminator without its motive reads at the
+         constant motive; a type former checked at 𝕌 or 𝕍 reads its
+         components there; a reference's, sort's or constructor's spine
+         may carry proper equations (the congruence at the spine), the
+         entry types instantiated by the LEFT entries;
+       * "checkable" (dCheckable) beside "stating" (dSynth): a
+         checking-mode intro, a switch, a type former, an eliminator
+         at the constant motive is checked at a known type though it
+         states nothing on its own.
   3. the elaborator returns derivations (every (Elem, Skel) site), the
      data-item emitters build them, re-derivation replaces reSkel;
   4. the engine: leaves as derivations, candidates as proofs over
