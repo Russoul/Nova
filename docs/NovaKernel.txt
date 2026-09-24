@@ -1060,3 +1060,258 @@ syntactically, only up to certified conversion; and the kernel
 invariant is one-directional — kernel accepts the annotated tree ⟹
 the erasure is Foundation-derivable at the stated type. Rejection
 claims nothing.
+
+////////// 10. Derivations: the kernel on proof terms alone (DRAFT) //////////
+
+STATUS. §2–§9 describe the kernel as implemented: an item is a core
+term plus a SKELETON, a tree aligned with the term that carries what
+β does not read, and equations are proof terms. This section drafts
+the design that replaces the pair: the kernel's input is a proof
+term ALONE, and the core term is its ERASURE. Nothing below is
+implemented yet; when it is, §8 goes and §2, §6, §7, §9 are rewritten
+to the grammar here. Decisions taken in the draft are marked DECIDED.
+
+10.1 The observation
+
+The proof-term language already synthesizes. The ⇒ reading (§7) of a
+typed neutral such as [x] .π₂ y produces both sides and the type of
+the equation it states, and an element's derivation IS such a proof:
+one whose two sides coincide. The checked leaf [t : T] ⟨sk⟩ is the
+one place where a bare term and a skeleton still enter together, and
+every awkwardness of the pair lives there or in the item level that
+mirrors it — child indexing by position, "bad path", motives whose
+binder depth the skeleton does not record, a substitution that cannot
+enter skeletons, skeleton reconstruction for values the elaborator
+never elaborated. Give the intro forms and the eliminators their own
+nodes, carrying what β does not read, and the term becomes an OUTPUT:
+the erasure |π| of the derivation. A substitution node π[σ] then
+synthesizes |π|[σ] : A[σ] by computing, and there is nothing to
+compare it with.
+
+One language, then: a DERIVATION is a proof term, a proof term is a
+derivation, and
+
+  Σ; Γ ⊦ π ⇒ l ≐ r : T        (the ⇒ reading, now total on the grammar)
+
+is the kernel's one synthesising judgement. An element derivation is
+a π with l = r syntactically; we write Σ; Γ ⊦ π ⇒ t : T for it.
+
+10.2 Grammar
+
+Spelled in the core's own syntax, as in §2: a node is the former it
+derives, with derivations in the children's places; a subscript is an
+ANNOTATION — what the former's computation rule does not read and its
+typing rule needs. α, β, π, … range over derivations; a type
+annotation is itself a derivation (of a type), never a bare term.
+
+  -- leaves
+  π ::= ☐ᵢ                     variable                         (el-var)
+      | x[π̄]                   signature reference, spine derived
+      | () | Z | 𝟘 | 𝟙 | ℕ | 𝕌 | Ω | 𝕍
+      | ⟨π⟩                    REFLECTION: π ⇒ p : (l ≡ r ∈ A)
+                               states l ≐ r : A                 (PRefl)
+      | qpath 𝕔 π̄              an imposed QIIT equation          (PPath)
+      | x-δ π̄                  x[ū] ≐ t[ū] for (Δ ⊦ x ≔ t : T)   (PDelta)
+      | refl | π⁻¹ | π ; π | π ; [m] ; π | δ-all x̄
+  -- type-directed leaves (read ⇐ only, §10.5)
+      | irrel(π_P)             P a prop, derived: π_P ⇒ P : Ω
+      | η→(π) | η×(π, π) | quot-wit(π?) | quot-wit[π_w]
+      | inj(π) | propext[π_f, π_g] | prop-lift(π_p, π_q, π)
+  -- conversion, substitution
+      | π ∷ π_T by β           the equation's TYPE converted:
+                               π_T ⇒ T′ : 𝕍, β ▷ T ≐ T′
+      | (π : π_T by β)         ascription of a STATED equation (PAt)
+      | π[↑ᵈ ▷ (π₁ : π_T₁) … (πₖ : π_Tₖ)]   SUBSTITUTION (10.4)
+  -- intro forms: annotated with what the type needs
+      | λ_{π_A} π              domain
+      | (π, π)_{π_B}           the Σ's family, over Γ ▷ A
+      | inj₁_{π_B} π | inj₂_{π_A} π        the other summand
+      | class_{π_R} π          the relation, over Γ ▷ A ▷ A[↑]
+      | S π
+      | 𝒮.𝕔 π̄                  constructor, signature carried
+      | corec_𝔽 π π π
+      | let π π                the core's let (definiens inferred)
+      | ⋆_{π_P} by π           el-eq-i: π_P ⇒ (l ≡ r ∈ A) : Ω,
+                               π ▷ l ≐ r : A
+      | sq(π)                  el-squash-i: π ⇒ e : A gives ⋆ : ∥A∥
+      | squash-elim_{π_Q} π (x. π)   el-squash-e-prf: the goal prop
+      | coind_{π_P} R π_p π_q        el-nu-coind: the equation prop
+  -- eliminators: motives mandatory
+      | 𝟘-elim_{π_T} π
+      | ℕ-elim_{π_M} π π π
+      | ⊎-elim_{π_M} π π π
+      | quot-elim_{π_M ; wd} π π      wd a proof, or absent when M is
+                                      a prop (10.3)
+      | 𝒮.𝕤-elim_{π̄_C ; coh̄} π̄ π̄ π   motives (one per sort), coherences
+      | out π
+      | π π | π .π₁ | π .π₂
+  -- types and codes
+      | Π π π | Σ π π | π ⊎ π | π ≡ π ∈ π | π / π | ∥π∥ | ν 𝔽 | 𝒮.𝕤 π̄
+
+Binders are as in the core (a child under a binder is read in the
+extended context); the annotations' contexts are given with each
+rule in 10.3. The old congruence nodes (§6) are these nodes read with
+children whose sides differ; the old checked leaf [t : T] ⟨sk⟩ has no
+successor — a checked term is the derivation of it. The old self leaf
+[t] is the variable or reference leaf.
+
+DECIDED: motives are mandatory on eliminator nodes. The constant
+motive is the producer's to write (the engine writes it when it
+derives an eliminator it did not elaborate); A1 and A2 (§9) are then
+not approximations of this kernel but of the engine's derivations.
+
+10.3 The ⇒ reading
+
+Every node reads its children ⇒, obtaining lᵢ ≐ rᵢ : Tᵢ, checks the
+side conditions its rule imposes on the Tᵢ and the annotations, and
+states F(l̄) ≐ F(r̄) : T, where T is computed from the annotations and
+the LEFT sides (§6's convention). Type agreement (tyAgree: β-join,
+cumulativity at 𝕍 for 𝕌 and Ω codes, carrier identity under β) is the
+only comparison; there is no checking mode of bare terms. Written
+for element derivations (l = r), the rules are the rules of §8 with
+the skeleton payloads read off the annotations; a few, to fix the
+shape:
+
+  Σ; Γ ⊦ π_A ⇒ A : 𝕍      Σ; Γ ▷ A ⊦ π ⇒ b : B
+  --------------------------------------------------          # el-pi-i
+  Σ; Γ ⊦ λ_{π_A} π ⇒ λ b : Π A B
+
+  Σ; Γ ⊦ π ⇒ f : F    nf(F) ⇓ Π A B    Σ; Γ ⊦ α ⇒ a : A′    A′ agrees A
+  ---------------------------------------------------------------------
+  Σ; Γ ⊦ π α ⇒ f a : B[id, a]                                # el-pi-e
+
+  Σ; Γ ⊦ π_u ⇒ u : A    Σ; Γ ▷ A ⊦ π_B ⇒ B : 𝕍    Σ; Γ ⊦ π_v ⇒ v : B′
+  B′ agrees B[id, u]
+  ---------------------------------------------------------------------
+  Σ; Γ ⊦ (π_u, π_v)_{π_B} ⇒ (u, v) : Σ A B                   # el-sigma-i
+
+  Σ; Γ ▷ ℕ ⊦ π_M ⇒ M : 𝕍    Σ; Γ ⊦ π_z ⇒ z : Z′    Z′ agrees M[id, Z]
+  Σ; Γ ▷ ℕ ▷ M ⊦ π_s ⇒ s : S′    S′ agrees M[(↑, S ☐₀) ∘ ↑]
+  Σ; Γ ⊦ π_n ⇒ n : N′    N′ agrees ℕ
+  ---------------------------------------------------------------------
+  Σ; Γ ⊦ ℕ-elim_{π_M} π_z π_s π_n ⇒ ℕ-elim z s n : M[id, n]   # el-nat-e
+
+  Σ; Γ ⊦ π_P ⇒ (l ≡ r ∈ A) : Ω      Σ; Γ ⊦ π ▷ l ≐ r : A
+  ---------------------------------------------------------------------
+  Σ; Γ ⊦ ⋆_{π_P} by π ⇒ ⋆ : (l ≡ r ∈ A)                     # el-eq-i
+  # the type is an OUTPUT of the witness node: what π_P derives
+
+  Σ; Γ ⊦ π ⇒ t : T′    Σ; Γ ⊦ π_T ⇒ T : 𝕍    Σ; Γ ⊦ β ▷ T′ ≐ T : 𝕍
+  ---------------------------------------------------------------------
+  Σ; Γ ⊦ π ∷ π_T by β ⇒ t : T                               # conversion
+
+quot-elim: with the motive M and the relation instance read off the
+scrutinee's derived type (nf(Tq) ⇓ A / r), the well-definedness proof
+wd ▷ f[↑³, ☐₂] ≐ f[↑³, ☐₁] : M[↑³, class ☐₂] under Γ ▷ A ▷ A[↑] ▷ r is
+demanded unless M derives at Ω (kIsProp becomes: the motive's own
+derivation, no skeleton to thread). squash-elim, coind and the QIIT
+eliminator follow §8 likewise, each payload an annotation. A
+reference's spine x[π̄] is §3's stated spine, each entry a derivation
+read ⇒ against the telescope; a δ leaf's and a path leaf's spines the
+same.
+
+For nodes whose children state PROPER equations (lᵢ ≠ rᵢ) the reading
+is the congruence rule (§6): the result is F(l̄) ≐ F(r̄), the type
+computed as above from the left sides. This is what makes one grammar
+serve both: a congruence proof is a derivation with equations at the
+leaves.
+
+10.4 The substitution node                                    DECIDED
+
+  σ ::= ↑ᵈ ▷ (π₁ : π_T₁) … (πₖ : π_Tₖ)      d ≥ 0, k ≥ 0
+
+  Γ = Δ↓d ▷ T₁ … Tₖ  where  Δ↓d ⊦ π_T₁ ⇒ T₁ : 𝕍,
+                            Δ↓d ▷ T₁ … Tᵢ₋₁ ⊦ π_Tᵢ ⇒ Tᵢ : 𝕍
+  Σ; Δ ⊦ πᵢ ⇒ eᵢ : Eᵢ    Eᵢ agrees Tᵢ[↑ᵈ, e₁, …, eᵢ₋₁]      (each i)
+  Σ; Γ ⊦ π ⇒ l ≐ r : A
+  ---------------------------------------------------------------------
+  Σ; Δ ⊦ π[σ] ⇒ l[σ] ≐ r[σ] : A[σ]                            # subst
+
+Δ↓d is Δ without its d newest entries. This is the substitution
+lemma, admissible in the theory, made a rule of the kernel — as it is
+in a CwF, where substitution is primitive. Its shape is a weakening
+followed by a typed extension, which is the ONLY shape of
+substitution the engine performs (a match's instantiation under the
+binders it crossed, a hypothesis moved under a binder, a lemma
+instantiated at its parameters); the telescope is carried because it
+cannot be recovered from the entries' types (Tᵢ abstracts the
+earlier entries, which the Δ-types Eᵢ have already substituted).
+General substitutions — permutations, contractions — do not arise
+and have no node.
+
+What it buys: a candidate stores its licence ONCE, a proof over its
+own context, and is instantiated by wrapping (lic[σ]); a hypothesis
+under three binders is ⟨☐ᵢ⟩[↑³]; there is no substitution on proof
+terms other than this node (the current substPrf, which cannot enter
+skeletons, goes), no rebuild of candidate sets under binders, and
+sharing of a written derivation across its instances.
+
+10.5 The ⇐ reading survives, against erasures
+
+Conversions are the one place a derivation meets sides it did not
+produce: in π ∷ π_T by β the proof β is read against the two erasures
+T′ and T (GChk), and inside it the nodes decompose erasures by shape
+exactly as §6 and §7 describe, transitivity runs a directional
+reading (→), and the type-directed leaves read both sides. Nothing of
+§7 is lost; what changes is that every leaf under ⇐ is a derivation
+and states its type, so the POSITIONAL CHECK always has a stated
+type to compare, and — motives being mandatory — every position's
+expected type is determined by the node above. The neutral-subterm
+rule (§6), inferHead and the undetermined position disappear.
+
+Erasure |π| is a function of the derivation (drop annotations, keep
+the former; a leaf erases to its term; ⟨π⟩, x-δ, refl, … erase to
+⋆-free equation content and never occur inside an element derivation
+except as a witness node's proof, which erases to ⋆). Computation
+stays on erasures: the join normalizes |π|, refl compares erasures,
+δ unfolds a definition's stored erasure. Derivations are never
+β-reduced.
+
+10.6 Items, Σ, the pipeline
+
+An item is a derivation of its type and a derivation of its body:
+Σ; Δ ⊦ π_T ⇒ T : 𝕍 and Σ; Δ ⊦ π ⇒ t : T′ with T′ agreeing T. Σ stores
+(Δ ⊦ x ≔ |π| : |π_T|): erasures, as now, since δ and β read them. The
+elaborator's output is the derivation; the distiller prints erasures;
+the round trip is surface → derivation → erasure → surface.
+
+DECIDED: the engine's speculative search keeps comparing ERASURES
+(β-joins, rewrites, matching are on terms), and typing enters only
+where a proof is written: a proof's leaves are derivations. What the
+proof library does today with elemToPrf/argPrf/chkSkel — stating a
+neutral, deriving an intro-form argument at its domain, the constant
+motive of an eliminator argument — becomes DERIVING the term against
+its type (re-derivation), the successor of skeleton reconstruction
+and of kInferBare; the same service re-derives a hole's solution,
+the one value the elaborator never elaborated (unification produces
+terms, not derivations).
+
+10.7 What disappears, what remains
+
+Gone: Skel, Payload, the child-indexing table of §2, the checked leaf
+[t : T] ⟨sk⟩, the self leaf's bare term, checking-mode inference of
+bare terms, inferHead, the neutral-subterm rule, A1, A2, substPrf,
+skeleton reconstruction, the item-level fallthrough. Remaining kernel
+comparison: tyAgree (β-join, cumulativity, carrier identity) and the
+⇐ reading of conversion proofs against erasures. Remaining
+approximations: A3 (opaque carriers), A4 (β-only coherences in
+re-derived eliminator arguments — the engine writes refl coherences),
+A5 (no η certificate for QIITs).
+
+10.8 Migration order
+
+  1. this grammar and its erasure as data (Nova.Kernel), beside Prf;
+  2. the ⇒ reading of every node in the kernel, sharing kEqElem's
+     leaves and the ⇐ reading; the item entry point on derivations;
+  3. the elaborator returns derivations (every (Elem, Skel) site), the
+     data-item emitters build them, re-derivation replaces reSkel;
+  4. the engine: leaves as derivations, candidates as proofs over
+     their context instantiated by [σ], extendCS a wrap;
+  5. delete Skel, Payload, PChk, PSelf's bare form, substPrf; rewrite
+     §2, §6, §7, §8, §9 from this section.
+
+Open at the time of writing: whether the annotation of an intro node
+should be the FULL type (λ_{Π A B}) rather than the domain — the
+domain suffices for synthesis and is what the elaborator has; and
+whether a proof-level let (α ≔ π in π′) is wanted for sharing beyond
+what [σ] gives — deferred to the let-sharing item.
