@@ -71,8 +71,11 @@ mutual
     ||| unfolded at once
     DDeltaAll : List String -> Drv
     -- ----- type-directed leaves (read ▷ only, §10.5) -----
-    ||| irrel(π_P): the position's type is 𝟙, 𝟘, or the prop π_P derives
-    DIrrel : Drv -> Drv
+    ||| irrel(π_P?): the position's type is 𝟙, 𝟘, or a prop — the one
+    ||| π_P derives, or (the derivation absent) the position's type
+    ||| itself, judged a prop by the kernel (a given type is
+    ||| well-formed; its prop-ness is the kernel's own question on it)
+    DIrrel : Maybe Drv -> Drv
     ||| η→(π)
     DEtaPi : Drv -> Drv
     ||| η×(π, π′)
@@ -85,8 +88,10 @@ mutual
     DInj : Drv -> Drv
     ||| propext[π_f, π_g]: the two implications, derived as functions
     DPropExt : Drv -> Drv -> Drv
-    ||| prop-lift(π_p, π_q, π): both sides props (derived at Ω), π at Ω
-    DPrfCong : Drv -> Drv -> Drv -> Drv
+    ||| prop-lift(π_p?, π_q?, π): both sides props — derived at Ω, or,
+    ||| a derivation absent, the given side judged a prop by the
+    ||| kernel — and π at Ω
+    DPrfCong : Maybe Drv -> Maybe Drv -> Drv -> Drv
     -- ----- conversion, ascription, substitution -----
     ||| π ∷ π_T by β (inference: the type converted to what π_T
     ||| derives) — π by β (checking at T, the annotation absent: the
@@ -97,12 +102,15 @@ mutual
     DAt : Drv -> Drv -> Drv -> Drv
     ||| π[σ] (§10.4): the substitution lemma as a rule; inference only
     DSubst : Drv -> DSub -> Drv
-    ||| (π : π_T by β?): an ASCRIPTION — π checked at the type π_T
-    ||| derives; under checking at T, β ▷ T ≐ that type (an exposure:
-    ||| the skeleton's expose), or the two agree (β absent); in
-    ||| inference position the type is what π_T derives (the
-    ||| skeleton's intro-ty), β absent
-    DAscribe : Drv -> Drv -> Maybe Drv -> Drv
+    ||| (π : π_T? by β?): an ASCRIPTION — π checked at a type the
+    ||| annotation derives, or, the annotation absent, at the type β
+    ||| PRODUCES when run from the position's type (β → T ≐ T′: an
+    ||| exposure names no target of its own — the target is what
+    ||| unfolding reaches, well-formed because the run is a chain of
+    ||| rule applications); with both present β ▷ T ≐ that type; with
+    ||| neither the two agree; in inference position the type is what
+    ||| π_T derives (the skeleton's intro-ty), β absent
+    DAscribe : Drv -> Maybe Drv -> Maybe Drv -> Drv
     -- ----- intro forms -----
     ||| λ_{π_A} π
     DLam : Maybe Drv -> Drv -> Drv
@@ -325,20 +333,20 @@ mutual
   showDrv (DTransAt p m q) = "(\{showDrv p} ; [\{show m}] ; \{showDrv q})"
   showDrv (DDeltaAll ns) = "δ-all \{show ns}"
   -- type-directed leaves
-  showDrv (DIrrel p) = "irrel(\{showDrv p})"
+  showDrv (DIrrel p) = "irrel(\{maybe "" showDrv p})"
   showDrv (DEtaPi p) = "η→(\{showDrv p})"
   showDrv (DEtaSigma p q) = "η×(\{showDrv p}, \{showDrv q})"
   showDrv (DQuotWit mp) = "quot-wit(\{maybe "" showDrv mp})"
   showDrv (DQuotWitPrf w) = "quot-wit[\{showDrv w}]"
   showDrv (DInj p) = "inj(\{showDrv p})"
   showDrv (DPropExt f g) = "propext[\{showDrv f}, \{showDrv g}]"
-  showDrv (DPrfCong p q r) = "prop-lift(\{showDrv p}, \{showDrv q}, \{showDrv r})"
+  showDrv (DPrfCong p q r) = "prop-lift(\{maybe "_" showDrv p}, \{maybe "_" showDrv q}, \{showDrv r})"
   -- conversion, ascription, substitution
   showDrv (DConv p Nothing b) = "(\{showDrv p} by \{showDrv b})"
   showDrv (DConv p (Just t) b) = "(\{showDrv p} ∷ \{showDrv t} by \{showDrv b})"
   showDrv (DAt p t b) = "(\{showDrv p} : \{showDrv t} by \{showDrv b})"
-  showDrv (DAscribe p t Nothing) = "(\{showDrv p} : \{showDrv t})"
-  showDrv (DAscribe p t (Just b)) = "(\{showDrv p} : \{showDrv t} by \{showDrv b})"
+  showDrv (DAscribe p t Nothing) = "(\{showDrv p} : \{maybe "_" showDrv t})"
+  showDrv (DAscribe p t (Just b)) = "(\{showDrv p} : \{maybe "_" showDrv t} by \{showDrv b})"
   showDrv (DSubst p (MkDSub d es)) =
     "\{argD p}[↑\{show d}\{concatMap entryD es}]"
   -- intro forms
