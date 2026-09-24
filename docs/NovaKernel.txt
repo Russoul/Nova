@@ -153,10 +153,6 @@ around the leaf, and the goal is never edited, only compared.
 The grammar (constructors in parentheses are the implementation's
 names):
 
-  sel ::=                                          (Sel)
-      suc | dom | cod α | suml | sumr | qdom | qrel α β | qidx i
-                                                   (§5)
-
   Proofs are written IN THE CORE'S OWN SYNTAX: a congruence node is
   spelled as the former it is the congruence of, with proofs in the
   children's places, and a term-shaped proof reads like the term it
@@ -178,7 +174,6 @@ names):
                         ū stated by ᾱ (§3)              (PDelta)
     | (α : T′ by β)     ASCRIPTION: the stated equation of α at T′,
                         β ▷ A ≐ T′                       (PAt)
-    | sel α             a component, by a selector      (PSel)
     -- structure
     | refl              the sides join under β          (PReflx)
     | α⁻¹                                               (PSym)
@@ -217,8 +212,8 @@ Substitution acts on a proof as on a term (every element it carries
 under the binders its nodes cross): a proof spelled in Γ is placed
 under b binders as π[↑ᵇ].
 
-Three READINGS of one proof (§7): ⇒ a leaf (with selectors, symmetry
-and transitivity over it) states its equation and type; → given one
+Three READINGS of one proof (§7): ⇒ a leaf (with symmetry and
+transitivity over it) states its equation and type; → given one
 side, the proof produces the other — the reading transitivity uses to
 find its middles; ⇐ given both sides, everything is verified — the
 only reading the type-directed leaves have. Which readings a proof
@@ -278,8 +273,7 @@ proof ELEMENT — the lemma instantiation behind a reflection leaf —
 arrives as a TYPED NEUTRAL (§2, §4): a proof term that states its
 own type, read by the ⇒ rules of §4 and §7 with no unfolding. The
 elements the former proof-spine checker (inferP/checkP) typed bare
-— a δ or path leaf's spine, a selector's instantiation element — are
-STATED the same way: each is a proof α whose ⇒-reading is a
+— a δ or path leaf's spine — are STATED the same way: each is a proof α whose ⇒-reading is a
 reflexivity u ≐ u : U, and the element it names is u, at U.
 
   Σ; Γ ⊦ αᵢ ⇒ uᵢ ≐ uᵢ : Uᵢ    Uᵢ agrees with Δᵢ[u₀, …, uᵢ₋₁]   (each i)
@@ -293,9 +287,7 @@ syntactically ONE element (the reading of a self leaf [t], a checked
 leaf [t : T], an ascription, or an elimination spine over them; a
 proof that states an equation between two spellings names no
 element). Entry i's telescope type is instantiated by the preceding
-entries (sub-norm-ext), so a dependent telescope is walked in order;
-a single element (a selector's instantiation, §5) is the one-entry
-case.
+entries (sub-norm-ext), so a dependent telescope is walked in order.
 
 What this buys: the kernel unfolds nothing to type a spine. An entry
 whose type a definition hides is ascribed by its producer, (α : T′ by
@@ -376,8 +368,6 @@ occurrence is well-typed by the invariant and δ preserves its type.
 Every other reading (a refold, a check against both sides) goes
 through the rule above.
 
-  sel π :  (l′, r′, A′) = sel applied to (l, r, A)   (§5)
-           when π ⇒ l ≐ r : A;   sel π ⇒ l′ ≐ r′ : A′
   π⁻¹   :  swaps the sides
   π₁ ; π₂ : when π₁ ⇒ a ≐ b : A and π₂ runs → from nf(b) to c at A:
            a ≐ c : A; symmetrically when π₂ states and π₁ runs ←.
@@ -400,52 +390,38 @@ sits at a position like any leaf; the goal is never un-β'd back to
 the raw spelling (an inverted unfold has no position to land on once
 the unfolded body has β-reduced away).
 
-////////// 5. Selectors //////////
+////////// 5. Injectivity //////////
 
-Selectors pass from a stated equation between same-headed terms to a
-component equation (the sel π leaf, §4). Each is licensed by a
-Foundation rule; both sides are normalized before the head test, and
-a selector whose head shapes do not match is rejected.
+There is NO injectivity node. A proof passes from an equation to a
+component equation only the way the theory does: by a CONGRUENCE
+whose β-reduct is the component. S-injectivity is the predecessor
+congruence — Foundation notes it as derivable (an ℕ-elim retraction
+of S) — and the engine derives it so: from a licence h for S x ≐ S y
+it emits
 
-  suc      : S x ≐ S y : ℕ            ⇒  x ≐ y : ℕ
-             # derivable congruence (pred via ℕ-elim)
-  dom      : (a₀ → b₀) ≐ (a₁ → b₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌
-             # code-pi-inj (also code-sigma-inj for pair codes)
-  cod α    : (a₀ → b₀) ≐ (a₁ → b₁) : 𝕌 ⇒  b₀[id,u] ≐ b₁[id,u] : 𝕌
-             requires  Σ; Γ ⊦ α ⇐ˢ a₁ ⇝ u   (a stated element, §3)
-             # code-pi-inj second component, instantiated at u (el-sub-cong-fix)
-  suml     : (a₀ ⊎ b₀) ≐ (a₁ ⊎ b₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌
-  sumr     : (a₀ ⊎ b₀) ≐ (a₁ ⊎ b₁) : 𝕌 ⇒  b₀ ≐ b₁ : 𝕌
-             # code-sum-inj; non-dependent, so neither component
-             # crosses a binder and no instantiation element is needed
-  qdom     : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  a₀ ≐ a₁ : 𝕌      # code-quot-inj
-  qrel α β : (a₀ / r₀) ≐ (a₁ / r₁) : 𝕌 ⇒  r₀[id,u,v] ≐ r₁[id,u,v] : Ω
-             requires  Σ; Γ ⊦ α ⇐ˢ a₁ ⇝ u   Σ; Γ ⊦ β ⇐ˢ a₁ ⇝ v
-             # the relation components live at Ω, not 𝕌
-  qidx i   : 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ : 𝕌  ⇒  ē₀ᵢ ≐ ē₁ᵢ : Eᵢ
-             requires the spines nf-EQUAL before i, so the entry type
-             Eᵢ (entry i of ⌊𝔎⌋ᵗ, instantiated by the shared prefix)
-             is determined; the signatures and the sort position must
-             be nf-identical      # QIIT code injectivity, indexwise
+  [λk. ℕ-elim Z (k ih. k) k : ℕ → ℕ] ⟨h⟩   ⇒  pred (S x) ≐ pred (S y) : ℕ
 
-The injectivity rules are Foundation's (NovaFoundation.txt, "Type
-constructor injectivity"); the binder-crossing selectors take an
-instantiation element so the resulting equation stays in Γ. Those
-instantiation elements come from the (untrusted) certificate as
-STATED elements (§3) — a proof naming u at a₁ — so el-sub-cong-fix's
-premise is established, not presumed: a binder equation only speaks
-about members of its domain, and an unchecked u would smuggle in an
-equation the premise never licensed.
+a spine node over a checked head, STATING its equation (§4); read at
+the position x ≐ y, its stated sides join to the goal's by β (§7: a
+stating node is also a leaf). The retraction is inlined as a checked
+λ rather than referenced through Σ so that the join needs no δ.
 
-NO selector passes from a constructor equation (𝒮.𝕔 θ₀ ≐ 𝒮.𝕔 θ₁ at a
-sort) to its components: point constructors are NOT injective —
-equation constructors may merge them (a quotient's cls is the
-canonical counterexample). And NO selector passes from an equation
-between equality props: equality is Ω-valued and inherits Ω's
-anti-structural discipline (code-prop-eq equates all true equations),
-so eq-injectivity is unsound — the old eqT/eqL/eqR selectors died
-with the ≡-type. Injectivity is a TYPE/CODE phenomenon only, exactly
-as in Foundation.
+Foundation's TYPE-CONSTRUCTOR injectivity rules (code-pi-inj,
+code-sum-inj, code-quot-inj, QIIT code injectivity indexwise) have no
+proof-term form: no proof in the corpus ever cited one, and the
+selectors that used to spell them (with their instantiation elements)
+are gone. A component equation of a code equation is therefore not
+extracted (tests/nova/elaboration/elab-injectivity records this: the
+sites end in obligations). Should a proof need one, the node to add is
+the rule itself, its binder-crossing instantiation stated (§3) as the
+selectors' were.
+
+What does NOT hold, as before: point constructors of a QIIT are NOT
+injective (equation constructors may merge them — a quotient's cls is
+the canonical counterexample), and equations between equality props
+have no injectivity (equality is Ω-valued and inherits Ω's
+anti-structural discipline: code-prop-eq equates all true equations).
+Injectivity is a TYPE/CODE phenomenon only, exactly as in Foundation.
 
 ////////// 6. Congruence nodes and the position's type //////////
 
@@ -572,7 +548,10 @@ The ⇐ reading, given l, r (β-joined) and the position's type E
                 undetermined: E := ⇒ᴺ(l), §6);  nf(a) = nf(l),
                 nf(b) = nf(r)
   congruence    both sides decompose by the node (§6); children ⇐
-                their parts
+                their parts — or, for a node that STATES (a spine over
+                a typed head, §4) when the sides lack its shape, the
+                stated sides meet the goal's under β at the position's
+                type (a leaf reading; §5's derived injectivity)
   irrel ⟨sk⟩    nf(E) ⇓ 𝟙 or 𝟘, or E is a PROPOSITION — ≡-/∥·∥-
                 headed, or a neutral that infers at Ω through the
                 carried skeleton sk (kIsProp: the raw spelling first,
@@ -1045,8 +1024,8 @@ a synthesized type — has its skeleton RECONSTRUCTED with the
 whitelist open). Proof elements and the neutrals a rewrite sits under
 are TYPED NEUTRALS (§2, §4, §7): spines of elimination nodes over self
 leaves, ascribed where a definition hides a shape — so proof-spine
-typing is β-only, and so is every element a proof carries (a
-selector's instantiation, a δ or path leaf's spine: STATED, §3) and
+typing is β-only, and so is every element a proof carries (a δ or
+path leaf's spine: STATED, §3) and
 every prop-ness test (kIsProp infers through a carried skeleton).
 NO kernel-initiated δ remains on a verdict path. ⇒ᴺ at an
 undetermined position (§6) opens a bare spine's head type by the

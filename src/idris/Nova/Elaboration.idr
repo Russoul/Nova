@@ -79,13 +79,14 @@ record Cand where
   paramTys : List Ty
   lhs : Elem
   rhs : Elem
-  ||| build (proof element, selectors) from complete match bindings;
+  ||| build the LICENCE (the stating proof of the equation, Proof.Licence)
+  ||| from complete match bindings;
   ||| the proof lives in the query context Γ. The Nat is the WEAKENING
   ||| DEPTH: how many binders the query context has been extended by
   ||| since the candidate was built (extendCS wraps it) — the closure
   ||| shifts its Γ-fixed parts by it, while bindings (already
   ||| extended-context elements) pass through untouched.
-  emit : Nat -> List (Nat, Elem) -> Maybe (Elem, List ESel)
+  emit : Nat -> List (Nat, Elem) -> Maybe Licence
   ||| the lemma-normalization of the sides as PROOFS over the pattern
   ||| context — lRaw ≐ lhs and rRaw ≐ rhs (they turned the raw sides
   ||| into the stored patterns; a licence is bridged from its raw
@@ -1219,15 +1220,15 @@ orderedParts cs =
 kernelFuel : Nat
 kernelFuel = 1000000
 
-||| A candidate's LICENCE LEAF at complete match bindings: the proof
-||| element and selectors it emits, its normalization proofs
+||| A candidate's LICENCE LEAF at complete match bindings: the licence
+||| it emits, its normalization proofs
 ||| instantiated by the match, the orientation — as the proof library
 ||| writes it (Nothing when the element cannot be stated).
 licPrf : ElabSt -> Ctx -> Cand -> Bindings -> (flip : Bool) -> Maybe Prf
 licPrf st ctx c bs flip = do
-  (prfMain, selsMain) <- c.emit 0 bs
+  lic <- c.emit 0 bs
   sigma <- instSub c.params 0 bs
-  runPA "licence \{c.candName}" (licLeaf st.sig ctx prfMain selsMain (substPrf c.preP sigma) (substPrf c.postP sigma) flip)
+  runPA "licence \{c.candName}" (licLeaf st.sig ctx lic (substPrf c.preP sigma) (substPrf c.postP sigma) flip)
 
 ||| What one rewrite did: the candidate matched at a position (child
 ||| indices from the root) with the bindings the match found — the
@@ -1984,11 +1985,6 @@ peelNf st ty = exposePisT st ty
 
 -- ===== Candidates in scope =====
 
-selArity : ESel -> Nat
-selArity (ESelCod _) = 1
-selArity (ESelQRel _ _) = 2
-selArity _ = 0
-
 ordered : List Cand -> List Cand
 ordered cs = let (a, b) = orderedParts cs in a ++ b
 
@@ -2022,46 +2018,21 @@ sigCandParts ls =
       hp = filter (\c => permutative c || elemSize c.rhs > elemSize c.lhs) cs
   in (cs, sh, re, hp)
 
-||| Close a candidate under component decomposition (code injectivity;
-||| S via a derivable predecessor). Only un-normalized candidates are
+||| Close a candidate under S-INJECTIVITY: a candidate S x ≡ S y also
+||| licenses x ≡ y, by the predecessor congruence (Proof.predCong — a
+||| derived proof, no kernel rule). Only un-normalized candidates are
 ||| closed: a component of a lemma-rewritten side would not match the
-||| raw licensed equation's components.
-closeCand : Cand -> List Cand
-closeCand c =
+||| raw licensed equation's components. Code injectivity (Π, Σ, ⊎, /,
+||| QIIT sorts) has no proof-term form and is not derived.
+sucClosure : Cand -> List Cand
+sucClosure c =
   if not (isReflx c.preP) || not (isReflx c.postP)
     then [c]
     else c :: go c.lhs c.rhs
  where
-  child : (mk : Bindings -> Maybe ESel) -> (n : Nat) -> List Ty -> Elem -> Elem -> Cand
-  child mk n tys l r =
-    { params $= (+ n)
-    , paramTys $= (++ tys)
-    , lhs := l, rhs := r
-    , emit := \wk, bs => do
-        let parentBs = mapMaybe (\(i, e) => if i >= n then Just (minus i n, e) else Nothing) bs
-        (p, sels) <- c.emit wk parentBs
-        sel <- mk bs
-        pure (p, sels ++ [sel])
-    } c
-
-  comp : ESel -> Elem -> Elem -> List Cand
-  comp s l r = closeCand (child (\_ => Just s) 0 [] l r)
-
   go : Elem -> Elem -> List Cand
-  go (NatIntro1 x) (NatIntro1 y) = comp ESelSuc x y
-  go (Elem.PiTy a0 b0) (Elem.PiTy a1 b1) =
-    comp ESelDom a0 a1
-    ++ closeCand (child (\bs => ESelCod <$> lookup 0 bs) 1 [a1] b0 b1)
-  go (Elem.SigmaTy a0 b0) (Elem.SigmaTy a1 b1) =
-    comp ESelDom a0 a1
-    ++ closeCand (child (\bs => ESelCod <$> lookup 0 bs) 1 [a1] b0 b1)
-  go (Elem.SumTy a0 b0) (Elem.SumTy a1 b1) =
-    -- code-sum-inj: both components at 𝕌, neither under a binder
-    comp ESelSumL a0 a1 ++ comp ESelSumR b0 b1
-  go (QuotTy a0 r0) (QuotTy a1 r1) =
-    comp ESelQDom a0 a1
-    ++ closeCand (child (\bs => [| ESelQRel (lookup 1 bs) (lookup 0 bs) |]) 2
-                        [a1, substTy a1 Wk] r0 r1)
+  go (NatIntro1 x) (NatIntro1 y) =
+    sucClosure ({ lhs := x, rhs := y, emit := \wk, bs => predCong <$> c.emit wk bs } c)
   go _ _ = []
 
 ||| Eq-typed hypotheses of Γ (leading Πs peeled) as candidates with base
@@ -2072,7 +2043,7 @@ closeCand c =
 ||| scoped rules only.
 hypCands : ElabSt -> (rw : List Cand) -> Ctx -> (skip : Nat) -> List Cand
 hypCands st rw ctx skip =
-  concatMap closeCand (concatMap candsAt (if skip >= length ctx then [] else [skip .. minus (length ctx) 1]))
+  concatMap sucClosure (concatMap candsAt (if skip >= length ctx then [] else [skip .. minus (length ctx) 1]))
  where
   lemmaRw : List Cand
   lemmaRw = rw
@@ -2101,11 +2072,11 @@ hypCands st rw ctx skip =
     let k = minus (length ctx') (length ctx)
     case eqShape peeled of
       Just (l, r, t) =>
-        let mk : Nat -> Bindings -> Maybe (Elem, List ESel)
+        let mk : Nat -> Bindings -> Maybe Licence
             mk = \wk, bs => do
               args <- traverse (\p => lookup p bs)
                         (the (List Nat) (if k == 0 then [] else reverse [0 .. minus k 1]))
-              pure (foldl PiApp (CtxVar (i + wk)) args, the (List ESel) [])
+              pure (reflectElem (foldl PiApp (CtxVar (i + wk)) args))
         in if k == 0
              then do
                (l1, pL) <- normed t (engNfE st l)
@@ -2124,7 +2095,7 @@ hypCands st rw ctx skip =
   groundEqCand prf (l, r, t) = do
     (l1, pL) <- normed t (engNfE st l)
     (r1, pR) <- normed t (engNfE st r)
-    Just (MkCand "hypothesis" 0 [] l1 r1 (\wk, _ => Just (weakenElemN wk prf, [])) pL pR)
+    Just (MkCand "hypothesis" 0 [] l1 r1 (\wk, _ => Just (reflectElem (weakenElemN wk prf))) pL pR)
 
 
   pairEqs : Nat -> (proj : Elem) -> Ty -> List (Elem, (Elem, Elem, Ty))
@@ -2741,7 +2712,7 @@ mutual
     -- El retired: a type equation whose sides are CODES is the 𝕌
     -- element equation (code-lift-eq / code-restrict) — delegate to
     -- the element engine, where the scope's candidates, rewriting
-    -- and the injectivity selectors live. Untrusted, like everything
+    -- live. Untrusted, like everything
     -- here: the proof checks through the shared channel. (𝕌 itself
     -- never rewrites, so the element proof carries no type bridge.)
     codeFall : Ty -> Ty -> Maybe Prf
@@ -4733,8 +4704,8 @@ mutual
   ||| at an equality prop.
   eqElimCand : ElabSt -> (j : Nat) -> (lhs, rhs : Elem) -> List Cand
   eqElimCand st j lhs rhs =
-    closeCand (MkCand "eq-elim" 0 [] (engNfE st lhs) (engNfE st rhs)
-                 (\wk, _ => Just (weakenElemN wk (CtxVar j), [])) PReflx PReflx)
+    sucClosure (MkCand "eq-elim" 0 [] (engNfE st lhs) (engNfE st rhs)
+                  (\wk, _ => Just (reflectElem (weakenElemN wk (CtxVar j)))) PReflx PReflx)
 
   ||| e-unsquash — the ∥∥ VARIABLE elimination.
   |||
@@ -5180,8 +5151,8 @@ mutual
       st' <- getSt
       let pref = foldl PiApp (SigVar qp [<]) (toList (varSpine (length ctx)))
       pure (inst (minus i j),
-            closeCand (MkCand "eq-elim-prf" 0 [] (engNfE st' (CtxVar j)) (engNfE st' atSite)
-                         (\wk, _ => Just (weakenElemN wk pref, [])) PReflx PReflx))
+            sucClosure (MkCand "eq-elim-prf" 0 [] (engNfE st' (CtxVar j)) (engNfE st' atSite)
+                          (\wk, _ => Just (reflectElem (weakenElemN wk pref))) PReflx PReflx))
 
     ||| Does the variable at `d` occur free? `strengthenElem` declines
     ||| exactly then — the scope check, read as an occurs check.
@@ -5242,9 +5213,9 @@ mutual
         else do
           st <- getSt
           let ref = foldl PiApp (SigVar q [<]) (toList (varSpine (length ctx)))
-          pure (closeCand (MkCand "sigma-eta" 0 []
+          pure [MkCand "sigma-eta" 0 []
                   (engNfE st (SigmaIntro (SigmaElim1 wv) (SigmaElim2 wv))) (engNfE st wv)
-                  (\wk, _ => Just (weakenElemN wk ref, [])) PReflx PReflx))
+                  (\wk, _ => Just (reflectElem (weakenElemN wk ref))) PReflx PReflx]
 
   ||| e-sigmaelim — the Σ VARIABLE elimination, in both modes.
   |||
@@ -5516,9 +5487,9 @@ mutual
       st <- getSt
       case exposeCode st jTy of
         Elem.EqTy u v _ =>
-          pure (closeCand (MkCand "chain link" 0 []
+          pure (sucClosure (MkCand "chain link" 0 []
                   (engNfE st u) (engNfE st v)
-                  (\wk, _ => Just (weakenElemN wk j', [])) PReflx PReflx))
+                  (\wk, _ => Just (reflectElem (weakenElemN wk j'))) PReflx PReflx))
         _ => throwAt site.srange "\{site}: a chain justification must prove an equation"
 
     ||| discharge each adjacency against ITS link only; a failure is
@@ -6878,13 +6849,13 @@ addLemma name delta ty = withEqScope ["exp:*"] $ do
           k = length delta'
           teleLen = length delta
           peeledN = minus k teleLen
-          mk : Nat -> Bindings -> Maybe (Elem, List ESel)
+          mk : Nat -> Bindings -> Maybe Licence
           mk = \wk, bs => do
             teleArgs <- traverse (\p => lookup p bs)
                           (the (List Nat) (if teleLen == 0 then [] else reverse [peeledN .. minus k 1]))
             peeledArgs <- traverse (\p => lookup p bs)
                             (the (List Nat) (if peeledN == 0 then [] else reverse [0 .. minus peeledN 1]))
-            pure (foldl PiApp (SigVar name (cast teleArgs)) peeledArgs, the (List ESel) [])
+            pure (reflectElem (foldl PiApp (SigVar name (cast teleArgs)) peeledArgs))
           -- (no site licences here: the sides β-join, no δ, no rewrite —
           -- the normalization proofs are reflexivity; a lemma is used
           -- from its raw equation)
@@ -6893,11 +6864,9 @@ addLemma name delta ty = withEqScope ["exp:*"] $ do
           pL = fromMaybe PReflx (snd lRes)
           pR = fromMaybe PReflx (snd rRes)
       in modifySt $ \st' =>
-           let ls = closeCand (MkCand name k (toList delta') (fst lRes) (fst rRes)
-                                      mk pL pR) ++ st'.lemmas
+           let new = sucClosure (MkCand name k (toList delta') (fst lRes) (fst rRes) mk pL pR)
+               ls = new ++ st'.lemmas
                (cs, sh, re, hp) = sigCandParts ls
-               new = closeCand (MkCand name k (toList delta') (fst lRes) (fst rRes)
-                                       mk pL pR)
            in { lemmas := ls, ownLemmas := new ++ st'.ownLemmas
               , candCs := cs, candShrink := sh
               , candRest := re, candHops := hp, candRw := sh ++ re } st'

@@ -62,10 +62,13 @@ swapMid =
     ≡⟨ plusAssoc x w (z + y) ⟩ x + w + (z + y)
 
 -- S is injective — the kernel's suc selector, named. Bare ⋆: reflecting
--- the hypothesis gives S n ≐ S m, whose suc-component the selector
--- reads off (docs/NovaKernel.txt §5)
-sucInj : (n m : ℕ) → (S n ≡ S m) → n ≡ m
-sucInj = λn m h. ⋆
+-- S is injective: the predecessor is a retraction of S, so the
+-- congruence pred (S n) ≡ pred (S m) is n ≡ m by β
+pred : ℕ → ℕ
+pred = λn. ℕ-elim Z (k ih. k) n
+
+sucInj : (n m : ℕ) → (S n ≡ S m) → n ≡ m using (Natural.pred.unfold)
+sucInj = λn m h. cong (λ_. ℕ) pred h
 
 -- CANCELLATION: (· + k) is injective, i.e. a common right summand
 -- cancels. Induction on the cancelled summand — each step peels one

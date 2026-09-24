@@ -35,7 +35,7 @@ zNotS = λj h. transport isZeroCode h ()
 pred : ℕ → ℕ
 pred = λn. ℕ-elim Z (n ih. n) n
 
-predEq : {n j : ℕ} → (S n ≡ S j) → n ≡ j
+predEq : {n j : ℕ} → (S n ≡ S j) → n ≡ j using (Natural.eq.pred.unfold)
 predEq = λn j h. cong (λ_. ℕ) pred h
 
 -- completeness: the built-in equality implies EqN, by double

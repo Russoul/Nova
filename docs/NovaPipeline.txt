@@ -187,8 +187,8 @@ the spine written as a proof term over self leaves, ascribed where a
 definition hides a shape, so it states its own type and the kernel
 unfolds nothing to type it. Proof terms are written in the core's
 own syntax ((x : T by α) .π₂ y reads as the term it is about), and
-every element a proof carries — a selector's instantiation, a δ or
-path leaf's spine — is itself a proof naming that element, so no
+every element a proof carries — a δ or path leaf's spine — is
+itself a proof naming that element, so no
 second checker types anything bare. Nothing unfolds on the kernel's
 own initiative along a verdict path: carried QIIT signatures and
 polynomials are compared under the β-join like everything else
@@ -277,7 +277,7 @@ docs/NovaElaboration.txt, "Modules"); the EQUATION KERNEL with the demotion of
 engine verdicts to proposals — Nova.Kernel provides
 fuel-bounded normalization (mirroring the ≜ rules clause for clause,
 exhaustion = reject), stated spines (every element a proof carries is
-a proof naming it), injectivity selectors, PROOF-TERM CHECKING
+a proof naming it), PROOF-TERM CHECKING
 (every leaf's licensed equation is verified against its position's
 type, computed by the congruence nodes above it — a sibling needs no
 type, a leaf at an undetermined position is typed by its own neutral
@@ -286,7 +286,8 @@ type-directed leaves (el-zero-prop/el-one-prop, quotient witnesses,
 el-pi-eta/el-sigma-eta). The discharge engine writes a proof term for
 every discharge (rewrites with the stored candidate's normalization
 bridged by transitivity, whole-equation matches with condition
-witnesses, hop chains, injectivity-selector components), and
+witnesses, hop chains, S-injectivity as the predecessor congruence),
+and
 convElem/convTy count a discharge ONLY if its proof checks — a
 kernel rejection is reported on the resulting obligation. A route the
 engine matched but cannot WRITE the proof of (a licence's element at

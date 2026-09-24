@@ -29,29 +29,9 @@ import Nova.Kernel.QIIT
 
 %default covering
 
--- ===== Certificates =====
+-- ===== Proof terms =====
 
 mutual
-  ||| Component selectors: from a licensed equation between same-headed
-  ||| terms, pass to a component equation. Justified by Foundation's
-  ||| injectivity rules (codes) or derivable congruences (S via pred).
-  ||| Binder components carry their instantiation (el-sub-cong-fix) as
-  ||| a PROOF stating the element at the domain (a self or checked
-  ||| leaf, ascribed where spelled otherwise).
-  public export
-  data Sel : Type where
-    SelSuc : Sel                       -- S x ≐ S y ⇒ x ≐ y : ℕ
-    SelDom : Sel                       -- (a₀→b₀) ≐ (a₁→b₁) : 𝕌 ⇒ a₀ ≐ a₁ : 𝕌 (also ×)
-    SelCod : Prf -> Sel                -- ⇒ b₀[id,u] ≐ b₁[id,u] : 𝕌 (also ×)
-    SelSumL : Sel                      -- (a₀⊎b₀) ≐ (a₁⊎b₁) : 𝕌 ⇒ a₀ ≐ a₁ : 𝕌
-    SelSumR : Sel                      -- ⇒ b₀ ≐ b₁ : 𝕌 (non-dependent: no
-                                       -- binder, no instantiation element)
-    SelQDom : Sel                      -- (a₀/r₀) ≐ (a₁/r₁) : 𝕌 ⇒ a₀ ≐ a₁ : 𝕌
-    SelQRel : Prf -> Prf -> Sel        -- ⇒ r₀[id,u,v] ≐ r₁[id,u,v] : 𝕌
-    SelQIdx : Nat -> Sel               -- 𝒮.s ē₀ ≐ 𝒮.s ē₁ : 𝕌 ⇒ ē₀ᵢ ≐ ē₁ᵢ (QIIT
-                                       -- code injectivity, indexwise; the spines
-                                       -- must agree before i)
-
   public export
   data Payload : Type where
     ||| eliminator motive (ℕ-elim: over Γ ▷ ℕ; quot-elim: over Γ ▷ A/R)
@@ -117,7 +97,7 @@ mutual
   ||| the type flowing down, the inferred type of a neutral head, or a
   ||| carried motive), and the leaves justify the equation at their
   ||| position. Three readings of one proof:
-  |||   ⇒ (synthesis)  a licence leaf, with selectors, symmetry and
+  |||   ⇒ (synthesis)  a licence leaf, with symmetry and
   |||      transitivity over it, STATES its equation and type;
   |||   → (directional) given one side, the proof REWRITES it to the
   |||      other — this is how transitivity finds its middles: the
@@ -152,8 +132,6 @@ mutual
     ||| left-to-right it is a plain unfolding of the occurrence x[ē']
     ||| (spines compared modulo β)
     PDelta : String -> List Prf -> Prf
-    ||| a component of the equation below, by a selector
-    PSel : Sel -> Prf -> Prf
     ||| the stated equation of π at type T′, by πᵀ ▷ A ≐ T′ at 𝕍 — the
     ||| ASCRIPTION (π : T′ by πᵀ): a conversion of a stated equation
     ||| (the positional match at a type spelled otherwise; a hidden Π
@@ -265,12 +243,6 @@ substPrf (PRefl p) s = PRefl (substPrf p s)
 substPrf (PPath sg k th) s = PPath (substQSig sg s) k (map (\q => substPrf q s) th)
 substPrf (PDelta x es) s = PDelta x (map (\q => substPrf q s) es)
 substPrf (PAt q ty pt) s = PAt (substPrf q s) (substTy ty s) (substPrf pt s)
-substPrf (PSel sel p) s = PSel (substSel sel) (substPrf p s)
- where
-  substSel : Sel -> Sel
-  substSel (SelCod u) = SelCod (substPrf u s)
-  substSel (SelQRel u v) = SelQRel (substPrf u s) (substPrf v s)
-  substSel x = x
 substPrf PReflx s = PReflx
 substPrf (PSym p) s = PSym (substPrf p s)
 substPrf (PTrans p q) s = PTrans (substPrf p s) (substPrf q s)
@@ -334,7 +306,6 @@ atomicPrf PReflx = True
 atomicPrf (PDeltaAll _) = True
 atomicPrf (PIrrel _) = True
 atomicPrf (PSym _) = True
-atomicPrf (PSel _ _) = True
 atomicPrf (PAt _ _ _) = True
 atomicPrf (PConv _ _ _) = True
 atomicPrf (PTransAt _ _ _) = True
@@ -375,17 +346,6 @@ mutual
   argsP : List Prf -> String
   argsP ps = concat (intersperse ", " (map showPrf ps))
 
-  covering
-  showSel : Sel -> String
-  showSel SelSuc = "suc"
-  showSel SelDom = "dom"
-  showSel (SelCod u) = "cod(\{showPrf u})"
-  showSel SelSumL = "inl"
-  showSel SelSumR = "inr"
-  showSel SelQDom = "qdom"
-  showSel (SelQRel u v) = "qrel(\{showPrf u},\{showPrf v})"
-  showSel (SelQIdx i) = "idx\{show i}"
-
   export
   covering
   showPrf : Prf -> String
@@ -399,7 +359,6 @@ mutual
   showPrf PReflx = "refl"
   showPrf (PIrrel _) = "irrel"
   -- structure
-  showPrf (PSel sel p) = "\{showSel sel}(\{showPrf p})"
   showPrf (PSym p) = "\{argP p}⁻¹"
   showPrf (PTrans p q) = "\{showPrf p} ; \{showPrf q}"
   showPrf (PTransAt p m q) = "(\{showPrf p} ; [\{show m}] ; \{showPrf q})"
@@ -444,11 +403,6 @@ export
 covering
 Show Prf where
   show = showPrf
-
-export
-covering
-Show Sel where
-  show = showSel
 
 public export
 KErr : Type
@@ -1019,7 +973,6 @@ mutual
   synthP (PPath _ _ _) = True
   synthP (PDelta _ _) = True
   synthP (PAt _ _ _) = True
-  synthP (PSel _ p) = synthP p
   synthP (PSym p) = synthP p
   synthP (PTrans p q) = (synthP p && dirP True q) || (synthP q && dirP False p)
   -- a TYPED SPINE: elimination nodes state their equation when their
@@ -1404,63 +1357,6 @@ mutual
       if ok && u0 == u1 then go (S i) rest (u0 :: acc)
         else kerr "kernel: spine entry \{show i} is not the required element at its type [stated \{show u0} : \{show uTy}; required \{show ty}]"
 
-  applySel : Sig -> Ctx -> (Elem, Elem, Ty) -> Sel -> KM (Elem, Elem, Ty)
-  applySel sig ctx (l, r, _) sel = do
-    -- β-joined: a side whose head only δ exposes arrives exposed (the
-    -- stated equation is transitivity over the exposure)
-    l' <- kJoinElem sig l
-    r' <- kJoinElem sig r
-    case (sel, l', r') of
-      (SelSuc, NatIntro1 x, NatIntro1 y) => pure (x, y, NatTy)
-      (SelDom, Elem.PiTy a0 _, Elem.PiTy a1 _) => pure (a0, a1, UniverseTy)
-      (SelDom, Elem.SigmaTy a0 _, Elem.SigmaTy a1 _) => pure (a0, a1, UniverseTy)
-      -- binder-crossing selectors: the instantiation elements come from
-      -- the (untrusted) certificate, so el-sub-cong-fix's premise is CHECKED
-      (SelCod q, Elem.PiTy _ b0, Elem.PiTy a1 b1) => do
-        u <- statedAt q a1
-        pure (substElem b0 (Ext Id u), substElem b1 (Ext Id u), UniverseTy)
-      (SelCod q, Elem.SigmaTy _ b0, Elem.SigmaTy a1 b1) => do
-        u <- statedAt q a1
-        pure (substElem b0 (Ext Id u), substElem b1 (Ext Id u), UniverseTy)
-      -- code-sum-inj: non-dependent, both components at 𝕌 directly
-      (SelSumL, Elem.SumTy a0 _, Elem.SumTy a1 _) => pure (a0, a1, UniverseTy)
-      (SelSumR, Elem.SumTy _ b0, Elem.SumTy _ b1) => pure (b0, b1, UniverseTy)
-      (SelQDom, QuotTy a0 _, QuotTy a1 _) => pure (a0, a1, UniverseTy)
-      -- code-quot-inj: the relation components live at Ω
-      (SelQRel qu qv, QuotTy _ r0, QuotTy a1 r1) => do
-        u <- statedAt qu a1
-        v <- statedAt qv a1
-        pure (substElem r0 (Ext (Ext Id u) v), substElem r1 (Ext (Ext Id u) v), PropTy)
-      -- QIIT code injectivity, indexwise: the signatures and sort must be
-      -- nf-identical and the spines must AGREE before i (so the entry
-      -- type is determined by the shared pre). NO selector passes from
-      -- constructor equations to components: point constructors are not
-      -- injective (equation constructors may merge them).
-      (SelQIdx i, QSort sg0 k0 es0, QSort sg1 k1 es1) =>
-        if sg0 == sg1 && k0 == k1
-          then do
-            let l0 = toList es0
-            let l1 = toList es1
-            if take i l0 /= take i l1
-              then kerr "kernel: qidx selector at spines that differ before i"
-              else case qEntry sg0 k0 of
-                Nothing => kerr "kernel: qidx selector: sort out of range"
-                Just entry => do
-                  (tel, _, _) <- liftQ (reflTel sg0 (qwAt k0) entry)
-                  case (getAt i l0, getAt i l1, telInst tel i l0) of
-                    (Just a0, Just a1, Just ty) => pure (a0, a1, ty)
-                    _ => kerr "kernel: qidx selector index out of range"
-          else kerr "kernel: qidx selector at different signatures or sorts"
-      _ => kerr "kernel: selector does not apply"
-   where
-    ||| the element a proof states (reflexively) at the required type
-    statedAt : Prf -> Ty -> KM Elem
-    statedAt q ty = do
-      (u0, u1, uTy) <- kPrfS sig ctx q
-      ok <- tyAgree sig ty uTy
-      if ok && u0 == u1 then pure u0
-        else kerr "kernel: selector instantiation is not the required element at its type"
-
   ||| ⇒: the equation (with its type) a synthesising proof states.
   export
   kPrfS : Sig -> Ctx -> Prf -> KM (Elem, Elem, Ty)
@@ -1570,9 +1466,6 @@ mutual
     (l, r, t) <- kPrfS sig ctx q
     kEqTy sig ctx pt t ty
     pure (l, r, ty)
-  kPrfS sig ctx (PSel sel p) = do
-    e <- kPrfS sig ctx p
-    applySel sig ctx e sel
   kPrfS sig ctx (PSym p) = do
     (l, r, t) <- kPrfS sig ctx p
     pure (r, l, t)
@@ -1662,14 +1555,41 @@ mutual
   -- β-normal form of what the node produces: a δ exposure's result);
   -- a node whose children were built over the RIGHT side (a chain of
   -- δ leaves read backwards) falls back to decomposition
+  -- A congruence node that STATES its equation (a spine over a typed
+  -- head, §4) is also a leaf: when the goal's sides lack the node's
+  -- shape, its stated sides meet them under β at the position's type
+  -- — how a derived component equation is read (the predecessor
+  -- congruence [pred] ⟨h⟩ at x ≐ y: pred (S x) joins to x)
   kPrfGo sig ctx prf goal@(GChk l r) mty =
-    if isJust (congChildren prf) && dirP True prf
-      then kOrElse (do x <- kPrfGo sig ctx prf (GDir True l) mty
-                       sameB sig x r
-                       pure l)
-                   (kPrfGoAt sig ctx prf goal mty)
+    if isJust (congChildren prf)
+      then let asNode = if dirP True prf
+                          then kOrElse (do x <- kPrfGo sig ctx prf (GDir True l) mty
+                                           sameB sig x r
+                                           pure l)
+                                       (kPrfGoAt sig ctx prf goal mty)
+                          else kPrfGoAt sig ctx prf goal mty
+           in if synthP prf then kOrElse asNode (stated sig ctx prf goal mty) else asNode
       else kPrfGoAt sig ctx prf goal mty
-  kPrfGo sig ctx prf goal mty = kPrfGoAt sig ctx prf goal mty
+  kPrfGo sig ctx prf goal@(GDir _ _) mty =
+    if isJust (congChildren prf) && synthP prf
+      then kOrElse (kPrfGoAt sig ctx prf goal mty) (stated sig ctx prf goal mty)
+      else kPrfGoAt sig ctx prf goal mty
+
+  ||| A stating proof read against the goal: its equation is at the
+  ||| position's type, and its sides meet the goal's under β.
+  stated : Sig -> Ctx -> Prf -> Goal -> Maybe Ty -> KM Elem
+  stated sig ctx prf goal mty = do
+    (a, b, t) <- kPrfS sig ctx prf
+    case goal of
+      GDir d x => do
+        posTyCheck sig ctx mty x t
+        sameB sig (if d then a else b) x
+        pure (if d then b else a)
+      GChk l r => do
+        posTyCheck sig ctx mty l t
+        sameB sig a l
+        sameB sig b r
+        pure l
 
   kPrfGoAt : Sig -> Ctx -> Prf -> Goal -> Maybe Ty -> KM Elem
   kPrfGoAt sig ctx prf goal mty = case (prf, goal) of
@@ -1871,7 +1791,6 @@ mutual
     (PAt _ _ _, _) => synthLeaf
     (PPath _ _ _, _) => synthLeaf
     (PDelta _ _, _) => synthLeaf
-    (PSel _ _, _) => synthLeaf
     -- ----- congruences -----
     (CZeroElim q, _) =>
       node1 sig ctx goal (\x => case x of ZeroElim u => Just u; _ => Nothing) ZeroElim (ctx, Just ZeroTy) q

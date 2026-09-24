@@ -28,33 +28,6 @@ import Nova.Profile
 
 %default covering
 
-||| The ENGINE's selectors: as the kernel's (Nova.Kernel.Sel) but with
-||| the instantiation ELEMENTS a match binds; the translation states
-||| each as a proof at the domain the licence's sides show.
-public export
-data ESel : Type where
-  ESelSuc : ESel
-  ESelDom : ESel
-  ESelCod : Elem -> ESel
-  ESelSumL : ESel
-  ESelSumR : ESel
-  ESelQDom : ESel
-  ESelQRel : Elem -> Elem -> ESel
-  ESelQIdx : Nat -> ESel
-
-export
-covering
-Show ESel where
-  show ESelSuc = "suc"
-  show ESelDom = "dom"
-  show (ESelCod u) = "cod(\{show u})"
-  show ESelSumL = "inl"
-  show ESelSumR = "inr"
-  show ESelQDom = "qdom"
-  show (ESelQRel u v) = "qrel(\{show u},\{show v})"
-  show (ESelQIdx i) = "idx\{show i}"
--- ===== Translation into proof terms =====
-
 ||| Wk composed n times (the weakening Γ·(n entries) ⇒ Γ).
 wkN : Nat -> Sub
 wkN Z = Id
@@ -405,10 +378,41 @@ mutual
       wSk <- chkSkel sig ctx w (QSort sg' k es)
       pure (Nd [PQMotives mots (map (const (Nd [] [])) mots), PQCoh (map (const PReflx) eqPs)]
                (mSks ++ eSks ++ [wSk]))
+    -- an eliminator checked at a type: the CONSTANT-MOTIVE instance
+    -- (A1) — the motive is the expected type weakened over the
+    -- eliminated binder, the cases checked at it under theirs
+    NatElim z st t => do
+      let mot = substTy ty Wk
+      motSk <- kOrElse (fst <$> infSkel sig (ctx :< NatTy) mot) (pure (Nd [] []))
+      zSk <- chkSkel sig ctx z ty
+      sSk <- chkSkel sig (ctx :< NatTy :< mot) st (substTy ty (wkN 2))
+      tSk <- chkSkel sig ctx t NatTy
+      pure (Nd [PMotive mot motSk] [zSk, sSk, tSk])
+    SumElim l r t => do
+      (tSk, mtTy) <- infSkel sig ctx t
+      case mtTy of
+        Just tTy => do
+          (tX, pt) <- exposeK sig ctx tTy
+          tW <- kWhnfT sig tX
+          case tW of
+            SumTy a b => do
+              let mot = substTy ty Wk
+              motSk <- kOrElse (fst <$> infSkel sig (ctx :< SumTy a b) mot) (pure (Nd [] []))
+              lSk <- chkSkel sig (ctx :< a) l (substTy ty Wk)
+              rSk <- chkSkel sig (ctx :< b) r (substTy ty Wk)
+              let ps = the (List Payload) $ case pt of
+                         PReflx => [PMotive mot motSk]
+                         _ => [PScrut tX pt, PMotive mot motSk]
+              pure (Nd ps [lSk, rSk, tSk])
+            _ => bare
+        Nothing => bare
+    _ => bare
+   where
     -- a non-intro term at a type spelled otherwise than the one it
     -- infers to: the switch proof (a δ bridge) rides along, since the
     -- kernel's switch-less fallthrough compares by β only
-    _ => do
+    bare : KM Skel
+    bare = do
       (sk, mty) <- infSkel sig ctx e
       case mty of
         Just t => do
@@ -419,7 +423,6 @@ mutual
                     (Just p, Nd ps cs) => Nd (PSwitch p :: ps) cs
                     (Nothing, _) => sk)
         Nothing => pure sk
-   where
     indices : List a -> List Nat
     indices xs = go 0 xs
      where
@@ -735,30 +738,6 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
 
 
 mutual
-  ||| The selectors applied in order, each instantiation element stated
-  ||| (a typed neutral or a checked leaf) at the domain of the sides the
-  ||| selectors so far leave.
-  selectors : Sig -> Ctx -> Prf -> List ESel -> KM Prf
-  selectors sig ctx q [] = pure q
-  selectors sig ctx q (sel :: rest) = do
-    (l, r, _) <- kPrfS sig ctx q
-    r' <- kJoinElem sig r
-    ksel <- case sel of
-      ESelSuc => pure SelSuc
-      ESelDom => pure SelDom
-      ESelSumL => pure SelSumL
-      ESelSumR => pure SelSumR
-      ESelQDom => pure SelQDom
-      ESelQIdx i => pure (SelQIdx i)
-      ESelCod u => case r' of
-        Elem.PiTy a1 _ => SelCod <$> argPrf sig ctx u a1
-        Elem.SigmaTy a1 _ => SelCod <$> argPrf sig ctx u a1
-        _ => kerr "proof: codomain selector at a non-binder equation"
-      ESelQRel u v => case r' of
-        QuotTy a1 _ => [| SelQRel (argPrf sig ctx u a1) (argPrf sig ctx v a1) |]
-        _ => kerr "proof: relation selector at a non-quotient equation"
-    selectors sig ctx (PSel ksel q) rest
-
   ||| A type's reconstructed skeleton — for a prop-ness question the
   ||| kernel answers by inference (bare where nothing reconstructs).
   export
@@ -766,32 +745,52 @@ mutual
   tySkel sig ctx t = kOrElse (fst <$> infSkel sig ctx t) (pure (Nd [] []))
 
 
-||| A LICENCE LEAF: the proof element as a typed neutral reflected at
-||| its equality prop (its type exposed to the ≡ by recorded δ — an
-||| ascription), the selectors applied on head-exposed sides (a side
-||| whose head δ hides arrives exposed, by transitivity over the leaf),
-||| the licence's own normalization proofs bridging its raw sides to
-||| the stored spelling (pL ▷ lRaw ≐ lN, pR ▷ rRaw ≐ rN: a candidate
-||| stored normalized is licensed from its raw type by transitivity
-||| over the leaf), and the orientation. States lN ≐ rN (rN ≐ lN when
-||| flipped) — a leaf the kernel reads ⇒.
+||| A LICENCE: what a candidate emits at complete match bindings — the
+||| construction of the stating proof of its equation, in the context
+||| it is used in.
+public export
+Licence : Type
+Licence = Sig -> Ctx -> KM Prf
+
+||| The licence of a proof ELEMENT: the element as a typed neutral,
+||| reflected at its equality prop (its type exposed to the ≡ by
+||| recorded δ — an ascription).
 export
-licLeaf : Sig -> Ctx -> Elem -> List ESel -> Prf -> Prf -> Bool -> KM Prf
-licLeaf sig ctx p sels pL pR flip = do
+reflectElem : Elem -> Licence
+reflectElem p sig ctx = do
   (pp, pty) <- elemToPrf sig ctx p
   (ptyX, pt) <- exposeK sig ctx pty
-  let base = the Prf $ case pt of
-               PReflx => PRefl pp
-               _ => PRefl (PAt pp ptyX pt)
-  base' <- case sels of
-    [] => pure base
-    _ => do
-      (l0, r0, _) <- kPrfS sig ctx base
-      (_, pl) <- exposeK sig ctx l0
-      (_, pr) <- exposeK sig ctx r0
-      pure (pTrans (pSym pl) (pTrans base pr))
-  leaf0 <- selectors sig ctx base' sels
-  let leaf = pTrans (pSym pL) (pTrans leaf0 pR)
+  pure (case pt of
+          PReflx => PRefl pp
+          _ => PRefl (PAt pp ptyX pt))
+
+||| S-INJECTIVITY, derived: from a licence for S x ≐ S y, the licence
+||| for x ≐ y is the congruence with the predecessor — an ℕ-elim
+||| retraction of S, inlined as a checked λ so the stated sides
+||| pred (S x) ≐ pred (S y) join to x ≐ y by β alone. No rule is cited:
+||| the foundation notes S-injectivity as derivable, and the kernel has
+||| no injectivity node.
+export
+predCong : Licence -> Licence
+predCong lic sig ctx = do
+  q <- lic sig ctx
+  sk <- chkSkel sig ctx predFn (PiTy NatTy NatTy)
+  pure (CPiApp (PChk predFn (PiTy NatTy NatTy) sk) q)
+ where
+  predFn : Elem
+  predFn = PiIntro (NatElim NatIntro0 (CtxVar 1) (CtxVar 0))
+
+||| A LICENCE LEAF: the licence's proof, the licence's own
+||| normalization proofs bridging its raw sides to the stored spelling
+||| (pL ▷ lRaw ≐ lN, pR ▷ rRaw ≐ rN: a candidate stored normalized is
+||| licensed from its raw type by transitivity over the leaf), and the
+||| orientation. States lN ≐ rN (rN ≐ lN when flipped) — a leaf the
+||| kernel reads ⇒.
+export
+licLeaf : Sig -> Ctx -> Licence -> Prf -> Prf -> Bool -> KM Prf
+licLeaf sig ctx lic pL pR flip = do
+  base <- lic sig ctx
+  let leaf = pTrans (pSym pL) (pTrans base pR)
   pure (if flip then pSym leaf else leaf)
 
 ||| One REWRITE on a side: the leaf (a licence leaf, spelled in the root
@@ -896,7 +895,6 @@ hintNamesP p = go p
   go (PTransAt q _ r) = go q ++ go r
   go (PConv pt _ q) = go pt ++ go q
   go (PAt q _ pt) = go q ++ go pt
-  go (PSel _ q) = go q
   go (PEtaPi q) = go q
   go (PEtaSigma q r) = go q ++ go r
   go (PQuotWit (Just q)) = go q
