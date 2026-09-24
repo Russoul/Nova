@@ -47,17 +47,11 @@ KErr = String
 record KSt where
   constructor MkKSt
   fuel : Nat
-  nfE : SortedMap String Elem
   ||| name → entry, built lazily during THIS check: Σ is fixed for the
   ||| lifetime of one runKM call, so a positive hit is stable, and the
   ||| linear sigLookup scan — measured at ~40% of all execution on the
   ||| hot paths — is paid once per name instead of once per mention.
-  ||| Same per-call discipline as the nf memo above.
   sigIx : SortedMap String SigEntry
-  ||| LIBERAL whnf: definitions unfold on the kernel's own initiative.
-  ||| Never set on a verdict path — only by the engine-facing services
-  ||| (kInferBare: typing a hole's value, where no skeleton exists)
-  liberal : Bool
 
 export
 data KM : Type -> Type where
@@ -68,22 +62,8 @@ runKMSt (MkKM f) = f
 
 export
 runKM : KM a -> Nat -> Either KErr (a, Nat)
-runKM m n = map (mapSnd fuel) (runKMSt m (MkKSt n empty empty False))
+runKM m n = map (mapSnd fuel) (runKMSt m (MkKSt n empty))
 
-||| The engine-facing variant: whnf unfolds definitions freely.
-runKMLiberal : KM a -> Nat -> Either KErr (a, Nat)
-runKMLiberal m n = map (mapSnd fuel) (runKMSt m (MkKSt n empty empty True))
-
-kLiberal : KM Bool
-kLiberal = MkKM $ \st => Right (st.liberal, st)
-
-||| Run a computation with liberal whnf (definitions unfold at the
-||| head), restoring the flag after.
-withLiberal : KM a -> KM a
-withLiberal (MkKM f) = MkKM $ \st =>
-  case f ({ liberal := True } st) of
-    Left e => Left e
-    Right (v, st') => Right (v, { liberal := st.liberal } st')
 
 export
 Functor KM where
@@ -137,12 +117,6 @@ burn = MkKM $ \st => case st.fuel of
   Z => Left "kernel: out of fuel"
   S m => Right ((), { fuel := m } st)
 
-kNfElemGet : String -> KM (Maybe Elem)
-kNfElemGet x = MkKM $ \st => Right (lookup x st.nfE, st)
-
-kNfElemPut : String -> Elem -> KM Elem
-kNfElemPut x v = MkKM $ \st => Right (v, { nfE $= insert x v } st)
-
 export
 ||| Name-indexed signature lookup (see KSt.sigIx). Negatives are never
 ||| cached — they cost one scan and stay correct by construction.
@@ -155,186 +129,21 @@ kSigLookup sig x = MkKM $ \st =>
         Just e => Right (Just e, { sigIx $= insert x e } st)
         Nothing => Right (Nothing, st)
 
--- ===== Fuel-bounded normalization (Foundation's ≜, clause for clause) =====
-
-mutual
-  kSubNorm : Sig -> SubNorm -> KM SubNorm
-  kSubNorm sig [<] = pure [<]
-  kSubNorm sig (es :< e) = [| kSubNorm sig es :< kElem sig e |]
-
-  ||| Beta-normal form of an element, spending one fuel per contraction.
-  export
-  kElem : Sig -> Elem -> KM Elem
-  kElem sig (CtxVar n) = pure (CtxVar n)
-  kElem sig (ZeroElim t) = ZeroElim <$> kElem sig t
-  kElem sig OneIntro = pure OneIntro
-  kElem sig NatIntro0 = pure NatIntro0
-  kElem sig (NatIntro1 t) = NatIntro1 <$> kElem sig t
-  kElem sig (NatElim z s t) = do
-    z' <- kElem sig z
-    s' <- kElem sig s
-    t' <- kElem sig t
-    case t' of
-      NatIntro0 => pure z'
-      NatIntro1 n => do burn; kElem sig (substElem s' (Ext (Ext Id n) (NatElim z' s' n)))
-      _ => pure (NatElim z' s' t')
-  kElem sig (PiIntro f) = PiIntro <$> kElem sig f
-  kElem sig (PiApp f e) = do
-    e' <- kElem sig e
-    f' <- kElem sig f
-    case f' of
-      PiIntro g => do burn; kElem sig (substElem g (Ext Id e'))
-      _ => pure (PiApp f' e')
-  -- el-let-beta: a let is ALWAYS a redex — let a b ≜ b[id, a, ⋆]
-  -- (normal forms contain no let; one fuel unit, like every contraction)
-  kElem sig (Let a b) = do
-    burn
-    kElem sig (substElem b (Ext (Ext Id a) Star))
-  kElem sig (SigmaIntro a b) = [| SigmaIntro (kElem sig a) (kElem sig b) |]
-  kElem sig (SigmaElim1 t) = do
-    t' <- kElem sig t
-    case t' of
-      SigmaIntro a _ => do burn; pure a
-      _ => pure (SigmaElim1 t')
-  kElem sig (SigmaElim2 t) = do
-    t' <- kElem sig t
-    case t' of
-      SigmaIntro _ b => do burn; pure b
-      _ => pure (SigmaElim2 t')
-  kElem sig (Inj1 t) = Inj1 <$> kElem sig t
-  kElem sig (Inj2 t) = Inj2 <$> kElem sig t
-  kElem sig (SumElim l r t) = do
-    l' <- kElem sig l
-    r' <- kElem sig r
-    t' <- kElem sig t
-    case t' of
-      Inj1 a => do burn; kElem sig (substElem l' (Ext Id a))
-      Inj2 b => do burn; kElem sig (substElem r' (Ext Id b))
-      _ => pure (SumElim l' r' t')
-  kElem sig Elem.ZeroTy = pure Elem.ZeroTy
-  kElem sig Elem.OneTy = pure Elem.OneTy
-  kElem sig Elem.NatTy = pure Elem.NatTy
-  kElem sig UniverseTy = pure UniverseTy
-  kElem sig PropTy = pure PropTy
-  kElem sig TopTy = pure TopTy
-  kElem sig (Elem.PiTy a b) = [| Elem.PiTy (kElem sig a) (kElem sig b) |]
-  kElem sig (Elem.SigmaTy a b) = [| Elem.SigmaTy (kElem sig a) (kElem sig b) |]
-  kElem sig (Elem.SumTy a b) = [| Elem.SumTy (kElem sig a) (kElem sig b) |]
-  kElem sig (Elem.EqTy l r t) = [| Elem.EqTy (kElem sig l) (kElem sig r) (kTy sig t) |]
-  kElem sig (QuotTy a r) = [| QuotTy (kElem sig a) (kElem sig r) |]
-  kElem sig (SigVar x es) = do
-    es' <- kSubNorm sig es
-    kSigLookup sig x >>= \entryX => case entryX of
-      Just (SigDef _ _ a _) => do
-        burn
-        -- nf(body) is recomputed on every mention otherwise; at a
-        -- top-level item es' is empty and the substitution is the
-        -- identity, so the cached form IS the answer
-        cached <- kNfElemGet x
-        nfa <- case cached of
-                 Just v => pure v
-                 Nothing => do v <- kElem sig a; kNfElemPut x v
-        case es' of
-          [<] => pure nfa
-          _   => kElem sig (substElem nfa (embed es'))
-      -- el-sig-decl: a declaration reference is stuck (no -beta)
-      Just (SigDecl _ _ _) => pure (SigVar x es')
-      Just _ => kerr "kernel: signature name '\{x}' names a constraint entry"
-      Nothing => kerr "kernel: unknown signature name '\{x}'"
-  kElem sig (Class a) = Class <$> kElem sig a
-  kElem sig (QuotElim f q) = do
-    q' <- kElem sig q
-    f' <- kElem sig f
-    case q' of
-      Class a => do burn; kElem sig (substElem f' (Ext Id a))
-      _ => pure (QuotElim f' q')
-  kElem sig (Squash t) = do
-    t' <- kTy sig t
-    case t' of
-      -- code-squash-idem, syntax-directed instances (≡-/∥·∥-headed
-      -- types ARE props; Ω-neutrals stay stuck)
-      p@(Elem.EqTy _ _ _) => do burn; pure p
-      p@(Squash _) => do burn; pure p
-      _ => pure (Squash t')
-  kElem sig Star = pure Star
-  kElem sig (QSort sg k es) = [| QSort (kQSig sig sg) (pure k) (kSubNorm sig es) |]
-  kElem sig (QCtor sg k es) = [| QCtor (kQSig sig sg) (pure k) (kSubNorm sig es) |]
-  kElem sig (QElim sg k fs es w) = do
-    sg' <- kQSig sig sg
-    fs' <- traverse (kElem sig) fs
-    es' <- kSubNorm sig es
-    w' <- kElem sig w
-    case w' of
-      -- el-qiit-beta: fires only when the carried signatures are
-      -- IDENTICAL after normalization (structural identity, nameless)
-      QCtor sgW c theta =>
-        if sgW == sg'
-          then do burn
-                  case qElimBetaRhs sg' fs' c theta of
-                    Right rhs => kElem sig rhs
-                    Left err => kerr "kernel: \{err}"
-          else pure (QElim sg' k fs' es' w')
-      _ => pure (QElim sg' k fs' es' w')
-  kElem sig (Elem.NuTy f) = [| Elem.NuTy (kPoly sig f) |]
-  kElem sig (Out t) = do
-    t' <- kElem sig t
-    case t' of
-      -- el-nu-beta: run the coalgebra one step, re-wrap the recursive
-      -- positions (map_𝔽 hᵉˡ f[id, x])
-      Corec p a f x => do burn
-                          kElem sig (mapPoly p (corecFun p a f) (substElem f (Ext Id x)))
-      _ => pure (Out t')
-  kElem sig (Corec p a f x) =
-    [| Corec (kPoly sig p) (kElem sig a) (kElem sig f) (kElem sig x) |]
-
-  kPoly : Sig -> Poly -> KM Poly
-  kPoly sig PHole        = pure PHole
-  kPoly sig (PConst a)   = [| PConst (kElem sig a) |]
-  kPoly sig (PProd f g)  = [| PProd (kPoly sig f) (kPoly sig g) |]
-  kPoly sig (PSum f g)   = [| PSum (kPoly sig f) (kPoly sig g) |]
-  kPoly sig (PSigma a f) = [| PSigma (kElem sig a) (kPoly sig f) |]
-  kPoly sig (PPi a f)    = [| PPi (kElem sig a) (kPoly sig f) |]
-
-  kQTm : Sig -> QTm -> KM QTm
-  kQTm sig (QVar i) = pure (QVar i)
-  kQTm sig (QAppE f e) = [| QAppE (kQTm sig f) (kElem sig e) |]
-  kQTm sig (QAppI f a) = [| QAppI (kQTm sig f) (kQTm sig a) |]
-  kQTm sig (QEqC l r u) = [| QEqC (kQTm sig l) (kQTm sig r) (kQTm sig u) |]
-
-  kQTy : Sig -> QTy -> KM QTy
-  kQTy sig QU = pure QU
-  kQTy sig (QEl t) = QEl <$> kQTm sig t
-  kQTy sig (QPiExt a b) = [| QPiExt (kTy sig a) (kQTy sig b) |]
-  kQTy sig (QPiInd u b) = [| QPiInd (kQTm sig u) (kQTy sig b) |]
-
-  export
-  kQSig : Sig -> QSig -> KM QSig
-  kQSig sig = traverse (kQTy sig)
-
-  ||| Beta-normal form of a type — one sort: types are terms, one
-  ||| normalizer (El-decoding lives in kElem's El clause; signature
-  ||| unfolding is el-sig-beta uniformly, type entries included).
-  export
-  kTy : Sig -> Ty -> KM Ty
-  kTy = kElem
-
--- ===== The β join =====
+-- ===== The β join: the kernel's ONE normalizer =====
 --
--- The replay normalizer: α + every computation rule (β, ι, let,
--- ν-β, QIIT-β, code-squash-idem's instances) and NO δ. A definition
--- reference is STUCK here, like a declaration's: definitions unfold
--- during replay only through an explicit LUnfold step
--- (docs/NovaKernelRewrite.txt, CONVENTIONS — the kernel never
--- unfolds on its own initiative inside an equation, so the producer
--- never has to predict a strategy and its every δ is recorded).
--- Head matches at intro forms and licence types still use kWhnf*,
--- which unfolds freely: that is shape EXPOSURE, the next step of the
--- migration (ascription + certificate), not equation replay.
+-- Fuel-bounded normalization (docs/NovaKernel.txt §1): α + every
+-- computation rule (β, ι, let, ν-β, QIIT-β, code-squash-idem's
+-- instances) and NO δ. A definition reference is STUCK, like a
+-- declaration's: a definition unfolds only through a δ leaf or a
+-- δ-all leaf of a derivation (the kernel never unfolds on its own
+-- initiative, so the producer never has to predict a strategy and
+-- its every δ is recorded). The weak-head form kWhnf* serves the
+-- readings' shape tests and is β-only likewise.
 
 mutual
-  ||| Weak-head normalization WITH δ: contract only at the head, one
+  ||| Weak-head normalization (β-only): contract only at the head, one
   ||| fuel per contraction, subterms stay as written. Stuck or unknown
-  ||| heads return unchanged — exposure never errors.
+  ||| heads return unchanged.
   kWhnfE : Sig -> Elem -> KM Elem
   kWhnfE sig (NatElim z s t) = do
     t' <- kWhnfE sig t
@@ -365,17 +174,10 @@ mutual
       Inj2 b => do burn; kWhnfE sig (substElem r (Ext Id b))
       _ => pure (SumElim l r t')
   -- β-only: a definition reference is STUCK. Every shape a definition
-  -- hides is exposed by a recorded conversion (PExpose / PScrut at
-  -- the item level, PConv / an ascribed leaf inside a proof), never
-  -- by the kernel's own unfolding — except under the engine-facing
-  -- LIBERAL flag (kInferBare)
-  kWhnfE sig (SigVar x es) = do
-    lib <- kLiberal
-    if lib
-      then kSigLookup sig x >>= \entryX => case entryX of
-             Just (SigDef _ _ a _) => do burn; kWhnfE sig (substElem a (embed es))
-             _ => pure (SigVar x es)
-      else pure (SigVar x es)
+  -- hides is exposed by a recorded conversion (an ascription or a
+  -- conversion node, an ascribed leaf inside a proof), never by the
+  -- kernel's own unfolding
+  kWhnfE sig (SigVar x es) = pure (SigVar x es)
   kWhnfE sig (QuotElim f q) = do
     q' <- kWhnfE sig q
     case q' of
@@ -953,13 +755,14 @@ mutual
               _ => kerr "kernel: internal — point entry with a non-El head"
 
   ||| Check a qiit term against an expected code (both at the current
-  ||| coordinates); comparison is syntactic after normalizing the
-  ||| embedded Nova pieces.
+  ||| coordinates); comparison is syntactic after β-JOINING the
+  ||| embedded Nova pieces (no δ: a piece spelled through a definition
+  ||| meets its expected code through a conversion, like any type).
   kQTmAt : Sig -> Ctx -> QSig -> (k : Nat) -> Ctx -> (extD, b : Nat) -> List QTm -> QTm -> QTm -> KM ()
   kQTmAt sig ctx sg k ectx extD b benv expected t = do
     inferred <- kQTmInfer sig ctx sg k ectx extD b benv t
-    i' <- kQTm sig inferred
-    e' <- kQTm sig expected
+    i' <- kJoinQTm sig inferred
+    e' <- kJoinQTm sig expected
     if i' == e' then pure ()
       else kerr "kernel: qiit term at the wrong sort"
 

@@ -197,10 +197,10 @@ itself a proof naming that element, so no
 second checker types anything bare. Nothing unfolds on the kernel's
 own initiative along a verdict path: carried QIIT signatures and
 polynomials are compared under the β-join like everything else
-(docs/NovaKernel.txt §9), the item level's switch-less fallthrough
-compares by β alone, and every δ-apart position carries its switch
-proof; the δ clauses of nf serve only the engine-facing typing of a
-hole's value. The floor in every variant: α-comparison
+(docs/NovaKernel.txt §9), a checked position compares its inferred
+and expected types by β alone, and every δ-apart position carries
+its conversion; the kernel has no δ normalizer at all — a hole's
+value is typed by re-derivation, read like everything else. The floor in every variant: α-comparison
 and substitution stay trusted — no kernel design knows less than
 that.
 

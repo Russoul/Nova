@@ -47,12 +47,15 @@ The kernel invariant is one-directional — kernel accepts the
 derivation ⟹ its erasure is Foundation-derivable at the stated type.
 Rejection claims nothing.
 
-////////// 1. Normalization: nf, one fuel per contraction //////////
+////////// 1. Normalization: the β join, one fuel per contraction //////////
 
-nf mirrors Foundation's ≜ rules clause for clause and normalizes
-everywhere (under binders, in all components). The congruence clauses
-are not listed; the contraction clauses, each of which burns one unit
-of fuel, are exactly:
+The kernel has ONE normalizer, the β join (kJoinElem; kWhnf* is its
+weak-head form, used by the readings' shape tests). It mirrors
+Foundation's ≜ rules clause for clause and normalizes everywhere
+(under binders, in all components, inside carried signatures) — with
+NO δ clause: a definition reference is a stuck head, like a
+declaration's. The congruence clauses are not listed; the contraction
+clauses, each of which burns one unit of fuel, are exactly:
 
   (λ f) e            ≜  f[id, e]                    # el-pi-beta
   let a b            ≜  b[id, a, ⋆]                 # el-let-beta (a let is
@@ -73,14 +76,14 @@ of fuel, are exactly:
   𝒮.𝕤-elim m̄ ē (𝒮′.𝕔 θ) ≜ m_𝕔 θ⟨φᵉˡ⟩               # el-qiit-beta; fires
                                                     # only when 𝒮 and 𝒮′ are
                                                     # IDENTICAL after nf
-  x[e˲]              ≜  a[e˲]      (Σ ∋ Γ ⊦ x ≔ a : A)   # el-sig-beta
-  x[e˲]              ≜  T[e˲]      (Σ ∋ Γ ⊦ x ≔ T : 𝕍)  # el-sig-beta at 𝕍
-
-The two el-sig-beta clauses (δ) belong to nf, the engine-facing
-normalizer (kInferBare, typing a hole's value). NO VERDICT PATH runs
-them: every rule below compares by the β-JOIN — nf without the δ
-clauses, a definition reference a stuck head — and a δ-apart spelling
-meets the position through a proof (x-δ, δ-all, §4) or a switch (§8).
+Foundation's el-sig-beta (δ: x[e˲] ≜ a[e˲] for Σ ∋ Γ ⊦ x ≔ a : A,
+type entries included) is NOT a clause of the kernel's normalizer.
+It enters only through a derivation: a δ leaf x-δ π̄ states one
+unfolding (§3), a δ-all leaf unfolds every occurrence of the named
+definitions at once (§7, unfoldAllK), and a δ-apart spelling meets
+its position through a conversion or an ascription (§2). No verdict
+path unfolds a definition on the kernel's own initiative; there is
+no liberal mode.
 
 (El is retired — a small code IS its type, by cumulativity
 code-lift; there are no decoding clauses.)
@@ -100,10 +103,13 @@ clauses above.
 
 QIIT formers (NovaFoundation.txt, QIIT section) normalize congruently
 everywhere they embed Nova syntax — inside a carried signature's
-external pieces, the eliminator's motives and methods, index and
-constructor spines — so the signature-identity test above is plain
-syntactic equality of normal forms (Foundation's structural identity,
-nameless: no α). θ⟨φᵉˡ⟩ is Foundation's section spine at the
+external pieces, the eliminator's methods, index and constructor
+spines — so the signature-identity test above is plain syntactic
+equality of β-normal forms (Foundation's structural identity,
+nameless: no α); two carriers spelled through different definitions
+are DIFFERENT here, and meet through a conversion (A3, §9). The
+signature checker's own comparison of a qiit-term's code with the
+expected one (§8) is the same join. θ⟨φᵉˡ⟩ is Foundation's section spine at the
 eliminator itself: the contraction materializes one recursive
 𝒮.𝕤-elim call per inductive component of θ, and each later
 contraction of those burns its own fuel. Path constructors add NO
@@ -113,19 +119,17 @@ syntax and is never itself a redex.
 
 Scrutinees are normalized before the contraction test (call-by-value
 on elimination positions), so a stuck scrutinee leaves a stuck
-eliminator — nf never invents progress. A signature reference to a
-name missing from Σ, or used at the wrong syntactic class (a term
-definition in type position or vice versa), is rejected outright.
+eliminator — the join never invents progress.
 
 Σ may be OPEN (Foundation, DEFINITIONAL AND OPEN SIGNATURES): during
 an elaboration run it carries the run's assumed equation holes
 and declarations. A reference to a DECLARATION is STUCK — typed
-by el-sig-decl (type entries included), no contraction — and nf leaves it as a
-neutral head. Constraint entries are nameless and never referenced by
-terms, so nf never sees them; they exist for the equational theory
-(an equation hole read through el-reflect). Only nf and equality replay tolerate open
-signatures: Nova.Compute (the uncertified evaluator) assumes a
-definitional Σ and rejects open entries outright.
+by el-sig-decl (type entries included), no contraction — and the join
+leaves it as a neutral head. Constraint entries are nameless and never referenced by
+terms, so the join never sees them; they exist for the equational
+theory (an equation hole read through el-reflect). Only the kernel
+tolerates open signatures: Nova.Compute (the uncertified evaluator)
+assumes a definitional Σ and rejects open entries outright.
 
 (HOLE INSTANTIATION is REMOVED: the kCheckSolution/kCheckTySolution
 legality gate and the declaration-to-definition flip went with the
@@ -924,10 +928,9 @@ NO kernel-initiated δ remains on a verdict path: inversion of a
 head's type (§6) opens a bare spine's head type by the β-whnf, and a
 stated head is read from its statement; el-qiit-intro joins the
 expected type, the term's carried signature and the index spines
-under β. The δ clauses of nf (§1) — the liberal normalizer kElem/
-kTy/kQSig — serve no verdict path; the kernel state carries the flag
-explicitly (KSt.liberal), so a verdict path cannot inherit it by
-accident.
+under β; the signature checker's qiit-term comparison joins the
+embedded pieces the same way. The kernel HAS no δ normalizer (§1):
+there is nothing a verdict path could inherit.
 
 Two structural caveats restated from docs/NovaPipeline.txt: an
 annotation (motive, ascription, exposure target) is a REPRESENTATIVE,
