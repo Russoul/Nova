@@ -38,6 +38,7 @@ leQInvOne : (k : ℕ) → qInvNat k ≤ qOfNat (S Z)
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Rat.qcls.eq,
     Real.qInvNat.eq)
@@ -55,6 +56,7 @@ leQBoundTwo : (n : ℕ) → rBound n Z ≤ qOfNat 2
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.qInvNat.eq,
     Real.rBound.eq)

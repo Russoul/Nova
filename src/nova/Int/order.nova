@@ -30,7 +30,7 @@ intOfNatZero : intOfNat Z ≡ intZero using (Int.order.intOfNat.eq, Int.Int.unfo
 intOfNatZero = ⋆
 
 intOfNatPlus : (a b : ℕ) → intOfNat a + intOfNat b ≡ intOfNat (a + b)
-  using (Int.order.intOfNat.eq, Int.Int.unfold, Int.add.+.eq, Natural.+.eq)
+  using (Int.order.intOfNat.eq, Int.Int.unfold, Int.add.+.eq, Int.add.intAddL.eq, Natural.+.eq)
 intOfNatPlus = λa b. ⋆
 
 intOfNatInjZ : {k : ℕ} → (intOfNat k ≡ intZero) → k ≡ Z
@@ -66,7 +66,7 @@ intOfNatSplit =
 
 -- ===== additive-group plumbing =====
 intNegAdd : (z w : Int) → intNeg (z + w) ≡ intNeg z + intNeg w
-  using (Int.Int.unfold, Int.intNeg.eq, Int.add.+.eq)
+  using (Int.Int.unfold, Int.intNeg.eq, Int.add.+.eq, Int.add.intAddL.eq)
 intNegAdd = λz w. quot-elim (p. quot-elim (q. ⋆) w) z
 
 -- −x + (x + a) ≡ a, hypothesis-free
@@ -320,6 +320,7 @@ leZTotal =
 intOfNatMul : (a b : ℕ) → intOfNat a * intOfNat b ≡ intOfNat (a * b)
   using (Int.order.intOfNat.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Int.Int.eq,
     zeroMult,
     zeroMult.rw,

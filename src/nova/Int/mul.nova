@@ -169,78 +169,51 @@ intMulWDRep =
     sum4DistribR a1 a2 b1 b2 c1 c2
     sym _ _ (sum4DistribR a1 a2 b1 b2 c2 c1)
 
--- the outer well-definedness, in the quot-elim shape the elaborator
--- actually asks for (Int/add.nova's intAddWDOuter, one level up):
--- eliminate the remaining argument and the goal becomes the nat
--- relation intMulWDRep proves
-intMulWDOuter : (a b : ℕ × ℕ)
-  (h : a .π₁ + b .π₂ ≡ a .π₂ + b .π₁)
+-- ===== the descended operation, one argument at a time =====
+intMulL : ℕ × ℕ → Int → Int using (Int.mul.intMulWD, Int.Int.unfold)
+intMulL =
+  λa zy. let wd : (x x' : ℕ × ℕ)
+               (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
+               → class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁)
+                 ≡ class (a .π₁ * x' .π₁ + a .π₂ * x' .π₂, a .π₁ * x' .π₂ + a .π₂ * x' .π₁)
+                 ∈ Int
+               = λx x' h. intMulWD (a .π₁) (a .π₂) _ _ _ _ h
+             quot-elim (x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁)) zy
+
+-- the outer well-definedness: the two left multiplications agree on
+-- every element of the quotient; the case is the representative
+-- lemma intMulWDRep
+intMulWDOuter : (a a' : ℕ × ℕ)
+  (h : a .π₁ + a' .π₂ ≡ a .π₂ + a' .π₁)
   (zy : Int)
-  → (let claim1 : (x x' : ℕ × ℕ)
-           (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
-           → class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁)
-             ≡ class (a .π₁ * x' .π₁ + a .π₂ * x' .π₂, a .π₁ * x' .π₂ + a .π₂ * x' .π₁)
-             ∈ ℕ × ℕ / (y z. y .π₁ + z .π₂ ≡ y .π₂ + z .π₁)
-           = λx x' h. intMulWD (a .π₁) (a .π₂) _ _ _ _ h
-         quot-elim
-           z. Int
-           x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁)
-           zy)
-    ≡ (let claim3 : (x x' : ℕ × ℕ)
-             (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
-             → class (b .π₁ * x .π₁ + b .π₂ * x .π₂, b .π₁ * x .π₂ + b .π₂ * x .π₁)
-               ≡ class (b .π₁ * x' .π₁ + b .π₂ * x' .π₂, b .π₁ * x' .π₂ + b .π₂ * x' .π₁)
-               ∈ ℕ × ℕ / (y z. y .π₁ + z .π₂ ≡ y .π₂ + z .π₁)
-             = λx x' h. intMulWD (b .π₁) (b .π₂) _ _ _ _ h
-           quot-elim (x. class (b .π₁ * x .π₁ + b .π₂ * x .π₂, b .π₁ * x .π₂ + b .π₂ * x .π₁)) zy)
+  → intMulL a zy ≡ intMulL a' zy
   using (distribBack,
     distribBackR,
     Int.Int.unfold,
-    Int.mul.intMulWD,
+    Int.mul.intMulL.eq,
     Int.mul.intMulWDRep,
     multDistrib,
     plusAssoc,
     plusComm,
     sum4Distrib,
     sum4DistribR)
-intMulWDOuter =
-  λa b h zy. quot-elim
-    q. quot-elim
-      z. Int
-      x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁)
-      q
-      ≡ (let claim2 : (x x' : ℕ × ℕ)
-               (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
-               → class (b .π₁ * x .π₁ + b .π₂ * x .π₂, b .π₁ * x .π₂ + b .π₂ * x .π₁)
-                 ≡ class (b .π₁ * x' .π₁ + b .π₂ * x' .π₂, b .π₁ * x' .π₂ + b .π₂ * x' .π₁)
-                 ∈ ℕ × ℕ / (y z. y .π₁ + z .π₂ ≡ y .π₂ + z .π₁)
-               = λx x' h. intMulWD (b .π₁) (b .π₂) _ _ _ _ h
-             quot-elim (x. class (b .π₁ * x .π₁ + b .π₂ * x .π₂, b .π₁ * x .π₂ + b .π₂ * x .π₁)) q)
-    c. let claim33 = intMulWDRep _ _ _ _ (c .π₁) (c .π₂) h in ⋆
-    zy
+intMulWDOuter = λa a' h zy. quot-elim (c. let claim = intMulWDRep _ _ _ _ (c .π₁) (c .π₂) h in ⋆) zy
 
 -- ===== multiplication =====
 infixl 7 *
-* : Int → Int → Int
-  using (distribBackR, intMulWDOuter, Int.Int.unfold, Int.mul.intMulWD, plusAssoc, sum4Distrib)
+* : Int → Int → Int using (intMulWDOuter, Int.Int.unfold)
 (*) =
-  λx y. quot-elim
-    a. let claim1 : (b b' : ℕ × ℕ)
-             (h : b .π₁ + b' .π₂ ≡ b .π₂ + b' .π₁)
-             → class (a .π₁ * b .π₁ + a .π₂ * b .π₂, a .π₁ * b .π₂ + a .π₂ * b .π₁)
-               ≡ class (a .π₁ * b' .π₁ + a .π₂ * b' .π₂, a .π₁ * b' .π₂ + a .π₂ * b' .π₁)
-               ∈ ℕ × ℕ / (z w. z .π₁ + w .π₂ ≡ z .π₂ + w .π₁)
-             = λb b' h. intMulWD (a .π₁) (a .π₂) _ _ _ _ h
-           quot-elim (b. class (a .π₁ * b .π₁ + a .π₂ * b .π₂, a .π₁ * b .π₂ + a .π₂ * b .π₁)) y
-    x
+  λx y. let wd : (a a' : ℕ × ℕ) (h : a .π₁ + a' .π₂ ≡ a .π₂ + a' .π₁) → intMulL a y ≡ intMulL a' y
+              = λa a' h. intMulWDOuter _ _ h _
+            quot-elim (a. intMulL a y) x
 
 -- 2 · 3 = 6 and (−2) · 3 = −6
 intMulTest1 : class (2, Z) * class (3, Z) ≡ class (6, Z)
-  using (Int.Int.unfold, Int.mul.*.eq, Natural.*.eq, Natural.+.eq)
+  using (Int.Int.unfold, Int.mul.*.eq, Int.mul.intMulL.eq, Natural.*.eq, Natural.+.eq)
 intMulTest1 = ⋆
 
 intMulTest2 : class (Z, 2) * class (3, Z) ≡ class (Z, 6)
-  using (Int.Int.unfold, Int.mul.*.eq, Natural.*.eq, Natural.+.eq)
+  using (Int.Int.unfold, Int.mul.*.eq, Int.mul.intMulL.eq, Natural.*.eq, Natural.+.eq)
 intMulTest2 = ⋆
 
 -- ===== the ring laws =====
@@ -264,6 +237,7 @@ intMulOneL : (z : Int) → intOne * z ≡ z
     Int.Int.unfold,
     Int.intOne.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     oneMult,
     oneMult.rw,
     plusZeroId,
@@ -286,6 +260,7 @@ intMulOneR : (z : Int) → z * intOne ≡ z
     Int.Int.unfold,
     Int.intOne.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     multSucId,
     multSucId.rw,
     multZeroId,
@@ -312,6 +287,7 @@ intMulZeroL : (z : Int) → intZero * z ≡ intZero
     distribBack.rw,
     hyp.rw,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Int.Int.eq,
     Int.Int.unfold,
     Int.intZero.eq,
@@ -326,7 +302,8 @@ intMulZeroL =
            ⋆
     z
 
-intMulZeroR : {z : Int} → z * intZero ≡ intZero using (Int.Int.unfold, Int.intZero.eq, Int.mul.*.eq)
+intMulZeroR : {z : Int} → z * intZero ≡ intZero
+  using (Int.Int.unfold, Int.intZero.eq, Int.mul.*.eq, Int.mul.intMulL.eq)
 intMulZeroR = λz. quot-elim (p. ⋆) z
 
 -- u₁v₁ + u₂v₂ ≡ v₁u₁ + v₂u₂: multComm is permutative, so it never
@@ -340,7 +317,8 @@ mulComm2 =
     cong (λw. ℕ) (λw. w + u2 * v2) (multComm v1 u1)
     cong (λw. ℕ) (λw. v1 * u1 + w) (multComm v2 u2)
 
-intMulComm : (x y : Int) → x * y ≡ y * x using (Int.Int.unfold, Int.mul.*.eq, plusAssoc)
+intMulComm : (x y : Int) → x * y ≡ y * x
+  using (Int.Int.unfold, Int.mul.*.eq, Int.mul.intMulL.eq, plusAssoc)
 intMulComm =
   λx y. quot-elim
     a. quot-elim
@@ -355,7 +333,8 @@ intMulComm =
       y
     x
 
-intMulAssoc : (x y z : Int) → x * y * z ≡ x * (y * z) using (assocRep, Int.Int.unfold, Int.mul.*.eq)
+intMulAssoc : (x y z : Int) → x * y * z ≡ x * (y * z)
+  using (assocRep, Int.Int.unfold, Int.mul.*.eq, Int.mul.intMulL.eq)
 intMulAssoc =
   λx y z. quot-elim
     a. quot-elim
@@ -370,9 +349,11 @@ intMulAssoc =
 intMulDistribL : (x y z : Int) → x * (y + z) ≡ x * y + x * z
   using (hyp.rw,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Int.Int.eq,
     Int.Int.unfold,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     plusAssoc,
     plusAssoc.rw,
     sum4Distrib,
@@ -417,6 +398,7 @@ intAddNegR : (z : Int) → z + intNeg z ≡ intZero
     Int.intZero.eq,
     Int.zeroEq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     plusComm,
     plusZeroId,
     plusZeroId.rw)
@@ -434,6 +416,7 @@ intAddNegL : (z : Int) → intNeg z + z ≡ intZero
     Int.intZero.eq,
     Int.zeroEq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     plusComm,
     plusZeroId,
     plusZeroId.rw)
@@ -448,7 +431,7 @@ intAddNegL =
 -- (−x)·y = −(x·y): the two representatives differ by plusComm in each
 -- component
 intMulNegL : (x y : Int) → intNeg x * y ≡ intNeg (x * y)
-  using (Int.Int.unfold, Int.intNeg.eq, Int.mul.*.eq)
+  using (Int.Int.unfold, Int.intNeg.eq, Int.mul.*.eq, Int.mul.intMulL.eq)
 intMulNegL =
   λx y. quot-elim
     a. quot-elim

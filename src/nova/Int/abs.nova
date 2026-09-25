@@ -171,6 +171,7 @@ intAbsMul : (x y : Int) → intAbs (x * y) ≡ intAbs x * intAbs y
     Int.abs.intAbs.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.nzToInt.eq)
 intAbsMul =
@@ -339,6 +340,7 @@ intMagMul : (x y : Int) → intMag (x * y) ≡ intMag x * intMag y
     Int.abs.intMag.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.nzToInt.eq)
 intMagMul =

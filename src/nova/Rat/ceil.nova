@@ -41,6 +41,7 @@ crossAbs : (p p' : Rat)
   using (Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -88,6 +89,7 @@ qFloorWD : {N : Int}
     Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.den.eq,
     Rat.frac.mkRat.eq,
@@ -250,6 +252,7 @@ sgnQFracPos : {N : Int} {b : ℕ} → sgnQ (qcls (mkRat N (nzPos b))) ≡ intSgn
     Int.nonZero.nzOfIntAt.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.denInt.eq,
     Rat.frac.mkRat.eq,
     Rat.frac.num.eq,
@@ -333,6 +336,7 @@ qDiffNatFrac : {m b K : ℕ}
     Int.Int.unfold,
     Int.intNeg.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Natural.multZeroId.rw,
     plusComm,
     plusZeroId.rw,
@@ -350,6 +354,7 @@ qDiffNatFrac : {m b K : ℕ}
     Rat.frac.ratNeg.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Rat.qcls.eq,
     zeroPlusId.rw)
@@ -422,7 +427,9 @@ leQBoundPos : {M : Int}
     Int.Int.unfold,
     Int.intNeg.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Natural.div.divN.eq,
     Natural.div.dmAux.eq,
     Natural.div.natCase.eq,
@@ -451,6 +458,7 @@ leQBoundPos : {M : Int}
     Rat.order.sgnFlip.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Rat.qcls.eq)
 leQBoundPos =
@@ -554,6 +562,7 @@ leQBoundSq : (u : Q) → ∥u ≤ qOfNat (qNatBound u)∥
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Rat.qcls.eq)
 leQBoundSq =

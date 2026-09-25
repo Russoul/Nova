@@ -84,6 +84,7 @@ qMulIdxRel : (c m : ℕ)
     Int.Int.eq,
     Int.intOne.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Natural.*.eq,
     Natural.+.eq,
     Rat.frac.den.eq,
@@ -115,6 +116,7 @@ qMulInvIdx : {c m : ℕ} → qOfNat (S c) * qInvNat (mulIdx c m) ≡ qInvNat m
     Rat.frac.nzOne.eq,
     Rat.frac.nzPos.eq,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.qcls.eq,
     Rat.ratMul.eq,
     Real.qInvNat.eq,
@@ -139,7 +141,7 @@ qMulInvIdxC =
 
 -- ...so the factor turns the deep bound into the shallow one exactly
 qMulRBoundIdx : (c m n : ℕ) → qOfNat (S c) * rBound (mulIdx c m) (mulIdx c n) ≡ rBound m n
-  using (Rat.+.eq, Real.qInvNat.eq, Real.rBound.eq, Real.mul.mulIdx.eq)
+  using (Rat.+.eq, Rat.qAddL.eq, Real.qInvNat.eq, Real.rBound.eq, Real.mul.mulIdx.eq)
 qMulRBoundIdx =
   λc m n. trans
     _
@@ -301,7 +303,9 @@ mulReg : {p q : RSeq} → Regular (mulSeq p q)
   using (Natural.+.eq,
     Rat.nat.qOfNat.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.qNeg.eq,
     Real.rBound.eq,
     Real.bound.seqBound.eq,
@@ -367,7 +371,13 @@ wdBoundEq : {C A E n a b t k : ℕ}
       → (qOfNat (C + (A + A + E)) * qInvNat t ≡ qInvNat k)
         → qOfNat C * rBound a t + (qOfNat A * rBound t t + qOfNat E * rBound t b)
           ≡ rBound n n + qInvNat k
-  using (Rat.nat.qOfNat.eq, Rat.+.eq, Rat.*.eq, Real.qInvNat.eq, Real.rBound.eq)
+  using (Rat.nat.qOfNat.eq,
+    Rat.+.eq,
+    Rat.qAddL.eq,
+    Rat.*.eq,
+    Rat.qMulL.eq,
+    Real.qInvNat.eq,
+    Real.rBound.eq)
 wdBoundEq =
   λC A E n a b t k h1 h2 h3. trans
     _
@@ -493,7 +503,9 @@ rMulWDStep : (p q q' : RSeq)
   (n k : ℕ)
   → Bnd (rBound n n + qInvNat k) (mulSeq p q n + qNeg (mulSeq p q' n))
   using (Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.qNeg.eq,
     Real.mul.mulIdx.eq,
     Real.mul.mulPred.eq,
@@ -530,6 +542,7 @@ rMulWDInner : (p : RSeq) {q q' : RSeq} → REq q q' → REq (rMul p q) (rMul p q
   using (Rat.bound.Bnd.eq,
     Rat.order.≤.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.REq.unfold,
     Real.rBound.eq,

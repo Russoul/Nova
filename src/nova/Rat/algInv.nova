@@ -54,6 +54,7 @@ invRepWDAt : {p p' : Rat}
     Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -133,6 +134,7 @@ invRepWD : {p p' : Rat}
   using (Int.nonZero.nzOfInt.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.num.eq,
@@ -215,6 +217,7 @@ invRepRel : {p : Rat}
   using (Int.Int.unfold,
     Int.intOne.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -255,6 +258,7 @@ invRepCorrectAt : {p : Rat}
     Int.Int.unfold,
     Int.intOne.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Core.prop.¬.unfold,
     Core.prop.⊃.unfold,
     Rat.frac.NZ.unfold,
@@ -284,6 +288,7 @@ qMulInvR : {u : Q} (h : ¬ (u ≡ qZero)) → u * qInv u ≡ qOne
     Int.nonZero.nzOfIntAt.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     pi.eta,
     Core.prop.¬.unfold,
     Core.prop.⊃.unfold,
@@ -302,6 +307,7 @@ qMulInvR : {u : Q} (h : ¬ (u ≡ qZero)) → u * qInv u ≡ qOne
     Rat.RatR.unfold,
     Rat.dInt.eq,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.ratMul.eq)
 qMulInvR = λu. quot-elim (p. λh. invRepCorrectAt (numNonZero h) (nzOfInt (num p))) u
 

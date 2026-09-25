@@ -109,50 +109,40 @@ intAddCross =
               ⋆
     c2
 
--- the same, one level up: the inner elimination is well-defined in the
--- OUTER argument — proven by quotient elimination with an ≡-motive
-intAddWDOuter : (a b : ℕ × ℕ)
-  (h : a .π₁ + b .π₂ ≡ a .π₂ + b .π₁)
-  (zy : Int)
-  → (let claim2 : (x x' : ℕ × ℕ)
-           (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
-           → class (a .π₁ + x .π₁, a .π₂ + x .π₂)
-             ≡ class (a .π₁ + x' .π₁, a .π₂ + x' .π₂)
-             ∈ ℕ × ℕ / (y z. y .π₁ + z .π₂ ≡ y .π₂ + z .π₁)
-           = λx x' h. intAddWD (a .π₁) (a .π₂) _ _ _ _ h
-         quot-elim (z. Int) (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)) zy)
-    ≡ (let claim2 : (x x' : ℕ × ℕ)
-             (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
-             → class (b .π₁ + x .π₁, b .π₂ + x .π₂)
-               ≡ class (b .π₁ + x' .π₁, b .π₂ + x' .π₂)
-               ∈ ℕ × ℕ / (y z. y .π₁ + z .π₂ ≡ y .π₂ + z .π₁)
-             = λx x' h. intAddWD (b .π₁) (b .π₂) _ _ _ _ h
-           quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) zy)
-  using (intAddCross, intAddWD, Int.Int.unfold, plusAssoc)
-intAddWDOuter =
-  λa b h zy. quot-elim
-    q. (let claim1 : (x x' : ℕ × ℕ)
-              (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
-              → class (a .π₁ + x .π₁, a .π₂ + x .π₂)
-                ≡ class (a .π₁ + x' .π₁, a .π₂ + x' .π₂)
-                ∈ ℕ × ℕ / (y z. y .π₁ + z .π₂ ≡ y .π₂ + z .π₁)
-              = λx x' h. intAddWD (a .π₁) (a .π₂) _ _ _ _ h
-            quot-elim (z. Int) (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)) q)
-      ≡ (let claim1 : (x x' : ℕ × ℕ)
+-- ===== the descended operation, one argument at a time =====
+--
+-- Addition of a fixed representative on the left, descended to the
+-- quotient; its well-definedness in the right argument stated once,
+-- here, as the local claim the eliminator reads.
+intAddL : ℕ × ℕ → Int → Int using (intAddWD, Int.Int.unfold)
+intAddL =
+  λa zy. let wd : (x x' : ℕ × ℕ)
                (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
-               → class (b .π₁ + x .π₁, b .π₂ + x .π₂)
-                 ≡ class (b .π₁ + x' .π₁, b .π₂ + x' .π₂)
-                 ∈ ℕ × ℕ / (y z. y .π₁ + z .π₂ ≡ y .π₂ + z .π₁)
-               = λx x' h. intAddWD (b .π₁) (b .π₂) _ _ _ _ h
-             quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) q)
-    c. let claim4 = intAddCross _ _ _ _ (c .π₁) (c .π₂) h in ⋆
-    zy
+               → class (a .π₁ + x .π₁, a .π₂ + x .π₂) ≡ class (a .π₁ + x' .π₁, a .π₂ + x' .π₂) ∈ Int
+               = λx x' h. intAddWD (a .π₁) (a .π₂) _ _ _ _ h
+             quot-elim (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)) zy
+
+-- the outer half as the descent asks for it: the two left additions
+-- agree on every element of the quotient — a quot-elim at an
+-- ≡-motive whose case is the cross-sum lemma
+intAddWDOuter : (a a' : ℕ × ℕ)
+  (h : a .π₁ + a' .π₂ ≡ a .π₂ + a' .π₁)
+  (zy : Int)
+  → intAddL a zy ≡ intAddL a' zy
+  using (intAddCross, Int.Int.unfold, Int.add.intAddL.eq, plusAssoc)
+intAddWDOuter = λa a' h zy. quot-elim (c. let claim = intAddCross _ _ _ _ (c .π₁) (c .π₂) h in ⋆) zy
 
 infixl 6 +
-+ : Int → Int → Int using (intAddWD, intAddWDOuter, Int.Int.unfold, plusAssoc)
-(+) = λzx zy. quot-elim (a. quot-elim (b. class (a .π₁ + b .π₁, a .π₂ + b .π₂)) zy) zx
++ : Int → Int → Int using (intAddWDOuter, Int.Int.unfold)
+(+) =
+  λzx zy. let wd : (a a' : ℕ × ℕ)
+                (h : a .π₁ + a' .π₂ ≡ a .π₂ + a' .π₁)
+                → intAddL a zy ≡ intAddL a' zy
+                = λa a' h. intAddWDOuter _ _ h _
+              quot-elim (a. intAddL a zy) zx
 
-intAddTest : class (Z, Z) + class (S Z, S Z) ≡ class (S Z, S Z) using (Int.Int.unfold, Int.add.+.eq)
+intAddTest : class (Z, Z) + class (S Z, S Z) ≡ class (S Z, S Z)
+  using (Int.Int.unfold, Int.add.+.eq, Int.add.intAddL.eq)
 intAddTest = ⋆
 
 -- ===== the algebra =====
@@ -168,7 +158,14 @@ crossComm =
 -- commutativity: two quotient eliminations at ≡-motives reduce to the
 -- representative-level cross-sum permutation
 intAddComm : (x y : Int) → x + y ≡ y + x
-  using (crossComm, Int.Int.unfold, Int.add.+.eq, Natural.swapMid, plusAssoc, plusComm, swapLeft)
+  using (crossComm,
+    Int.Int.unfold,
+    Int.add.+.eq,
+    Int.add.intAddL.eq,
+    Natural.swapMid,
+    plusAssoc,
+    plusComm,
+    swapLeft)
 intAddComm =
   λx y. quot-elim
     a. quot-elim (b. let claim3 = crossComm (a .π₁) (b .π₁) (b .π₂) (a .π₂) in ⋆) y
@@ -177,7 +174,13 @@ intAddComm =
 -- associativity: three eliminations; the representatives reassociate
 -- by plusAssoc and close by commutativity of the cross sum
 intAddAssoc : (x y z : Int) → x + y + z ≡ x + (y + z)
-  using (hyp.rw, Int.add.+.eq, Int.Int.eq, Int.Int.unfold, plusAssoc, plusAssoc.rw)
+  using (hyp.rw,
+    Int.add.+.eq,
+    Int.add.intAddL.eq,
+    Int.Int.eq,
+    Int.Int.unfold,
+    plusAssoc,
+    plusAssoc.rw)
 intAddAssoc =
   λx y z. quot-elim
     a. quot-elim

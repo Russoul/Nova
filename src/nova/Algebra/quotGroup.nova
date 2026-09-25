@@ -153,41 +153,46 @@ qMulWDOuterCls : {G : 𝕌}
 qMulWDOuterCls =
   λG g N a a' b h. classEqOfRel (cosetRel g N) (gop g a b) (gop g a' b) (qMulWDOuter h)
 
--- the outer half as the descent itself asks for it: the two inner
--- eliminations agree on every element of the quotient. Where realMul
--- writes `wdOuterOfComm rMul rMulComm rMulWDInnerCls`, this is the
--- honest version — a quot-elim at an ≡-motive whose method is the
--- class-level outer proof
+-- ===== the descended operation, one argument at a time =====
+--
+-- Multiplication by a fixed x on the left, descended to the quotient.
+-- Its well-definedness — the inner half, at class level — is STATED
+-- once, here, as the local claim the eliminator reads; every use of
+-- qMulL inherits it. (A raw quot-elim in a type would owe the proof
+-- again wherever the type is formed.)
+qMulL : (G : 𝕌) (g : IsGroup G) (N : G → Ω) → IsNormal g N → G → QGroup _ g N → QGroup _ g N
+  using (QGroup.unfold, qcls.eq)
+qMulL =
+  λG g N nn x v. let wd : (q q' : G)
+                       (h : cosetRel g N q q')
+                       → class (gop g x q) ≡ class (gop g x q') ∈ QGroup _ g N
+                       = λq q' h. qMulWDInnerCls _ _ _ nn x _ _ h
+                     quot-elim (q. qcls _ _ (gop g x q)) v
+
+-- the outer half as the descent asks for it: the two left
+-- multiplications agree on every element of the quotient — a
+-- quot-elim at an ≡-motive whose method is the class-level outer proof
 qMulWDOuterElim : (G : 𝕌)
   (g : IsGroup G)
   (N : G → Ω)
-  → IsNormal g N
-    → (x x' : G)
-      → cosetRel g N x x'
-        → (v : QGroup _ g N)
-          → quot-elim (w. QGroup _ g N) (q. qcls _ _ (gop g x q)) v
-            ≡ quot-elim (q. qcls _ _ (gop g x' q)) v
-  using (QGroup.unfold, qMulWDInnerCls)
-qMulWDOuterElim =
-  λG g N nn x x' h v. quot-elim
-    w. (let claim1 : (q q' : G)
-              (h : cosetRel {G} g N q q')
-              → qcls {G} g N (gop {G} g x q)
-                ≡ qcls {G} g N (gop {G} g x q')
-                ∈ G / (u y. cosetRel {G} g N u y)
-              = λq q' h. qMulWDInnerCls _ _ _ nn x _ _ h
-            quot-elim (z. QGroup _ g N) (q. qcls _ _ (gop g x q)) w)
-      ≡ (let claim10 = qMulWDInnerCls _ _ _ nn x' in quot-elim (q. qcls _ _ (gop g x' q)) w)
-    c. qMulWDOuterCls h
-    v
+  (nn : IsNormal g N)
+  (x x' : G)
+  → cosetRel g N x x' → (v : QGroup _ g N) → qMulL _ _ _ nn x v ≡ qMulL _ _ _ nn x' v
+  using (QGroup.unfold, qMulL.eq)
+qMulWDOuterElim = λG g N nn x x' h v. quot-elim (c. qMulWDOuterCls h) v
 
 -- ===== the descended operation =====
 qMul : (G : 𝕌)
   (g : IsGroup G)
   (N : G → Ω)
   → IsNormal g N → QGroup _ g N → QGroup _ g N → QGroup _ g N
-  using (QGroup.unfold, qMulWDInnerCls, qMulWDOuterElim)
-qMul = λG g N nn u v. quot-elim (p. quot-elim (q. qcls _ _ (gop g p q)) v) u
+  using (QGroup.unfold)
+qMul =
+  λG g N nn u v. let wd : (p p' : G)
+                       (h : cosetRel g N p p')
+                       → qMulL _ _ _ nn p v ≡ qMulL _ _ _ nn p' v
+                       = λp p' h. qMulWDOuterElim _ _ _ _ _ _ h _
+                     quot-elim (p. qMulL _ _ _ nn p v) u
 
 -- β on classes. Stated with the BARE `class`, not with qcls: a
 -- quot-elim substitutes `class a` for its method binder, so this is
@@ -199,7 +204,7 @@ qMulCls : (G : 𝕌)
   (nn : IsNormal g N)
   (a b : G)
   → qMul _ _ _ nn (class a) (class b) ≡ class (gop g a b)
-  using (QGroup.unfold, qcls.eq, qMul.eq)
+  using (QGroup.unfold, qcls.eq, qMul.eq, qMulL.eq)
 qMulCls = λG g N nn a b. ⋆
 
 -- ===== the inverse descends =====

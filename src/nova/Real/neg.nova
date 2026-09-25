@@ -31,6 +31,7 @@ regOf : (x : RSeq) → Regular (seqOf x)
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.RSeq.unfold,
     Real.Regular.unfold,
@@ -48,6 +49,7 @@ reqOf : (x y : RSeq) → ((n : ℕ) → Bnd (rBound n n) (seqOf x n + qNeg (seqO
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.REq.unfold,
     Real.RSeq.unfold,
@@ -57,7 +59,8 @@ reqOf : (x y : RSeq) → ((n : ℕ) → Bnd (rBound n n) (seqOf x n + qNeg (seqO
 reqOf = λx y h. ⋆ h
 
 -- ===== the bound is symmetric and nonnegative =====
-rBoundSym : (m n : ℕ) → rBound m n ≡ rBound n m using (Rat.+.eq, Real.qInvNat.eq, Real.rBound.eq)
+rBoundSym : (m n : ℕ) → rBound m n ≡ rBound n m
+  using (Rat.+.eq, Rat.qAddL.eq, Real.qInvNat.eq, Real.rBound.eq)
 rBoundSym = λm n. qAddComm (qInvNat m) (qInvNat n)
 
 -- ===== reflexivity and symmetry of REq =====
@@ -77,6 +80,7 @@ reqSym : {x y : RSeq} → REq x y → REq y x
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.REq.unfold,
     Real.RSeq.unfold,
@@ -118,6 +122,7 @@ negReg : {f : ℕ → Q} → Regular f → Regular (negSeq f)
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.Regular.unfold,
     Real.rBound.eq,
@@ -147,6 +152,7 @@ rNegWD : {x y : RSeq} → REq x y → REq (rNeg x) (rNeg y)
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.REq.unfold,
     Real.RSeq.unfold,
@@ -229,6 +235,7 @@ realNegZero : realNeg realZero ≡ realZero
     Rat.order.≤.eq,
     Rat.Q.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qAddNegR.eq,
     Rat.qNeg.eq,
     Rat.qZero.eq,

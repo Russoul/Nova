@@ -103,6 +103,7 @@ qOfNatDiffNum : {a b : ℕ}
     Int.Int.unfold,
     Int.intNeg.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     plusComm,
     plusZeroId.rw,
     zeroPlusId.rw)
@@ -145,8 +146,10 @@ sgnQOfNatDiff : (a b : ℕ) → sgnQ (qOfNat b + qNeg (qOfNat a)) ≡ intSgn (cl
     Int.intOne.eq,
     Int.intZero.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.classPairEta.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Int.normalize.normPair.eq,
     Natural.*.eq,
     Natural.+.eq,
@@ -173,6 +176,7 @@ sgnQOfNatDiff : (a b : ℕ) → sgnQ (qOfNat b + qNeg (qOfNat a)) ≡ intSgn (cl
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Rat.qcls.eq)
 sgnQOfNatDiff =
@@ -205,6 +209,7 @@ qOfNatAdd : (a b : ℕ) → qOfNat a + qOfNat b ≡ qOfNat (a + b)
   using (Int.order.intOfNat.eq,
     Int.intNeg.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Natural.*.eq,
     Natural.+.eq,
     Rat.nat.qOfNat.eq,
@@ -218,6 +223,7 @@ qOfNatAdd : (a b : ℕ) → qOfNat a + qOfNat b ≡ qOfNat (a + b)
     Rat.frac.nzPos.eq,
     Rat.frac.ratAdd.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qcls.eq)
 qOfNatAdd =
   λa b. trans

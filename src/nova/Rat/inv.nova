@@ -114,6 +114,7 @@ ratZeroOfNumZero : (p : Rat) (h : num p ≡ intZero) → class p ≡ qZero
     Int.intOne.eq,
     Int.intZero.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,

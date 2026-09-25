@@ -111,35 +111,42 @@ qrMulWDOuterCls =
     rmul _ r a' b
     qrMulWDOuter id h
 
+-- ===== the descended operation, one argument at a time =====
+--
+-- Multiplication by a fixed x on the left, descended to the quotient;
+-- its well-definedness (the inner half, at class level) stated once,
+-- here, as the local claim the eliminator reads.
+qrMulL : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → IsIdeal _ r I → R → QRing _ r I → QRing _ r I
+  using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrCls.eq, Algebra.quotGroup.qcls.eq)
+qrMulL =
+  λR r I id x v. let wd : (q q' : R)
+                       (h : cosetRel (raddGroup r) I q q')
+                       → class (rmul _ r x q) ≡ class (rmul _ r x q') ∈ QRing _ r I
+                       = λq q' h. qrMulWDInnerCls _ _ _ id x _ _ h
+                     quot-elim (q. qrCls (rmul _ r x q)) v
+
+-- the outer half as the descent asks for it: the two left
+-- multiplications agree on every element of the quotient
 qrMulWDOuterElim : (R : 𝕌)
   (r : IsCommRing R)
   (I : R → Ω)
-  → IsIdeal _ r I
-    → (x x' : R)
-      → cosetRel (raddGroup r) I x x'
-        → (v : QRing _ r I)
-          → quot-elim (w. QRing _ r I) (q. qrCls (rmul _ r x q)) v
-            ≡ quot-elim (q. qrCls (rmul _ r x' q)) v
-  using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrMulWDInnerCls)
-qrMulWDOuterElim =
-  λR r I id x x' h v. quot-elim
-    w. (let claim1 : (q q' : R)
-              (h : cosetRel {R} (raddGroup {R} r) I q q')
-              → qrCls {R} {r} {I} (rmul _ r x q)
-                ≡ qrCls {R} {r} {I} (rmul _ r x q')
-                ∈ QGroup _ (raddGroup {R} r) I
-              = λq q' h. qrMulWDInnerCls _ _ _ id x _ _ h
-            quot-elim (z. QRing _ r I) (q. qrCls (rmul _ r x q)) w)
-      ≡ (let claim10 = qrMulWDInnerCls _ _ _ id x' in quot-elim (q. qrCls (rmul _ r x' q)) w)
-    c. qrMulWDOuterCls id h
-    v
+  (id : IsIdeal _ r I)
+  (x x' : R)
+  → cosetRel (raddGroup r) I x x' → (v : QRing _ r I) → qrMulL _ _ _ id x v ≡ qrMulL _ _ _ id x' v
+  using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrMulL.eq)
+qrMulWDOuterElim = λR r I id x x' h v. quot-elim (c. qrMulWDOuterCls id h) v
 
 qrMul : (R : 𝕌)
   (r : IsCommRing R)
   (I : R → Ω)
   → IsIdeal _ r I → QRing _ r I → QRing _ r I → QRing _ r I
-  using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrMulWDInnerCls, qrMulWDOuterElim)
-qrMul = λR r I id u v. quot-elim (p. quot-elim (q. qrCls (rmul _ r p q)) v) u
+  using (QRing.eq, Algebra.quotGroup.QGroup.unfold)
+qrMul =
+  λR r I id u v. let wd : (p p' : R)
+                       (h : cosetRel (raddGroup r) I p p')
+                       → qrMulL _ _ _ id p v ≡ qrMulL _ _ _ id p' v
+                       = λp p' h. qrMulWDOuterElim _ _ _ _ _ _ h _
+                     quot-elim (p. qrMulL _ _ _ id p v) u
 
 qrMulCls : (R : 𝕌)
   (r : IsCommRing R)
@@ -147,7 +154,12 @@ qrMulCls : (R : 𝕌)
   (id : IsIdeal _ r I)
   (a b : R)
   → qrMul _ _ _ id (class a) (class b) ≡ class (rmul _ r a b)
-  using (QRing.eq, qrCls.eq, Algebra.quotGroup.QGroup.unfold, Algebra.quotGroup.qcls.eq, qrMul.eq)
+  using (QRing.eq,
+    qrCls.eq,
+    Algebra.quotGroup.QGroup.unfold,
+    Algebra.quotGroup.qcls.eq,
+    qrMul.eq,
+    qrMulL.eq)
 qrMulCls = λR r I id a b. ⋆
 
 qrOne : {R : 𝕌} {r : IsCommRing R} {I : R → Ω} → QRing _ r I
