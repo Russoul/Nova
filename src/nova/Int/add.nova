@@ -57,6 +57,15 @@ intAddWD =
               claim7 = plusAssoc k b2 (a1 + c1)
               claim8 = plusAssoc (S k) b2 (a1 + c1)
               claim9 = sucPlus k (b2 + (a1 + c1))
+              claim1 = plusAssoc a1 b1 (S k + c2)
+              claim2 = sucPlus k c2
+              claim3 = plusSucId b1 (k + c2)
+              claim4 = plusSucId a1 (b1 + (k + c2))
+              claim5 = plusAssoc a1 b1 (k + c2)
+              claim6 = claim6
+              claim7 = plusAssoc k b2 (a1 + c1)
+              claim8 = plusAssoc (S k) b2 (a1 + c1)
+              claim9 = sucPlus k (b2 + (a1 + c1))
               ⋆
     a2
 

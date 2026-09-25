@@ -79,13 +79,12 @@ def main():
         m = re.match(r'at (\S+):(\d+):(\d+)-(\d+):(\d+)$', at)
         if not m: skipped['no span'] += 1; continue
         f, l0, c0, l1, c1 = m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4)), int(m.group(5))
-        if l0 != l1: skipped[f'multi-line span / {kind}'] += 1; continue
         if kind.startswith('chain, step'): skipped['chain step'] += 1; continue
         if c0 == 0: skipped['whole item (a generated item\'s site)'] += 1; continue
         module = item.split(':')[0]
         env = parts[7].replace('env:', '').split() if len(parts) > 7 else []
         claim = parts[8].replace('claim:', '', 1).strip() if len(parts) > 8 else ''
-        edits[f].append((l0, c0, c1, shape, kind, [i.strip() for i in insts.split(';;') if i.strip()], module, env, claim))
+        edits[f].append((l0, c0, l1, c1, shape, kind, [i.strip() for i in insts.split(';;') if i.strip()], module, env, claim))
     done = collections.Counter()
     for f, es in edits.items():
         original = open(f, encoding='utf-8').read()
@@ -100,11 +99,11 @@ def main():
                 break
             # the site at or nearest above the failing line is left to
             # the author; the file is rewritten without it
-            cands = [e for e in es if e[0] + 1 <= err_line and (e[0], e[1], e[2]) not in dropped]
+            cands = [e for e in es if e[0] + 1 <= err_line and (e[0], e[1], e[2], e[3]) not in dropped]
             if not cands:
                 open(f, 'w', encoding='utf-8').write(original); skipped['file reverted (error not at a site)'] += 1; break
             worst = max(cands, key=lambda e: e[0])
-            dropped.add((worst[0], worst[1], worst[2])); skipped['does not elaborate after the edit'] += 1
+            dropped.add((worst[0], worst[1], worst[2], worst[3])); skipped['does not elaborate after the edit'] += 1
     print(f"migrated {dict(done)} in {len(edits)} files; left: {dict(skipped)}")
 
 def elab_error_line(f):
@@ -131,33 +130,66 @@ def apply_file(f, original, es, dropped, skipped):
         imps = imports_of(text); needed = collections.defaultdict(set)
         # one edit per span: sites sharing a span pool their instances
         by_span = collections.OrderedDict()
-        for (l0, c0, c1, shape, kind, insts, module, env, claim) in es:
-            key = (l0, c0, c1)
+        for (l0, c0, l1, c1, shape, kind, insts, module, env, claim) in es:
+            key = (l0, c0, l1, c1)
             if key not in by_span: by_span[key] = (shape, kind, [], module, [])
             for i in insts:
                 if i not in by_span[key][2]: by_span[key][2].append(i)
             by_span[key][4].append((kind, insts, env, claim))
-        # overlapping spans on one line are left to the author
+        # a span inside another: its instances join the outer one's
+        # claims (the claim is in scope there too); a partial overlap
+        # is left to the author
+        def contains(a, b):
+            return (a[0], a[1]) <= (b[0], b[1]) and (b[2], b[3]) <= (a[2], a[3]) and a != b
+        def overlaps(a, b):
+            return not ((a[2], a[3]) <= (b[0], b[1]) or (b[2], b[3]) <= (a[0], a[1]))
         spans = sorted(by_span)
-        clash = set()
-        for i, a in enumerate(spans):
-            for b in spans[i+1:]:
-                if a[0] == b[0] and not (a[2] <= b[1] or b[2] <= a[1]): clash.add(a); clash.add(b)
+        merged = set(); clash = set()
+        for a in spans:
+            for b in spans:
+                if a == b: continue
+                if contains(a, b):
+                    sa, ka, ia, ma, ssa = by_span[a]; sb, kb, ib, mb, ssb = by_span[b]
+                    for i in ib:
+                        if i not in ia: ia.append(i)
+                    if kb.startswith('well-definedness') and not ka.startswith('well-definedness'):
+                        ssa.extend(ssb)
+                    merged.add(b)
+                elif overlaps(a, b): clash.add(a); clash.add(b)
+        clash -= merged
         counter = [0]
         for key in sorted(by_span, reverse=True):
-            l0, c0, c1 = key; shape, kind, insts, module, sites = by_span[key]
-            if key in dropped: continue
+            l0, c0, l1, c1 = key; shape, kind, insts, module, sites = by_span[key]
+            if key in dropped or key in merged: continue
             if key in clash: skipped['overlapping spans'] += 1; continue
             line = src[l0]   # positions are 0-based
-            span = line[c0:c1]
+            if l1 != l0:
+                if line[:c0].strip() != '': skipped['multi-line span not at a line start'] += 1; continue
+                span = None
+            else:
+                span = line[c0:c1]
+            def wrap(lets):
+                if span is None:
+                    # the span starts its line: the bindings become a let
+                    # BLOCK above it at its column, the span the block's
+                    # last item (docs/NovaElaboration.txt, Layout — LET)
+                    if line[:c0].strip() != '' or not lets.endswith(' in '): raise ValueError('multi-line span not at a line start')
+                    binds = [b.strip() for b in lets.split(' in ') if b.strip()]
+                    first = 'let ' + binds[0][4:] if binds[0].startswith('let ') else 'let ' + binds[0]
+                    rest = [(' ' * (c0 + 4)) + b[4:] for b in binds[1:]]
+                    src[l0:l0] = [(' ' * c0) + first] + rest
+                else:
+                    src[l0] = line[:c0] + '(' + lets + span + ')' + line[c1:]
             if kind == 'checking ⋆' and shape == 'root' and len(insts) == 1:
                 if span != '⋆': skipped['span is not ⋆'] += 1; continue
                 inst = render(insts[0], module, imps, needed)
+                env0 = sites[0][2] if sites else []
+                if '_' in env0 and re.search(r'(?<![\w])_(?![\w])', inst): skipped['instance names an unnamed binder'] += 1; continue
                 if ' ' in inst: inst = f'({inst})'
                 src[l0] = line[:c0] + inst + line[c1:]
                 done['⋆ := instance'] += 1
                 continue
-            if kind.startswith('well-definedness'):
+            if kind.startswith('well-definedness') and all(c.startswith('wd ') for (_, _, _, c) in sites):
                 # each well-definedness obligation at this eliminator: a
                 # claim QUANTIFIED over the case's binders (x x′ h), its
                 # type the measure's rendering of the statement, its
@@ -172,11 +204,11 @@ def apply_file(f, original, es, dropped, skipped):
                     if ('_' in env2 and re.search(r'(?<![\w])_(?![\w])', ins2[0] + ' ' + claim2)) or len({x, x1, h}) < 3 or any(n in env2[:-3] for n in (x, x1, h)):
                         ok = False; break
                     r = render(ins2[0], module, imps, needed)
-                    ct = render(claim2, module, imps, needed)
+                    ct = render(claim2[3:], module, imps, needed)
                     counter[0] += 1
                     lets += f'let claim{counter[0]} : {ct} = λ{x} {x1} {h}. {r} in '
                 if not ok: skipped['well-definedness: not one instance, or unspellable'] += 1; continue
-                src[l0] = line[:c0] + '(' + lets + span + ')' + line[c1:]
+                wrap(lets)
                 done['λ-claim / well-definedness'] += 1
                 continue
             rendered = []; unusable = False
@@ -190,7 +222,7 @@ def apply_file(f, original, es, dropped, skipped):
                     # them at the end stays quantified over them; one
                     # that mentions them inside its arguments cannot be
                     # stated outside the eliminator — left to the author
-                    mb = re.search(r'quot-elim\s*\(\s*([^\s.]+)\s*\.', span)
+                    mb = re.search(r'quot-elim\s*\(\s*([^\s.]+)\s*\.', span or line[c0:])
                     if mb:
                         an = mb.group(1); toks = r.split(' ')
                         binders = {an, an + "'", 'h', '{' + an + '}', '{' + an + "'}", '{h}'}
@@ -207,7 +239,7 @@ def apply_file(f, original, es, dropped, skipped):
             for r in rendered:
                 counter[0] += 1
                 lets += f'let claim{counter[0]} = {r} in '
-            src[l0] = line[:c0] + '(' + lets + span + ')' + line[c1:]
+            wrap(lets)
             done[f'let-wrapped / {kind}'] += 1
         src = add_imports(src, needed)
         open(f, 'w', encoding='utf-8').write('\n'.join(src))

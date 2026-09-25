@@ -3643,11 +3643,14 @@ searchLine st ctx env site kind p a b ty =
   stmt e = case ty of
     TopTy => "\{pr e a} ≡ \{pr e b}"
     _ => "\{prE e a} ≡ \{prE e b} ∈ (\{pr e ty})"
+  -- (marked "wd" only at the case itself — its context ends in the
+  -- carrier twice and the relation; a sub-site under it, an η under a
+  -- binder, keeps the name but not the shape)
   claimTy : String
   claimTy = case (ctx, env) of
     (c0 :< tA :< tA' :< tR, e0 :< x :< x' :< h) =>
-      if isSuffixOf "well-definedness of quot-elim case" site.sname
-        then "(\{x} : \{pr e0 tA}) → (\{x'} : \{pr (e0 :< x) tA'}) → (\{h} : \{pr (e0 :< x :< x') tR}) → \{stmt env}"
+      if isSuffixOf "well-definedness of quot-elim case" site.sname && tA' == substTy tA Wk
+        then "wd (\{x} : \{pr e0 tA}) → (\{x'} : \{pr (e0 :< x) tA'}) → (\{h} : \{pr (e0 :< x :< x') tR}) → \{stmt env}"
         else stmt env
     _ => stmt env
  where

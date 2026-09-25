@@ -48,6 +48,9 @@ intOfNatInjZ =
             claim2 = plusZeroId k
             claim3 = claim3
             claim4 = plusZeroId Z
+            claim1 = plusZeroId k
+            claim2 = claim3
+            claim3 = plusZeroId Z
             ⋆
 
 -- x + ofNat (a + b) ≡ (x + ofNat a) + ofNat b, hypothesis-free
