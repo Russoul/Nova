@@ -334,9 +334,28 @@ engine (typed unfolding: the engine carries derivations):
          derivation); inferHead deleted from the kernel, the builder
          has its own (rdInferHead). Taken in two steps, each measured
          on the corpus with the fallback turned into an error first.
-  [ ] 4. No δ-all leaf: δ only at a named leaf under the nodes to its
-         position. The δ-all count over the corpus (2726 leaves in
-         2050 certified derivations at the start) is the measure.
+  [-] 4. No δ-all leaf — RE-SCOPED 2026-09-25, after the measurement.
+         The typed version was built (every licensed occurrence a δ
+         leaf at its path inside the node skeleton of its position,
+         the engine's rounds and the builder's δ bridge both typed;
+         kept in the git stash "item 4 experiment") and run over the
+         corpus: 41 modules lose acceptance, because a δ leaf under an
+         eliminator's branch needs what only the elaboration had — a
+         quotient elimination's well-definedness proof at a non-prop
+         motive for the congruence (a proof obligation, not a choice
+         the text records), the motives of nested eliminations — and
+         re-deriving those is search. The δ-all leaf is therefore kept
+         and reclassified: it is a COMPUTATION leaf on the erasure,
+         like the β join — unfolding the named definitions anywhere
+         in a well-formed side is definitional equality by the
+         congruence rules, and the choice it records (which names) is
+         explicit. It is not a trust gap; it was listed as an
+         explicitness gap, and that gap is the engine's (a position
+         unfolded without its type is where motives were lost), which
+         the engine's typed head-path exposure already closes where it
+         matters. Reopen only when the engine carries the derivations
+         of the terms it unfolds (a definition's stored body
+         derivation aligned with its unfolding).
   [ ] 6. Chains state their middles: the computed-middle transitivity
          and the classifiers that plan its reading (runnable,
          dirable, oneWay, the stated-link fallbacks) retired once the

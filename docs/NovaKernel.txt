@@ -1098,10 +1098,11 @@ entry points return over the kernel's Σ. They are:
                    kQSigSmallD
   the monad        KM, runKM, kerr, kCatch, kSigLookup
 
-The library is expected to SHRINK: unfoldAllK goes with the δ-all
-leaf (tranche 2 of the kernel programme, docs/NovaStrategy.txt), and
-the readings leave the library when the engine carries derivations
-everywhere and re-derivation of bare terms is no longer needed. The
+The library is expected to SHRINK: the readings leave it when the
+engine carries derivations everywhere and re-derivation of bare
+terms is no longer needed. (The δ-all leaf and unfoldAllK stay: a
+computation leaf on the erasure, on the same footing as the β join
+— docs/NovaStrategy.txt, kernel programme item 4.) The
 kernel has no bare-term typing at all: a head's type is what the
 child derivation states, a neutral's prop-ness what a derivation
 states (the builder's head inference, rdInferHead, is the engine's). Backtracking combinators are not the
