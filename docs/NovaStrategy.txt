@@ -1,0 +1,281 @@
+////////// NovaStrategy.txt — natural proofs, and the author–engine–kernel division //////////
+
+////////// Purpose //////////
+
+This file states Nova's strategic goal — that proving in Nova be the
+pen-and-paper proof, formal but natural — and the division of labour
+that realises it: three roles, AUTHOR, ENGINE and KERNEL, each with
+one job and a precise criterion for what it must never do. The other
+specs say how each piece works (docs/NovaFoundation.txt the theory,
+docs/NovaKernel.txt the reader, docs/NovaElaboration.txt the
+elaborator, docs/NovaPipeline.txt the trust story, docs/NovaSketch.txt
+the proof surface); this one says what each piece IS, so that the
+division survives the work on the pieces. The last section is the
+AUDIT: a mechanical check (check-roles.sh) and a checklist of
+judgement questions, to be run from time to time against the tree.
+
+////////// The goal: natural proofs //////////
+
+A pen-and-paper proof, when it is fully formal, has a definite shape.
+
+  * Every object introduced carries its type at the point of
+    introduction: "let f : A → B", "take n : ℕ".
+  * Every claim carries its statement: "we show a = b", "note that
+    P(n) holds for all n".
+  * Uses carry nothing. An application f x, a projection, a
+    computation step, a "hence" is written bare; the reader looks
+    the types up from what was introduced and fills in the step.
+  * The reader RE-DERIVES, constantly — but only what needs no
+    choice: normalization, definitional unfolding the text licensed,
+    the consequence of facts already on the page. The reader never
+    reconstructs a choice the author made silently, because a
+    well-written proof states its choices: which lemma at which
+    instance, what is inducted on and what is proved about it, which
+    occurrence is rewritten when it matters.
+  * Gaps are bounded and choice-free: "clearly", "by a routine
+    calculation" mean the reader can close the gap deterministically.
+  * Nothing of the reader's work is kept. Once convinced, the reader
+    forgets the trace; the text is the artifact.
+
+In the vocabulary of type theory: a natural proof is Church-style at
+binders and claims, and Curry-style at uses. Neither the fully
+annotated term nor the bare computational term is the natural proof.
+The annotated term is the READER'S TRACE — what the reader builds
+while checking, the derivation. The bare term is what a natural
+proof's DEFINITIONS look like: a signature, then an unannotated
+body, the signature being the annotation at the binder. Nova's item
+shape — `name : T` then `name = …` — is already that at top level.
+
+The goal is to recurse that shape into proofs: a proof is a sequence
+of local claims, each a statement with a justification, plus
+induction and case statements that name their motive and their
+hypotheses; the bodies of justifications are bare; every choice that
+needs thought is in the text; and the reader builds the derivation
+from the text with no reconstruction. That is docs/NovaSketch.txt.
+
+The measure of progress is a single question: WHEN A FILE IS
+ACCEPTED, WHAT HAD TO BE RECONSTRUCTED THAT THE AUTHOR KNEW? Every
+reconstruction — a motive recovered under an untyped unfolding, a
+position typed by trial, a lemma found by search, a direction
+guessed — is a choice the text did not record and a place the
+proof is not yet natural. The target is zero.
+
+////////// The three roles //////////
+
+The criterion that separates them is TRUST: which component's bug can
+make a false theorem accepted. Exactly one can.
+
+AUTHOR — the person or the AI writing the file. The author makes
+every choice that needs thought: which lemma, at which instance,
+what to induct on and what to prove about it, what to unfold, which
+occurrence when it matters, what to name. The author is not
+deterministic and is paid once, at authoring. The author's medium
+is the SURFACE: statements and definitions in the layout discipline
+of docs/NovaElaboration.txt. The author never writes a certificate,
+a path, a motive the kernel can infer, or anything the surface
+cannot say.
+
+ENGINE — the elaborator and its discharge library (Nova.Elaboration
+and its submodules, Nova.Compute, Nova.Eliminate, Nova.Implicitize,
+Nova.Recovery). The engine is a DETERMINISTIC FUNCTION from the
+source file and the accepted signature to derivations in the
+kernel's grammar. Its job is to make the implicit explicit: scoping
+and layout, implicit arguments, unification solutions, the
+congruence path to an occurrence the author stated, the chain
+through stated middles, the motives it can infer, and the
+choice-free tier — normalization under β, licensed δ, and the
+consequence of the facts in scope. Its output is checked, so it may
+be clever, slow or wrong, and none of that touches soundness. What
+it must not do is INVENT A CHOICE: where the text leaves one open,
+it reports (an obligation, a question), it does not guess. The
+engine's determinism is what makes the file alone determine
+acceptance (docs/NovaPipeline.txt).
+
+KERNEL — Nova.Kernel with Nova.Kernel.Syntax, Nova.Kernel.Subst,
+Nova.Kernel.QIIT and Nova.Kernel.Derivation. The kernel is a
+function from a signature, a context, a derivation and a goal to a
+verdict. Its input language is the derivation grammar
+(docs/NovaKernel.txt §2), designed so that every choice is explicit
+— motives on eliminators, which link of a chain states, the path to
+a rewritten position, the direction of a one-way leaf — and
+therefore so that the kernel has ONE READING per derivation and
+never searches, retries or guesses. It owns one normalizer, the
+β join, and the accepted signature Σ, whose entries only its entry
+points construct. It reads no surface syntax and calls nothing
+outside itself. The kernel is the definition of acceptance, and the
+only component whose bugs are unsound; together with the printer's
+round trip (docs/NovaPerfectSurface.txt), which ties the accepted
+erasure back to the text the author wrote, it is the trusted base.
+
+////////// What each role must never do //////////
+
+  AUTHOR                  ENGINE                    KERNEL
+  ------------------      ----------------------    ----------------------
+  write a certificate,    invent a choice the       search, retry, or
+  a path, a budget, an    text does not record      choose between
+  occurrence the kernel   (guess a motive, a        readings; guess a type
+  could resolve           position's type, a        at a position
+                          lemma, a direction)
+  be replayed (replay     be believed (its Σ is     read surface syntax;
+  never calls the         its own working copy;     depend on the engine,
+  author)                 the verdict comes from    the evaluator, or the
+                          the kernel's Σ)           environment
+  depend on which run     rescue a kernel           unfold a definition
+  (the file alone         rejection by trying       except at a δ leaf the
+  determines acceptance)  another derivation        derivation names, or a
+                                                    δ-all leaf
+                          keep evidence beyond      store what it read
+                          the run (derivations      (evidence is transient:
+                          are regenerated)          Σ keeps erasures and
+                                                    the derivations it
+                                                    itself accepted)
+
+Two consequences worth stating. An engine bug is INCOMPLETENESS (a
+true item stands as an obligation) or a REJECTED DERIVATION (an
+engine defect, reported as such), never unsoundness; the engine's
+correctness is a quality property. A kernel bug is the only kind
+that matters for trust, which is why the kernel is small, reads a
+fixed grammar rule by rule against docs/NovaFoundation.txt, and is
+the only component with that obligation.
+
+////////// How the division is realised today //////////
+
+The engine holds TWO signatures. Its own, `sig`, is a working copy
+it extends itself — accepted items with the derivations it built,
+plus the DECLARATIONS it assumes: open obligations and holes enter
+as stuck named entries so elaboration can continue and report. The
+kernel's, `kernelSig`, is extended at ONE site, kernelAccept, and
+only by the entry a kernel entry point returned (kCheckDefDrv,
+kCheckTyDefDrv). A file is accepted iff every item entered
+`kernelSig` and no obligation or hole was assumed. The engine's
+eager equation checks (kCheckEqDrv against `sig`) are early
+diagnostics and the audit's canary, not the verdict: the same
+derivations are re-read inside the item's body when the item is
+admitted against `kernelSig`.
+
+The kernel reads derivations only (docs/NovaKernel.txt): the readings
+⇒, ⇐, ▷, →, one dispatcher with one reading per shape, one
+normalizer, the substitution function, and the entry points. It has
+no search, no evaluator but its own β join, no environment
+dependence that touches a verdict (the NOVA_DRV audit prints; it
+never changes a reading), and no import outside itself and the base
+libraries but the diagnostics hooks of Nova.Profile.
+
+The engine writes derivations directly as it elaborates and as it
+discharges (docs/NovaPipeline.txt); there is no certificate language
+between it and the kernel. Re-derivation of bare terms — a builder
+of derivations for terms the elaborator produced without one — is
+the engine's (Nova.Elaboration.Rederive), not the kernel's.
+
+Evidence is transient: derivations live for the run. Σ keeps each
+entry's erasures with the derivations the kernel itself read, and
+nothing the engine built enters the kernel's Σ unread.
+
+////////// Where today digresses, and what closes each gap //////////
+
+The engine today is two things fused: the translator above, and an
+AUTHOR-SUBSTITUTE — the candidate search, speculative rewriting to
+depth, hop chaining, the choice of what to unfold and where. Those
+are choices the source does not record, so the engine re-invents
+them every run. This is the origin of every reconstruction the
+measure above counts, and of the blurred line between engine and
+kernel (a component that invents choices feels like a prover). The
+gap closes from the source side, not the kernel side: local claims
+(`have`), stated middles, induction and case statements with their
+motives (`view`), and the choice-free tier in place of search —
+docs/NovaSketch.txt. Then the engine stops being an author, and
+re-derivation disappears as a concept rather than as a set of bugs.
+
+Smaller digressions, recorded so the audit can see them:
+
+  * Nova.Kernel.Parser lives in the kernel's namespace but is a
+    parser of core syntax for the tests, the distiller and the LSP;
+    it is not part of the reader and no kernel module imports it.
+    The audit treats it as engine-side. It should move.
+  * The kernel imports Nova.Profile for two diagnostics hooks
+    (`drvCanary`, `audit`) — verdict-neutral, but an import outside
+    the kernel's closure. Acceptable while the hooks stay pure of
+    verdicts; the audit checks that no timing or environment read
+    enters the kernel modules themselves.
+  * The kernel's `dWhnf` takes an oracle for a subderivation's type
+    because ⇒ on derivations does not yet return type derivations;
+    until it does, the kernel cannot β-normalize a `let` on
+    derivations without help. Closes with contexts-as-derivations.
+
+////////// The audit //////////
+
+The audit is run from time to time — after a phase of work on any
+component, and at least whenever a module boundary or a Σ site
+changes — and consists of a MECHANICAL check and a JUDGEMENT
+checklist. The mechanical half is `./check-roles.sh` (a flake check
+and a Makefile target), which enforces what can be read off the
+tree:
+
+  K1  The kernel closure. The kernel modules import only each other
+      and the base libraries (Data.*, Control.*, Prelude), plus
+      Nova.Profile for its diagnostics hooks. No engine module, no
+      evaluator, no parser.
+  K2  No escape hatches in the kernel: no believe_me, assert_total,
+      assert_smaller, unsafePerformIO, %foreign, prim__, getEnv, or
+      timing calls. The one allowed form is an assert_total around a
+      deliberate crash: an input the theory rules out is answered by
+      stopping, never by a fabricated value, and a crash is no
+      verdict.
+  K3  No backtracking in the kernel: kOrElse and <|> are not used
+      in kernel modules; every kCatch in the kernel re-raises (its
+      handler is a kerr) except inside the named audit function,
+      which only prints.
+  K4  The kernel's entry points are the only exported kCheck*
+      functions, and they return the signature entry they admit.
+  S1  The kernel's signature is extended at exactly one engine site,
+      by the entry a kernel entry point returned; every call of a
+      Σ-extending entry point outside the kernel passes the kernel's
+      signature.
+  S2  The engine never constructs a kernel-signature entry itself
+      (no SigDef/SigDecl construction in the engine reaches
+      `kernelSig`).
+  E1  The engine's Σ-extending sites that bypass the kernel are
+      exactly the assumption sites — obligations, holes,
+      declarations — each counted as open (a file with any is not
+      accepted).
+  E2  No engine module is imported by a kernel module (the dual of
+      K1, stated for the engine's namespace).
+
+The judgement half is a list of questions, answered by reading the
+recent changes (the skill `/roles-audit` walks them):
+
+  J1  Did the kernel gain a reading that depends on anything but the
+      derivation's shape and the given side — a retry, a second
+      route, an "if this fails try that", a heuristic order?
+  J2  Did the kernel gain a normalizer, or a δ step outside a leaf
+      the derivation names?
+  J3  Did the engine gain a rescue: a kernel rejection followed by
+      another attempt, a rewritten derivation, a fallback route?
+  J4  Did the engine gain a guess: a type, a motive, a position, a
+      direction chosen by trial, by a whitelist, or by "what usually
+      works"? Is each such site an obligation or a question instead?
+  J5  Did anything become environment-dependent in a way that can
+      change a verdict (a NOVA_* flag read on the verdict path)?
+  J6  Did evidence start to persist — a derivation cached across
+      runs, a certificate stored in the corpus, a file whose
+      acceptance depends on something outside it?
+  J7  Did the author's surface gain a construct that is a certificate
+      in surface clothing — a path, a budget, an nth-occurrence — at
+      a site where a statement would do?
+  J8  Did the count of reconstructions go up? (The audit lines: 0
+      REPLAY-FAIL, 0 PROOF-FAIL, 0 CHAIN-COMP over the corpus; any
+      new "re-derive", "recover", "reconstruct" in the engine is a
+      choice the source should carry.)
+
+A "yes" to any of J1–J7 is a digression to be reverted or recorded
+here as a known gap with the plan that closes it. J8 is the measure.
+
+////////// Relation to the other documents //////////
+
+  docs/NovaFoundation.txt   the theory the kernel reads against
+  docs/NovaKernel.txt       the kernel: grammar, readings, entry points
+  docs/NovaElaboration.txt  the engine's surface and elaborator
+  docs/NovaPipeline.txt     the trust boundary and the artifact
+  docs/NovaPerfectSurface.txt  the printer's round trip (statement fidelity)
+  docs/NovaSketch.txt       the author's proof surface (the goal's form)
+  this file                 the roles, and the audit that keeps them

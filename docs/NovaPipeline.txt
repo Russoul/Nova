@@ -17,6 +17,9 @@ layers are specified elsewhere:
   * docs/NovaElaboration.txt  — the elaborator: surface syntax,
                                 bidirectional rules, the obligation
                                 lifecycle.
+  * docs/NovaStrategy.txt     — the GOAL (natural proofs) and the
+                                three roles — author, engine, kernel —
+                                with the audit that keeps them apart.
 
 (The derivation-era machinery — .rules sessions, its checker, parsers
 and docs — has been removed; the pipeline below replaced it.)

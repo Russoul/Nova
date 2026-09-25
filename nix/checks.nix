@@ -126,4 +126,15 @@ in
       python3 tools/render-specs.py --check
     '';
   };
+
+  # The author–engine–kernel division of docs/NovaStrategy.txt, as far
+  # as it can be read off the tree (the mechanical half of the roles
+  # audit).
+  roles = mkCheck "roles" {
+    src = specs;
+    nativeBuildInputs = [ pkgs.python3 ];
+    script = ''
+      python3 tools/check-roles.py
+    '';
+  };
 }

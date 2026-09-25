@@ -1,4 +1,4 @@
-.PHONY: build install test normalize clean
+.PHONY: build install test normalize check-roles clean
 
 build:
 	pack build nova.ipkg
@@ -11,6 +11,9 @@ test:
 
 normalize:
 	./normalize-corpus.sh
+
+check-roles:
+	./check-roles.sh
 
 clean:
 	rm -rf build

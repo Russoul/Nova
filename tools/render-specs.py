@@ -40,7 +40,7 @@ FILES = [
     ("kernel", "docs/NovaKernel.txt", "Nova Kernel"),
     ("elaboration", "docs/NovaElaboration.txt", "Nova Elaboration"),
     ("pipeline", "docs/NovaPipeline.txt", "Nova Pipeline"),
-    ("derivations", "docs/NovaDerivations.txt", "Nova Derivations"),
+    ("strategy", "docs/NovaStrategy.txt", "Nova Strategy"),
 ]
 
 # ----- symbol colouring --------------------------------------------------
