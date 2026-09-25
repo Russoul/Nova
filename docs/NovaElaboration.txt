@@ -1698,7 +1698,9 @@ whnf(C) = (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ R[id, a, b] ⇝ ê
 Γ ▷ x:A ▷ h:(☐₀ ≡ ê[↑] ∈ A[↑]) ⊢ b ⇐ C[↑ ∘ ↑] ⇝ b̂
 --------------------------------------------------------- (e-let-check)
 Γ ⊢ let x = e in b ⇐ C ⇝ let ê b̂
-# let PROPAGATES the ambient mode to its body — this direct checking
+# let PROPAGATES the ambient mode to its body — and INFERS when its
+# body does (a local claim around an inference form leaves the form's
+# type inferable, e.g. as the elided domain of an ≡) — this direct checking
 # rule (rather than e-let + e-switch) is what lets a checking-only
 # body form (a λ, a pair, a ⋆) sit under a let without ascription.
 # C lives over Γ, so checking b at C[↑ ∘ ↑] is fully general, not an

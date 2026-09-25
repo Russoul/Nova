@@ -170,7 +170,13 @@ qMulWDOuterElim : (G : 𝕌)
   using (QGroup.unfold, qMulWDInnerCls)
 qMulWDOuterElim =
   λG g N nn x x' h v. quot-elim
-    w. quot-elim (z. QGroup _ g N) (q. qcls _ _ (gop g x q)) w
+    w. (let claim1 : (q q' : G)
+              (h : cosetRel {G} g N q q')
+              → qcls {G} g N (gop {G} g x q)
+                ≡ qcls {G} g N (gop {G} g x q')
+                ∈ G / (u y. cosetRel {G} g N u y)
+              = λq q' h. qMulWDInnerCls _ _ _ nn x _ _ h
+            quot-elim (z. QGroup _ g N) (q. qcls _ _ (gop g x q)) w)
       ≡ (let claim10 = qMulWDInnerCls _ _ _ nn x' in quot-elim (q. qcls _ _ (gop g x' q)) w)
     c. qMulWDOuterCls h
     v

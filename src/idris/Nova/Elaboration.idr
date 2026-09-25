@@ -449,7 +449,10 @@ sInferForm : SElem -> Bool
 sInferForm e0 = case unPos e0 of
   SHole _ _ => False
   SLam _ _ => False
-  SLet _ _ _ => False
+  -- a let propagates the ambient mode to its body (e-let): it infers
+  -- when the body does — a local claim wrapping an inference form
+  -- leaves the form's type inferable
+  SLet _ _ b => sInferForm b
   -- sigma-elim propagates the ambient mode to its body, like let: it
   -- infers when the body does, and REFINES THE GOAL when there is one
   SSigmaElim _ _ _ _ => False

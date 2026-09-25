@@ -112,7 +112,10 @@ def elab_error_line(f):
     out = r.stdout + r.stderr
     m = re.search(re.escape(f) + r':(\d+):\d+: error:(.*)', out)
     if m:
-        if os.environ.get('MIGRATE_DEBUG'): print(f"  [{f}:{m.group(1)}] {m.group(2).strip()[:200]}")
+        if os.environ.get('MIGRATE_DEBUG'):
+            print(f"  [{f}:{m.group(1)}] {m.group(2).strip()[:200]}")
+            try: print("      >> " + open(f, encoding='utf-8').read().split('\n')[int(m.group(1)) - 1][:300])
+            except Exception: pass
         return int(m.group(1))
     # an open obligation or hole after the edit: acceptance lost — its
     # site line names the culprit
@@ -174,10 +177,22 @@ def apply_file(f, original, es, dropped, skipped):
                     # BLOCK above it at its column, the span the block's
                     # last item (docs/NovaElaboration.txt, Layout — LET)
                     if line[:c0].strip() != '' or not lets.endswith(' in '): raise ValueError('multi-line span not at a line start')
-                    binds = [b.strip() for b in lets.split(' in ') if b.strip()]
-                    first = 'let ' + binds[0][4:] if binds[0].startswith('let ') else 'let ' + binds[0]
-                    rest = [(' ' * (c0 + 4)) + b[4:] for b in binds[1:]]
-                    src[l0:l0] = [(' ' * c0) + first] + rest
+                    # the distiller's canonical layout: `let` at the span's
+                    # column, each binding on its own line at that column
+                    # plus 4 (a typed binding's `= …` on the next line at
+                    # plus 6), the span re-indented by 4 as the last item
+                    binds = [b.strip()[4:] if b.strip().startswith('let ') else b.strip() for b in lets.split(' in ') if b.strip()]
+                    out = []
+                    for j, b in enumerate(binds):
+                        col = c0 + 4
+                        m = re.match(r'([^\s:=]+) : (.*) = (.*)$', b)
+                        if m:
+                            out.append((' ' * (c0 if j == 0 else col)) + ('let ' if j == 0 else '') + m.group(1) + ' : ' + m.group(2))
+                            out.append((' ' * (col + 2)) + '= ' + m.group(3))
+                        else:
+                            out.append((' ' * (c0 if j == 0 else col)) + ('let ' if j == 0 else '') + b)
+                    for k in range(l0, l1 + 1): src[k] = '    ' + src[k]
+                    src[l0:l0] = out
                 else:
                     src[l0] = line[:c0] + '(' + lets + span + ')' + line[c1:]
             if kind == 'checking ⋆' and shape == 'root' and len(insts) == 1:
@@ -201,7 +216,9 @@ def apply_file(f, original, es, dropped, skipped):
                     # an unnamed binder the instance or the claim refers to
                     # (printed `_`, unspellable), or a case binder shadowing
                     # an earlier name (the λ would capture the wrong one)
-                    if ('_' in env2 and re.search(r'(?<![\w])_(?![\w])', ins2[0] + ' ' + claim2)) or len({x, x1, h}) < 3 or any(n in env2[:-3] for n in (x, x1, h)):
+                    # (a case binder shadowing an outer name is caught by
+                    # the verification: the claim's type is checked)
+                    if ('_' in env2 and re.search(r'(?<![\w])_(?![\w])', ins2[0] + ' ' + claim2)) or len({x, x1, h}) < 3:
                         ok = False; break
                     r = render(ins2[0], module, imps, needed)
                     ct = render(claim2[3:], module, imps, needed)

@@ -363,7 +363,11 @@ qAddWDOuterCls =
 qAddWDOuter : (p p' : Rat)
   (h : RatR p p')
   (v : Q)
-  → quot-elim (w. Q) (x. class (ratAdd p x)) v
+  → (let claim4 : (x x' : Int × NZ)
+           (h : num x * dInt x' ≡ num x' * dInt x)
+           → class (ratAdd p x) ≡ class (ratAdd p x') ∈ Rat / (w y. RatR w y)
+           = λx x' h. qAddWDInnerCls {p} {x} {x'} h
+         quot-elim (w. Q) (x. class (ratAdd p x)) v)
     ≡ (let claim5 = qAddWDInnerCls {p'} in quot-elim (x. class (ratAdd p' x)) v)
   using (Int.Int.unfold,
     qAddWDInnerCls,
@@ -373,7 +377,11 @@ qAddWDOuter : (p p' : Rat)
     Rat.RatR.unfold)
 qAddWDOuter =
   λp p' h v. quot-elim
-    w. quot-elim (z. Q) (x. class (ratAdd p x)) w
+    w. (let claim3 : (x x' : Int × NZ)
+              (h : num x * dInt x' ≡ num x' * dInt x)
+              → class (ratAdd p x) ≡ class (ratAdd p x') ∈ Rat / (u y. RatR u y)
+              = λx x' h. qAddWDInnerCls {p} {x} {x'} h
+            quot-elim (z. Q) (x. class (ratAdd p x)) w)
       ≡ (let claim4 = qAddWDInnerCls {p'} in quot-elim (x. class (ratAdd p' x)) w)
     c. qAddWDOuterCls h
     v
@@ -1178,7 +1186,11 @@ qMulWDOuterCls =
 qMulWDOuter : (p p' : Rat)
   (h : RatR p p')
   (v : Q)
-  → quot-elim (w. Q) (x. class (ratMul p x)) v
+  → (let claim2 : (x x' : Int × NZ)
+           (h : num x * dInt x' ≡ num x' * dInt x)
+           → class (ratMul p x) ≡ class (ratMul p x') ∈ Rat / (w y. RatR w y)
+           = λx x' h. qMulWDInnerCls {p} {x} {x'} h
+         quot-elim (w. Q) (x. class (ratMul p x)) v)
     ≡ (let claim2 = qMulWDInnerCls {p'} in quot-elim (x. class (ratMul p' x)) v)
   using (Int.Int.unfold,
     qMulWDInnerCls,
@@ -1188,7 +1200,11 @@ qMulWDOuter : (p p' : Rat)
     Rat.RatR.unfold)
 qMulWDOuter =
   λp p' h v. quot-elim
-    w. quot-elim (z. Q) (x. class (ratMul p x)) w
+    w. (let claim1 : (x x' : Int × NZ)
+              (h : num x * dInt x' ≡ num x' * dInt x)
+              → class (ratMul p x) ≡ class (ratMul p x') ∈ Rat / (u y. RatR u y)
+              = λx x' h. qMulWDInnerCls {p} {x} {x'} h
+            quot-elim (z. Q) (x. class (ratMul p x)) w)
       ≡ (let claim1 = qMulWDInnerCls {p'} in quot-elim (x. class (ratMul p' x)) w)
     c. qMulWDOuterCls h
     v

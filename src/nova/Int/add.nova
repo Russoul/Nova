@@ -66,6 +66,15 @@ intAddWD =
               claim7 = plusAssoc k b2 (a1 + c1)
               claim8 = plusAssoc (S k) b2 (a1 + c1)
               claim9 = sucPlus k (b2 + (a1 + c1))
+              claim3 = plusAssoc a1 b1 (S k + c2)
+              claim4 = sucPlus k c2
+              claim5 = plusSucId b1 (k + c2)
+              claim6 = plusSucId a1 (b1 + (k + c2))
+              claim7 = plusAssoc a1 b1 (k + c2)
+              claim8 = claim6
+              claim9 = plusAssoc k b2 (a1 + c1)
+              claim10 = plusAssoc (S k) b2 (a1 + c1)
+              claim11 = sucPlus k (b2 + (a1 + c1))
               ⋆
     a2
 
@@ -105,7 +114,13 @@ intAddCross =
 intAddWDOuter : (a b : ℕ × ℕ)
   (h : a .π₁ + b .π₂ ≡ a .π₂ + b .π₁)
   (zy : Int)
-  → quot-elim (z. Int) (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)) zy
+  → (let claim2 : (x x' : ℕ × ℕ)
+           (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
+           → class (a .π₁ + x .π₁, a .π₂ + x .π₂)
+             ≡ class (a .π₁ + x' .π₁, a .π₂ + x' .π₂)
+             ∈ ℕ × ℕ / (y z. y .π₁ + z .π₂ ≡ y .π₂ + z .π₁)
+           = λx x' h. intAddWD (a .π₁) (a .π₂) _ _ _ _ h
+         quot-elim (z. Int) (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)) zy)
     ≡ (let claim2 : (x x' : ℕ × ℕ)
              (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
              → class (b .π₁ + x .π₁, b .π₂ + x .π₂)
@@ -116,7 +131,13 @@ intAddWDOuter : (a b : ℕ × ℕ)
   using (intAddCross, intAddWD, Int.Int.unfold, plusAssoc)
 intAddWDOuter =
   λa b h zy. quot-elim
-    q. quot-elim (z. Int) (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)) q
+    q. (let claim1 : (x x' : ℕ × ℕ)
+              (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
+              → class (a .π₁ + x .π₁, a .π₂ + x .π₂)
+                ≡ class (a .π₁ + x' .π₁, a .π₂ + x' .π₂)
+                ∈ ℕ × ℕ / (y z. y .π₁ + z .π₂ ≡ y .π₂ + z .π₁)
+              = λx x' h. intAddWD (a .π₁) (a .π₂) _ _ _ _ h
+            quot-elim (z. Int) (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)) q)
       ≡ (let claim1 : (x x' : ℕ × ℕ)
                (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
                → class (b .π₁ + x .π₁, b .π₂ + x .π₂)

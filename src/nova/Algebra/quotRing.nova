@@ -123,7 +123,13 @@ qrMulWDOuterElim : (R : 𝕌)
   using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrMulWDInnerCls)
 qrMulWDOuterElim =
   λR r I id x x' h v. quot-elim
-    w. quot-elim (z. QRing _ r I) (q. qrCls (rmul _ r x q)) w
+    w. (let claim1 : (q q' : R)
+              (h : cosetRel {R} (raddGroup {R} r) I q q')
+              → qrCls {R} {r} {I} (rmul _ r x q)
+                ≡ qrCls {R} {r} {I} (rmul _ r x q')
+                ∈ QGroup _ (raddGroup {R} r) I
+              = λq q' h. qrMulWDInnerCls _ _ _ id x _ _ h
+            quot-elim (z. QRing _ r I) (q. qrCls (rmul _ r x q)) w)
       ≡ (let claim10 = qrMulWDInnerCls _ _ _ id x' in quot-elim (q. qrCls (rmul _ r x' q)) w)
     c. qrMulWDOuterCls id h
     v
