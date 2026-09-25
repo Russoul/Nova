@@ -35,6 +35,158 @@ public export
 KErr : Type
 KErr = String
 
+-- ===== The signature: an item is its derivations =====
+--
+-- Σ stores what the kernel READ: an item's type and body derivations
+-- (§8), beside their ERASURES — the terms the computation rules read
+-- (δ unfolds a stored erasure; β and the join run on erasures). The
+-- erasures are a cache of the derivations, never a second source.
+--
+-- OWNED BY CONSTRUCTION (docs/NovaStrategy.txt, kernel programme
+-- item 1): the constructors are private to this module, so an
+-- ADMITTED entry can only come from an entry point (kCheckDefDrv,
+-- kCheckTyDefDrv), which read its derivations. The engine builds
+-- entries through assumeDef/assumeDecl alone, which MARK them
+-- ASSUMED — an obligation, a hole, a written declaration, an item
+-- not admitted — and are never read. Admission reads against the
+-- admitted entries only (sigAdmitted); a signature is CLOSED when
+-- it has no assumed entry, and a file is accepted iff its Σ is.
+
+||| TWO entry kinds (Foundation: type definitions and type
+||| declarations are the A = TopTy instances; an equation CONSTRAINT
+||| is a hole at the equation's prop — a declaration at
+||| (a₀ ≡ a₁ ∈ A) — used through el-sig-decl + el-reflect); the first
+||| field says whether the entry was ASSUMED (built by the engine,
+||| never read) rather than admitted by an entry point.
+export
+data SigEntry : Type where
+  ||| Γ ⊦ x ≔ π : π_T  (a definition; a TYPE definition when the
+  ||| type is 𝕍 — then π derives the type and π_T is the leaf 𝕍),
+  ||| with the erasures |π| and |π_T|
+  SigDef : (assumed : Bool) -> Ctx -> SigIdentifier -> (body : Elem) -> (ty : Ty) -> (bodyD : Drv) -> (tyD : Drv) -> SigEntry
+  ||| Γ ⊦ x : π_T  (a declaration — a hole; references are stuck,
+  ||| el-sig-decl; a TYPE declaration when the type is 𝕍; an
+  ||| equation OBLIGATION when it is the equation's prop), with the
+  ||| erasure |π_T|
+  SigDecl : (assumed : Bool) -> Ctx -> SigIdentifier -> (ty : Ty) -> (tyD : Drv) -> SigEntry
+
+||| The name a signature entry binds.
+export
+sigEntryName : SigEntry -> Maybe SigIdentifier
+sigEntryName (SigDef _ _ x _ _ _ _) = Just x
+sigEntryName (SigDecl _ _ x _ _) = Just x
+
+||| Is this entry a definition? A signature all of whose entries are
+||| definitions is DEFINITIONAL (Foundation: acceptance requires it).
+export
+sigEntryIsDef : SigEntry -> Bool
+sigEntryIsDef (SigDef _ _ _ _ _ _ _) = True
+sigEntryIsDef _ = False
+
+||| Was the entry ASSUMED by the engine (never read by the kernel)?
+export
+entryAssumed : SigEntry -> Bool
+entryAssumed (SigDef a _ _ _ _ _ _) = a
+entryAssumed (SigDecl a _ _ _ _) = a
+
+||| The entry's context Δ (ε for every item the elaborator emits).
+export
+entryCtx : SigEntry -> Ctx
+entryCtx (SigDef _ d _ _ _ _ _) = d
+entryCtx (SigDecl _ d _ _ _) = d
+
+||| The entry's type (the erasure of its type derivation).
+export
+entryTy : SigEntry -> Ty
+entryTy (SigDef _ _ _ _ t _ _) = t
+entryTy (SigDecl _ _ _ t _) = t
+
+||| The entry's body, when it is a definition.
+export
+entryBody : SigEntry -> Maybe Elem
+entryBody (SigDef _ _ _ b _ _ _) = Just b
+entryBody _ = Nothing
+
+||| The type derivation the entry was read from.
+export
+entryTyD : SigEntry -> Drv
+entryTyD (SigDef _ _ _ _ _ _ d) = d
+entryTyD (SigDecl _ _ _ _ d) = d
+
+||| The body derivation, when it is a definition.
+export
+entryBodyD : SigEntry -> Maybe Drv
+entryBodyD (SigDef _ _ _ _ _ d _) = Just d
+entryBodyD _ = Nothing
+
+||| A definition's (Δ, body, type).
+export
+entryDef : SigEntry -> Maybe (Ctx, Elem, Ty)
+entryDef (SigDef _ d _ b t _ _) = Just (d, b, t)
+entryDef _ = Nothing
+
+||| A declaration's (Δ, name, type).
+export
+entryDecl : SigEntry -> Maybe (Ctx, SigIdentifier, Ty)
+entryDecl (SigDecl _ d x t _) = Just (d, x, t)
+entryDecl _ = Nothing
+
+||| The type of an entry declared in ε (the elaborator's items).
+export
+entryClosed : SigEntry -> Maybe Ty
+entryClosed e = case entryCtx e of
+  [<] => Just (entryTy e)
+  _ => Nothing
+
+||| A definition declared in ε: its body and type.
+export
+entryClosedDef : SigEntry -> Maybe (Elem, Ty)
+entryClosedDef (SigDef _ [<] _ b t _ _) = Just (b, t)
+entryClosedDef _ = Nothing
+
+||| The engine's ONLY constructors: an entry it ASSUMES — an item not
+||| admitted (its derivations kept for display and re-use, never
+||| read), an obligation, a hole, a written declaration. Marked, so
+||| that it can never pass for an admitted one.
+export
+assumeDef : Ctx -> SigIdentifier -> Elem -> Ty -> Drv -> Drv -> SigEntry
+assumeDef = SigDef True
+
+export
+assumeDecl : Ctx -> SigIdentifier -> Ty -> Drv -> SigEntry
+assumeDecl = SigDecl True
+
+||| The Σ names an entry mentions through f (the renaming tool):
+||| structural on erasures and derivations alike, the mark kept.
+export
+renameEntry : (String -> String) -> SigEntry -> SigEntry
+renameEntry f (SigDef a ctx n body ty bd td) =
+  SigDef a (map (mapNamesT f) ctx) (f n) (mapNamesE f body) (mapNamesT f ty) (mapNamesD f bd) (mapNamesD f td)
+renameEntry f (SigDecl a ctx n ty td) =
+  SigDecl a (map (mapNamesT f) ctx) (f n) (mapNamesT f ty) (mapNamesD f td)
+
+public export
+Sig : Type
+Sig = SnocList SigEntry
+
+||| Find a signature entry by name (innermost/most-recent declaration wins).
+export covering
+sigLookup : SigIdentifier -> Sig -> Maybe SigEntry
+sigLookup _ [<] = Nothing
+sigLookup x (rest :< entry) =
+  if sigEntryName entry == Just x then Just entry else sigLookup x rest
+
+||| The admitted entries alone — what admission reads against.
+export
+sigAdmitted : Sig -> Sig
+sigAdmitted = filter (not . entryAssumed)
+
+||| No assumed entry: the signature of an ACCEPTED program.
+export
+sigClosed : Sig -> Bool
+sigClosed = all (not . entryAssumed)
+
+
 ||| The kernel's own state: the fuel budget, and the normal forms it
 ||| has computed for signature definitions during THIS check.
 |||
@@ -509,9 +661,8 @@ inferHead sig ctx (Out t) = do
     Nothing => pure Nothing
 inferHead sig ctx (SigVar x es) =
   kSigLookup sig x >>= \entryX => case entryX of
-    Just (SigDef _ _ _ ty _ _) => pure (Just (substTy ty (embed es)))
-    Just (SigDecl _ _ ty _) => pure (Just (substTy ty (embed es)))
-    _ => pure Nothing
+    Just e => pure (Just (substTy (entryTy e) (embed es)))
+    Nothing => pure Nothing
 inferHead sig ctx _ = pure Nothing
 
 ||| Expected type of the i-th spine entry of a former carrying 𝒮
@@ -542,7 +693,7 @@ unfoldAllK sig ns t = go t
     es' <- traverseSN go es
     if elem x ns
       then kSigLookup sig x >>= \entryX => case entryX of
-             Just (SigDef _ _ body _ _ _) => pure (substElem body (embed es'))
+             Just (SigDef _ _ _ body _ _ _) => pure (substElem body (embed es'))
              _ => pure (SigVar x es')
       else pure (SigVar x es')
   go (ZeroElim u) = ZeroElim <$> go u
@@ -601,9 +752,8 @@ export
 sigChildTy : Sig -> String -> List Elem -> Nat -> KM (Maybe Ty)
 sigChildTy sig x es i =
   kSigLookup sig x >>= \entryX => case entryX of
-    Just (SigDef delta _ _ _ _ _) => pure (inst delta)
-    Just (SigDecl delta _ _ _) => pure (inst delta)
-    _ => pure Nothing
+    Just e => pure (inst (entryCtx e))
+    Nothing => pure Nothing
  where
   inst : SnocList Ty -> Maybe Ty
   inst delta = case getAt i (toList delta) of
@@ -1118,9 +1268,7 @@ mutual
       Nothing => kerr "kernel: variable out of bounds"
     DRef x ps =>
       kSigLookup sig x >>= \entryX => case entryX of
-        Just (SigDef delta _ _ ty _ _) => dRefAt sig ctx x ps delta ty
-        Just (SigDecl delta _ ty _) => dRefAt sig ctx x ps delta ty
-        Just _ => kerr "kernel: signature name is not a term entry"
+        Just e => dRefAt sig ctx x ps (entryCtx e) (entryTy e)
         Nothing => kerr "kernel: unknown signature name '\{x}'"
     DUnit => pure (OneIntro, OneIntro, OneTy)
     DZero => pure (NatIntro0, NatIntro0, NatTy)
@@ -1166,7 +1314,7 @@ mutual
       pure (l, r, a)
     DDelta x ps =>
       kSigLookup sig x >>= \entryX => case entryX of
-        Just (SigDef delta _ body ty _ _) => do
+        Just (SigDef _ delta _ body ty _ _) => do
           es <- dSpine sig ctx (toList delta) ps
           let esN = the SubNorm (cast es)
           pure (SigVar x esN, substElem body (embed esN), substTy ty (embed esN))
@@ -2702,7 +2850,9 @@ mutual
 -- ----- entry points on derivations -----
 
 ||| A definition item as derivations: the telescope, the type, the
-||| body; the entry extends Σ with their ERASURES.
+||| body, read against the ADMITTED entries of Σ alone (a reference
+||| to an assumed entry is an unknown name — the engine's missing
+||| dependency); the entry returned is the one Σ is extended with.
 ||| A telescope as derivations, each read over the ones before it.
 teleCtx : Sig -> List Drv -> KM Ctx
 teleCtx sig = go [<]
@@ -2715,20 +2865,22 @@ teleCtx sig = go [<]
 
 export
 kCheckDefDrv : Sig -> Nat -> String -> List Drv -> Drv -> Drv -> Either KErr SigEntry
-kCheckDefDrv sig fuel name tele dty body =
+kCheckDefDrv sig0 fuel name tele dty body =
+  let sig = sigAdmitted sig0 in
   map fst $ runKM (do
     ctx <- teleCtx sig tele
     ty <- dType sig ctx dty
     t <- dElemAt sig ctx body ty
-    pure (SigDef ctx name t ty body dty)) fuel
+    pure (SigDef False ctx name t ty body dty)) fuel
 
 export
 kCheckTyDefDrv : Sig -> Nat -> String -> List Drv -> Drv -> Either KErr SigEntry
-kCheckTyDefDrv sig fuel name tele dty =
+kCheckTyDefDrv sig0 fuel name tele dty =
+  let sig = sigAdmitted sig0 in
   map fst $ runKM (do
     ctx <- teleCtx sig tele
     ty <- dType sig ctx dty
-    pure (SigDef ctx name ty TopTy dty DTop)) fuel
+    pure (SigDef False ctx name ty TopTy dty DTop)) fuel
 
 ||| An equation proof read against its sides (the engine's check):
 ||| the telescope and the type as derivations, read first; the sides

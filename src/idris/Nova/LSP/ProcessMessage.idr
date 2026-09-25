@@ -1,5 +1,6 @@
 module Nova.LSP.ProcessMessage
 
+import Nova.Kernel
 import Data.List
 import Data.SnocList
 import Data.String

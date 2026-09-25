@@ -27,6 +27,7 @@ import Me.Russoul.Text.Range
 import Nova.Elaboration
 import Nova.Elaboration.Surface
 import Nova.Elaboration.Loader
+import Nova.Kernel
 import Nova.Kernel.Syntax
 import Nova.Kernel.Derivation
 import Nova.Distill
@@ -211,88 +212,8 @@ rnUnit fixesOf rm u =
                              Right ri => Just ri
                              Left _ => Nothing) body' } u
 
--- ===== The core renaming (for the Σ gate) =====
-
-mutual
-  rcE : (String -> String) -> Elem -> Elem
-  rcE f e = case e of
-    SigVar n sp => SigVar (f n) (map (rcE f) sp)
-    CtxVar _ => e
-    ZeroElim t => ZeroElim (rcE f t)
-    OneIntro => e
-    NatIntro0 => e
-    NatIntro1 t => NatIntro1 (rcE f t)
-    NatElim z s t => NatElim (rcE f z) (rcE f s) (rcE f t)
-    PiIntro b => PiIntro (rcE f b)
-    PiApp g a => PiApp (rcE f g) (rcE f a)
-    Let d b => Let (rcE f d) (rcE f b)
-    SigmaIntro u v => SigmaIntro (rcE f u) (rcE f v)
-    SigmaElim1 t => SigmaElim1 (rcE f t)
-    SigmaElim2 t => SigmaElim2 (rcE f t)
-    Inj1 t => Inj1 (rcE f t)
-    Inj2 t => Inj2 (rcE f t)
-    SumElim l r t => SumElim (rcE f l) (rcE f r) (rcE f t)
-    ZeroTy => e
-    OneTy => e
-    NatTy => e
-    UniverseTy => e
-    PropTy => e
-    TopTy => e
-    PiTy a b => PiTy (rcE f a) (rcE f b)
-    SigmaTy a b => SigmaTy (rcE f a) (rcE f b)
-    SumTy a b => SumTy (rcE f a) (rcE f b)
-    EqTy l r ty => EqTy (rcE f l) (rcE f r) (rcT f ty)
-    QuotTy a r => QuotTy (rcE f a) (rcE f r)
-    Class t => Class (rcE f t)
-    QuotElim g q => QuotElim (rcE f g) (rcE f q)
-    Squash ty => Squash (rcT f ty)
-    Star => e
-    QSort sg k sp => QSort (rcQSig f sg) k (map (rcE f) sp)
-    QCtor sg k sp => QCtor (rcQSig f sg) k (map (rcE f) sp)
-    QElim sg k mths sp w =>
-      QElim (rcQSig f sg) k (map (rcE f) mths)
-            (map (rcE f) sp) (rcE f w)
-    NuTy p => NuTy (rcP f p)
-    Out t => Out (rcE f t)
-    Corec p a g x => Corec (rcP f p) (rcE f a) (rcE f g) (rcE f x)
-
-  ||| One sort (El retired): a code type carries names exactly where
-  ||| the element walk finds them — a former-only walk would leave a
-  ||| renamed reference stale inside an application-spine type.
-  rcT : (String -> String) -> Ty -> Ty
-  rcT = rcE
-
-  rcP : (String -> String) -> Poly -> Poly
-  rcP f p = case p of
-    PHole => p
-    PConst a => PConst (rcE f a)
-    PProd g h => PProd (rcP f g) (rcP f h)
-    PSum g h => PSum (rcP f g) (rcP f h)
-    PSigma a g => PSigma (rcE f a) (rcP f g)
-    PPi a g => PPi (rcE f a) (rcP f g)
-
-  rcQSig : (String -> String) -> QSig -> QSig
-  rcQSig f = map rcQTy
-   where
-    mutual
-      rcQTy : QTy -> QTy
-      rcQTy QU = QU
-      rcQTy (QEl t) = QEl (rcQTm t)
-      rcQTy (QPiExt a b) = QPiExt (rcT f a) (rcQTy b)
-      rcQTy (QPiInd t b) = QPiInd (rcQTm t) (rcQTy b)
-
-      rcQTm : QTm -> QTm
-      rcQTm (QVar i) = QVar i
-      rcQTm (QAppE t e) = QAppE (rcQTm t) (rcE f e)
-      rcQTm (QAppI t a) = QAppI (rcQTm t) (rcQTm a)
-      rcQTm (QEqC l r u) = QEqC (rcQTm l) (rcQTm r) (rcQTm u)
-
 renameSig : (String -> String) -> Sig -> Sig
-renameSig f = map entry
- where
-  entry : SigEntry -> SigEntry
-  entry (SigDef ctx n body ty bd td) = SigDef (map (rcT f) ctx) (f n) (rcE f body) (rcT f ty) (mapNamesD f bd) (mapNamesD f td)
-  entry (SigDecl ctx n ty td) = SigDecl (map (rcT f) ctx) (f n) (rcT f ty) (mapNamesD f td)
+renameSig f = map (renameEntry f)
 
 -- ===== The driver =====
 

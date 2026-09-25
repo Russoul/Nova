@@ -243,10 +243,13 @@ record QIITInfo where
 
 record ElabSt where
   constructor MkElabSt
+  ||| THE signature — the kernel's: admitted entries come only from
+  ||| kernelAccept (the entry a kernel entry point returned); what the
+  ||| engine assumes (an item not admitted, an obligation, a hole, a
+  ||| written declaration) enters MARKED through assumeDef/assumeDecl
+  ||| and is never read; admission reads the admitted entries alone
+  ||| (docs/NovaStrategy.txt, kernel programme item 1)
   sig : Sig
-  ||| the KERNEL's signature: extended only by kernel-accepted items —
-  ||| the authoritative Σ (docs/NovaPipeline.txt)
-  kernelSig : Sig
   lemmas : List Cand
   ||| the Σ-level candidate partition, derived from `lemmas` and
   ||| recomputed only when a lemma is added: all (degenerates dropped),
@@ -418,7 +421,7 @@ record ElabSt where
   itemBlocked : Maybe String
 
 initSt : ElabSt
-initSt = MkElabSt [<] [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<] [] 0 False Nothing
+initSt = MkElabSt [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<] [] 0 False Nothing
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -646,9 +649,7 @@ resolveExpName st n = do
     | False => Nothing
   let base = substr 0 (minus (length n) 7) n
   let q = resolveFlex st base
-  case sigLookup q st.sig of
-    Just (SigDef _ _ _ _ _ _) => Just q
-    _ => Nothing
+  if maybe False sigEntryIsDef (sigLookup q st.sig) then Just q else Nothing
 
 resolveEqName : ElabSt -> String -> Maybe String
 resolveEqName st n = do
@@ -656,9 +657,7 @@ resolveEqName st n = do
     | False => Nothing
   let base = substr 0 (minus (length n) 3) n
   let q = resolveFlex st base
-  case sigLookup q st.sig of
-    Just (SigDef _ _ _ _ _ _) => Just q
-    _ => Nothing
+  if maybe False sigEntryIsDef (sigLookup q st.sig) then Just q else Nothing
 
 ||| Resolve and validate a `using` clause's names (term- or
 ||| item-level): aliases first, then the name itself; a name that is
@@ -1563,8 +1562,8 @@ mutual
   unfElem sig deep unfs (SigVar x es) =
     let es' = unfSubNorm sig deep unfs es in
     if elem x unfs
-      then case cachedSigLookup sig x of
-             Just (SigDef _ _ a _ _ _) =>
+      then case the (Maybe Elem) (cachedSigLookup sig x >>= entryBody) of
+             Just a =>
                let body = substElem a (embed es') in
                if deep then unfElem sig deep unfs body else body
              _ => SigVar x es'
@@ -1634,9 +1633,9 @@ dispUnfs sig ns = filter opens (ns ++ mapMaybe expName ns)
   expName n = if isPrefixOf "exp:" n then Just (pack (drop 4 (unpack n))) else Nothing
 
   opens : String -> Bool
-  opens x = case cachedSigLookup sig x of
-    Just (SigDef _ _ body _ _ _) => not (any isHoleName (toList (refsE body [<])))
-    _ => True
+  opens x = case the (Maybe Elem) (cachedSigLookup sig x >>= entryBody) of
+    Just body => not (any isHoleName (toList (refsE body [<])))
+    Nothing => True
 
 -- ===== the LOGGED unfold: δ one contraction at a time, each a leaf =====
 --
@@ -1680,9 +1679,9 @@ unfoldAllE sig unfs t0 = go t0 [<]
   go (SigVar x es) used =
     let (es', u1) = mapAccumSN go es used in
     if elem x unfs
-      then case cachedSigLookup sig x of
-             Just (SigDef _ _ body _ _ _) => (substElem body (embed es'), u1 :< x)
-             _ => (SigVar x es', u1)
+      then case the (Maybe Elem) (cachedSigLookup sig x >>= entryBody) of
+             Just body => (substElem body (embed es'), u1 :< x)
+             Nothing => (SigVar x es', u1)
       else (SigVar x es', u1)
   go (ZeroElim u) used = let (u', u1) = go u used in (ZeroElim u', u1)
   go (NatIntro1 u) used = let (u', u1) = go u used in (NatIntro1 u', u1)
@@ -1908,9 +1907,9 @@ mutual
     if not (expOK st x) then bump "expblock \{st.modPrefix}:\{st.curItem}|\{x}" 1
                                (noteBlocked x
                                  (audit "EXPOSE-BLOCKED \{st.modPrefix}:\{st.curItem} \{x} — cite \{x}.unfold" (SigVar x es))) else
-    case cachedSigLookup st.sig x of
-      Just (SigDef _ _ a _ _ _) => bump "unf \{st.modPrefix}:\{st.curItem}|\{x}" 1 (exposeE st (substElem a (embed es)))
-      _ => SigVar x es
+    case the (Maybe Elem) (cachedSigLookup st.sig x >>= entryBody) of
+      Just a => bump "unf \{st.modPrefix}:\{st.curItem}|\{x}" 1 (exposeE st (substElem a (embed es)))
+      Nothing => SigVar x es
   exposeE st (QuotElim f q) =
     case exposeE st q of
       Class a => exposeE st (substElem f (Ext Id a))
@@ -1945,9 +1944,9 @@ mutual
     if not (expOK st x) then bump "expblock \{st.modPrefix}:\{st.curItem}|\{x}" 1
                                (noteBlocked x
                                  (audit "EXPOSE-BLOCKED \{st.modPrefix}:\{st.curItem} \{x} — cite \{x}.unfold" (SigVar x es))) else
-    case cachedSigLookup st.sig x of
-      Just (SigDef _ _ a _ _ _) => bump "unf \{st.modPrefix}:\{st.curItem}|\{x}" 1 (exposeT st (substTy a (embed es)))
-      _ => SigVar x es
+    case the (Maybe Elem) (cachedSigLookup st.sig x >>= entryBody) of
+      Just a => bump "unf \{st.modPrefix}:\{st.curItem}|\{x}" 1 (exposeT st (substTy a (embed es)))
+      Nothing => SigVar x es
   exposeT st t@(PiApp _ _) = case exposeE st t of
     t'@(PiApp _ _) => t'
     t' => exposeT st t'
@@ -1993,7 +1992,7 @@ isPropTyWith probe st ctx t = case t of
              t' => probe st ctx t')
 
 isPropTy : ElabSt -> Ctx -> Ty -> Bool
-isPropTy = isPropTyWith (\st, ctx, t => kIsPropD st.kernelSig kernelFuel ctx t)
+isPropTy = isPropTyWith (\st, ctx, t => kIsPropD st.sig kernelFuel ctx t)
 
 ||| … the DERIVED question, for the sites whose verdict the kernel
 ||| re-establishes from a derivation (a quot-elim's motive, a ⋆'s
@@ -2001,7 +2000,7 @@ isPropTy = isPropTyWith (\st, ctx, t => kIsPropD st.kernelSig kernelFuel ctx t)
 ||| binder at an exposed type meets its δ bridge there). Costlier: not
 ||| for the engine's hot paths.
 isPropTyD : ElabSt -> Ctx -> Ty -> Bool
-isPropTyD = isPropTyWith (\st, ctx, t => kIsPropD st.kernelSig kernelFuel ctx t)
+isPropTyD = isPropTyWith (\st, ctx, t => kIsPropD st.sig kernelFuel ctx t)
 
 ||| Blocked head exposures as an obligation hint (peeked, not drained —
 ||| an item's obligations share the notes).
@@ -2013,9 +2012,7 @@ isPropTyD = isPropTyWith (\st, ctx, t => kIsPropD st.kernelSig kernelFuel ctx t)
 ||| classifying every blocked head just to phrase a note nobody may
 ||| read measured at +1.5% on the corpus's elaborate phase.
 citable : Sig -> List String -> List String
-citable sig = filter (\x => case sigLookup x sig of
-                              Just (SigDef _ _ _ _ _ _) => True
-                              _ => False)
+citable sig = filter (\x => maybe False sigEntryIsDef (sigLookup x sig))
 
 blockedHint : Sig -> Maybe String
 blockedHint sig =
@@ -2327,10 +2324,7 @@ inferNe st ctx (SigmaElim2 t) =
 inferNe st ctx (SigVar x es) =
   -- cachedSigLookup: the name index (below trust — inferNe only feeds
   -- the engine, and its output is validated at replay)
-  case cachedSigLookup st.sig x of
-    Just (SigDef _ _ _ ty _ _) => Just (substTy ty (embed es))
-    Just (SigDecl _ _ ty _) => Just (substTy ty (embed es))
-    _ => Nothing
+  map (\e => substTy (entryTy e) (embed es)) (cachedSigLookup st.sig x)
 inferNe _ _ _ = Nothing
 
 -- ===== Proof-emitting speculative equality =====
@@ -2522,7 +2516,7 @@ mutual
       leaf (\_ => pure (DPropExt fe be))
     -- a NEUTRAL prop type: the judgemental question (el-prf-prop's
     -- p : Ω premise); the kernel's kIsProp re-checks it
-    _ => audit "SPEQSTRUCT-NEUTRAL ty=\{show tyN} isProp=\{show (isPropTy st ctx tyN)} inf=\{show (kInferBare st.kernelSig kernelFuel ctx tyN)}"
+    _ => audit "SPEQSTRUCT-NEUTRAL ty=\{show tyN} isProp=\{show (isPropTy st ctx tyN)} inf=\{show (kInferBare st.sig kernelFuel ctx tyN)}"
            (if isPropTy st ctx tyN then irrel else Nothing)
    where
     irrel : Maybe Drv
@@ -2976,17 +2970,18 @@ resugarQ st occ = go (toList st.sig)
 
   go : List SigEntry -> Maybe Elem
   go [] = Nothing
-  go (SigDef [<] name body _ _ _ :: rest) =
-    let (n, core) = peel body in
-    if not (headMatch core occ) then go rest else
-    case matchElemP n 0 0 core occ [] of
-      Nothing => go rest
-      Just bs =>
-        case traverse (\prm => lookup prm bs)
-               (the (List Nat) (if n == 0 then [] else reverse [0 .. minus n 1])) of
-          Just args => Just (foldl PiApp (SigVar name [<]) args)
-          Nothing => go rest
-  go (_ :: rest) = go rest
+  go (e :: rest) = case (sigEntryName e, entryClosedDef e) of
+    (Just name, Just (body, _)) =>
+      let (n, core) = peel body in
+      if not (headMatch core occ) then go rest else
+      case matchElemP n 0 0 core occ [] of
+        Nothing => go rest
+        Just bs =>
+          case traverse (\prm => lookup prm bs)
+                 (the (List Nat) (if n == 0 then [] else reverse [0 .. minus n 1])) of
+            Just args => Just (foldl PiApp (SigVar name [<]) args)
+            Nothing => go rest
+    _ => go rest
 
 -- DISPLAY normalization: reported statements, obligation sides and
 -- declaration types are shown with every β-redex contracted (λ,
@@ -3173,8 +3168,8 @@ strengthenBy (S k) t = strengthenElem 0 t >>= strengthenBy k
 trySolveSide : Sig -> (lhs : Elem) -> (rhs : Elem) -> Maybe (String, Elem)
 trySolveSide sig (SigVar h sp) t =
   if not (isSyntheticHole h) then Nothing else
-  case sigLookup h sig of
-    Just (SigDecl dctx _ _ _) => do
+  case the (Maybe (Ctx, SigIdentifier, Ty)) (sigLookup h sig >>= entryDecl) of
+    Just (dctx, _, _) => do
       k <- spineShift (length dctx) sp
       t' <- strengthenBy k t
       if anySigNameE isSyntheticHole t' then Nothing else Just (h, t')
@@ -3195,7 +3190,8 @@ solveHoles sig = go (toList sig) []
 
   go : List SigEntry -> List (String, Elem) -> List (String, Elem)
   go [] acc = acc
-  go (SigDecl ctx n (Elem.EqTy a b _) _ :: rest) acc =
+  go (e :: rest) acc = case entryDecl e of
+   Just (ctx, n, Elem.EqTy a b _) =>
     if not (isOblName n) then go rest acc
     else
       -- COMP-NORMALIZE both sides first, exactly as the report does
@@ -3207,7 +3203,7 @@ solveHoles sig = go (toList sig) []
       let a' = compElem a
           b' = compElem b in
       go rest (add (add acc (trySolveSide sig a' b')) (trySolveSide sig b' a'))
-  go (_ :: rest) acc = go rest acc
+   _ => go rest acc
 
 ||| Install the refinement for a report. Skipped outright when the run
 ||| minted no hole, so an ordinary run walks Σ once and stops.
@@ -3223,15 +3219,17 @@ oblView : ElabSt -> List Obligation
 oblView st = go (toList st.sig) (toList st.oblMeta)
  where
   go : List SigEntry -> List OblMeta -> List Obligation
-  go (SigDecl ctx n (Elem.EqTy a b TopTy) _ :: rest) (m :: ms) =
-    if isOblName n
-      then MkObl (displayStmtIn st m.ounfs (StTy ctx m.oenv a b)) m.osite m.ofile (map (displayStmtIn st m.ounfs) m.ocomposite) m.ohint m.oimps :: go rest ms
-      else go rest (m :: ms)
-  go (SigDecl ctx n (Elem.EqTy a b ty) _ :: rest) (m :: ms) =
-    if isOblName n
-      then MkObl (displayStmtIn st m.ounfs (StElem ctx m.oenv a b ty)) m.osite m.ofile (map (displayStmtIn st m.ounfs) m.ocomposite) m.ohint m.oimps :: go rest ms
-      else go rest (m :: ms)
-  go (_ :: rest) ms = go rest ms
+  go (e :: rest) (m :: ms) = case entryDecl e of
+    Just (ctx, n, Elem.EqTy a b TopTy) =>
+      if isOblName n
+        then MkObl (displayStmtIn st m.ounfs (StTy ctx m.oenv a b)) m.osite m.ofile (map (displayStmtIn st m.ounfs) m.ocomposite) m.ohint m.oimps :: go rest ms
+        else go rest (m :: ms)
+    Just (ctx, n, Elem.EqTy a b ty) =>
+      if isOblName n
+        then MkObl (displayStmtIn st m.ounfs (StElem ctx m.oenv a b ty)) m.osite m.ofile (map (displayStmtIn st m.ounfs) m.ocomposite) m.ohint m.oimps :: go rest ms
+        else go rest (m :: ms)
+    _ => go rest (m :: ms)
+  go (_ :: rest) [] = go rest []
   go [] _ = []
 
 ||| One declaration for the report: its Σ-name, context (with binder
@@ -3283,18 +3281,17 @@ declView st = mapMaybe view (toList st.sig)
   metaFor : String -> Maybe DeclMeta
   metaFor x = find (\m => m.dname == x) (toList st.declMeta)
   view : SigEntry -> Maybe DeclView
-  view (SigDecl ctx x TopTy _) = map (\m => MkDeclView x (displayCtx st ctx) m.denv Nothing m.dsite m.dfile m.drange m.dimps) (metaFor x)
-  view (SigDecl ctx x ty _) = map (\m => MkDeclView x (displayCtxIn st m.dunfs ctx) m.denv (Just (displayTyIn st m.dunfs ty)) m.dsite m.dfile m.drange m.dimps) (metaFor x)
-  view _ = Nothing
+  view e = case entryDecl e of
+    Just (ctx, x, TopTy) => map (\m => MkDeclView x (displayCtx st ctx) m.denv Nothing m.dsite m.dfile m.drange m.dimps) (metaFor x)
+    Just (ctx, x, ty) => map (\m => MkDeclView x (displayCtxIn st m.dunfs ctx) m.denv (Just (displayTyIn st m.dunfs ty)) m.dsite m.dfile m.drange m.dimps) (metaFor x)
+    Nothing => Nothing
 
 ||| The term-definition names among a collected reference pool.
 defNamesOf : ElabSt -> SnocList String -> List String
 defNamesOf st acc = nub (filter isDef (toList acc))
  where
   isDef : String -> Bool
-  isDef x = case cachedSigLookup st.sig x of
-              Just (SigDef _ _ _ _ _ _) => True
-              _ => False
+  isDef x = maybe False sigEntryIsDef (cachedSigLookup st.sig x)
 
 ||| The δβ join WITH ITS STEPS: both sides unfolded under a name set
 ||| that starts from the site's licences and the sides' own references
@@ -3491,7 +3488,7 @@ assume stmt site comp = do
     StElem ctx env a b ty => do
       if cheap
         then modifySt $ \s =>
-          { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty) (DEq (reChk st ctx a ty) (reChk st ctx b ty) (reTy st ctx ty)))
+          { sig $= (:< assumeDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty) (DEq (reChk st ctx a ty) (reChk st ctx b ty) (reTy st ctx ty)))
           , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing (unfsOf st) st.curImps) } s
         else if assumedMatchE st ctx a b ty
         then modifySt { itemAssumed := True }
@@ -3499,12 +3496,12 @@ assume stmt site comp = do
           let aK = rwNfElem st ctx a
               bK = rwNfElem st ctx b in
           { assumedE $= ((elemSize aK + elemSize bK, ctx, aK, bK, engNfT st ty) ::)
-          , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty) (DEq (reChk st ctx a ty) (reChk st ctx b ty) (reTy st ctx ty)))
+          , sig $= (:< assumeDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty) (DEq (reChk st ctx a ty) (reChk st ctx b ty) (reTy st ctx ty)))
           , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) (unfsOf st) st.curImps) } s
     StTy ctx env x y => do
       if cheap
         then modifySt $ \s =>
-          { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy) (DEq (reTy st ctx x) (reTy st ctx y) DTop))
+          { sig $= (:< assumeDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy) (DEq (reTy st ctx x) (reTy st ctx y) DTop))
           , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing (unfsOf st) st.curImps) } s
         else do
        let x' = rwNfTy st ctx x
@@ -3513,7 +3510,7 @@ assume stmt site comp = do
         then modifySt { itemAssumed := True }
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
-          , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy) (DEq (reTy st ctx x) (reTy st ctx y) DTop))
+          , sig $= (:< assumeDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy) (DEq (reTy st ctx x) (reTy st ctx y) DTop))
           , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) (unfsOf st) st.curImps) } s
  where
   hintFor : ElabSt -> Stmt -> Maybe String
@@ -3856,7 +3853,7 @@ mintHole ctx env site hrng label ty = do
     Just _ => throwAt (hrng <|> site.srange)
                 "\{site}: duplicate hole ?\{label} — every hole of an item needs its own name"
     Nothing => pure ()
-  modifySt $ { sig $= (:< SigDecl ctx q ty (reTy st ctx ty))
+  modifySt $ { sig $= (:< assumeDecl ctx q ty (reTy st ctx ty))
              , declMeta $= (:< MkDeclMeta q env "\{site}" st.modFile (hrng <|> site.srange) (unfsOf st) st.curImps) }
   pure (SigVar q (varSpine (length ctx)))
 
@@ -3946,7 +3943,7 @@ preferQuot st ctx ty = case exposeTP st ctx ty of
 preferPrf : ElabSt -> Ctx -> Ty -> Maybe (Elem, Maybe (Ty, Drv))
 preferPrf st ctx p@(Elem.EqTy _ _ _) = Just (p, Nothing)
 preferPrf st ctx p@(Squash _) = Just (p, Nothing)
-preferPrf st ctx ty = if (let t0 = nowNs (); r = kIsPropD st.kernelSig kernelFuel ctx ty in bump "bridge-isprop" (nowNs () - t0) r)
+preferPrf st ctx ty = if (let t0 = nowNs (); r = kIsPropD st.sig kernelFuel ctx ty in bump "bridge-isprop" (nowNs () - t0) r)
   -- a kernel-checkable Ω-neutral stays AS WRITTEN (no exposure — the
   -- callers expose for themselves exactly where a shape is needed,
   -- and downstream types keep the user's spelling)
@@ -4026,21 +4023,21 @@ missingDep ksig err = do
 ||| refuses, which is a bug in the elaborator and not a property of the
 ||| file. Demoting it quietly is how such a bug hides behind an
 ||| unrelated hole somewhere else in the run.
-kernelAccept : String -> (Sig -> Either KErr SigEntry) -> (dumpD : List (String, Drv)) -> ElabM ()
+kernelAccept : String -> (Sig -> Either KErr SigEntry) -> (dumpD : List (String, Drv)) -> ElabM (Maybe SigEntry)
 kernelAccept name checkDef dumpD = do
   clean <- itemClean
   if not clean
-    then pure ()
+    then pure Nothing
     else do
       st <- getSt
       let t0 = nowNs ()
-      let res = checkDef st.kernelSig
+      let res = checkDef st.sig
       case bump "kitem" (nowNs () - t0) res of
         Right entry =>
           -- the whnf canary over the item's derivations, after the
-          -- kernel accepted them (NOVA_DRV=1)
-          modifySt (foldl (\f, (_, d) => whnfCanary st.kernelSig kernelFuel d f)
-                          (the (ElabSt -> ElabSt) ({ kernelSig $= (:< entry) })) dumpD)
+          -- kernel accepted them (NOVA_DRV=1); the ADMITTED entry is
+          -- what the caller extends Σ with
+          pure (foldl (\x, (_, d) => whnfCanary st.sig kernelFuel d x) (Just entry) dumpD)
         Left err0 =>
           -- the rejected derivations, appended to the verdict under
           -- NOVA_DRV (the kernel's verdict names the failing node;
@@ -4068,8 +4065,8 @@ kernelAccept name checkDef dumpD = do
           -- elaborator and not a property of the file. Demoting one
           -- quietly is how such a bug hides behind an unrelated hole
           -- elsewhere in the run.
-          case missingDep st.kernelSig err of
-            Just dep => modifySt { itemBlocked := Just dep }
+          case missingDep (sigAdmitted st.sig) err of
+            Just dep => do modifySt { itemBlocked := Just dep }; pure Nothing
             Nothing => throw "\{name}: KERNEL REJECTED the elaborated item: \{err}"
 
 wrapLams : Nat -> Elem -> Elem
@@ -4280,10 +4277,10 @@ emitInlineDefD site role ctx ty tyD body bodyD = do
   -- the Π-closure's binder types are re-derived: a context entry
   -- spelled at a definition-hidden shape (a hypothesis at u ≡ cinf ∈
   -- conat with u bound at the exposed ν) meets its switch there
-  kernelAccept "\{site} \{q}"
+  me <- kernelAccept "\{site} \{q}"
     (\ksig => kCheckDefDrv ksig kernelFuel q [] (piCloseD st ctx tyD) (lamsD k bodyD))
     [("TYPE", piCloseD st ctx tyD), ("BODY", lamsD k bodyD)]
-  modifySt $ { sig $= (:< SigDef [<] q cbody cty (lamsD k bodyD) (piCloseD st ctx tyD)), transp $= (q ::) }
+  modifySt $ { sig $= (:< fromMaybe (assumeDef [<] q cbody cty (lamsD k bodyD) (piCloseD st ctx tyD)) me), transp $= (q ::) }
   pure q
 
 ||| An inline definition over its context: the type re-derived here.
@@ -4364,18 +4361,15 @@ mutual
   elabTyAt ctx env site (SSig _ x0) = do
     st <- getSt
     let x = resolveSigName st x0
-    case sigLookup x st.sig of
+    case map (\e => (null (entryCtx e), entryTy e)) (sigLookup x st.sig) of
       -- items are always declared in ε, so the reference carries the
       -- empty substitution
-      Just (SigDef [<] _ _ TopTy _ _) => pure (SigVar x [<], DRef x [])
-      Just (SigDef _ _ _ TopTy _ _) => throwAt site.srange "\{site}: '\{x}' has a non-empty declaration context"
-      Just (SigDecl [<] _ TopTy _) => pure (SigVar x [<], DRef x [])
+      Just (True, TopTy) => pure (SigVar x [<], DRef x [])
+      Just (False, TopTy) => throwAt site.srange "\{site}: '\{x}' has a non-empty declaration context"
       -- CUMULATIVITY (El and Prf retired): a 𝕌- or Ω-classified
       -- reference is a code or a prop — a type either way
-      Just (SigDef [<] _ _ UniverseTy _ _) => pure (SigVar x [<], DRef x [])
-      Just (SigDecl [<] _ UniverseTy _) => pure (SigVar x [<], DRef x [])
-      Just (SigDef [<] _ _ PropTy _ _) => pure (SigVar x [<], DRef x [])
-      Just (SigDecl [<] _ PropTy _) => pure (SigVar x [<], DRef x [])
+      Just (True, UniverseTy) => pure (SigVar x [<], DRef x [])
+      Just (True, PropTy) => pure (SigVar x [<], DRef x [])
       -- anything else: elaborate as a term at the classifier the
       -- probe reads off (covers entries whose 𝕌/Ω-classification is
       -- behind a definition)
@@ -4541,14 +4535,11 @@ mutual
     -- cachedSigLookup: positive-only name index; the unknown-name
     -- error path below always re-scans (negatives are never cached)
     case cachedSigLookup st.sig x of
-      Just (SigDef [<] _ _ ty _ _) => do
-        recordBinderImps mrng ctx env x0 ty (fromMaybe [] (lookup x st.impls))
-        pure (SigVar x [<], ty, DRef x [])
-      Just (SigDef _ _ _ _ _ _) => throwAt site.srange "\{site}: '\{x}' has a non-empty declaration context"
-      Just (SigDecl [<] _ ty _) => do
-        recordBinderImps mrng ctx env x0 ty (fromMaybe [] (lookup x st.impls))
-        pure (SigVar x [<], ty, DRef x [])
-      Just _ => throwAt site.srange "\{site}: '\{x}' is not usable as a term here"
+      Just e => case entryClosed e of
+        Just ty => do
+          recordBinderImps mrng ctx env x0 ty (fromMaybe [] (lookup x st.impls))
+          pure (SigVar x [<], ty, DRef x [])
+        Nothing => throwAt site.srange "\{site}: '\{x}' has a non-empty declaration context"
       Nothing => throwAt site.srange "\{site}: unknown name '\{x}'"
   inferElemAt ctx env site SUnitI = pure (OneIntro, OneTy, DUnit)
   inferElemAt ctx env site SZeroN = pure (NatIntro0, NatTy, DZero)
@@ -6092,10 +6083,9 @@ mutual
 
     quickFit : ElabSt -> (Ty -> Ty) -> List (Maybe (Elem, Ty, Drv)) -> String -> Bool
     quickFit st jn pres q =
-      case cachedSigLookup st.sig q of
-        Just (SigDef [<] _ _ ty _ _) => argsMatch jn (fst (teleOf ty)) pres
-        Just (SigDecl [<] _ ty _) => argsMatch jn (fst (teleOf ty)) pres
-        _ => True   -- let the conversion probes judge the unusual
+      case the (Maybe Ty) (cachedSigLookup st.sig q >>= entryClosed) of
+        Just ty => argsMatch jn (fst (teleOf ty)) pres
+        Nothing => True   -- let the conversion probes judge the unusual
 
 
     run : List (Maybe (Elem, Ty, Drv)) -> String -> ElabM (Elem, Ty, Drv)
@@ -6183,10 +6173,9 @@ mutual
                       not (any isQSort (res :: doms))
 
     ordinaryHead : ElabSt -> String -> Bool
-    ordinaryHead st q = case cachedSigLookup st.sig q of
-      Just (SigDef [<] _ _ ty _ _) => ordinaryTele ty
-      Just (SigDecl [<] _ ty _) => ordinaryTele ty
-      _ => False
+    ordinaryHead st q = case the (Maybe Ty) (cachedSigLookup st.sig q >>= entryClosed) of
+      Just ty => ordinaryTele ty
+      Nothing => False
 
     -- bare nodes out, as in `overloadOf` above
     surfSpine : SElem -> List SElem -> (SElem, List SElem)
@@ -6224,9 +6213,9 @@ mutual
     (defTy, hdCore, hdD, imps) <- the (ElabM (Ty, Elem, Drv, List Nat)) $ case hd of
       SigHead q => do
         defTy <- case cachedSigLookup st.sig q of
-          Just (SigDef [<] _ _ ty _ _) => pure ty
-          Just (SigDecl [<] _ ty _) => pure ty
-          Just _ => throwAt site.srange "\{site}: '\{qName}' is not usable as a term here"
+          Just e => case entryClosed e of
+            Just ty => pure ty
+            Nothing => throwAt site.srange "\{site}: '\{qName}' is not usable as a term here"
           Nothing => throwAt site.srange "\{site}: unknown name '\{qName}'"
         let imps = if noIns then [] else fromMaybe [] (lookup q st.impls)
         recordBinderImps mrng ctx env x0 defTy imps
@@ -6301,7 +6290,7 @@ mutual
     -- Miller tier solves it UNIQUELY — pairextD's {B} from the
     -- pair's actual type, dependent or not; the constant tier this
     -- replaces guessed from an instance and was withdrawn
-    let sols = solveDerived st.kernelSig ctx jnX doms tailTy argsNow passSrcs
+    let sols = solveDerived st.sig ctx jnX doms tailTy argsNow passSrcs
                  (S (length unsolvedKs)) unsolvedKs sols
     (finalArgs, dPatches) <- resolveArgs sols defers doms (zip slots (reverse revArgs)) [] []
     -- a blank whose SUPPRESSED join binding α-differs from its
@@ -7048,10 +7037,10 @@ emitCoreDef site x ty tySk body bodySk = do
   case sigLookup q st.sig of
     Just _ => throwAt site.srange "\{site}: duplicate signature name '\{x}'"
     Nothing => pure ()
-  kernelAccept "\{site} \{x}"
+  me <- kernelAccept "\{site} \{x}"
     (\ksig => kCheckDefDrv ksig kernelFuel q [] tySk bodySk)
     [("TYPE", tySk), ("BODY", bodySk)]
-  modifySt $ { sig $= (:< SigDef [<] q body ty bodySk tySk) }
+  modifySt $ { sig $= (:< fromMaybe (assumeDef [<] q body ty bodySk tySk) me) }
   addVis (x, q)
   addLemma q [<] ty
 
@@ -7062,10 +7051,10 @@ emitCoreTyDef site x ty tySk = do
   case sigLookup q st.sig of
     Just _ => throwAt site.srange "\{site}: duplicate signature name '\{x}'"
     Nothing => pure ()
-  kernelAccept "\{site} \{x}"
+  me <- kernelAccept "\{site} \{x}"
     (\ksig => kCheckTyDefDrv ksig kernelFuel q [] tySk)
     [("TYPE", tySk)]
-  modifySt $ { sig $= (:< SigDef [<] q ty TopTy tySk DTop) }
+  modifySt $ { sig $= (:< fromMaybe (assumeDef [<] q ty TopTy tySk DTop) me) }
   addVis (x, q)
 
 ||| The derivation of a right-nested Π-chain over a context: each
@@ -7200,10 +7189,10 @@ elabItemGo irng (SDef nrng x ty body muses) = do
   -- here and stay for everything the body mints
   modifySt { curImps := impDepths ty body }
   (body', bodySk) <- withScope sc (withEqScope eqs (checkElem [<] [<] (MkSite "def \{x}" irng) body ty'))
-  kernelAccept "def \{x}"
+  me <- kernelAccept "def \{x}"
     (\ksig => kCheckDefDrv ksig kernelFuel q [] tySk bodySk)
     [("TYPE", tySk), ("BODY", bodySk)]
-  modifySt $ { sig $= (:< SigDef [<] q body' ty' bodySk tySk) }
+  modifySt $ { sig $= (:< fromMaybe (assumeDef [<] q body' ty' bodySk tySk) me) }
   addVis (x, q)
   addLemma q [<] ty'
   registerImps q ty
@@ -7222,7 +7211,7 @@ elabItemGo irng (SDeclDef nrng x ty) = do
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] (MkSite "def \{x}" irng) ty
   recordBinder nrng [<] [<] x ty'
-  modifySt $ { sig $= (:< SigDecl [<] q ty' tySk)
+  modifySt $ { sig $= (:< assumeDecl [<] q ty' tySk)
              , declMeta $= (:< MkDeclMeta q [<] "def \{x}" st.modFile nrng (unfsOf st) st.curImps) }
   addVis (x, q)
   -- a DECLARED equation is a lemma like any accepted one: its stuck
@@ -7274,9 +7263,9 @@ elabItemGo irng (SData params decls) = do
       qual x = if st.modPrefix == "" then x else "\{st.modPrefix}.\{x}"
   -- the written entry names hover like definition sites: each is
   -- ascribed the type of the def the expansion emitted for it
-  ignore $ traverse (\d => case cachedSigLookup st.sig (qual d.dqname) of
-                              Just (SigDef [<] _ _ dty _ _) => recordBinder d.dqrng [<] [<] d.dqname dty
-                              _ => pure ()) decls
+  ignore $ traverse (\d => case the (Maybe (Elem, Ty)) (cachedSigLookup st.sig (qual d.dqname) >>= entryClosedDef) of
+                              Just (_, dty) => recordBinder d.dqrng [<] [<] d.dqname dty
+                              Nothing => pure ()) decls
   let kindOf : Nat -> QEntryKind
       kindOf k = qEntryKind (fromMaybe QU (qEntry sg k))
   let atKind : QEntryKind -> (SQDecl -> a) -> List a
@@ -8089,7 +8078,7 @@ elabProgramSt st0 units = go st0 units
 export
 elabProgramTrial : List ModUnit -> Either String (Sig, List (String, Nat, Nat, Maybe (String, Range)))
 elabProgramTrial units =
-  map (\st => (st.kernelSig, toList st.impTrial))
+  map (\st => (sigAdmitted st.sig, toList st.impTrial))
       (elabProgramSt ({ impTrialOn := True } initSt) units)
 
 ||| Run the program with the Phase-4 SUGAR TRIAL on: on full
@@ -8098,7 +8087,7 @@ elabProgramTrial units =
 export
 elabProgramSugar : List ModUnit -> Either String (Sig, List (String, Range, Bool), List (String, Range, Nat), List (String, Range, Nat))
 elabProgramSugar units =
-  map (\st => (st.kernelSig, toList st.svSugar, toList st.svBlank, toList st.svBlankRisk))
+  map (\st => (sigAdmitted st.sig, toList st.svSugar, toList st.svBlank, toList st.svBlankRisk))
       (elabProgramSt ({ svSugarOn := True } initSt) units)
 
 export
@@ -8127,7 +8116,7 @@ elabProgramSig units = go initSt units
             case openReport tbl st' of
               Just rep => Left (rep ++ "\nmodule \{name} has open obligations")
               Nothing  => case rest of
-                            [] => Right st'.kernelSig
+                            [] => Right (sigAdmitted st'.sig)
                             _  => go st' rest
 
 ||| Elaborate a single surface file (no imports — resolving them needs

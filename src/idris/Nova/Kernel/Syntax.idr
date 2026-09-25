@@ -724,3 +724,86 @@ mutual
     show (PSum f g) = "PSum (\{show f}) (\{show g})"
     show (PSigma a f) = "PSigma (\{show a}) (\{show f})"
     show (PPi a f) = "PPi (\{show a}) (\{show f})"
+
+-- ===== Renaming the signature names a term mentions =====
+--
+-- Structural: every SigVar's name through f, nothing else touched
+-- (the kernel's renameEntry and the renaming tool use it).
+
+mutual
+  export
+  mapNamesE : (String -> String) -> Elem -> Elem
+  mapNamesE f e = case e of
+    SigVar n sp => SigVar (f n) (map (mapNamesE f) sp)
+    CtxVar _ => e
+    ZeroElim t => ZeroElim (mapNamesE f t)
+    OneIntro => e
+    NatIntro0 => e
+    NatIntro1 t => NatIntro1 (mapNamesE f t)
+    NatElim z s t => NatElim (mapNamesE f z) (mapNamesE f s) (mapNamesE f t)
+    PiIntro b => PiIntro (mapNamesE f b)
+    PiApp g a => PiApp (mapNamesE f g) (mapNamesE f a)
+    Let d b => Let (mapNamesE f d) (mapNamesE f b)
+    SigmaIntro u v => SigmaIntro (mapNamesE f u) (mapNamesE f v)
+    SigmaElim1 t => SigmaElim1 (mapNamesE f t)
+    SigmaElim2 t => SigmaElim2 (mapNamesE f t)
+    Inj1 t => Inj1 (mapNamesE f t)
+    Inj2 t => Inj2 (mapNamesE f t)
+    SumElim l r t => SumElim (mapNamesE f l) (mapNamesE f r) (mapNamesE f t)
+    ZeroTy => e
+    OneTy => e
+    NatTy => e
+    UniverseTy => e
+    PropTy => e
+    TopTy => e
+    PiTy a b => PiTy (mapNamesE f a) (mapNamesE f b)
+    SigmaTy a b => SigmaTy (mapNamesE f a) (mapNamesE f b)
+    SumTy a b => SumTy (mapNamesE f a) (mapNamesE f b)
+    EqTy l r ty => EqTy (mapNamesE f l) (mapNamesE f r) (mapNamesT f ty)
+    QuotTy a r => QuotTy (mapNamesE f a) (mapNamesE f r)
+    Class t => Class (mapNamesE f t)
+    QuotElim g q => QuotElim (mapNamesE f g) (mapNamesE f q)
+    Squash ty => Squash (mapNamesT f ty)
+    Star => e
+    QSort sg k sp => QSort (mapNamesQSig f sg) k (map (mapNamesE f) sp)
+    QCtor sg k sp => QCtor (mapNamesQSig f sg) k (map (mapNamesE f) sp)
+    QElim sg k mths sp w =>
+      QElim (mapNamesQSig f sg) k (map (mapNamesE f) mths)
+            (map (mapNamesE f) sp) (mapNamesE f w)
+    NuTy p => NuTy (mapNamesP f p)
+    Out t => Out (mapNamesE f t)
+    Corec p a g x => Corec (mapNamesP f p) (mapNamesE f a) (mapNamesE f g) (mapNamesE f x)
+
+  ||| One sort (El retired): a code type carries names exactly where
+  ||| the element walk finds them — a former-only walk would leave a
+  ||| renamed reference stale inside an application-spine type.
+  export
+  mapNamesT : (String -> String) -> Ty -> Ty
+  mapNamesT = mapNamesE
+
+  export
+  mapNamesP : (String -> String) -> Poly -> Poly
+  mapNamesP f p = case p of
+    PHole => p
+    PConst a => PConst (mapNamesE f a)
+    PProd g h => PProd (mapNamesP f g) (mapNamesP f h)
+    PSum g h => PSum (mapNamesP f g) (mapNamesP f h)
+    PSigma a g => PSigma (mapNamesE f a) (mapNamesP f g)
+    PPi a g => PPi (mapNamesE f a) (mapNamesP f g)
+
+  export
+  mapNamesQSig : (String -> String) -> QSig -> QSig
+  mapNamesQSig f = map rcQTy
+   where
+    mutual
+      rcQTy : QTy -> QTy
+      rcQTy QU = QU
+      rcQTy (QEl t) = QEl (rcQTm t)
+      rcQTy (QPiExt a b) = QPiExt (mapNamesT f a) (rcQTy b)
+      rcQTy (QPiInd t b) = QPiInd (rcQTm t) (rcQTy b)
+
+      rcQTm : QTm -> QTm
+      rcQTm (QVar i) = QVar i
+      rcQTm (QAppE t e) = QAppE (rcQTm t) (mapNamesE f e)
+      rcQTm (QAppI t a) = QAppI (rcQTm t) (rcQTm a)
+      rcQTm (QEqC l r u) = QEqC (rcQTm l) (rcQTm r) (rcQTm u)

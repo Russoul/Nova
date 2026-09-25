@@ -12,13 +12,13 @@ that can be read off the tree.
       re-raises
   K4  the kernel's exported kCheck* functions are exactly the entry
       points, and the Σ-extending ones return the entry they admit
-  S1  the kernel's signature is extended at exactly one engine site,
-      by the entry a kernel entry point returned; every call of a
-      Σ-extending entry point outside the kernel passes the kernel's
-      signature (S2 — no engine-built entry reaches it — follows)
-  E1  the engine's Σ-extending sites that bypass the kernel are
-      exactly the assumption sites (obligations, holes, declarations)
-      or the mirror of an item the kernel just accepted
+  S1  Σ owned by construction: the entry constructors are private to
+      the kernel; the engine keeps ONE signature; the admitting entry
+      points are called inside kernelAccept only, whose admitted entry
+      is what the mirror sites extend Σ with (S2 — no engine-built
+      entry passes for an admitted one — is the type checker's)
+  E1  every engine site that extends Σ is the mirror of an admission
+      or an assumption site (obligation, hole, written declaration)
   E2  no kernel module imports an engine module (the dual of K1)
 
 Exit status 1 on any failure. Run as ./check-roles.sh.
@@ -192,56 +192,59 @@ def check_k4():
 # ----- S1 / S2 -------------------------------------------------------------
 
 def check_s1():
-    ext_sites = []
-    bad_calls = []
+    """Σ owned by construction: the entry constructors are private to
+    the kernel module (a grep here; the type checker is the guard);
+    the engine keeps ONE signature (no kernelSig); the admitting
+    entry points are called on ksig inside kernelAccept only, whose
+    admitted entry is what every mirror site extends Σ with."""
+    bad = []
     admitting = [n for n, a in ENTRY_POINTS.items() if a]
+    mirrors = 0
     for path in engine_files():
-        names = enclosing_names(path)
         for i, l in code_lines(path):
-            if re.search(r"kernelSig\s*(\$=|:=)", l):
-                ext_sites.append((path, i, l.strip(), names.get(i)))
+            if re.search(r"\bSig(Def|Decl)\b", l):
+                bad.append(f"{path.relative_to(ROOT)}:{i}: names a signature-entry constructor")
+            if "kernelSig" in l:
+                bad.append(f"{path.relative_to(ROOT)}:{i}: a second signature")
             for n in admitting:
                 if re.search(rf"\b{n}\b", l) and not re.search(rf"\b{n}\s+ksig\b", l):
-                    bad_calls.append(f"{path.relative_to(ROOT)}:{i}: {n} called outside kernelAccept (not on ksig)")
-    if len(ext_sites) != 1:
-        for p, i, l, f in ext_sites:
-            fail("S1", f"kernel signature extended at {p.relative_to(ROOT)}:{i} ({f}): {l}")
-        if not ext_sites:
-            fail("S1", "no site extends the kernel signature")
-    else:
-        p, i, l, f = ext_sites[0]
-        if f != "kernelAccept" or not re.search(r"kernelSig\s*\$=\s*\(:<\s*entry\)", l):
-            fail("S1", f"the one extension site is not kernelAccept's `entry`: {p.relative_to(ROOT)}:{i} ({f}): {l}")
-    for b in bad_calls:
+                    bad.append(f"{path.relative_to(ROOT)}:{i}: {n} called outside kernelAccept (not on ksig)")
+            if re.search(r"sig\s*\$=\s*\(:<\s*fromMaybe \(assumeDef", l):
+                mirrors += 1
+    for b in bad:
         fail("S1", b)
     if not any(f.startswith("S1") for f in failures):
-        ok("S1/S2", "kernelSig extended once, in kernelAccept, by the entry a kernel entry point returned; admitting entry points are called on ksig only")
+        ok("S1/S2", f"one signature; entry constructors private to the kernel; admitting entry points called on ksig only; {mirrors} mirror sites extend Σ with the admitted entry or an assumed one")
 
 
 # ----- E1 ------------------------------------------------------------------
 
 def check_e1():
+    """Every site that extends Σ is either the mirror of an admission
+    (the kernel's entry, or an assumed definition when the item was
+    not clean) or an assumption site (obligation, hole, written
+    declaration), and nothing else."""
     sites = []
     for path in engine_files():
         lines = path.read_text().splitlines()
         names = enclosing_names(path)
         for i, l in enumerate(lines, 1):
-            if re.search(r"\bsig\s*\$=\s*\(:<\s*Sig(Def|Decl)\b", l):
+            if re.search(r"\bsig\s*\$=\s*\(:<", l):
                 window = "\n".join(lines[max(0, i - 26):i - 1])
-                if "kernelAccept" in window:
-                    kind = "mirror of an item the kernel accepted"
-                elif "oblName" in l:
+                if "fromMaybe (assumeDef" in l and "kernelAccept" in window:
+                    kind = "mirror of an admission (assumed when the item was not clean)"
+                elif "assumeDecl" in l and "oblName" in l:
                     kind = "assumed obligation (open)"
-                elif names.get(i) == "mintHole":
+                elif "assumeDecl" in l and names.get(i) == "mintHole":
                     kind = "hole (open)"
-                elif "SDeclDef" in window:
+                elif "assumeDecl" in l and "SDeclDef" in window:
                     kind = "written declaration (open)"
                 else:
                     kind = None
                 sites.append((path, i, names.get(i), kind))
     for p, i, f, kind in sites:
         if kind is None:
-            fail("E1", f"engine extends its Σ at {p.relative_to(ROOT)}:{i} ({f}) neither after a kernel acceptance nor as an assumption")
+            fail("E1", f"engine extends Σ at {p.relative_to(ROOT)}:{i} ({f}) neither as a mirror of an admission nor as an assumption")
     if not any(f.startswith("E1") for f in failures):
         kinds = {}
         for _, _, _, k in sites:

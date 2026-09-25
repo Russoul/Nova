@@ -228,14 +228,15 @@ mutual
     go mty (SigVar x es) =
       if not (ok x) then pure (SigVar x es, DReflx, mty) else
       kSigLookup sig x >>= \entryX => case entryX of
-        Just (SigDef delta _ a ty _ _) => do
-          qs <- rdSpine sig ctx (toList delta) (toList es)
-          let tyI = substTy ty (embed es)
-          leaf <- atPos (DDelta x qs) tyI mty
-          (r, p, mt) <- go (Just tyI) (substElem a (embed es))
-          pure (r, dTrans leaf p, mt)
-        Just (SigDecl delta _ ty _) => pure (SigVar x es, DReflx, Just (substTy ty (embed es)))
-        _ => pure (SigVar x es, DReflx, mty)
+        Just e => case entryBody e of
+          Just a => do
+            qs <- rdSpine sig ctx (toList (entryCtx e)) (toList es)
+            let tyI = substTy (entryTy e) (embed es)
+            leaf <- atPos (DDelta x qs) tyI mty
+            (r, p, mt) <- go (Just tyI) (substElem a (embed es))
+            pure (r, dTrans leaf p, mt)
+          Nothing => pure (SigVar x es, DReflx, Just (substTy (entryTy e) (embed es)))
+        Nothing => pure (SigVar x es, DReflx, mty)
     go mty (PiApp f e) = do
       (f', p0, mf) <- go Nothing f
       (p1, _) <- shapedChild f mf isPi p0
@@ -542,7 +543,7 @@ mutual
    where
     isDef : String -> KM (Maybe String)
     isDef x = kSigLookup sig x >>= \e => pure (case e of
-                                                Just (SigDef _ _ _ _ _ _) => Just x
+                                                Just e' => if sigEntryIsDef e' then Just x else Nothing
                                                 _ => Nothing)
     pieces : QSig -> List Elem
     pieces g = fst (runState [] (traverseQSig (\e => do modify (e ::); pure e) g))
@@ -585,9 +586,8 @@ mutual
           Nothing => kerr "re-derive: variable out of bounds"
         SigVar x es =>
           kSigLookup sig x >>= \entryX => case entryX of
-            Just (SigDef delta _ _ ty _ _) => refAt delta ty
-            Just (SigDecl delta _ ty _) => refAt delta ty
-            _ => kerr "re-derive: unknown or non-term signature name '\{x}'"
+            Just e => refAt (entryCtx e) (entryTy e)
+            Nothing => kerr "re-derive: unknown or non-term signature name '\{x}'"
         OneIntro => pure (DUnit, OneTy)
         NatIntro0 => pure (DZero, NatTy)
         NatIntro1 t => do d <- rdCheck sig ctx t NatTy; pure (DSuc d, NatTy)
@@ -775,9 +775,10 @@ mutual
     QSort _ _ _ => fst <$> rdInfer sig ctx t
     SigVar x es =>
       kSigLookup sig x >>= \entryX => case entryX of
-        Just (SigDef delta _ _ TopTy _ _) => DRef x <$> rdSpine sig ctx (toList delta) (toList es)
-        Just (SigDecl delta _ TopTy _) => DRef x <$> rdSpine sig ctx (toList delta) (toList es)
-        _ => cumul
+        Just e => case entryTy e of
+          TopTy => DRef x <$> rdSpine sig ctx (toList (entryCtx e)) (toList es)
+          _ => cumul
+        Nothing => cumul
     _ => cumul
    where
     -- cumulativity: a code or a prop in type position, checked at 𝕌

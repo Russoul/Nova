@@ -432,53 +432,6 @@ covering
 Show Drv where
   show = showDrv
 
--- ===== The signature: an item is its derivations =====
---
--- Σ stores what the kernel READ: an item's type and body derivations
--- (§8), beside their ERASURES — the terms the computation rules read
--- (δ unfolds a stored erasure; β and the join run on erasures). The
--- erasures are a cache of the derivations, never a second source.
-
-||| TWO entry kinds (Foundation: type definitions and type
-||| declarations are the A = TopTy instances; an equation CONSTRAINT
-||| is a hole at the equation's prop — a declaration at
-||| (a₀ ≡ a₁ ∈ A) — used through el-sig-decl + el-reflect).
-public export
-data SigEntry : Type where
-  ||| Γ ⊦ x ≔ π : π_T  (a definition; a TYPE definition when the
-  ||| type is 𝕍 — then π derives the type and π_T is the leaf 𝕍),
-  ||| with the erasures |π| and |π_T|
-  SigDef : Ctx -> SigIdentifier -> (body : Elem) -> (ty : Ty) -> (bodyD : Drv) -> (tyD : Drv) -> SigEntry
-  ||| Γ ⊦ x : π_T  (a declaration — a hole; references are stuck,
-  ||| el-sig-decl; a TYPE declaration when the type is 𝕍; an
-  ||| equation OBLIGATION when it is the equation's prop), with the
-  ||| erasure |π_T|
-  SigDecl : Ctx -> SigIdentifier -> (ty : Ty) -> (tyD : Drv) -> SigEntry
-
-||| The name a signature entry binds.
-public export
-sigEntryName : SigEntry -> Maybe SigIdentifier
-sigEntryName (SigDef _ x _ _ _ _) = Just x
-sigEntryName (SigDecl _ x _ _) = Just x
-
-||| Is this entry a definition? A signature all of whose entries are
-||| definitions is DEFINITIONAL (Foundation: acceptance requires it).
-public export
-sigEntryIsDef : SigEntry -> Bool
-sigEntryIsDef (SigDef _ _ _ _ _ _) = True
-sigEntryIsDef _ = False
-
-public export
-Sig : Type
-Sig = SnocList SigEntry
-
-||| Find a signature entry by name (innermost/most-recent declaration wins).
-export covering
-sigLookup : SigIdentifier -> Sig -> Maybe SigEntry
-sigLookup _ [<] = Nothing
-sigLookup x (rest :< entry) =
-  if sigEntryName entry == Just x then Just entry else sigLookup x rest
-
 -- ===== Renaming the signature names a derivation mentions =====
 
 mutual

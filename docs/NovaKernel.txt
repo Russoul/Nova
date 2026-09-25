@@ -775,11 +775,17 @@ The type-directed leaves, given l, r (β-joined) and E:
 
 Items. A definition arrives as two derivations, Σ; Δ ⊦ π_T ⇒ T : 𝕍
 and Σ; Δ ⊦ π ⇐ T ⇒ t (kCheckDefDrv); a type definition as the first
-alone (kCheckTyDefDrv). Acceptance EXTENDS the kernel's Σ with the
-entry (Δ ⊦ x ≔ π : π_T), the two derivations it read beside their
-erasures; the kernel's Σ is the authoritative one,
-and an item is checked from it alone — the elaborator's opinion of
-any earlier item is never consulted. (The kernel accepts Foundation's
+alone (kCheckTyDefDrv). Acceptance EXTENDS Σ with the entry
+(Δ ⊦ x ≔ π : π_T), the two derivations it read beside their
+erasures. Σ is OWNED BY CONSTRUCTION: the entry type's constructors
+are private to the kernel module, so an admitted entry is only what
+an entry point returned; what the engine assumes — an item not
+admitted, an obligation, a hole, a written declaration — enters
+through assumeDef/assumeDecl, marked and never read; admission
+reads the ADMITTED entries alone (a reference to an assumed entry
+is an unknown name), and a signature is closed when it has no
+assumed entry — the elaborator's opinion of any earlier item is
+never consulted. (The kernel accepts Foundation's
 general form — nonempty Δ, x[e˲] references with derived spines — but
 the elaborator only ever produces CLOSED items: surface parameters
 are Π-binders, so Δ = ε and every reference carries the empty
@@ -1061,9 +1067,14 @@ through it:
                    admitting entry point returns the entry it admits;
                    the engine extends the kernel's Σ with that entry
                    and nothing else (kernelAccept, one site).
-  the signature    SigEntry, Sig, sigLookup, sigEntryName,
-                   sigEntryIsDef — the entries the kernel admitted,
-                   erasures beside the derivations it read (§8).
+  the signature    SigEntry (abstract: constructors private to the
+                   kernel module), Sig, sigLookup, the accessors
+                   (sigEntryName, sigEntryIsDef, entryAssumed,
+                   entryCtx, entryTy, entryBody, entryTyD, entryBodyD,
+                   entryDef, entryDecl, entryClosed, entryClosedDef),
+                   sigAdmitted, sigClosed, renameEntry; and the
+                   engine's only constructors, assumeDef/assumeDecl,
+                   which MARK an entry assumed (§8).
   the grammar      Drv, DQTm, DQTy, DQSig, DPoly (§2) — the input
                    language; the engine writes it, the kernel reads it.
   on derivations   erase (and eraseQTm/QTy/QSig, erasePoly), substD

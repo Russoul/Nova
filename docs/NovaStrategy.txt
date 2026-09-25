@@ -116,10 +116,10 @@ erasure back to the text the author wrote, it is the trusted base.
   occurrence the kernel   (guess a motive, a        readings; guess a type
   could resolve           position's type, a        at a position
                           lemma, a direction)
-  be replayed (replay     be believed (its Σ is     read surface syntax;
-  never calls the         its own working copy;     depend on the engine,
-  author)                 the verdict comes from    the evaluator, or the
-                          the kernel's Σ)           environment
+  be replayed (replay     be believed (what it      read surface syntax;
+  never calls the         assumes enters Σ marked   depend on the engine,
+  author)                 and is never read; the    the evaluator, or the
+                          verdict is the kernel's)  environment
   depend on which run     rescue a kernel           unfold a definition
   (the file alone         rejection by trying       except at a δ leaf the
   determines acceptance)  another derivation        derivation names, or a
@@ -140,18 +140,22 @@ the only component with that obligation.
 
 ////////// How the division is realised today //////////
 
-The engine holds TWO signatures. Its own, `sig`, is a working copy
-it extends itself — accepted items with the derivations it built,
-plus the DECLARATIONS it assumes: open obligations and holes enter
-as stuck named entries so elaboration can continue and report. The
-kernel's, `kernelSig`, is extended at ONE site, kernelAccept, and
-only by the entry a kernel entry point returned (kCheckDefDrv,
-kCheckTyDefDrv). A file is accepted iff every item entered
-`kernelSig` and no obligation or hole was assumed. The engine's
-eager equation checks (kCheckEqDrv against `sig`) are early
+There is ONE signature, the kernel's, and it is owned by
+construction: the entry type is abstract, its constructors private
+to the kernel module, so an ADMITTED entry can only be the one an
+entry point returned (kCheckDefDrv, kCheckTyDefDrv) — the engine
+extends Σ with it at kernelAccept. What the engine assumes — an
+item not admitted (its derivations kept for display and re-use),
+an open obligation, a hole, a written declaration — enters through
+assumeDef/assumeDecl, MARKED as assumed and never read; admission
+reads the admitted entries alone, so a reference to an assumed
+entry is an unknown name (the engine's missing dependency). A
+signature is CLOSED when it has no assumed entry; a file is
+accepted iff its Σ is. The engine's eager equation checks
+(kCheckEqDrv, over the whole Σ, holes included) are early
 diagnostics and the audit's canary, not the verdict: the same
 derivations are re-read inside the item's body when the item is
-admitted against `kernelSig`.
+admitted.
 
 The kernel reads derivations only (docs/NovaKernel.txt): the readings
 ⇒, ⇐, ▷, →, one dispatcher with one reading per shape, one
@@ -217,16 +221,17 @@ tree:
       handler is a kerr).
   K4  The kernel's entry points are the only exported kCheck*
       functions, and they return the signature entry they admit.
-  S1  The kernel's signature is extended at exactly one engine site,
-      by the entry a kernel entry point returned; every call of a
-      Σ-extending entry point outside the kernel passes the kernel's
-      signature.
-  S2  The engine never constructs a kernel-signature entry itself
-      (no SigDef/SigDecl construction in the engine reaches
-      `kernelSig`).
-  E1  The engine's Σ-extending sites that bypass the kernel are
-      exactly the assumption sites — obligations, holes,
-      declarations — each counted as open (a file with any is not
+  S1  Σ owned by construction: the entry constructors are private
+      to the kernel module (the type checker guards it; the audit
+      greps for the names), the engine keeps one signature, and the
+      admitting entry points are called inside kernelAccept only,
+      whose admitted entry is what the mirror sites extend Σ with.
+  S2  The engine cannot construct an admitted entry: its only
+      constructors, assumeDef/assumeDecl, mark the entry assumed.
+  E1  Every engine site that extends Σ is the mirror of an admission
+      (the admitted entry, or an assumed definition when the item was
+      not clean) or an assumption site — obligation, hole, written
+      declaration — each counted as open (a file with any is not
       accepted).
   E2  No engine module is imported by a kernel module (the dual of
       K1, stated for the engine's namespace).
@@ -276,13 +281,17 @@ inhabit the grammar.
 
 Tranche 1 — acceptance-preserving, standalone:
 
-  [ ] 1. Σ owned by construction. SigEntry abstract (read-only
-         accessors); the only ways to a signature are the empty one
-         and the entry points; an entry point kAssume reads a type
-         derivation and adds a stuck entry MARKED as an assumption.
-         The engine's second signature folds into the kernel's;
-         acceptance = the kernel's Σ has no assumptions; the audit's
-         E1/S1 become type-level facts.
+  [x] 1. Σ owned by construction. SigEntry abstract (read-only
+         accessors, constructors private to the kernel module); an
+         admitted entry is only what an entry point returned; the
+         engine's constructors assumeDef/assumeDecl MARK an entry
+         assumed (an item not admitted, an obligation, a hole, a
+         written declaration); admission reads the admitted entries
+         alone (sigAdmitted); sigClosed = no assumed entry. The
+         engine's second signature folded into the kernel's. (An
+         assumption entry point that READS the assumed type's
+         derivation waits on contexts-as-derivations, like item 2's
+         bare form: the engine cannot yet supply the derivations.)
   [~] 2. The equation entry point takes the telescope and the type
          as derivations (as the definition entry point does); the
          sides stay bare — compared, not trusted. DONE for the entry

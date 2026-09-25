@@ -41,6 +41,7 @@ import Me.Russoul.Text.Range
 import Nova.Elaboration
 import Nova.Elaboration.Surface
 import Nova.CoreParser
+import Nova.Kernel
 import Nova.Kernel.Syntax
 import Nova.Kernel.Derivation
 import Nova.Elaboration.Named
@@ -1106,8 +1107,9 @@ sigCompare : Sig -> Sig -> Maybe String
 sigCompare a b = go (toList a) (toList b)
  where
   showEntry : SigEntry -> String
-  showEntry (SigDef ctx n body ty _ _) = "def \{n} : \{show ty} ≔ \{show body} [\{show ctx}]"
-  showEntry (SigDecl ctx n ty _) = "decl \{n} : \{show ty} [\{show ctx}]"
+  showEntry e = let n = fromMaybe "?" (sigEntryName e) in case entryBody e of
+    Just body => "def \{n} : \{show (entryTy e)} ≔ \{show body} [\{show (entryCtx e)}]"
+    Nothing => "decl \{n} : \{show (entryTy e)} [\{show (entryCtx e)}]"
 
   go : List SigEntry -> List SigEntry -> Maybe String
   go [] [] = Nothing

@@ -37,6 +37,7 @@ import Data.Maybe
 import Data.SnocList
 import Data.String
 
+import Nova.Kernel
 import Nova.Kernel.Syntax
 import Nova.Kernel.Derivation
 import Nova.Kernel.Subst
@@ -669,9 +670,9 @@ collectUses : Sig -> List SpineUse
 collectUses sig = foldl entry [] (toList sig)
  where
   entry : List SpineUse -> SigEntry -> List SpineUse
-  entry acc (SigDef _ _ body ty _ _) = walkE True body (walkT ty acc)
-  entry acc (SigDecl _ _ ty _) = walkT ty acc
-  entry acc _ = acc
+  entry acc e = case entryBody e of
+    Just body => walkE True body (walkT (entryTy e) acc)
+    Nothing => walkT (entryTy e) acc
 
 -- ===== The per-def fixpoint and the report =====
 
@@ -723,9 +724,7 @@ export
 surveyStats : Sig -> List DefStat
 surveyStats sig =
   let uses = collectUses sig
-      defs = mapMaybe (\e => case e of
-                               SigDef _ nm _ ty _ _ => Just (nm, ty)
-                               _ => Nothing) (toList sig)
+      defs = mapMaybe (\e => if sigEntryIsDef e then map (\nm => (nm, entryTy e)) (sigEntryName e) else Nothing) (toList sig)
       stats = mapMaybe (\(nm, ty) => defStat nm ty (filter (\u => u.suHead == nm) uses)) defs
   in filter (\s => s.dsSites > 0) stats
 
@@ -745,9 +744,7 @@ export
 surveyReport : Sig -> String
 surveyReport sig =
   let uses = collectUses sig
-      defs = mapMaybe (\e => case e of
-                               SigDef _ nm _ ty _ _ => Just (nm, ty)
-                               _ => Nothing) (toList sig)
+      defs = mapMaybe (\e => if sigEntryIsDef e then map (\nm => (nm, entryTy e)) (sigEntryName e) else Nothing) (toList sig)
       stats = mapMaybe (\(nm, ty) => defStat nm ty (filter (\u => u.suHead == nm) uses)) defs
       used = filter (\s => s.dsSites > 0) stats
       winners = filter (\s => not (null s.dsImplicit)) used

@@ -104,6 +104,7 @@ module Nova.Compute
 --    impossible for a closed, well-typed term, and crashes loudly
 --    rather than being silently passed through.
 
+import Nova.Kernel
 import Nova.Kernel.Syntax
 import Nova.Kernel.Derivation
 import Nova.Kernel.Subst
@@ -160,11 +161,11 @@ mutual
   whnfElem sig (Elem.EqTy l r t)  = Elem.EqTy l r t
   whnfElem sig (QuotTy a r)       = QuotTy a r
   whnfElem sig (SigVar x es) =
-    case sigLookup x sig of
-      Just (SigDef _ _ a _ _ _) => whnfElem sig (substElem a (embed es))
+    case map entryBody (sigLookup x sig) of
+      Just (Just a) => whnfElem sig (substElem a (embed es))
       -- the evaluator runs over ACCEPTED (definitional) signatures
       -- only; a declaration or wrong-class reference is unreachable
-      Just _                => assert_total $ idris_crash "whnfElem: signature identifier '\{x}' is not a term definition (Compute assumes a definitional Σ)"
+      Just Nothing          => assert_total $ idris_crash "whnfElem: signature identifier '\{x}' is not a term definition (Compute assumes a definitional Σ)"
       Nothing               => assert_total $ idris_crash "whnfElem: signature identifier '\{x}' not found"
   whnfElem sig (Class a)          = Class a
   whnfElem sig (QuotElim f q) =

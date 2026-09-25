@@ -14,6 +14,7 @@ module Nova.Elaboration.Beta
 -- memos lived here until default mode was retired; the kernel's
 -- kJoin*/kWhnf* are the surviving trusted-side relatives.)
 
+import Nova.Kernel
 import Nova.Kernel.Syntax
 import Nova.Kernel.Derivation
 import Nova.Kernel.Subst

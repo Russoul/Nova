@@ -46,6 +46,7 @@ import Me.Russoul.Text.Range
 import Nova.Elaboration
 import Nova.Elaboration.Surface
 import Nova.Elaboration.Loader
+import Nova.Kernel
 import Nova.Kernel.Syntax
 import Nova.Kernel.Derivation
 import Nova.Recovery
@@ -382,9 +383,9 @@ driftCulprits : Sig -> Sig -> List String
 driftCulprits a b = nub (go (toList a) (toList b))
  where
   go : List SigEntry -> List SigEntry -> List String
-  go (SigDef _ _ body ty _ _ :: xs) (SigDef _ _ body' ty' _ _ :: ys) =
-    dhE body body' ++ dhT ty ty' ++ go xs ys
-  go (_ :: xs) (_ :: ys) = go xs ys
+  go (e :: xs) (e' :: ys) = case (entryBody e, entryBody e') of
+    (Just body, Just body') => dhE body body' ++ dhT (entryTy e) (entryTy e') ++ go xs ys
+    _ => go xs ys
   go _ _ = []
 
 defItemNames : List ModUnit -> List String
