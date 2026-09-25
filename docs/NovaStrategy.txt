@@ -362,6 +362,44 @@ engine (typed unfolding: the engine carries derivations):
          engine always writes the middle it computed. Optional; the
          largest simplification of the trusted base available.
 
+After the review of 2026-09-25 (is the kernel complete enough to
+proceed to the engine?), two additive items:
+
+  [x] 9. Assumptions READ. kAssumeDecl / kAssumeDef read an
+         assumption's telescope and type derivations against the
+         whole Σ before marking the entry assumed, so every entry of
+         Σ is a well-formed statement — an admitted one read whole, an
+         assumed one read at its statement. The engine enters
+         obligations, holes, written declarations and non-admitted
+         items through them; the raw unread constructors remain as
+         the counted fallback (ASSUME-UNREAD). A statement is entered
+         read only when EVERY piece of it derives — a piece the bridge
+         cannot rebuild leaves the statement unread with the engine's
+         spelling, never a leaf standing in (the kernel would read a
+         different statement). Counts on 2026-09-25: 0 over the
+         corpus; 7 over the test suite, every one an obligation whose
+         well-formedness depends on a synthetic hole's solution held
+         in the engine's constraint store, not in Σ — honest unreads.
+  [ ] 10. Readings return type derivations. The honest form is the
+         reader over DERIVATION-TYPED contexts and types: Ctx entries
+         carry their derivations, the type flowing down is a
+         derivation, every type the reader computes (a motive
+         instance, a codomain, a let body's type) is a substD of read
+         derivations, and a conversion's target is a formation node
+         (the target derivation transported along the proof). It needs
+         the derivation-level whnf on types complete (the QIIT
+         eliminator's contraction: the signature's reflection on
+         derivations) and the engine's library calls to supply
+         telescopes (the registry). A rewrite of the reader's core
+         (~3000 lines), taken as one atomic step with the corpus green
+         at the end, or as a parallel derivation-typed reader; NOT a
+         cheap node ("the type of this element derivation" as a
+         formation step is sound but has no erasure, and would leak
+         into carriers). The engine does not need it yet: the registry
+         and the bridge supply every context and type derivation over
+         the corpus with zero fallbacks. Deferred until an engine
+         consumer appears.
+
 ////////// Relation to the other documents //////////
 
   docs/NovaFoundation.txt   the theory the kernel reads against

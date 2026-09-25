@@ -1056,10 +1056,17 @@ through it:
 
   entry points     kCheckDefDrv   Σ → Δ̄ → π_T → π → SigEntry | error
                    kCheckTyDefDrv Σ → Δ̄ → π_T → SigEntry | error
+                   kAssumeDecl    Σ → Δ̄ → π_T → SigEntry | error
+                   kAssumeDef     Σ → Δ̄ → π_T → t → π → SigEntry | error
                    kCheckEqDrv    Σ → Δ̄ → π_A → π → l → r → () | error
                    The telescope Δ̄ and the type are DERIVATIONS, read
                    before anything else; the equation's sides are bare
-                   because they are compared, never trusted. An
+                   because they are compared, never trusted. The
+                   assumption entry points read an assumption's
+                   statement (against the whole Σ — an assumption may
+                   mention earlier ones) and mark the entry ASSUMED: a
+                   well-formed statement that blocks acceptance; a
+                   definition assumed keeps its body unread. An
                    admitting entry point returns the entry it admits;
                    the engine extends the kernel's Σ with that entry
                    and nothing else (kernelAccept, one site).
@@ -1068,9 +1075,12 @@ through it:
                    (sigEntryName, sigEntryIsDef, entryAssumed,
                    entryCtx, entryTy, entryBody, entryTyD, entryBodyD,
                    entryDef, entryDecl, entryClosed, entryClosedDef),
-                   sigAdmitted, sigClosed, renameEntry; and the
-                   engine's only constructors, assumeDef/assumeDecl,
-                   which MARK an entry assumed (§8).
+                   sigAdmitted, sigClosed, renameEntry; and the raw
+                   constructors assumeDef/assumeDecl — an entry
+                   assumed with its type UNREAD, the engine's fallback
+                   when it cannot supply the derivations the
+                   assumption entry points read, counted by its
+                   ASSUME-UNREAD audit (§8).
   the grammar      Drv, DQTm, DQTy, DQSig, DPoly (§2) — the input
                    language; the engine writes it, the kernel reads it.
   on derivations   erase (and eraseQTm/QTy/QSig, erasePoly), substD

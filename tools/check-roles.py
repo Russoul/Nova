@@ -49,7 +49,10 @@ ESCAPES = ["believe_me", "assert_total", "assert_smaller", "unsafePerformIO",
 AUDIT_FUNCTIONS = set()
 
 # K4: the entry points, by name, and which of them admit an entry
-ENTRY_POINTS = {"kCheckDefDrv": True, "kCheckTyDefDrv": True, "kCheckEqDrv": False}
+# admit: returns the entry Σ is extended with, called on ksig inside
+# kernelAccept only; assume: returns an entry marked assumed, called
+# inside the two counting helpers only; check: a verdict
+ENTRY_POINTS = {"kCheckDefDrv": "admit", "kCheckTyDefDrv": "admit", "kAssumeDecl": "assume", "kAssumeDef": "assume", "kCheckEqDrv": "check"}
 
 failures = []
 
@@ -167,24 +170,24 @@ def check_k4():
     lines = path.read_text().splitlines()
     found = {}
     for i, l in enumerate(lines):
-        m = re.match(r"^(kCheck\w*)\s*:\s*(.*)$", l)
+        m = re.match(r"^(k(?:Check|Assume)\w*)\s*:\s*(.*)$", l)
         if m:
             exported = i > 0 and lines[i - 1].strip() == "export"
             found[m.group(1)] = (exported, m.group(2))
     names = set(found)
     if names != set(ENTRY_POINTS):
-        fail("K4", f"the kernel's kCheck* functions are {sorted(names)}, the entry points on record are {sorted(ENTRY_POINTS)} — update docs/NovaStrategy.txt and this check together")
+        fail("K4", f"the kernel's kCheck*/kAssume* functions are {sorted(names)}, the entry points on record are {sorted(ENTRY_POINTS)} — update docs/NovaStrategy.txt and this check together")
         return
-    for n, admits in ENTRY_POINTS.items():
+    for n, kind in ENTRY_POINTS.items():
         exported, ty = found[n]
         if not exported:
             fail("K4", f"{n} is not exported")
-        if admits and not ty.rstrip().endswith("Either KErr SigEntry"):
-            fail("K4", f"{n} does not return the entry it admits: {ty}")
-        if not admits and not ty.rstrip().endswith("Either KErr ()"):
+        if kind in ("admit", "assume") and not ty.rstrip().endswith("Either KErr SigEntry"):
+            fail("K4", f"{n} does not return the entry it produces: {ty}")
+        if kind == "check" and not ty.rstrip().endswith("Either KErr ()"):
             fail("K4", f"{n} should return a verdict only: {ty}")
     if not any(f.startswith("K4") for f in failures):
-        ok("K4", f"entry points {', '.join(sorted(ENTRY_POINTS))}; the admitting ones return the entry")
+        ok("K4", f"entry points {', '.join(sorted(ENTRY_POINTS))}; the admitting and assuming ones return the entry")
 
 
 # ----- S1 / S2 -------------------------------------------------------------
@@ -196,10 +199,15 @@ def check_s1():
     entry points are called on ksig inside kernelAccept only, whose
     admitted entry is what every mirror site extends Σ with."""
     bad = []
-    admitting = [n for n, a in ENTRY_POINTS.items() if a]
+    admitting = [n for n, k in ENTRY_POINTS.items() if k == "admit"]
+    assuming = [n for n, k in ENTRY_POINTS.items() if k == "assume"]
     mirrors = 0
     for path in engine_files():
+        names = enclosing_names(path)
         for i, l in code_lines(path):
+            for n in assuming:
+                if re.search(rf"\b{n}\b", l) and names.get(i) not in ("assumeDeclK", "assumeDefK"):
+                    bad.append(f"{path.relative_to(ROOT)}:{i}: {n} called outside assumeDeclK/assumeDefK")
             if re.search(r"\bSig(Def|Decl)\b", l):
                 bad.append(f"{path.relative_to(ROOT)}:{i}: names a signature-entry constructor")
             if "kernelSig" in l:
@@ -207,8 +215,12 @@ def check_s1():
             for n in admitting:
                 if re.search(rf"\b{n}\b", l) and not re.search(rf"\b{n}\s+ksig\b", l):
                     bad.append(f"{path.relative_to(ROOT)}:{i}: {n} called outside kernelAccept (not on ksig)")
-            if re.search(r"sig\s*\$=\s*\(:<\s*fromMaybe \(assumeDef", l):
+            if re.search(r"sig\s*\$=\s*\(:<\s*fromMaybe \(assumeDefK", l):
                 mirrors += 1
+            # the raw (unread) constructors: only inside the two helpers
+            # that count their use
+            if re.search(r"\bassumeDe(f|cl)\b(?!K)", l) and names.get(i) not in ("assumeDeclK", "assumeDefK"):
+                bad.append(f"{path.relative_to(ROOT)}:{i}: raw assumption constructor outside assumeDeclK/assumeDefK")
     for b in bad:
         fail("S1", b)
     if not any(f.startswith("S1") for f in failures):
@@ -229,14 +241,14 @@ def check_e1():
         for i, l in enumerate(lines, 1):
             if re.search(r"\bsig\s*\$=\s*\(:<", l):
                 window = "\n".join(lines[max(0, i - 26):i - 1])
-                if "fromMaybe (assumeDef" in l and "kernelAccept" in window:
-                    kind = "mirror of an admission (assumed when the item was not clean)"
-                elif "assumeDecl" in l and "oblName" in l:
-                    kind = "assumed obligation (open)"
-                elif "assumeDecl" in l and names.get(i) == "mintHole":
-                    kind = "hole (open)"
-                elif "assumeDecl" in l and "SDeclDef" in window:
-                    kind = "written declaration (open)"
+                if "fromMaybe (assumeDefK" in l and "kernelAccept" in window:
+                    kind = "mirror of an admission (assumed, type read, when the item was not clean)"
+                elif "assumeDeclK" in l and "oblName" in l:
+                    kind = "assumed obligation (open, statement read)"
+                elif "assumeDeclK" in l and names.get(i) == "mintHole":
+                    kind = "hole (open, type read)"
+                elif "assumeDeclK" in l and "SDeclDef" in window:
+                    kind = "written declaration (open, type read)"
                 else:
                     kind = None
                 sites.append((path, i, names.get(i), kind))

@@ -144,9 +144,10 @@ entryClosedDef : SigEntry -> Maybe (Elem, Ty)
 entryClosedDef (SigDef _ [<] _ b t _ _) = Just (b, t)
 entryClosedDef _ = Nothing
 
-||| The engine's ONLY constructors: an entry it ASSUMES — an item not
-||| admitted (its derivations kept for display and re-use, never
-||| read), an obligation, a hole, a written declaration. Marked, so
+||| The engine's raw constructors: an entry ASSUMED with its type
+||| UNREAD — the fallback when the engine cannot supply the
+||| derivations the assumption entry points (kAssumeDecl,
+||| kAssumeDef) read, counted by its ASSUME-UNREAD audit. Marked, so
 ||| that it can never pass for an admitted one.
 export
 assumeDef : Ctx -> SigIdentifier -> Elem -> Ty -> Drv -> Drv -> SigEntry
@@ -2825,6 +2826,33 @@ kCheckTyDefDrv sig0 fuel name tele dty =
     ctx <- teleCtx sig tele
     ty <- dType sig ctx dty
     pure (SigDef False ctx name ty TopTy dty DTop)) fuel
+
+||| An ASSUMPTION, READ: a stuck named entry — an obligation at its
+||| equation's prop, a hole at its type, a written declaration — whose
+||| telescope and type derivations are read first, against the whole
+||| Σ (an assumption may mention earlier assumptions: a hole in an
+||| obligation's statement); the entry is MARKED assumed, so it blocks
+||| acceptance and admission never reads against it. The assumption
+||| is thereby a well-formed statement, never an arbitrary term.
+export
+kAssumeDecl : Sig -> Nat -> String -> List Drv -> Drv -> Either KErr SigEntry
+kAssumeDecl sig fuel name tele dty =
+  map fst $ runKM (do
+    ctx <- teleCtx sig tele
+    ty <- dType sig ctx dty
+    pure (SigDecl True ctx name ty dty)) fuel
+
+||| A definition ASSUMED — an item not admitted (open obligations, a
+||| hole, a blocked dependency): its type read as above, its body and
+||| body derivation kept as the engine wrote them, unread (a δ leaf at
+||| it never enters admission — the entry is assumed).
+export
+kAssumeDef : Sig -> Nat -> String -> List Drv -> Drv -> (body : Elem) -> (bodyD : Drv) -> Either KErr SigEntry
+kAssumeDef sig fuel name tele dty body bodyD =
+  map fst $ runKM (do
+    ctx <- teleCtx sig tele
+    ty <- dType sig ctx dty
+    pure (SigDef True ctx name body ty bodyD dty)) fuel
 
 ||| An equation proof read against its sides (the engine's check):
 ||| the telescope and the type as derivations, read first; the sides

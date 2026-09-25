@@ -3359,7 +3359,7 @@ reTy st ctx t =
       r = reTyM st ctx t
   in bump "bridge-ty" (nowNs () - t0) (case r of
        Just d => d
-       Nothing => audit "DRV-BRIDGE type | \{show t}" DTop)
+       Nothing => audit "DRV-BRIDGE type | \{either id (const "") (kReDeriveTy st.sig kernelFuel ctx t)} | \{show t}" DTop)
 
 ||| A bare context as a telescope of derivations, each over the
 ||| entries before it — what the kernel's equation entry point reads
@@ -3382,6 +3382,33 @@ reTele st ctx = go ctx
 ||| supplies is an ENGINE defect, reported as the check's verdict —
 ||| never a bare check (docs/NovaStrategy.txt, kernel programme
 ||| item 2).
+||| An assumption entered READ (kAssumeDecl: the kernel reads its
+||| telescope and type derivations, the engine's own where it noted
+||| them and the bridge's otherwise); where no derivation can be
+||| supplied or the kernel rejects the statement, entered UNREAD and
+||| counted (ASSUME-UNREAD — the measure that should stay at zero).
+||| `mTyD` is the statement's derivation when every piece of it
+||| derives (a piece the bridge cannot rebuild leaves nothing — never
+||| a leaf standing in, which the kernel would read as a different
+||| statement); `tyDRaw` is the best-effort derivation the unread
+||| entry keeps for display and re-use.
+assumeDeclK : ElabSt -> Ctx -> String -> Ty -> Maybe Drv -> Drv -> SigEntry
+assumeDeclK st ctx q ty mTyD tyDRaw =
+  case (reTele st ctx, mTyD) of
+    (Right tele, Just tyD) => case kAssumeDecl st.sig kernelFuel q tele tyD of
+      Right e => e
+      Left err => audit "ASSUME-UNREAD | \{st.modPrefix}:\{st.curItem} | \{q} | \{err}" (assumeDecl ctx q ty tyDRaw)
+    (Left t, _) => audit "ASSUME-UNREAD | \{st.modPrefix}:\{st.curItem} | \{q} | no derivation for the context entry \{show t}" (assumeDecl ctx q ty tyDRaw)
+    (_, Nothing) => audit "ASSUME-UNREAD | \{st.modPrefix}:\{st.curItem} | \{q} | no derivation for the statement \{show ty}" (assumeDecl ctx q ty tyDRaw)
+
+||| A definition not admitted, entered with its type READ (kAssumeDef)
+||| and its body unread; the unread fallback counted as above.
+assumeDefK : ElabSt -> String -> Elem -> Ty -> Drv -> Drv -> SigEntry
+assumeDefK st q body ty bodyD tyD =
+  case kAssumeDef st.sig kernelFuel q [] tyD body bodyD of
+    Right e => e
+    Left err => audit "ASSUME-UNREAD | \{st.modPrefix}:\{st.curItem} | \{q} | \{err}" (assumeDef [<] q body ty bodyD tyD)
+
 checkEqK : ElabSt -> Ctx -> Drv -> Elem -> Elem -> Ty -> Either KErr ()
 checkEqK st ctx prf a b ty =
   let tyD = the (Either Ty Drv) $ case ty of
@@ -3406,6 +3433,10 @@ reTyK st ctx t =
 motiveIsProp : Drv -> Bool
 motiveIsProp (DAscribe _ (Just DProp) _) = True
 motiveIsProp _ = False
+
+||| A bare term derived in checking mode at its type, or nothing.
+reChkM : ElabSt -> Ctx -> Elem -> Ty -> Maybe Drv
+reChkM st ctx e ty = either (const Nothing) Just (kReDeriveChk st.sig kernelFuel ctx e ty)
 
 ||| A bare term derived in checking mode at its type.
 reChk : ElabSt -> Ctx -> Elem -> Ty -> Drv
@@ -3516,7 +3547,7 @@ assume stmt site comp = do
     StElem ctx env a b ty => do
       if cheap
         then modifySt $ \s =>
-          { sig $= (:< assumeDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty) (DEq (reChk st ctx a ty) (reChk st ctx b ty) (reTy st ctx ty)))
+          { sig $= (:< assumeDeclK st ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty) [| DEq (reChkM st ctx a ty) (reChkM st ctx b ty) (reTyM st ctx ty) |] (DEq (reChk st ctx a ty) (reChk st ctx b ty) (reTy st ctx ty)))
           , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing (unfsOf st) st.curImps) } s
         else if assumedMatchE st ctx a b ty
         then modifySt { itemAssumed := True }
@@ -3524,12 +3555,12 @@ assume stmt site comp = do
           let aK = rwNfElem st ctx a
               bK = rwNfElem st ctx b in
           { assumedE $= ((elemSize aK + elemSize bK, ctx, aK, bK, engNfT st ty) ::)
-          , sig $= (:< assumeDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty) (DEq (reChk st ctx a ty) (reChk st ctx b ty) (reTy st ctx ty)))
+          , sig $= (:< assumeDeclK st ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty) [| DEq (reChkM st ctx a ty) (reChkM st ctx b ty) (reTyM st ctx ty) |] (DEq (reChk st ctx a ty) (reChk st ctx b ty) (reTy st ctx ty)))
           , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) (unfsOf st) st.curImps) } s
     StTy ctx env x y => do
       if cheap
         then modifySt $ \s =>
-          { sig $= (:< assumeDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy) (DEq (reTy st ctx x) (reTy st ctx y) DTop))
+          { sig $= (:< assumeDeclK st ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy) [| DEq (reTyM st ctx x) (reTyM st ctx y) (Just DTop) |] (DEq (reTy st ctx x) (reTy st ctx y) DTop))
           , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing (unfsOf st) st.curImps) } s
         else do
        let x' = rwNfTy st ctx x
@@ -3538,7 +3569,7 @@ assume stmt site comp = do
         then modifySt { itemAssumed := True }
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
-          , sig $= (:< assumeDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy) (DEq (reTy st ctx x) (reTy st ctx y) DTop))
+          , sig $= (:< assumeDeclK st ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy) [| DEq (reTyM st ctx x) (reTyM st ctx y) (Just DTop) |] (DEq (reTy st ctx x) (reTy st ctx y) DTop))
           , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) (unfsOf st) st.curImps) } s
  where
   hintFor : ElabSt -> Stmt -> Maybe String
@@ -3881,7 +3912,7 @@ mintHole ctx env site hrng label ty = do
     Just _ => throwAt (hrng <|> site.srange)
                 "\{site}: duplicate hole ?\{label} — every hole of an item needs its own name"
     Nothing => pure ()
-  modifySt $ { sig $= (:< assumeDecl ctx q ty (reTy st ctx ty))
+  modifySt $ { sig $= (:< assumeDeclK st ctx q ty (reTyM st ctx ty) (reTy st ctx ty))
              , declMeta $= (:< MkDeclMeta q env "\{site}" st.modFile (hrng <|> site.srange) (unfsOf st) st.curImps) }
   pure (SigVar q (varSpine (length ctx)))
 
@@ -4308,7 +4339,7 @@ emitInlineDefD site role ctx ty tyD body bodyD = do
   me <- kernelAccept "\{site} \{q}"
     (\ksig => kCheckDefDrv ksig kernelFuel q [] (piCloseD st ctx tyD) (lamsD k bodyD))
     [("TYPE", piCloseD st ctx tyD), ("BODY", lamsD k bodyD)]
-  modifySt $ { sig $= (:< fromMaybe (assumeDef [<] q cbody cty (lamsD k bodyD) (piCloseD st ctx tyD)) me), transp $= (q ::) }
+  modifySt $ \s => { sig $= (:< fromMaybe (assumeDefK s q cbody cty (lamsD k bodyD) (piCloseD st ctx tyD)) me), transp $= (q ::) } s
   pure q
 
 ||| An inline definition over its context: the type re-derived here.
@@ -7083,7 +7114,7 @@ emitCoreDef site x ty tySk body bodySk = do
   me <- kernelAccept "\{site} \{x}"
     (\ksig => kCheckDefDrv ksig kernelFuel q [] tySk bodySk)
     [("TYPE", tySk), ("BODY", bodySk)]
-  modifySt $ { sig $= (:< fromMaybe (assumeDef [<] q body ty bodySk tySk) me) }
+  modifySt $ \s => { sig $= (:< fromMaybe (assumeDefK s q body ty bodySk tySk) me) } s
   addVis (x, q)
   addLemma q [<] ty
 
@@ -7097,7 +7128,7 @@ emitCoreTyDef site x ty tySk = do
   me <- kernelAccept "\{site} \{x}"
     (\ksig => kCheckTyDefDrv ksig kernelFuel q [] tySk)
     [("TYPE", tySk)]
-  modifySt $ { sig $= (:< fromMaybe (assumeDef [<] q ty TopTy tySk DTop) me) }
+  modifySt $ \s => { sig $= (:< fromMaybe (assumeDefK s q ty TopTy tySk DTop) me) } s
   addVis (x, q)
 
 ||| The derivation of a right-nested Π-chain over a context: each
@@ -7236,7 +7267,7 @@ elabItemGo irng (SDef nrng x ty body muses) = do
   me <- kernelAccept "def \{x}"
     (\ksig => kCheckDefDrv ksig kernelFuel q [] tySk bodySk)
     [("TYPE", tySk), ("BODY", bodySk)]
-  modifySt $ { sig $= (:< fromMaybe (assumeDef [<] q body' ty' bodySk tySk) me) }
+  modifySt $ \s => { sig $= (:< fromMaybe (assumeDefK s q body' ty' bodySk tySk) me) } s
   addVis (x, q)
   addLemma q [<] ty'
   registerImps q ty
@@ -7255,8 +7286,8 @@ elabItemGo irng (SDeclDef nrng x ty) = do
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] (MkSite "def \{x}" irng) ty
   recordBinder nrng [<] [<] x ty'
-  modifySt $ { sig $= (:< assumeDecl [<] q ty' tySk)
-             , declMeta $= (:< MkDeclMeta q [<] "def \{x}" st.modFile nrng (unfsOf st) st.curImps) }
+  modifySt $ \s => { sig $= (:< assumeDeclK s [<] q ty' (Just tySk) tySk)
+             , declMeta $= (:< MkDeclMeta q [<] "def \{x}" st.modFile nrng (unfsOf st) st.curImps) } s
   addVis (x, q)
   -- a DECLARED equation is a lemma like any accepted one: its stuck
   -- reference is a proof element (el-sig-decl), so el-reflect makes
