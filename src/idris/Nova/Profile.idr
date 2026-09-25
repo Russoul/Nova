@@ -56,6 +56,22 @@ export
 scopedMode : Bool
 scopedMode = unsafePerformIO (map isNothing (getEnv "NOVA_GLOBAL_STORE"))
 
+||| NOVA_NOSEARCH: the discharge engine on the STATED forms alone
+||| (docs/NovaStrategy.txt, the engine programme): 0 = off (the full
+||| engine); 1 = MEASURE (`NOVA_NOSEARCH=measure`: the stated run
+||| first, the full engine where it fails, each such site counted by
+||| the SEARCH-NEEDED audit line — the migration debt); 2 = STRICT
+||| (`NOVA_NOSEARCH=1`: the stated run is the whole engine, a site it
+||| cannot close is an obligation).
+export
+noSearchMode : Nat
+noSearchMode = unsafePerformIO $ do
+  v <- getEnv "NOVA_NOSEARCH"
+  pure (case v of
+          Nothing => 0
+          Just "measure" => 1
+          Just _ => 2)
+
 ||| NOVA_SURVEY=1: migration-survey mode. Elaboration (a) does not
 ||| enforce the type-exposure whitelist — it only LOGS what each
 ||| item's whitelist would need (`unf <module>:<item>|<name>` labels) —

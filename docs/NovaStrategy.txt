@@ -400,6 +400,43 @@ proceed to the engine?), two additive items:
          the corpus with zero fallbacks. Deferred until an engine
          consumer appears.
 
+////////// The engine programme: from search to statements //////////
+
+The engine's remaining author-substitute is the discharge search:
+at a site the text does not close, it instantiates a lemma the
+`using` clause licenses, at an occurrence and in a direction of its
+choosing, chained through middles of its own. The programme replaces
+that with statements in the text, measured site by site.
+
+  [x] 1. THE MEASURE. `NOVA_NOSEARCH=measure` runs every discharge on
+         the STATED forms first — tiers 0/1, the licensed unfoldings,
+         the type-directed closings, the congruence descent, and
+         candidates the text states at the site: hypotheses in scope,
+         chain links, the ≡-elim hypothesis — and only then the full
+         engine, counting each site only the search closes
+         (SEARCH-NEEDED, with the proof it found). `NOVA_NOSEARCH=1`
+         is the strict form: the stated run is the whole engine. On
+         2026-09-25 the debt is 252 sites in 163 items (121 at a ⋆,
+         80 quotient well-definedness cases, 42 type conversions, 6
+         implicit-spine types, 3 chain steps): 128 are one lemma
+         instance at the root (with or without unfolding), 80 are
+         well-definedness by one lemma, the rest place lemmas at
+         positions or chain several. The count must only go down.
+  [ ] 2. THE STATED FORMS. A local claim states an instance and puts
+         it in scope as a hypothesis: `have h : a ≡ b ∈ A by e`, the
+         element e (a lemma applied, a hypothesis, a proof) checked at
+         the claim — the core's let of a proof, which the engine's
+         hypothesis source already reads. A stated instance closes a
+         site by lookup, at the root or at the position the
+         congruence descent determines; no lemma is instantiated by
+         matching.
+  [ ] 3. MIGRATE BY THE COUNT, item by item, until the strict run
+         accepts the corpus; then delete the search — candidate sets,
+         the depth, hop chaining, the `.rw` rewrite loops.
+  [ ] 4. Well-definedness as a claim (the 80 sites), by the same form.
+  [ ] 5. Contexts carrying derivations outright, replacing the
+         registry, once the engine's shape is settled.
+
 ////////// Relation to the other documents //////////
 
   docs/NovaFoundation.txt   the theory the kernel reads against

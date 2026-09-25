@@ -331,6 +331,11 @@ record ElabSt where
   ||| chain needs one hop per link, so its composite discharge runs at
   ||| depth links + spDepth instead of the fixed spDepth
   depthOv : Maybe Nat
+  ||| the engine on the STATED forms alone (NOVA_NOSEARCH, the engine
+  ||| programme's measure): candidates the text states at the site —
+  ||| hypotheses, chain links, the ≡-elim hypothesis — never a lemma
+  ||| instantiated by matching nor a licensed rewrite loop
+  statedOnly : Bool
   ||| Σ-name → the IMPLICIT positions of its leading Π-telescope
   ||| (docs/NovaPerfectSurface.txt, Phase 3): the {x : A} binders of
   ||| the def's surface type, recorded at acceptance, consulted at
@@ -433,7 +438,7 @@ record ElabSt where
   tyDrvs : List (Ctx, Ty, Drv)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<] [] 0 False Nothing []
+initSt = MkElabSt [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] [] Nothing False [] False [<] False [<] [<] [<] False False [] [] [<] [] 0 False Nothing []
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -1814,7 +1819,7 @@ unfLogTy sig ctx = unfLogElem sig (Just (ctx, Just TopTy))
 ||| engine compares, the proof what the kernel checks).
 rwNfElemP : ElabSt -> Ctx -> Maybe Ty -> (unfs : List String) -> List Cand -> Elem -> (Elem, Maybe Drv)
 rwNfElemP st ctx mty unfs cands e =
-  if elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
+  if not st.statedOnly && (elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs)
     -- the RAW side rewritten first (its positions are arguments of
     -- definitions with declared types: every leaf lands at a typed
     -- position), then unfolded, then the loop
@@ -1846,7 +1851,7 @@ rwNfElemP st ctx mty unfs cands e =
 ||| rwNfElemP for a type (at 𝕍; type positions descend as rewriteTyS).
 rwNfTyP : ElabSt -> Ctx -> (unfs : List String) -> List Cand -> Ty -> (Ty, Maybe Drv)
 rwNfTyP st ctx unfs cands ty =
-  if elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
+  if not st.statedOnly && (elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs)
     then goS rwFuel [] (compTy ty) (Just []) False
     else let (start, uP) = unfLogTy st.sig ctx unfs ty in (start, Just uP)
  where
@@ -2670,9 +2675,15 @@ mutual
     -- hops: only CHAIN LINKS hop (mkCandSet filters) —
     -- walking the operator's own listed adjacencies is the chain's
     -- explicit trans semantics, not search
-    firstJ (map direct cs.all)
+    firstJ (map direct (if st.statedOnly then filter stated cs.all else cs.all))
       <|> firstJ (map hop cs.hops)
    where
+    -- a candidate the text STATES at the site: a hypothesis in
+    -- scope, a chain link written at its step, the ≡-elim hypothesis
+    -- (never a Σ-lemma the `using` clause merely licenses — its
+    -- instance would be the engine's choice)
+    stated : Cand -> Bool
+    stated c = elem c.candName ["hypothesis", "chain link", "eq-elim"]
     firstJ : List (Maybe x) -> Maybe x
     firstJ [] = Nothing
     firstJ (Just v :: _) = Just v
@@ -3593,6 +3604,22 @@ assume stmt site comp = do
   fth4 : (a, b, c, d) -> d
   fth4 (_, _, _, x) = x
 
+||| The engine on the STATED forms alone, then — by NOVA_NOSEARCH —
+||| nothing more (strict), or the full engine with the site COUNTED
+||| where only it closes the site (measure), or the full engine
+||| outright (off). The count is the migration debt: the sites where
+||| the text does not yet say what the proof uses (docs/NovaStrategy.txt,
+||| the engine programme).
+withStated : (ElabSt -> Maybe Drv) -> (Drv -> String) -> ElabSt -> Maybe Drv
+withStated run line st =
+  if noSearchMode == 0 then run st else
+  case run ({ statedOnly := True } st) of
+    Just p => Just p
+    Nothing => if noSearchMode == 2 then Nothing
+               else case run st of
+                      Just p => audit (line p) (Just p)
+                      Nothing => Nothing
+
 mutual
   ||| One discharge attempt: engine + eager kernel check. Right = the
   ||| checked proof; Left = the site string, annotated when the engine
@@ -3628,7 +3655,8 @@ mutual
             let cs = bump "candN" (cast (length cs0.all)) cs0
             let tyM = bump "sz-att-in" (cast (elemSize a + elemSize b)) ty
             let tyM2 = tyM
-            let mprf = spEqElemC (fromMaybe spDepth st.depthOv) st cs ctx a b tyM2
+            let mprf = withStated (\stX => spEqElemC (fromMaybe spDepth st.depthOv) stX cs ctx a b tyM2)
+                         (\p => "SEARCH-NEEDED elem | \{st.modPrefix}:\{st.curItem} | \{site} | \{showDrv p} | goal: \{show a} ≐ \{show b} : \{show ty}") st
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mprf of
               Nothing => pure (Left site)
@@ -3667,7 +3695,8 @@ mutual
             let t0 = nowNs ()
             let cs = mkCandSet st ctx
             let t1 = bump "cands" (nowNs () - t0) (nowNs ())
-            let mprf = spEqTyC (fromMaybe spDepth st.depthOv) st cs ctx tyA tyB
+            let mprf = withStated (\stX => spEqTyC (fromMaybe spDepth st.depthOv) stX cs ctx tyA tyB)
+                         (\p => "SEARCH-NEEDED ty | \{st.modPrefix}:\{st.curItem} | \{site} | \{showDrv p} | goal: \{show tyA} ≐ \{show tyB}") st
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mprf of
               Nothing => pure (Left site)
