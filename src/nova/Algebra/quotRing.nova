@@ -227,13 +227,13 @@ qrMulComm =
         _
         _
         _
-        ⋆
+        qrMulCls _ _ _ id a b
         trans
           _
           _
           qrMul _ _ _ id (class b) (class a)
           cong (λz. QRing _ r I) (λz. class z) (rMulComm _ r a b)
-          ⋆
+          qrMulCls _ _ _ id b a
       v
     u
 
@@ -246,7 +246,12 @@ qrMulOne : (R : 𝕌)
   using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrOne.eq, qrMulCls.rw)
 qrMulOne =
   λR r I id u. quot-elim
-    a. trans _ _ _ ⋆ (cong (λz. QRing _ r I) (λz. class z) {rmul _ r a (rone r)} {a} rMulOne)
+    a. trans
+      _
+      _
+      _
+      qrMulCls _ _ _ id a (rone {R} r)
+      cong (λz. QRing _ r I) (λz. class z) {rmul _ r a (rone r)} {a} rMulOne
     u
 
 qrAddComm : {R : 𝕌}
@@ -263,13 +268,13 @@ qrAddComm =
         _
         _
         _
-        ⋆
+        qrAddCls _ _ _ id a b
         trans
           _
           _
           qrAdd id (class b) (class a)
           cong (λz. QRing _ r I) (λz. class z) (rAddComm _ r a b)
-          ⋆
+          qrAddCls _ _ _ id b a
       v
     u
 

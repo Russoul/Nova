@@ -29,7 +29,7 @@ intAbsZero : intAbs intZero ≡ Z
     Int.intZero.eq,
     Int.normalize.normPair.eq,
     Natural.zeroPlusId)
-intAbsZero = ⋆
+intAbsZero = zeroPlusId Z
 
 intAbsOne : intAbs intOne ≡ S Z
   using (Int.eq.intCanon.eq,
@@ -37,7 +37,7 @@ intAbsOne : intAbs intOne ≡ S Z
     Int.intOne.eq,
     Int.normalize.normPair.eq,
     Natural.plusZeroId)
-intAbsOne = ⋆
+intAbsOne = plusZeroId (S Z)
 
 -- on a natural the magnitude is the natural back
 intAbsOfNat : {n : ℕ} → intAbs (intOfNat n) ≡ n
@@ -83,7 +83,7 @@ normPairSum =
       _
       cong (λu. ℕ) (λp. p .π₁ + p .π₂) {normPair b Z} {b, Z} normPairZR
       trans _ _ _ (plusZeroId b) (sym _ _ (zeroPlusId b))
-    n ih. λb. ℕ-elim ⋆ (m ihb. ih m) b
+    n ih. λb. ℕ-elim (plusComm (S n) Z) (m ihb. ih m) b
     a
 
 intAbsNeg : {z : Int} → intAbs (intNeg z) ≡ intAbs z

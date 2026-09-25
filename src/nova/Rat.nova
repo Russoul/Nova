@@ -81,7 +81,7 @@ nzToIntMul =
 -- congruences. These three build the one permutation the descent
 -- needs: swapping the outer two factors of (a·b)·(c·d).
 mulCongL : (x y z : Int) → (x ≡ y) → x * z ≡ y * z using (Int.Int.unfold, Int.mul.intMulCong2)
-mulCongL = λx y z h. ⋆
+mulCongL = λx y z h. intMulCong2 _ _ _ _ h ⋆
 
 mulCongR : (x y z : Int) → (y ≡ z) → x * y ≡ x * z using (Int.Int.unfold, Int.mul.intMulCong2)
 mulCongR = λx y z h. ⋆
@@ -1621,4 +1621,4 @@ nzqInvThird = ⋆
 
 qMulInvThird : qOfNzq nzqThird * qOfNzq (nzqInv nzqThird) ≡ qOne
   using (clsEqOfRel, Rat.Q.unfold, Rat.qMulInv)
-qMulInvThird = ⋆
+qMulInvThird = qMulInv {nzqThird}

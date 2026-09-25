@@ -81,7 +81,7 @@ zeroMonus : (b : ℕ) → Z ∸ b ≡ Z
     Natural.more.monusSucR,
     Natural.more.monusSucR.rw,
     Natural.more.pred.eq)
-zeroMonus = λb. ℕ-elim ⋆ (k ih. ⋆) b
+zeroMonus = λb. ℕ-elim (monusZeroR {Z}) (k ih. ⋆) b
 
 sucMonusSuc : (a b : ℕ) → S a ∸ S b ≡ a ∸ b using (Natural.more.pred.eq, Natural.more.∸.eq)
 sucMonusSuc = λa b. ℕ-elim ⋆ (k ih. ⋆) b
@@ -105,7 +105,7 @@ monusPlus = λa b c. ℕ-elim ⋆ (k ih. ⋆) c
 
 monusSelf : {a : ℕ} → a ∸ a ≡ Z
   using (hyp.rw, Natural.more.zeroMonus, Natural.more.zeroMonus.rw, sucMonusSuc, sucMonusSuc.rw)
-monusSelf = λa. ℕ-elim ⋆ (k ih. ⋆) a
+monusSelf = λa. ℕ-elim (zeroMonus _) (k ih. ⋆) a
 
 -- ...so a ≤ b makes a − b vanish
 monusZeroOfLe : (a b : ℕ) → a ≤ b → a ∸ b ≡ Z using (Core.id.Id.unfold, Natural.order.≤.unfold)
@@ -192,7 +192,7 @@ oneExp : (n : ℕ) → S Z ^ n ≡ S Z
     multZeroId.rw,
     plusZeroId,
     plusZeroId.rw)
-oneExp = λn. ℕ-elim ⋆ (k ih. ⋆) n
+oneExp = λn. ℕ-elim (expZero _) (k ih. ⋆) n
 
 -- x * (y * z) ≡ y * (x * z): the left-swap under associativity,
 -- stated in the exact shape expPlus's step case needs

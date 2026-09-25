@@ -83,10 +83,10 @@ nzMulOneR = λx. ⊎-elim (m. ⋆) (m. ⋆) x
 -- flips do; each is proved by ⋆, the original firing by
 -- whole-equation match on the flipped goal.
 distribBack : (n m k : ℕ) → n * m + n * k ≡ n * (m + k) using (multDistrib)
-distribBack = λn m k. ⋆
+distribBack = λn m k. multDistrib n m k
 
 sucMultBack : (n m : ℕ) → m + n * m ≡ S n * m using (sucMult)
-sucMultBack = λn m. ⋆
+sucMultBack = λn m. sucMult n m
 
 oneMult : (m : ℕ) → S Z * m ≡ m using (multComm)
 oneMult = λm. S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m + Z ≡⟨ plusZeroId m ⟩ m

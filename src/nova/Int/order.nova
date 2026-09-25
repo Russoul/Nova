@@ -235,7 +235,7 @@ clsOfRelGe = λa b k h. ⋆
 
 clsOfRelLe : (a b k : ℕ) → (a + k ≡ b) → class (k, Z) ≡ class (b, a) ∈ Int
   using (Int.order.clsOfRelGe, Int.Int.unfold, plusComm, zeroPlusId)
-clsOfRelLe = λa b k h. ⋆
+clsOfRelLe = λa b k h. clsOfRelGe _ _ _ h
 
 intNegClass : (p : ℕ × ℕ) → intNeg (class p) ≡ class (p .π₂, p .π₁)
   using (Int.Int.unfold, Int.intNeg.eq)

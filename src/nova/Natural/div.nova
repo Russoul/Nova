@@ -228,7 +228,7 @@ leSucNotSelf =
             _
             _
             _
-            sym _ _ (trans _ _ (a + S (le .π₁)) (sucPlus a (le .π₁)) ⋆)
+            sym _ _ (trans _ _ (a + S (le .π₁)) (sucPlus a (le .π₁)) (plusSucId a (le .π₁)))
             idToEq _ _ _ (le .π₂)
           sym _ _ (plusZeroId a)
 
@@ -244,7 +244,7 @@ ltProdSuc =
         _
         _
         _
-        trans _ _ (d * S d' + S d') (sucPlus (d * S d') d') ⋆
+        trans _ _ (d * S d' + S d') (sucPlus (d * S d') d') (plusSucId (d * S d') d')
         trans _ _ _ (plusComm (S d') (d * S d')) (sym _ _ (sucMult d (S d')))
 
 -- the two quotients' common part cancels, leaving the remainders

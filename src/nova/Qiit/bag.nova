@@ -13,7 +13,7 @@ data [a : 𝕌]
 -- lemma discharges the ⋆ at every carrier at once)
 swapG : {a : 𝕌} {x y : a} {m : Bag a} → ins a x (ins a y m) ≡ ins a y (ins a x m) ∈ Bag a
   using (Qiit.bag.Bag.unfold, Qiit.bag.ins.eq, swp)
-swapG = λa x y m. ⋆
+swapG = λa x y m. swp a x y m
 
 -- size, defined once for every carrier — the method is
 -- order-insensitive, so the coherence argument is ⋆

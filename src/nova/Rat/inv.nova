@@ -14,7 +14,7 @@
 -- (a*b ≡ Z in ℕ says exactly "a is Z or b is Z") rather than a
 -- disjunction, so the case analysis below stays first-order
 
-import Natural (+, *, zeroMult, multSucId, sucPlus, plusZeroId, zeroPlusId, plusComm, plusAssoc)
+import Natural (+, *, zeroMult, multSucId, sucPlus, plusZeroId, zeroPlusId, plusComm, plusAssoc, multZeroId)
 import Int (Int, intZero, intOne)
 import Int.normalize (normPair)
 import Int.mul (*, intMulOneR, intMulZeroL, classPairEta)
@@ -27,7 +27,7 @@ import Core.equality (trans, sym, cong)
 
 normProdZero : {a b : ℕ} → normPair a b .π₁ * normPair a b .π₂ ≡ Z
   using (Int.normalize.normPair.eq, Natural.multZeroId, zeroMult)
-normProdZero = λa. ℕ-elim (λb. ⋆) (k ih. λb. ℕ-elim ⋆ (j ihb. ih j) b) a
+normProdZero = λa. ℕ-elim (λb. zeroMult b) (k ih. λb. ℕ-elim (multZeroId (S k)) (j ihb. ih j) b) a
 
 intCanonProdZero : (z : Int) → intCanon z .π₁ * intCanon z .π₂ ≡ Z
   using (Int.eq.intCanon.eq, Int.Int.unfold, Int.normalize.normPair.eq, normProdZero)

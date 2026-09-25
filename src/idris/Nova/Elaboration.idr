@@ -3610,6 +3610,41 @@ assume stmt site comp = do
 ||| outright (off). The count is the migration debt: the sites where
 ||| the text does not yet say what the proof uses (docs/NovaStrategy.txt,
 ||| the engine programme).
+||| The SEARCH-NEEDED line: the site, its source span, the proof the
+||| search found, and — for the migration — the INSTANCES its licence
+||| leaves state, rendered in the site's surface names (each ⟨e⟩ leaf
+||| as the element e), with whether the proof is one such instance at
+||| the root (then the ⋆ is simply that instance) or places them.
+searchLine : ElabSt -> NameEnv -> Site -> String -> Drv -> String
+searchLine st env site kind p =
+  let leaves = collect p
+      insts = map (\e => prettyElemN st.impls st.modFix env (displayElemIn st (unfsOf st) e)) leaves
+      shape = if rootOnly p && length leaves == 1 then "root" else "placed"
+      span = case site.srange of
+               Just (MkRange (MkPosition l c) (MkPosition l' c')) => "\{show l}:\{show c}-\{show l'}:\{show c'}"
+               Nothing => "?"
+  in "SEARCH-NEEDED \{kind} | \{st.modPrefix}:\{st.curItem} | \{site} | \{showDrv p} | at \{st.modFile}:\{span} | \{shape} | " ++ joinBy " ;; " insts
+ where
+  -- the elements the reflection leaves ⟨e⟩ reflect
+  collect : Drv -> List Elem
+  collect (DRefl d) = maybe [] (\e => [e]) (erase d)
+  collect d = concatMap collect (drvChildren d)
+  -- one reflection at the root: through chains, symmetry, wrappers
+  -- and unfolding leaves only, never under a congruence node
+  rootOnly : Drv -> Bool
+  rootOnly (DRefl _) = True
+  rootOnly (DTrans p q) = rootOnly p && rootOnly q
+  rootOnly (DSym q) = rootOnly q
+  rootOnly (DConv q _ _) = rootOnly q
+  rootOnly (DAscribe q _ _) = rootOnly q
+  rootOnly (DAt q _ _) = rootOnly q
+  rootOnly (DDeltaAll _) = True
+  rootOnly DReflx = True
+  rootOnly (DApp (DDelta _ _) _) = True
+  rootOnly (DApp f DReflx) = rootOnly f
+  rootOnly (DDelta _ _) = True
+  rootOnly _ = False
+
 withStated : (ElabSt -> Maybe Drv) -> (Drv -> String) -> ElabSt -> Maybe Drv
 withStated run line st =
   if noSearchMode == 0 then run st else
@@ -3626,8 +3661,8 @@ mutual
   ||| wrote a proof the kernel rejected (engine bug signal, reported on
   ||| the obligation; a proof the engine could not even write is
   ||| dropped inside the search, audited as PROOF-FAIL).
-  attemptE : Ctx -> Site -> Elem -> Elem -> Ty -> ElabM (Either Site Drv)
-  attemptE ctx site a b ty =
+  attemptE : Ctx -> NameEnv -> Site -> Elem -> Elem -> Ty -> ElabM (Either Site Drv)
+  attemptE ctx env site a b ty =
     -- TIER 0 (↓ step 0): α-identical sides discharge by REFLEXIVITY —
     -- no candidate assembly, no engine, and no eager check: refl at
     -- identical sides cannot fail (the kernel's normalizer is
@@ -3656,7 +3691,7 @@ mutual
             let tyM = bump "sz-att-in" (cast (elemSize a + elemSize b)) ty
             let tyM2 = tyM
             let mprf = withStated (\stX => spEqElemC (fromMaybe spDepth st.depthOv) stX cs ctx a b tyM2)
-                         (\p => "SEARCH-NEEDED elem | \{st.modPrefix}:\{st.curItem} | \{site} | \{showDrv p} | goal: \{show a} ≐ \{show b} : \{show ty}") st
+                         (searchLine st env site "elem") st
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mprf of
               Nothing => pure (Left site)
@@ -3677,8 +3712,8 @@ mutual
                     pure (audit "REPLAY-FAIL elem | \{site} | \{kerrMsg} | \{showDrv prf} | goal: \{show a} ≐ \{show b} : \{show ty}"
                             (Left (sub site "\{site} [replay failed: \{kerrMsg}]")))
 
-  attemptT : Ctx -> Site -> Ty -> Ty -> ElabM (Either Site Drv)
-  attemptT ctx site tyA tyB =
+  attemptT : Ctx -> NameEnv -> Site -> Ty -> Ty -> ElabM (Either Site Drv)
+  attemptT ctx env site tyA tyB =
     -- TIER 0, as at attemptE: identical types are equal by reflexivity
     if tyA == tyB
       then pure (Right (bump "syn-eq-ty" 1 DReflx))
@@ -3696,7 +3731,7 @@ mutual
             let cs = mkCandSet st ctx
             let t1 = bump "cands" (nowNs () - t0) (nowNs ())
             let mprf = withStated (\stX => spEqTyC (fromMaybe spDepth st.depthOv) stX cs ctx tyA tyB)
-                         (\p => "SEARCH-NEEDED ty | \{st.modPrefix}:\{st.curItem} | \{site} | \{showDrv p} | goal: \{show tyA} ≐ \{show tyB}") st
+                         (searchLine st env site "ty") st
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mprf of
               Nothing => pure (Left site)
@@ -3716,7 +3751,7 @@ mutual
   ||| Γ ⊢ a ≐ b : A ↓ — always succeeds; assumes what it cannot discharge.
   convElem : Ctx -> NameEnv -> Site -> Maybe Stmt -> Elem -> Elem -> Ty -> ElabM (Maybe Drv)
   convElem ctx env site comp a b ty = do
-    r <- attemptE ctx site a b ty
+    r <- attemptE ctx env site a b ty
     case r of
       Right cert => pure (Just cert)
       Left site2 => do
@@ -3742,7 +3777,7 @@ mutual
               then do
                 -- children all discharged: the composite may now hold
                 -- outright — retry once before assuming it
-                r3 <- attemptE ctx site a b ty
+                r3 <- attemptE ctx env site a b ty
                 case r3 of
                   Right cert => pure (Just cert)
                   Left site3 => do assume cur site3 comp; pure Nothing
@@ -3844,7 +3879,7 @@ mutual
   ||| Γ ⊢ A ≐ B type ↓
   convTy : Ctx -> NameEnv -> Site -> Maybe Stmt -> Ty -> Ty -> ElabM (Maybe Drv)
   convTy ctx env site comp tyA tyB = do
-    r <- attemptT ctx site tyA tyB
+    r <- attemptT ctx env site tyA tyB
     case r of
       Right cert => pure (Just cert)
       Left site2 => do
@@ -3861,7 +3896,7 @@ mutual
             n1 <- constraintCountM
             if n1 == n0
               then do
-                r3 <- attemptT ctx site tyA tyB
+                r3 <- attemptT ctx env site tyA tyB
                 case r3 of
                   Right cert => pure (Just cert)
                   Left site3 => do assume cur site3 comp; pure Nothing

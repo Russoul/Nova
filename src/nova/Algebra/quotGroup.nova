@@ -314,7 +314,14 @@ qUnitL : (G : 𝕌)
   → qMul _ _ _ nn (qUnit _ g N) u ≡ u
   using (QGroup.unfold, qUnit.eq, qMulCls.rw)
 qUnitL =
-  λG g N nn u. quot-elim (a. trans _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gUnitL g a))) u
+  λG g N nn u. quot-elim
+    a. trans
+      _
+      _
+      _
+      qMulCls _ _ _ nn (ge {G} g) a
+      cong (λw. QGroup _ g N) (λw. class w) (gUnitL g a)
+    u
 
 qUnitR : (G : 𝕌)
   (g : IsGroup G)
@@ -324,7 +331,14 @@ qUnitR : (G : 𝕌)
   → qMul _ _ _ nn u (qUnit _ g N) ≡ u
   using (QGroup.unfold, qUnit.eq, qMulCls.rw)
 qUnitR =
-  λG g N nn u. quot-elim (a. trans _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gUnitR g a))) u
+  λG g N nn u. quot-elim
+    a. trans
+      _
+      _
+      _
+      qMulCls _ _ _ nn a (ge {G} g)
+      cong (λw. QGroup _ g N) (λw. class w) (gUnitR g a)
+    u
 
 qInvLaw : (G : 𝕌)
   (g : IsGroup G)

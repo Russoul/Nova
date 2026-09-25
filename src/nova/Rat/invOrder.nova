@@ -14,7 +14,7 @@
 
 import Core.prop (⊥, ¬, ⊃, impIntro, impApply, absurdP)
 import Rat (Q, +, *, qNeg, qZero, qOne, qAddZeroL, qAddZeroR, qAddComm, qAddAssoc, qAddNegR, qNegNeg, qMulComm, qMulAssoc, qMulOneL, qMulOneR, qDistribR)
-import Rat.order (Sign, sPos, sNeg, sZero, sgnQ, NonNegS, ≤, sgnCases, leQTrans, leQMulMono, leQAntisym, leQOfEq, sZeroNotPos)
+import Rat.order (Sign, sPos, sNeg, sZero, sgnQ, NonNegS, ≤, sgnCases, leQTrans, leQMulMono, leQAntisym, leQOfEq, sZeroNotPos, sgnQZero)
 import Rat.bound (leQNegFlip, leQZeroOfNonNeg, leQZeroOfPos, qNegZeroQ)
 import Rat.abs (leQZeroMul, qNegMulR, sgnQNegOfNeg)
 import Rat.lt (sgnQAddPosNonNeg)
@@ -25,7 +25,7 @@ import Core.equality (trans, sym, cong, transport, transportP)
 import Core.id (Id, idToEq, eqToId)
 
 sgnQZeroEq : sgnQ qZero ≡ sZero using (Rat.order.sgnQZero)
-sgnQZeroEq = ⋆
+sgnQZeroEq = sgnQZero
 
 -- qOne IS qInvNat Z, so its sign comes from Real.qInvNatPos
 qInvNatZeroEq : qInvNat Z ≡ qOne

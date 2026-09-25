@@ -14,7 +14,7 @@ import Rat.frac (oneMult)
 import Rat (Q, +, qNeg, qZero, qAddComm, qAddAssoc, qAddNegR, qAddZeroL)
 import Rat.order (≤, leQRefl, leQTrans)
 import Rat.bound (Bnd, bndAdd, bndEq, bndWeaken, leQAdd)
-import Rat.nat (qOfNat, qOfNatAdd, leQOfNat)
+import Rat.nat (qOfNat, qOfNatAdd, leQOfNat, qOfNatZero)
 import Rat.ceil (qNatBound, bndNatBound, leQFracOfNat)
 import Real (qInvNat, rBound, RSeq, Regular)
 import Real.neg (seqOf, regOf, regBnd)
@@ -114,4 +114,9 @@ seqBoundPos : {p : RSeq} → qZero ≤ qOfNat (seqBound p)
     Real.RSeq.unfold,
     Real.Regular.unfold)
 seqBoundPos =
-  λp. transport (λw. w ≤ qOfNat (seqBound p)) {qOfNat Z} {qZero} ⋆ (leQOfNat (leZero (seqBound p)))
+  λp. transport
+    λw. w ≤ qOfNat (seqBound p)
+    {qOfNat Z}
+    {qZero}
+    qOfNatZero
+    leQOfNat (leZero (seqBound p))

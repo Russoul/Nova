@@ -7,7 +7,7 @@
 import Natural (+, *, plusComm, plusAssoc, swapLeft, zeroPlusId, plusZeroId)
 import Int (Int, intZero, intNeg, intNegZero)
 import Int.add (+)
-import Int.mul (*, intMulComm, intMulAssoc, intMulZeroL, intMulZeroR)
+import Int.mul (*, intMulComm, intMulAssoc, intMulZeroL, intMulZeroR, intMulNegL)
 import Rat.frac (NZ, nzPos, nzNeg, nzToInt, nzMul, Rat, mkRat, num, den, denInt, ratNeg, ratZero, ratAdd, intScale)
 import Rat (Q, RatR, qcls, +, qNeg, qZero, qAddComm, qAddAssoc, qAddZeroL, qAddZeroR, qAddNegL, qAddNegR, qNegNeg, nzToIntMul, *, qMulComm, qMulZeroL, qDistribR, ratMul, intScaleIsMul)
 import Int.nonZero (nzOfInt, nzToIntNonZero, intNoZeroDiv)
@@ -305,7 +305,7 @@ intMulNegL : {z w : Int} → intNeg z * w ≡ intNeg (z * w)
     Int.mul.sum4Distrib,
     plusAssoc,
     Rat.frac.plusSwapRight)
-intMulNegL = λz w. quot-elim (u. quot-elim (v. ⋆) w) z
+intMulNegL = λz w. quot-elim (u. quot-elim (v. intMulNegL _ _) w) z
 
 -- negating flips the decided sign, shape by shape
 intSgnNegNz : {e : NZ} → intSgn (intNeg (nzToInt e)) ≡ sgnFlip (nzSgn e)

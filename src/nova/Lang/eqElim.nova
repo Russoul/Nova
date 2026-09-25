@@ -13,15 +13,15 @@
 -- with the variable removed — the difference between reasoning about x
 -- under an equation and reasoning about t with nothing left to carry.
 
-import Natural (+)
+import Natural (+, plusZeroId)
 
 pinned : (x : ℕ) (w : x ≡ Z) → x + x ≡ x using (Natural.plusZeroId)
-pinned = λx w. ≡-elim ⋆ x w
+pinned = λx w. ≡-elim (plusZeroId _) x w
 
 -- the orientation is read off w's type: either side may be the
 -- variable, and the rule is the same
 pinnedFlipped : (x : ℕ) (w : Z ≡ x) → x + x ≡ x using (Natural.plusZeroId)
-pinnedFlipped = λx w. ≡-elim ⋆ x w
+pinnedFlipped = λx w. ≡-elim (plusZeroId _) x w
 
 -- a hypothesis standing BETWEEN the variable and the equation is
 -- specialised with it, so inside, h is already the fact the goal wants

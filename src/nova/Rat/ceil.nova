@@ -24,7 +24,7 @@ import Rat (Q, qcls, RatR, dInt, clsEqOfRel, +, qNeg, qZero, qAddZeroL, qNegNeg,
 import Rat.order (Sign, sZero, sPos, sNeg, sgnQ, intSgn, intSgnZero, intSgnNz, nzSgn, NonNegS, ≤, leQTrans, intSgnNeg, intSgnPos, sgnQNegFlip, sgnFlip)
 import Rat.bound (Bnd, leQNegFlip, nonNegIsProp, nonNegNotNeg, bndIsProp, bndOfBothLe, leQIsProp, qNegZeroQ)
 import Rat.abs (qAbs, bndAbs, sgnQNegOfNeg)
-import Rat.nat (qOfNat, nonNegSgnOfLe, leQOfNat)
+import Rat.nat (qOfNat, nonNegSgnOfLe, leQOfNat, qOfNatZero)
 import Rat.arch (qPosDenView, PosDenView, leQUnsquash)
 import Int.nonZero (nzOfInt)
 import Core.equality (trans, sym, cong, transport, transportP)
@@ -404,7 +404,7 @@ leQFracOfNat =
 -- ===== the bound really bounds =====
 leQZeroNat : (K : ℕ) → qZero ≤ qOfNat K
   using (Rat.nat.qOfNatZero, Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold)
-leQZeroNat = λK. transport (λw. w ≤ qOfNat K) {qOfNat Z} {qZero} ⋆ (leQOfNat (leZero K))
+leQZeroNat = λK. transport (λw. w ≤ qOfNat K) {qOfNat Z} {qZero} qOfNatZero (leQOfNat (leZero K))
 
 -- at a positive denominator: nonnegative numerators land on the
 -- division estimate, negative ones are below zero and so below it too

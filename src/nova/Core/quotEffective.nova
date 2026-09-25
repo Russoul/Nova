@@ -121,4 +121,4 @@ sgHop2 : class Z ≡ class 2 ∈ SG using (Core.quotEffective.SG.unfold, sgHop1,
 sgHop2 = trans _ _ _ sgHop1 sgMid
 
 sgBack : class (S Z) ≡ class Z ∈ SG using (Core.quotEffective.SG.unfold, sgHop1)
-sgBack = ⋆
+sgBack = sgHop1

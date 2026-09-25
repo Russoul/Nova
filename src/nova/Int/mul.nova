@@ -16,7 +16,7 @@ import Int.add (+, intAddComm, intAddAssoc)
 import Core.equality (trans, cong, sym, paireta)
 
 distribBack : {n m k : ℕ} → n * m + n * k ≡ n * (m + k) using (multDistrib)
-distribBack = λn m k. ⋆
+distribBack = λn m k. multDistrib n m k
 
 -- right distributivity: Natural.nova has only the left law, so this is
 -- multComm on each factor, distribBack in the middle, multComm back
