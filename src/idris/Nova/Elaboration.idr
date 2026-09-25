@@ -3695,7 +3695,11 @@ mutual
             let cs = bump "candN" (cast (length cs0.all)) cs0
             let tyM = bump "sz-att-in" (cast (elemSize a + elemSize b)) ty
             let tyM2 = tyM
-            let mprf = withStated (\stX => spEqElemC (fromMaybe spDepth st.depthOv) stX cs ctx a b tyM2)
+            -- (the candidate set is built PER RUN: the stated run
+            -- normalizes the hypotheses in scope by the facts in scope
+            -- alone — a claim normalized by the licensed Σ rules would
+            -- vanish into triviality before it could state anything)
+            let mprf = withStated (\stX => spEqElemC (fromMaybe spDepth st.depthOv) stX (if stX.statedOnly then mkCandSet stX ctx else cs) ctx a b tyM2)
                          (searchLine st env site "elem") st
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mprf of
@@ -3735,7 +3739,7 @@ mutual
             let t0 = nowNs ()
             let cs = mkCandSet st ctx
             let t1 = bump "cands" (nowNs () - t0) (nowNs ())
-            let mprf = withStated (\stX => spEqTyC (fromMaybe spDepth st.depthOv) stX cs ctx tyA tyB)
+            let mprf = withStated (\stX => spEqTyC (fromMaybe spDepth st.depthOv) stX (if stX.statedOnly then mkCandSet stX ctx else cs) ctx tyA tyB)
                          (searchLine st env site "ty") st
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mprf of
