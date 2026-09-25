@@ -13,6 +13,7 @@ modules = Nova.Diagnostic
         , Nova.Kernel
         , Nova.Kernel.QIIT
         , Nova.Kernel.Derivation
+        , Nova.Elaboration.Rederive
         , Nova.Compute
         , Nova.Elaboration.Beta
         , Nova.Elaboration.Proof

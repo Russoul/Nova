@@ -266,9 +266,14 @@ parentheses.
 
 Binders are as in the core: a child under a binder is read in the
 extended context (the annotations' contexts are given with each
-rule). A carried signature 𝒮, eliminator problem and polynomial 𝔽 are
-INERT SYNTAX — they have no child positions (A3, §9); their embedded
-Nova pieces are checked when the carrier is (§8).
+rule). A carried signature 𝒮 and polynomial 𝔽 carry their embedded
+Nova pieces AS DERIVATIONS (DQSig mirrors the ToS grammar with a
+derivation at each external domain and argument; DPoly with one at
+each code), read when the carrier is (§8); a carrier is no CONGRUENCE
+position — its erasure must match the side's (A3, §9). Placed under
+binders by the data-item emitter, a carrier is weakened within the
+grammar: each piece under the substitution node ↑ⁿ⁺ᵐ extended by the
+m external variables before it at their domain derivations (§4).
 
 showDrv prints the grammar above in the core's own syntax (an
 annotation in braces, a substitution as [↑ᵈ ▷ …]); the elaborator's
@@ -767,27 +772,27 @@ are carriers, checked as below; the squashee of ∥·∥ as a type, the
 quotient's relation at Ω, an equality prop's sides at its ∈-type.
 
 CARRIERS — a polynomial 𝔽 (ν 𝔽, corec_𝔽) and a QIIT signature 𝒮
-(𝒮.𝕤, 𝒮.𝕔, 𝒮.𝕤-elim, qpath) — are inert syntax in a derivation (A3):
-their embedded Nova pieces come without derivations. They are
-checked when the carrier is read: a polynomial structurally (poly-
-hole/-const/-prod/-sum/-sigma/-pi: each embedded code at 𝕌, the
-context growing by the binders' domain codes — kCheckPolyK); a
-signature by Foundation's qctx / qty / qtm system read as an
-algorithm (the ToS is syntax-directed by construction: qiit-terms are
-variables and application chains, entry heads classify themselves —
-kQSigCheck), the only judgements with content being the embedded
-NOVA pieces — external Π domains as types over the Nova zone,
-external application arguments as elements. Each embedded piece is a
-BARE term, and the kernel checks it the only way it checks anything:
-its derivation is BUILT by re-derivation (below) and READ, the
-erasure compared with the piece (kCheckBare, kCheckTyBare). The
-fragment is the one the elaborator emits (A6, §9). Smallness (code-
-qiit's side condition) is the same scan at 𝕌 or Ω over each external
-domain in its own external context (kQSigSmall). Signature checking
-burns fuel only through the Nova checking it triggers.
+(𝒮.𝕤, 𝒮.𝕔, 𝒮.𝕤-elim, qpath) — carry their embedded Nova pieces as
+derivations (§2). A ν's polynomial is READ where the node is (dPoly:
+poly-hole/-const/-prod/-sum/-sigma/-pi, each code derivation at 𝕌,
+the context growing by the binders' domains); a sort's or
+eliminator's signature likewise (dQSig): Foundation's qctx / qty /
+qtm system read as an algorithm on the erasure (the ToS is syntax-
+directed by construction: qiit-terms are variables and application
+chains, entry heads classify themselves), every embedded piece read
+where it stands — an external Π domain as a type over the Nova zone,
+an external argument at its instantiated domain. SMALLNESS (code-
+qiit's side condition) is read off each external domain's own
+classifier (𝕌 or Ω small, 𝕍 large) — never tried. A constructor's
+and a path leaf's carrier is not read again: it must join with the
+type's, which was read where that type was. The fragment is the one
+the elaborator emits (A6, §9). The kernel checks no bare term: a
+carrier's pieces arrive derived like everything else.
 
-RE-DERIVATION (rdCheck, rdInfer, rdType — the kernel module's, but
-UNTRUSTED: a builder whose every result is read before it counts).
+RE-DERIVATION (Nova.Elaboration.Rederive: rdCheck, rdInfer, rdType,
+rdQSig, rdPoly — a module BESIDE the engine, not the kernel's, and
+UNTRUSTED: a builder whose every result is read before it counts;
+the kernel imports nothing from it).
 What the elaborator did not elaborate — a solved hole against its
 domain, a recovered motive over its quotient, an inferred type
 standing as an annotation, an inline definition's type over its
@@ -809,6 +814,10 @@ building instead of checking:
     motive read off its base case's type (an ℕ-elim's z, a ⊎-elim's
     or quot-elim's case when it does not mention the branch variable;
     a bare QIIT eliminator does not infer), codes at 𝕌, types at 𝕍;
+  * a carrier's pieces: a signature's external domains as types
+    under the external binders before them, its external arguments
+    by inference (as the elaborator elaborates them); a polynomial's
+    codes at 𝕌;
   * a type as a type: formation; a type that is no large former is
     classified by its OWN type — inferred, exposed to its head (a
     definition may hide Ω or 𝕌), and read off (never tried at one
@@ -876,8 +885,9 @@ theory would accept (incompleteness only).
 
   A3  OPAQUE CARRIERS. No node descends into a carried signature 𝒮,
       eliminator problem or polynomial 𝔽 — their embedded Nova pieces
-      have no proof positions (§2); a node carrying one demands the
-      sides' to match syntactically; two sorts at one position and
+      are derived (§2) but are no PROOF positions; a node carrying one
+      demands the sides' to match syntactically; two sorts at one
+      position and
       spine agree when their carried signatures JOIN alike (tyAgree,
       §3 — the structural identity el-qiit-beta fires on); a path
       leaf's carried signature and a corec's polynomial against its
@@ -909,9 +919,8 @@ theory would accept (incompleteness only).
       — Con/Ty-style signatures check; the entry walk rebases each
       index code from its declaration site into the walk state of
       its use site). Foundation covers the rest; the restriction is
-      checking incompleteness only. Embedded pieces are re-derived
-      (§8), so what the fragment's pieces may contain is what re-
-      derivation infers or checks by shape.
+      checking incompleteness only. Embedded pieces arrive as
+      derivations (§2), read at their arities (§8).
 
 (A1, the constant motive, and A2, neutral spines only, of the former
 kernel are not approximations of this one: motives are mandatory, the
@@ -986,7 +995,10 @@ goals, one-way leaves); the QIIT eliminator's motives an explicit
 absence; the stated middle a derivation; (5) Skel, Payload, Prf, the
 proof-term reader, the bare-term checker and the bridge deleted, the
 embedded pieces of carriers checked by re-derivation, this document
-rewritten.
+rewritten; then (2026-09-25) carriers carry their pieces as
+derivations and the kernel reads them (no bare-term check remains),
+and re-derivation left the kernel module for
+Nova.Elaboration.Rederive.
 
 Open: whether a proof-level let (α ≔ π in π′) is wanted for sharing
 beyond what [σ] gives — deferred to the let-sharing item; the

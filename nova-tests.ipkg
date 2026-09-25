@@ -7,6 +7,7 @@ modules = Nova.Diagnostic
         , Nova.Kernel.Syntax
         , Nova.Kernel.Subst
         , Nova.Kernel
+        , Nova.Elaboration.Rederive
         , Nova.Kernel.QIIT
         , Nova.Compute
         , Nova.Elaboration.Beta

@@ -30,6 +30,7 @@ import Nova.Kernel.Subst
 import Nova.Kernel.QIIT
 import Nova.Kernel
 import Nova.Kernel.Derivation
+import Nova.Elaboration.Rederive
 import Nova.Profile
 
 %default covering

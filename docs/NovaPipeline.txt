@@ -200,7 +200,9 @@ polynomials are compared under the β-join like everything else
 (docs/NovaKernel.txt §9), a checked position compares its inferred
 and expected types by β alone, and every δ-apart position carries
 its conversion; the kernel has no δ normalizer at all — a hole's
-value is typed by re-derivation, read like everything else. The floor in every variant: α-comparison
+value is typed by re-derivation (Nova.Elaboration.Rederive, a
+proposer beside the engine, outside the kernel module), read like
+everything else. The floor in every variant: α-comparison
 and substitution stay trusted — no kernel design knows less than
 that.
 

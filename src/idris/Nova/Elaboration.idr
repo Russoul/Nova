@@ -48,6 +48,7 @@ import Nova.Kernel.QIIT
 import Nova.Kernel.Parser
 import Nova.Kernel
 import Nova.Kernel.Derivation
+import Nova.Elaboration.Rederive
 import Nova.Elaboration.Proof
 
 import Control.Monad.State
@@ -789,12 +790,6 @@ polyDom0Pieces = goP 0
   goP d (PPi a f) (PPi a' f') = [| piece0 d a a' ++ goP (S d) f f' |]
   goP _ _ _ = Nothing
 
-
-||| Γ‖ᵢ (same as the derivation checker's private helper).
-ctxLookup : Ctx -> Nat -> Maybe Ty
-ctxLookup [<]          _     = Nothing
-ctxLookup (rest :< ty) Z     = Just (substTy ty Wk)
-ctxLookup (rest :< ty) (S n) = map (\t => substTy t Wk) (ctxLookup rest n)
 
 -- (the substitution weakening by n, ↑ⁿ, is Nova.Kernel.Derivation.wkN)
 
