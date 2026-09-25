@@ -1093,14 +1093,16 @@ entry points return over the kernel's Σ. They are:
                    kJoinQSig, kJoinSubNorm, liftQ (§1)
   comparison       sameB, tyAgree, kIsProp
   classifiers      dSynth (§3)
-  helpers          ctxLookup, weakenTyN, inferHead, unfoldAllK,
-                   compClassifier, sigChildTy, qSpineChildTy,
-                   constMotives, qMotives, kQSigSmallD
+  helpers          ctxLookup, weakenTyN, unfoldAllK, compClassifier,
+                   sigChildTy, qSpineChildTy, constMotives, qMotives,
+                   kQSigSmallD
   the monad        KM, runKM, kerr, kCatch, kSigLookup
 
-The library is expected to SHRINK: inferHead and unfoldAllK go with
-tranche 2 of the kernel programme (the engine unfolding with types,
-docs/NovaStrategy.txt), and the readings leave the library when the
-engine carries derivations everywhere and re-derivation of bare
-terms is no longer needed. Backtracking combinators are not the
+The library is expected to SHRINK: unfoldAllK goes with the δ-all
+leaf (tranche 2 of the kernel programme, docs/NovaStrategy.txt), and
+the readings leave the library when the engine carries derivations
+everywhere and re-derivation of bare terms is no longer needed. The
+kernel has no bare-term typing at all: a head's type is what the
+child derivation states, a neutral's prop-ness what a derivation
+states (the builder's head inference, rdInferHead, is the engine's). Backtracking combinators are not the
 kernel's: the builder defines its own over kCatch.

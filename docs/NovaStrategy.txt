@@ -323,10 +323,17 @@ Tranche 1 — acceptance-preserving, standalone:
 Tranche 2 — acceptance-shrinking, additive, each paired with the
 engine (typed unfolding: the engine carries derivations):
 
-  [ ] 3. No bare-term typing in the reader: the fallback that types a
-         rewritten head off the SIDE (inferHead in headOfMT) is
-         retired once every head child states; prop-ness then comes
-         from the derivation; inferHead deleted.
+  [x] 3. No bare-term typing in the reader: the fallback that typed a
+         rewritten head off the SIDE (inferHead in headOfMT, 375 uses
+         at 84 items, every one at a head the engine wrote as refl) is
+         gone — the engine writes the typed neutral at every head
+         (headD; the QIIT emitter's coherence conversion); the prop
+         test is by shape alone, a neutral never a prop unless a
+         derivation states it (the prop-flavoured eliminator's
+         irrelevance leaves now carry the motive instance's
+         derivation); inferHead deleted from the kernel, the builder
+         has its own (rdInferHead). Taken in two steps, each measured
+         on the corpus with the fallback turned into an error first.
   [ ] 4. No δ-all leaf: δ only at a named leaf under the nodes to its
          position. The δ-all count over the corpus (2726 leaves in
          2050 certified derivations at the start) is the measure.

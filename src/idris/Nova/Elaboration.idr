@@ -7601,10 +7601,15 @@ elabItemGo irng (SData params decls) = do
     -- Ω-valued motive, so proof irrelevance closes them outright
     -- (FProp).
     -- (prop flavor: the coherence sides live at an Ω-valued motive,
-    -- the position's type a prop — irrelevance, the kernel judging the
-    -- motive instance itself)
+    -- the position's type a prop — irrelevance, WITH the derivation
+    -- that states the motive instance at Ω: the reader judges
+    -- prop-ness by shape alone and never types a neutral)
     cohCerts <- if prop
-      then pure (map (const (DIrrel Nothing)) eqPs)
+      then traverse (\p => case p of
+                  (j, ej) => do
+                    (dtel, _, _, _, cty) <- liftQE site (coherenceAt (sgAt sg bigN) motsEnd mthsEnd ej)
+                    pure (DIrrel (Just (reChk st0 (bodyCtx <>< dtel) cty PropTy))))
+                (zipWithIndex 0 eqPs)
       else traverse (\p => case p of
                   (j, ej) => do
                     (dtel, _, _, _, _) <- liftQE site (coherenceAt (sgAt sg bigN) motsEnd mthsEnd ej)

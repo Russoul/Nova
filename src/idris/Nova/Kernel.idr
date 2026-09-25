@@ -614,57 +614,6 @@ ctxLookup (rest :< ty) (S n) = map (\t => substTy t Wk) (ctxLookup rest n)
 -- Which readings a proof supports is a property of its SHAPE, decided
 -- before any replay: the checker never guesses a direction.
 
-||| Neutral inference (spines only, arguments unchecked): the type a
-||| well-typed neutral has at its position, by typing inversion — a
-||| neutral's typings all factor through its head's declared type. The
-||| one way a position's type is read off the SIDE rather than the type
-||| flowing down: at motive-dependent case positions the node carries
-||| no motive for, and at the function of an application.
-export
-inferHead : Sig -> Ctx -> Elem -> KM (Maybe Ty)
-inferHead sig ctx (CtxVar i) = pure (ctxLookup ctx i)
-inferHead sig ctx (PiApp f e) = do
-  mf <- inferHead sig ctx f
-  case mf of
-    Just fTy => do
-      t <- kWhnfT sig fTy
-      case t of
-        PiTy _ b => pure (Just (substTy b (Ext Id e)))
-        _ => pure Nothing
-    Nothing => pure Nothing
-inferHead sig ctx (SigmaElim1 t) = do
-  mt <- inferHead sig ctx t
-  case mt of
-    Just tTy => do
-      t' <- kWhnfT sig tTy
-      case t' of
-        SigmaTy a _ => pure (Just a)
-        _ => pure Nothing
-    Nothing => pure Nothing
-inferHead sig ctx (SigmaElim2 t) = do
-  mt <- inferHead sig ctx t
-  case mt of
-    Just tTy => do
-      t' <- kWhnfT sig tTy
-      case t' of
-        SigmaTy _ b => pure (Just (substTy b (Ext Id (SigmaElim1 t))))
-        _ => pure Nothing
-    Nothing => pure Nothing
-inferHead sig ctx (Out t) = do
-  mt <- inferHead sig ctx t
-  case mt of
-    Just tTy => do
-      t' <- kWhnfT sig tTy
-      case t' of
-        NuTy f => pure (Just (reflectPoly f (Elem.NuTy f)))
-        _ => pure Nothing
-    Nothing => pure Nothing
-inferHead sig ctx (SigVar x es) =
-  kSigLookup sig x >>= \entryX => case entryX of
-    Just e => pure (Just (substTy (entryTy e) (embed es)))
-    Nothing => pure Nothing
-inferHead sig ctx _ = pure Nothing
-
 ||| Expected type of the i-th spine entry of a former carrying 𝒮
 ||| (position k's reflected binder/arity telescope).
 export
@@ -799,12 +748,12 @@ mutual
             else pure False
         _ => pure False
 
-  ||| Is the type a PROPOSITION (a member of Ω)? By its SHAPE: the Ω
-  ||| formers are, the other formers are not, and a neutral is one
-  ||| exactly when its head's declared type inverts to Ω (inferHead,
-  ||| β-only). Nothing else: an eliminator standing as a prop derives
-  ||| its motive from the derivation that carries it, never from a
-  ||| guess of the kernel's.
+  ||| Is the type a PROPOSITION (a member of Ω)? By its SHAPE alone:
+  ||| the Ω formers are, the other formers are not, and a NEUTRAL is
+  ||| not — its prop-ness is a derivation's to state (the node that
+  ||| needs it carries one: an irrelevance leaf's prop, a prop-lift's
+  ||| sides, an eliminator's motive), never the reader's to type off
+  ||| a bare term (docs/NovaStrategy.txt, kernel programme item 3).
   export
   kIsProp : Sig -> Ctx -> Ty -> KM Bool
   kIsProp sig ctx t = do
@@ -824,13 +773,9 @@ mutual
       QuotTy _ _ => pure False
       NuTy _ => pure False
       QSort _ _ _ => pure False
-      _ => do
-        mt <- inferHead sig ctx t'
-        case mt of
-          Just k => do
-            k' <- kWhnfT sig k
-            pure (k' == PropTy)
-          Nothing => pure False
+      -- a neutral: not a prop BY SHAPE — its prop-ness is a
+      -- derivation's to state (the reader never types a bare term)
+      _ => pure False
 
   ||| Resolve a ToS entry reference at (scope k, b inductive binders).
   kQEntryOf : (k : Nat) -> (b : Nat) -> Nat -> KM Nat
