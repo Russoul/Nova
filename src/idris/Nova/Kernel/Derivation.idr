@@ -146,7 +146,9 @@ mutual
     ||| corec_𝔽 π_a π_f π_x
     DCorec : DPoly -> Drv -> Drv -> Drv -> Drv
     ||| let π_a π_b: the core's let, definiens inferred
-    DLet : Drv -> Drv -> Drv
+    ||| let: the definiens, ITS TYPE'S derivation (what β's unfolding
+    ||| witness needs), the body over the value and its hypothesis
+    DLet : Drv -> Drv -> Drv -> Drv
     ||| ⋆_{π_P} by π (el-eq-i): π_P ⇒ (l ≡ r ∈ A) : Ω, π ▷ l ≐ r : A;
     ||| checking at the prop: ⋆ by π
     DStar : Maybe Drv -> Drv -> Drv
@@ -230,7 +232,7 @@ mutual
   erase (DSuc p) = NatIntro1 <$> erase p
   erase (DCtor sg k ps) = [| (\g, xs => QCtor g k (cast xs)) (eraseQSig sg) (traverse erase ps) |]
   erase (DCorec f a g x) = [| Corec (erasePoly f) (erase a) (erase g) (erase x) |]
-  erase (DLet a b) = [| Let (erase a) (erase b) |]
+  erase (DLet a _ b) = [| Let (erase a) (erase b) |]
   erase (DStar _ _) = Just Star
   erase (DSq _) = Just Star
   erase (DSquashElim _ _ _) = Just Star
@@ -396,7 +398,7 @@ mutual
   showDrv (DSuc p) = "S \{argD p}"
   showDrv (DCtor _ k ps) = "𝒮.\{show k}[\{argsD ps}]"
   showDrv (DCorec _ a f x) = "corec \{argD a} \{argD f} \{argD x}"
-  showDrv (DLet a b) = "let \{argD a} \{argD b}"
+  showDrv (DLet a pA b) = "let \{argD a}\{annD (Just pA)} \{argD b}"
   showDrv (DStar mp p) = "⋆\{annD mp} by \{argD p}"
   showDrv (DSq p) = "sq(\{showDrv p})"
   showDrv (DSquashElim mq e b) = "squash-elim\{annD mq} \{argD e} \{argD b}"
@@ -522,7 +524,7 @@ mutual
     DSuc q => DSuc (mapNamesD f q)
     DCtor sg k qs => DCtor (map (mapNamesQTy f) sg) k (map (mapNamesD f) qs)
     DCorec dp a g x => DCorec (mapNamesP f dp) (mapNamesD f a) (mapNamesD f g) (mapNamesD f x)
-    DLet a b => DLet (mapNamesD f a) (mapNamesD f b)
+    DLet a pA b => DLet (mapNamesD f a) (mapNamesD f pA) (mapNamesD f b)
     DStar m q => DStar (map (mapNamesD f) m) (mapNamesD f q)
     DSq q => DSq (mapNamesD f q)
     DSquashElim m e b => DSquashElim (map (mapNamesD f) m) (mapNamesD f e) (mapNamesD f b)
@@ -644,7 +646,7 @@ mutual
     DSuc q => DSuc (sb s q)
     DCtor sg k qs => DCtor (dSubstQSig s sg) k (map (sb s) qs)
     DCorec dp a g x => DCorec (dSubstPoly s dp) (sb s a) (sb (dsbLift s) g) (sb s x)
-    DLet a b => DLet (sb s a) (sb (liftN 2 s) b)
+    DLet a pA b => DLet (sb s a) (sb s pA) (sb (liftN 2 s) b)
     DStar m q => DStar (map (sb s) m) (sb s q)
     DSq q => DSq (sb s q)
     DSquashElim m e b => DSquashElim (map (sb s) m) (sb s e) (sb (dsbLift s) b)
@@ -727,6 +729,96 @@ mutual
   dSubstPoly s (DPSum f g) = DPSum (dSubstPoly s f) (dSubstPoly s g)
   dSubstPoly s (DPSigma a f) = DPSigma (substD a s) (dSubstPoly (dsbLift s) f)
   dSubstPoly s (DPPi a f) = DPPi (substD a s) (dSubstPoly (dsbLift s) f)
+
+-- ===== Traversal =====
+
+||| The immediate subderivations of a node — every derivation the
+||| node holds, annotations, motives, stated middles and the pieces
+||| of carried signatures and polynomials included (under binders,
+||| as they are). For walks that need no typing: the engine's
+||| canaries and audits.
+export
+drvChildren : Drv -> List Drv
+drvChildren d = case d of
+  DVar _ => []
+  DRef _ qs => qs
+  DUnit => []
+  DZero => []
+  DZeroTy => []
+  DOneTy => []
+  DNatTy => []
+  DUniverse => []
+  DProp => []
+  DTop => []
+  DRefl q => [q]
+  DPath sg _ qs => qsig sg ++ qs
+  DDelta _ qs => qs
+  DReflx => []
+  DSym q => [q]
+  DTrans p q => [p, q]
+  DTransAt p m q => [p, m, q]
+  DDeltaAll _ => []
+  DIrrel mp => toList mp
+  DEtaPi q => [q]
+  DEtaSigma p q => [p, q]
+  DQuotWit mq => toList mq
+  DQuotWitPrf q => [q]
+  DInj q => [q]
+  DPropExt p q => [p, q]
+  DPrfCong mp mq q => toList mp ++ toList mq ++ [q]
+  DConv q mT b => [q] ++ toList mT ++ [b]
+  DAt q pT b => [q, pT, b]
+  DAscribe q mT mb => [q] ++ toList mT ++ toList mb
+  DLam m q => toList m ++ [q]
+  DPair m u v => toList m ++ [u, v]
+  DInj1 m q => toList m ++ [q]
+  DInj2 m q => toList m ++ [q]
+  DClass m q => toList m ++ [q]
+  DSuc q => [q]
+  DCtor sg _ qs => qsig sg ++ qs
+  DCorec dp a g x => poly dp ++ [a, g, x]
+  DLet a pA b => [a, pA, b]
+  DStar m q => toList m ++ [q]
+  DSq q => [q]
+  DSquashElim m e b => toList m ++ [e, b]
+  DCoind m r p q => toList m ++ [r, p, q]
+  DZeroElim m q => toList m ++ [q]
+  DNatElim m z st n => toList m ++ [z, st, n]
+  DSumElim m l r t => toList m ++ [l, r, t]
+  DQuotElim m wd f q => toList m ++ toList wd ++ [f, q]
+  DQElim sg _ cs cohs ms es w => qsig sg ++ concat (toList cs) ++ cohs ++ ms ++ es ++ [w]
+  DOut q => [q]
+  DApp g a => [g, a]
+  DProj1 q => [q]
+  DProj2 q => [q]
+  DPi a b => [a, b]
+  DSigma a b => [a, b]
+  DSum a b => [a, b]
+  DEq l r t => [l, r, t]
+  DQuot a r => [a, r]
+  DSquash q => [q]
+  DNu dp => poly dp
+  DSort sg _ qs => qsig sg ++ qs
+ where
+  qtm : DQTm -> List Drv
+  qtm (DQVar _) = []
+  qtm (DQAppE f e) = qtm f ++ [e]
+  qtm (DQAppI f a) = qtm f ++ qtm a
+  qtm (DQEqC l r u) = qtm l ++ qtm r ++ qtm u
+  qty : DQTy -> List Drv
+  qty DQU = []
+  qty (DQEl t) = qtm t
+  qty (DQPiExt a b) = a :: qty b
+  qty (DQPiInd u b) = qtm u ++ qty b
+  qsig : DQSig -> List Drv
+  qsig = concatMap qty
+  poly : DPoly -> List Drv
+  poly DPHole = []
+  poly (DPConst c) = [c]
+  poly (DPProd p q) = poly p ++ poly q
+  poly (DPSum p q) = poly p ++ poly q
+  poly (DPSigma c p) = c :: poly p
+  poly (DPPi c p) = c :: poly p
 
 -- ===== The coinductive computation rule, on derivations =====
 

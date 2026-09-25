@@ -242,7 +242,9 @@ parentheses.
       | S π                                                 (DSuc)
       | 𝒮.𝕔 π̄                  constructor, signature carried (DCtor)
       | corec_𝔽 π π π          polynomial carried            (DCorec)
-      | let π π                the core's let (definiens inferred) (DLet)
+      | let π_{π_A} π          the core's let: the definiens CHECKED
+                               at π_A ⇒ A : 𝕍 (β's unfolding witness
+                               ⋆_{a ≡ a ∈ A} needs A's derivation) (DLet)
       | ⋆_{π_P} by π           el-eq-i: π_P ⇒ (l ≡ r ∈ A) : Ω,
                                π ▷ l ≐ r : A; checking: ⋆ by π (DStar)
       | sq(π)                  el-squash-i: π ⇒ e : A gives ⋆ : ∥A∥;
@@ -1019,7 +1021,10 @@ rewritten; then (2026-09-25) carriers carry their pieces as
 derivations and the kernel reads them (no bare-term check remains),
 and re-derivation left the kernel module for
 Nova.Elaboration.Rederive; the signature stores each entry's
-derivations beside their erasures; a β-whnf on derivations (§3);
+derivations beside their erasures; a β-whnf on derivations (§3,
+closed on the redex's own subderivations once the let node carried
+its definiens' type derivation; its canary and the error dumps are
+the engine's);
 and the substitution node became the function of §4 (its reading
 was the substituted derivation's own, so the node carried nothing —
 its typed entries were never read at a use; and a chain a use

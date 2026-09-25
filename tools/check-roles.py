@@ -3,13 +3,13 @@
 audit"): what the author–engine–kernel division says about the tree
 that can be read off the tree.
 
-  K1  the kernel closure: kernel modules import only each other, the
-      base libraries, and Nova.Profile (diagnostics hooks)
+  K1  the kernel closure: kernel modules import only each other and
+      the base libraries
   K2  no escape hatches in the kernel (believe_me, assert_total, …,
       no environment or clock reads); an assert_total that wraps a
       deliberate crash is allowed — it fabricates nothing
   K3  no backtracking in the kernel: no kOrElse / <|>; every kCatch
-      re-raises, except inside the named audit function
+      re-raises
   K4  the kernel's exported kCheck* functions are exactly the entry
       points, and the Σ-extending ones return the entry they admit
   S1  the kernel's signature is extended at exactly one engine site,
@@ -39,14 +39,14 @@ KERNEL_MODULES = {
 }
 # imports a kernel module may have besides the kernel modules
 ALLOWED_IMPORT_PREFIXES = ("Data.", "Control.", "Prelude", "Decidable.")
-ALLOWED_IMPORTS = {"Nova.Profile"}  # diagnostics hooks only (drvCanary, audit)
+ALLOWED_IMPORTS = set()  # nothing outside the kernel and the base libraries
 
 # K2: escape hatches and effects
 ESCAPES = ["believe_me", "assert_total", "assert_smaller", "unsafePerformIO",
            "%foreign", "prim__", "getEnv", "nowNs", "bump ", "timed "]
 
-# K3: the one function allowed to catch without re-raising (it prints)
-AUDIT_FUNCTIONS = {"dWhnfAudit"}
+# K3: functions allowed to catch without re-raising — none
+AUDIT_FUNCTIONS = set()
 
 # K4: the entry points, by name, and which of them admit an entry
 ENTRY_POINTS = {"kCheckDefDrv": True, "kCheckTyDefDrv": True, "kCheckEqDrv": False}
@@ -114,7 +114,7 @@ def check_k1():
         for b in bad:
             fail("K1/E2", f"kernel module imports outside its closure — {b}")
     else:
-        ok("K1/E2", f"{len(KERNEL_MODULES)} kernel modules import only the kernel, the base libraries and Nova.Profile")
+        ok("K1/E2", f"{len(KERNEL_MODULES)} kernel modules import only the kernel and the base libraries")
 
 
 # ----- K2 ------------------------------------------------------------------
@@ -157,7 +157,7 @@ def check_k3():
         for b in bad:
             fail("K3", f"backtracking in the kernel — {b}")
     else:
-        ok("K3", "no kOrElse, no <|>, every kCatch re-raises (audit function excepted)")
+        ok("K3", "no kOrElse, no <|>, every kCatch re-raises")
 
 
 # ----- K4 ------------------------------------------------------------------

@@ -3544,9 +3544,9 @@ mutual
                   Right () =>
                     let prf1 = if isReflx prf then bump "triv-stepless-elem" 1 prf else prf in
                     let names = nub (hintNamesP prf1) in
-                    pure (Right (audit "CERT elem | \{st.modPrefix} | \{site} | \{showDrv prf}"
+                    pure (Right (whnfCanary st.sig kernelFuel prf (audit "CERT elem | \{st.modPrefix} | \{site} | \{showDrv prf}"
                                   (if null names then prf
-                                     else audit "AUDIT elem | \{st.modPrefix} | \{site} | \{joinBy ", " names}" prf)))
+                                     else audit "AUDIT elem | \{st.modPrefix} | \{site} | \{joinBy ", " names}" prf))))
                   Left kerrMsg =>
                     -- the kernel rejected the engine's proof: the site
                     -- is an obligation carrying the verdict (no second
@@ -3582,9 +3582,9 @@ mutual
                 case bump "kernel" (nowNs () - t2) kres of
                   Right () =>
                     let names = nub (hintNamesP prf) in
-                    pure (Right (audit "CERT ty | \{st.modPrefix} | \{site} | \{showDrv prf}"
+                    pure (Right (whnfCanary st.sig kernelFuel prf (audit "CERT ty | \{st.modPrefix} | \{site} | \{showDrv prf}"
                                   (if null names then prf
-                                     else audit "AUDIT ty | \{st.modPrefix} | \{site} | \{joinBy ", " names}" prf)))
+                                     else audit "AUDIT ty | \{st.modPrefix} | \{site} | \{joinBy ", " names}" prf))))
                   Left kerrMsg =>
                     -- as at attemptE: reported, not rescued
                     pure (audit "REPLAY-FAIL ty | \{site} | \{kerrMsg} | \{showDrv prf} | goal: \{show tyA} ≐ \{show tyB}"
@@ -3988,8 +3988,8 @@ missingDep ksig err = do
 ||| refuses, which is a bug in the elaborator and not a property of the
 ||| file. Demoting it quietly is how such a bug hides behind an
 ||| unrelated hole somewhere else in the run.
-kernelAccept : String -> (Sig -> Either KErr SigEntry) -> ElabM ()
-kernelAccept name checkDef = do
+kernelAccept : String -> (Sig -> Either KErr SigEntry) -> (dumpD : List (String, Drv)) -> ElabM ()
+kernelAccept name checkDef dumpD = do
   clean <- itemClean
   if not clean
     then pure ()
@@ -3998,8 +3998,18 @@ kernelAccept name checkDef = do
       let t0 = nowNs ()
       let res = checkDef st.kernelSig
       case bump "kitem" (nowNs () - t0) res of
-        Right entry => modifySt $ { kernelSig $= (:< entry) }
-        Left err =>
+        Right entry =>
+          -- the whnf canary over the item's derivations, after the
+          -- kernel accepted them (NOVA_DRV=1)
+          modifySt (foldl (\f, (_, d) => whnfCanary st.kernelSig kernelFuel d f)
+                          (the (ElabSt -> ElabSt) ({ kernelSig $= (:< entry) })) dumpD)
+        Left err0 =>
+          -- the rejected derivations, appended to the verdict under
+          -- NOVA_DRV (the kernel's verdict names the failing node;
+          -- the whole is the engine's to show)
+          let err = if drvCanary
+                      then err0 ++ concatMap (\(what, d) => "\n  \{what} DERIVATION: \{showDrv d}") dumpD
+                      else err0 in
           -- A MISSING DEPENDENCY IS NOT A DEFECT. It is the expected
           -- consequence of something above not being admitted — an
           -- open item, or a written declaration — whose absence from
@@ -4234,6 +4244,7 @@ emitInlineDefD site role ctx ty tyD body bodyD = do
   -- conat with u bound at the exposed ν) meets its switch there
   kernelAccept "\{site} \{q}"
     (\ksig => kCheckDefDrv ksig kernelFuel q [] (piCloseD st ctx tyD) (lamsD k bodyD))
+    [("TYPE", piCloseD st ctx tyD), ("BODY", lamsD k bodyD)]
   modifySt $ { sig $= (:< SigDef [<] q cbody cty (lamsD k bodyD) (piCloseD st ctx tyD)), transp $= (q ::) }
   pure q
 
@@ -4558,7 +4569,8 @@ mutual
     recordBinder xr ctx env x eTy
     let hyp = Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk)
     (b', bTy, bSk) <- inferElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
-    pure (Let e' b', substTy bTy (Ext (Ext Id e') Star), DLet eSk bSk)
+    st <- getSt
+    pure (Let e' b', substTy bTy (Ext (Ext Id e') Star), DLet eSk (reTy st ctx eTy) bSk)
   inferElemAt ctx env site (SUnsquash _ _ _) =
     -- like the squash-elim it is built on, unsquash is CHECKING-ONLY:
     -- el-squash-e-prf reaches only propositions, and only the expected
@@ -5714,7 +5726,8 @@ mutual
     let hyp = Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk)
     (b', bSk) <- checkElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
                    (substTy (substTy ty Wk) Wk)
-    pure (Let e' b', DLet eSk bSk)
+    st <- getSt
+    pure (Let e' b', DLet eSk (reTy st ctx eTy) bSk)
   -- an implicit-headed spine in CHECKING position: the expected type
   -- is the recovery oracle's FIRST source (it must run before any
   -- argument whose domain mentions an unsolved implicit — a λ
@@ -6824,7 +6837,7 @@ mutual
         DSuc q => skelBare q
         DCtor _ _ qs => all skelBare qs
         DCorec _ a f x => skelBare a && skelBare f && skelBare x
-        DLet a b => skelBare a && skelBare b
+        DLet a _ b => skelBare a && skelBare b
         DZeroElim Nothing q => skelBare q
         DOut q => skelBare q
         DApp f a => skelBare f && skelBare a
@@ -6999,6 +7012,7 @@ emitCoreDef site x ty tySk body bodySk = do
     Nothing => pure ()
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckDefDrv ksig kernelFuel q [] tySk bodySk)
+    [("TYPE", tySk), ("BODY", bodySk)]
   modifySt $ { sig $= (:< SigDef [<] q body ty bodySk tySk) }
   addVis (x, q)
   addLemma q [<] ty
@@ -7012,6 +7026,7 @@ emitCoreTyDef site x ty tySk = do
     Nothing => pure ()
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckTyDefDrv ksig kernelFuel q [] tySk)
+    [("TYPE", tySk)]
   modifySt $ { sig $= (:< SigDef [<] q ty TopTy tySk DTop) }
   addVis (x, q)
 
@@ -7149,6 +7164,7 @@ elabItemGo irng (SDef nrng x ty body muses) = do
   (body', bodySk) <- withScope sc (withEqScope eqs (checkElem [<] [<] (MkSite "def \{x}" irng) body ty'))
   kernelAccept "def \{x}"
     (\ksig => kCheckDefDrv ksig kernelFuel q [] tySk bodySk)
+    [("TYPE", tySk), ("BODY", bodySk)]
   modifySt $ { sig $= (:< SigDef [<] q body' ty' bodySk tySk) }
   addVis (x, q)
   addLemma q [<] ty'

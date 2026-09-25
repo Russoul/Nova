@@ -28,7 +28,6 @@ import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
 import Nova.Kernel.QIIT
 import Nova.Kernel.Derivation
-import Nova.Profile
 
 %default covering
 
@@ -95,22 +94,6 @@ kCatch (MkKM f) h = MkKM $ \st => case f st of
   Right v => Right v
   Left e => case h e of
               MkKM g => g st
-
-||| Run a sub-check, converting failure into False (state as of the
-||| failure is discarded; success keeps the fuel spent).
-||| The first computation, or — when it fails — the second (the
-||| first's fuel is spent either way).
-export
-kOrElse : KM a -> KM a -> KM a
-kOrElse (MkKM f) (MkKM g) = MkKM $ \st => case f st of
-  Right v => Right v
-  Left _ => g st
-
-export
-kTry : KM () -> KM Bool
-kTry (MkKM f) = MkKM $ \st => case f st of
-  Left _ => Right (False, st)
-  Right ((), st') => Right (True, st')
 
 ||| One ≜-contraction's worth of fuel.
 burn : KM ()
@@ -375,22 +358,22 @@ liftQ (Right x) = pure x
 -- the constructor's pieces substituted, ν-β maps the polynomial
 -- (dMapPoly), squash-idem drops the squash; wrappers (a conversion,
 -- an ascription) are looked through, their erasure being the
--- inner's. Under NOVA_DRV=1 the audit dWhnfAudit compares the
--- erasure of the result with the erasure-level whnf on every
--- accepted derivation.
+-- inner's. The engine's canary (NOVA_DRV=1, Nova.Elaboration.Rederive)
+-- compares the erasure of the result with the erasure-level whnf on
+-- every subderivation it emits.
 --
--- One contraction needs a TYPE DERIVATION the redex does not carry:
--- a let's unfolding hypothesis is a witness ⋆_{a ≡ a ∈ A} whose
--- prop wants the definiens' type derivation — `tyOf`, the reader's
--- ⇒ on derivations (a definiens states).
+-- Every contraction is closed on the redex's own subderivations: a
+-- let carries its definiens' type derivation, so its unfolding
+-- hypothesis is the witness ⋆_{a ≡ a ∈ A} with A's derivation from
+-- the node.
 --
 -- Not yet: the QIIT eliminator's contraction (its section spine
 -- needs the signature's reflection on derivations).
 
 mutual
   export
-  dWhnf : Sig -> (tyOf : Drv -> KM Drv) -> Drv -> KM Drv
-  dWhnf sig tyOf d = case d of
+  dWhnf : Sig -> Drv -> KM Drv
+  dWhnf sig d = case d of
     -- wrappers: the erasure is the inner's
     DConv q _ _ => go q
     DAscribe q _ _ => go q
@@ -413,9 +396,8 @@ mutual
         DPair _ _ v => do burn; go v
         _ => pure (DProj2 t')
     -- let is always a redex: b[id, a, ⋆] with the unfolding equation
-    DLet a b => do
+    DLet a pA b => do
       burn
-      pA <- tyOf a
       go (substD b (MkDSb 0 [a, DStar (Just (DEq a a pA)) DReflx]))
     -- ℕ-elim
     DNatElim m z st n => do
@@ -465,7 +447,7 @@ mutual
     _ => pure d
    where
     go : Drv -> KM Drv
-    go = dWhnf sig tyOf
+    go = dWhnf sig
 
 -- ===== Context lookup =====
 
@@ -839,7 +821,7 @@ mutual
  dSynth (DSuc p) = dCheckable p
  dSynth (DCtor _ _ ps) = False
  dSynth (DCorec _ a f x) = dCheckable a && dCheckable f && dCheckable x
- dSynth (DLet a b) = dSynth a && dSynth b
+ dSynth (DLet a _ b) = dCheckable a && dSynth b
  dSynth (DStar (Just _) _) = True
  dSynth (DStar Nothing _) = False
  dSynth (DSq p) = dSynth p
@@ -894,7 +876,7 @@ mutual
    DQElim _ _ Nothing _ ms es w => all dCheckable ms && all dCheckable es && dCheckable w
    DConv q Nothing _ => dSynth q
    DAscribe q _ _ => dCheckable q
-   DLet a b => dSynth a && dCheckable b
+   DLet a _ b => dCheckable a && dCheckable b
    DPi a b => dCheckable a && dCheckable b
    DSigma a b => dCheckable a && dCheckable b
    DSum a b => dCheckable a && dCheckable b
@@ -1281,8 +1263,9 @@ mutual
       g' <- dElemAt sig (ctx :< aC) g (substTy (reflectPoly f aC) Wk)
       x' <- dElemAt sig ctx x aC
       pure (Corec f aC g' x', Corec f aC g' x', NuTy f)
-    DLet a b => do
-      (av, _, aTy) <- dElemTy sig ctx a
+    DLet a pA b => do
+      aTy <- dType sig ctx pA
+      av <- dElemAt sig ctx a aTy
       let hyp = Elem.EqTy (CtxVar 0) (substElem av Wk) (substTy aTy Wk)
       (bl, br, bTy) <- dInfer sig (ctx :< aTy :< hyp) b
       let inst = Ext (Ext Id av) Star
@@ -1548,8 +1531,9 @@ mutual
       (l, r, t) <- qElimAtM sig ctx sg k mots cohs qm qs qw
       agree t
       pure (l, r)
-    DLet a b => do
-      (av, _, aTy) <- dElemTy sig ctx a
+    DLet a pA b => do
+      aTy <- dType sig ctx pA
+      av <- dElemAt sig ctx a aTy
       let hyp = Elem.EqTy (CtxVar 0) (substElem av Wk) (substTy aTy Wk)
       (bl, br) <- dCheck sig (ctx :< aTy :< hyp) b (weakenTyN 2 ty)
       pure (Let av bl, Let av br)
@@ -1696,7 +1680,7 @@ mutual
     (DInj2 _ q, Inj2 u) => Just [(q, u)]
     (DClass _ q, Class u) => Just [(q, u)]
     (DCorec pf a f x', Corec pf' a' f' x'') => if erasePoly pf == Just pf' then Just [(a, a'), (f, f'), (x', x'')] else Nothing
-    (DLet a b, Let a' b') => Just [(a, a'), (b, b')]
+    (DLet a _ b, Let a' b') => Just [(a, a'), (b, b')]
     (DPi a b, Elem.PiTy a' b') => Just [(a, a'), (b, b')]
     (DSigma a b, Elem.SigmaTy a' b') => Just [(a, a'), (b, b')]
     (DSum a b, Elem.SumTy a' b') => Just [(a, a'), (b, b')]
@@ -2055,8 +2039,8 @@ mutual
            (\xs => case xs of
                      [a, _, _] => pure [(ctx, UniverseTy), (ctx :< a, substTy (reflectPoly pf a) Wk), (ctx, a)]
                      _ => arity) [qa, qf, qx]
-    (DLet qa qb, _) => do
-      (_, aTy) <- headOf qa
+    (DLet qa pA qb, _) => do
+      aTy <- dType sig ctx pA
       node (\x => case x of Let a b => Just [a, b]; _ => Nothing)
            (\xs => case xs of [a, b] => Just (Let a b); _ => Nothing)
            (\xs => case xs of
@@ -2249,7 +2233,7 @@ mutual
       (DOut _, Out u) => u
       (DSumElim _ _ _ _, SumElim _ _ t) => t
       (DQuotElim _ _ _ _, QuotElim _ q) => q
-      (DLet _ _, Let a _) => a
+      (DLet _ _ _, Let a _) => a
       (_, x) => x
 
     ||| A head or scrutinee child's type: STATED by the child when it
@@ -2456,7 +2440,7 @@ mutual
     (t, t', k) <- dInfer sig ctx d
     if t == t' then pure () else kerr "kernel: a type annotation states a proper equation"
     ok <- tyAgree sig TopTy k
-    if ok then dWhnfAudit sig d t >> pure (t, k) else kerr "kernel: a type annotation derives no type [\{show t} : \{show k}]"
+    if ok then pure (t, k) else kerr "kernel: a type annotation derives no type [\{show t} : \{show k}]"
 
   ||| An ELEMENT derivation, inferred: its sides coincide.
   export
@@ -2476,30 +2460,8 @@ mutual
   dElemAt : Sig -> Ctx -> Drv -> Ty -> KM Elem
   dElemAt sig ctx d ty = do
     (t, t') <- dCheck sig ctx d ty
-    if t == t' then dWhnfAudit sig d t >> pure t
+    if t == t' then pure t
       else kerr "kernel: an element position states a proper equation [\{showDrv d}]"
-
-  ||| The canary of the derivation-level whnf (NOVA_DRV=1): every
-  ||| accepted derivation is normalized by dWhnf and the erasure of the
-  ||| result compared with the erasure-level whnf of the erasure. The
-  ||| oracle for a subderivation's type is not available yet (the
-  ||| reader's ⇒ on derivations): a contraction that needs it is
-  ||| reported, not judged.
-  dWhnfAudit : Sig -> Drv -> Elem -> KM ()
-  dWhnfAudit sig d t =
-    if not drvCanary then pure () else do
-      w <- kWhnfE sig t
-      r <- kCatch (Right <$> dWhnf sig (\_ => kerr "tyOf: no reader oracle yet") d) (\e => pure (Left e))
-      case r of
-        Left e => pure (audit "DWHNF-FAIL | \{e} | \{showDrv d}" ())
-        Right d' => case erase d' of
-          Nothing => pure (audit "DWHNF-NOERASE | \{showDrv d'}" ())
-          Just w' =>
-            if w' == w then pure ()
-              else do
-                w'' <- kWhnfE sig w'
-                if w'' == w then pure (audit "DWHNF-UNDERNORMAL | got \{show w'} | whnf \{show w} | \{showDrv d}" ())
-                  else pure (audit "DWHNF-DISAGREE | got \{show w'} | expected \{show w} | \{showDrv d}" ())
 
   ||| Is the classifier 𝕍, 𝕌 or Ω?
   isCls : Sig -> Ty -> KM ()
@@ -2739,10 +2701,6 @@ mutual
 
 -- ----- entry points on derivations -----
 
-||| The rejected derivation, appended to the verdict under NOVA_DRV.
-dump : String -> Drv -> String
-dump what d = if drvCanary then "\n  \{what} DERIVATION: \{showDrv d}" else ""
-
 ||| A definition item as derivations: the telescope, the type, the
 ||| body; the entry extends Σ with their ERASURES.
 export
@@ -2750,8 +2708,8 @@ kCheckDefDrv : Sig -> Nat -> String -> List Drv -> Drv -> Drv -> Either KErr Sig
 kCheckDefDrv sig fuel name tele dty body =
   map fst $ runKM (do
     ctx <- tele' [<] tele
-    ty <- kCatch (dType sig ctx dty) (\e => kerr (e ++ dump "TYPE" dty))
-    t <- kCatch (dElemAt sig ctx body ty) (\e => kerr (e ++ dump "BODY" body))
+    ty <- dType sig ctx dty
+    t <- dElemAt sig ctx body ty
     pure (SigDef ctx name t ty body dty)) fuel
  where
   tele' : Ctx -> List Drv -> KM Ctx
@@ -2765,7 +2723,7 @@ kCheckTyDefDrv : Sig -> Nat -> String -> List Drv -> Drv -> Either KErr SigEntry
 kCheckTyDefDrv sig fuel name tele dty =
   map fst $ runKM (do
     ctx <- tele' [<] tele
-    ty <- kCatch (dType sig ctx dty) (\e => kerr (e ++ dump "TYPE" dty))
+    ty <- dType sig ctx dty
     pure (SigDef ctx name ty TopTy dty DTop)) fuel
  where
   tele' : Ctx -> List Drv -> KM Ctx
@@ -2781,7 +2739,7 @@ kCheckEqDrv sig ctx fuel d l r ty =
   map fst (runKM (do
     lJ <- kJoinElem sig l
     rJ <- kJoinElem sig r
-    kCatch (dAt sig ctx d lJ rJ ty) (\e => kerr (e ++ dump "EQUATION" d))) fuel)
+    dAt sig ctx d lJ rJ ty) fuel)
 
 -- ===== Probes for the elaborator =====
 

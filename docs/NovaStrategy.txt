@@ -156,10 +156,12 @@ admitted against `kernelSig`.
 The kernel reads derivations only (docs/NovaKernel.txt): the readings
 ⇒, ⇐, ▷, →, one dispatcher with one reading per shape, one
 normalizer, the substitution function, and the entry points. It has
-no search, no evaluator but its own β join, no environment
-dependence that touches a verdict (the NOVA_DRV audit prints; it
-never changes a reading), and no import outside itself and the base
-libraries but the diagnostics hooks of Nova.Profile.
+no search, no evaluator but its own β join, no environment read, no
+effect, and no import outside itself and the base libraries. Its
+canaries and dumps are the engine's: the whnf canary walks the
+derivations the engine emits after the kernel accepted them, and a
+rejected item's derivations are appended to the verdict by the
+engine (both under NOVA_DRV=1).
 
 The engine writes derivations directly as it elaborates and as it
 discharges (docs/NovaPipeline.txt); there is no certificate language
@@ -191,15 +193,6 @@ Smaller digressions, recorded so the audit can see them:
   * The core-syntax parser (Nova.CoreParser, for the tests, the
     distiller and the LSP) once lived in the kernel's namespace; it
     is not part of the reader and no kernel module imports it.
-  * The kernel imports Nova.Profile for two diagnostics hooks
-    (`drvCanary`, `audit`) — verdict-neutral, but an import outside
-    the kernel's closure. Acceptable while the hooks stay pure of
-    verdicts; the audit checks that no timing or environment read
-    enters the kernel modules themselves.
-  * The kernel's `dWhnf` takes an oracle for a subderivation's type
-    because ⇒ on derivations does not yet return type derivations;
-    until it does, the kernel cannot β-normalize a `let` on
-    derivations without help. Closes with contexts-as-derivations.
 
 ////////// The audit //////////
 
@@ -211,9 +204,8 @@ and a Makefile target), which enforces what can be read off the
 tree:
 
   K1  The kernel closure. The kernel modules import only each other
-      and the base libraries (Data.*, Control.*, Prelude), plus
-      Nova.Profile for its diagnostics hooks. No engine module, no
-      evaluator, no parser.
+      and the base libraries (Data.*, Control.*, Prelude). No engine
+      module, no evaluator, no parser, no diagnostics hooks.
   K2  No escape hatches in the kernel: no believe_me, assert_total,
       assert_smaller, unsafePerformIO, %foreign, prim__, getEnv, or
       timing calls. The one allowed form is an assert_total around a
@@ -222,8 +214,7 @@ tree:
       verdict.
   K3  No backtracking in the kernel: kOrElse and <|> are not used
       in kernel modules; every kCatch in the kernel re-raises (its
-      handler is a kerr) except inside the named audit function,
-      which only prints.
+      handler is a kerr).
   K4  The kernel's entry points are the only exported kCheck*
       functions, and they return the signature entry they admit.
   S1  The kernel's signature is extended at exactly one engine site,
@@ -295,15 +286,16 @@ Tranche 1 — acceptance-preserving, standalone:
   [ ] 2. The equation entry point takes the telescope and the type
          as derivations (as the definition entry point does); the
          sides stay bare — compared, not trusted.
-  [ ] 5. No effects, no oracle in the reader: the whnf canary and
+  [x] 5. No effects, no oracle in the reader: the whnf canary and
          the error dump move to the engine (which calls the exported
          whnf after acceptance); the let node carries its binding's
          type derivation so the derivation-level whnf needs no
          oracle; the Nova.Profile import goes.
-  [ ] 7. The trusted interface written down: entry points, Σ
+  [~] 7. The trusted interface written down: entry points, Σ
          accessors, the grammar, erasure, substitution, the whnf, the
          β join. Engine-only helpers (the backtracking combinators
-         kOrElse/kTry) leave the kernel module; the rest is internal.
+         kOrElse/kTry) leave the kernel module (done); the interface
+         section of docs/NovaKernel.txt (pending).
   [x] 8. Nova.Kernel.Parser (a core-syntax parser for the tests, the
          distiller and the LSP) leaves the kernel's namespace.
 

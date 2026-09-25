@@ -54,6 +54,46 @@ congOfD : Drv -> Drv -> Drv
 congOfD DReflx _ = DReflx
 congOfD _ node = node
 
+||| The first computation, or — when it fails — the second (the
+||| first's fuel is spent either way). A BUILDER'S combinator: the
+||| untrusted re-derivation tries a shape and falls back; the kernel
+||| never does (docs/NovaStrategy.txt, K3), which is why it lives
+||| here and not there.
+export
+kOrElse : KM a -> KM a -> KM a
+kOrElse m n = kCatch m (const n)
+
+||| The canary of the derivation-level whnf (NOVA_DRV=1 with
+||| NOVA_AUDIT=1): every subderivation that erases to an element is
+||| normalized by the kernel's dWhnf and the erasure of the result
+||| compared with the erasure-level whnf of the erasure. Runs on what
+||| the engine emits, after the kernel accepted it; prints, never
+||| judges. Needs no context: the whnf reads no types. Returns its
+||| last argument (the audit/bump discipline: the walk is threaded
+||| through the value the caller uses, so it is never erased).
+export
+whnfCanary : Sig -> Nat -> Drv -> (x : a) -> a
+whnfCanary sig fuel d0 x0 = if not drvCanary then x0 else walk d0 x0
+ where
+  one : Drv -> a -> a
+  one d x = case erase d of
+    Nothing => x
+    Just t => case runKM (do w <- kWhnfE sig t
+                             d' <- dWhnf sig d
+                             pure (w, d')) fuel of
+      Left e => audit "DWHNF-FAIL | \{e} | \{showDrv d}" x
+      Right ((w, d'), _) => case erase d' of
+        Nothing => audit "DWHNF-NOERASE | \{showDrv d'}" x
+        Just w' =>
+          if w' == w then x
+            else case runKM (kWhnfE sig w') fuel of
+              Right (w'', _) =>
+                if w'' == w then audit "DWHNF-UNDERNORMAL | got \{show w'} | whnf \{show w} | \{showDrv d}" x
+                  else audit "DWHNF-DISAGREE | got \{show w'} | expected \{show w} | \{showDrv d}" x
+              Left e => audit "DWHNF-FAIL | \{e} | \{showDrv d}" x
+  walk : Drv -> a -> a
+  walk d x = foldl (\acc, c => walk c acc) (one d x) (drvChildren d)
+
 mutual
   ||| Head exposure with its δ PROVED (the proof library's exposeK, on
   ||| derivations): the term taken to its β-whnf with every definition
@@ -425,7 +465,8 @@ mutual
       (da, aTy) <- rdInfer sig ctx a
       let hyp = Elem.EqTy (CtxVar 0) (substElem a Wk) (substTy aTy Wk)
       db <- rdCheck sig (ctx :< aTy :< hyp) b (weakenTyN 2 ty)
-      pure (DLet da db)
+      pA <- rdType sig ctx aTy
+      pure (DLet da pA db)
     QCtor sgC c theta => rdShaped sig ctx ty (\t => case t of QSort _ _ _ => Just (); _ => Nothing) $ \_ => do
       sgC' <- kJoinQSig sig sgC
       entry <- case qEntry sgC' c of
@@ -580,7 +621,8 @@ mutual
           (da, aTy) <- rdInfer sig ctx a
           let hyp = Elem.EqTy (CtxVar 0) (substElem a Wk) (substTy aTy Wk)
           (db, bTy) <- rdInfer sig (ctx :< aTy :< hyp) b
-          pure (DLet da db, substTy bTy (Ext (Ext Id a) Star))
+          pA <- rdType sig ctx aTy
+          pure (DLet da pA db, substTy bTy (Ext (Ext Id a) Star))
         NatElim z st t => do
           -- no motive (a stuck eliminator in head position, produced by
           -- normalization): the CONSTANT motive, read off the base
