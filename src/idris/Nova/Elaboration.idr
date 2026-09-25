@@ -5591,7 +5591,7 @@ mutual
                 Right () => pure (Just prf)
                 Left kerr => audit "CHAIN-COMPOSITE-FAIL \{site}: \{kerr}" fallback
      where
-      -- el-trans-at through the stated points: each point's
+      -- el-trans (the stated-middle form) through the stated points: each point's
       -- derivation is the middle its neighbouring links meet at
       chainPrf : List Drv -> List Drv -> Drv
       chainPrf [] [c] = c
