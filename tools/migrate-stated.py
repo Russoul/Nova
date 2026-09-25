@@ -10,7 +10,7 @@ instance. Everything else is left for the author. Usage:
   python3 tools/migrate-stated.py audit.txt        # edits src/nova in place
   ./normalize-corpus.sh                            # canonical form
 """
-import re, sys, collections
+import re, sys, os, collections
 
 def short_name(qual, module, imports):
     """The surface spelling of a Σ name at a site in `module`: its
@@ -111,12 +111,16 @@ def elab_error_line(f):
     import subprocess
     r = subprocess.run(['build/exec/nova', 'elab', f], capture_output=True, text=True)
     out = r.stdout + r.stderr
-    m = re.search(re.escape(f) + r':(\d+):\d+: error:', out)
-    if m: return int(m.group(1))
+    m = re.search(re.escape(f) + r':(\d+):\d+: error:(.*)', out)
+    if m:
+        if os.environ.get('MIGRATE_DEBUG'): print(f"  [{f}:{m.group(1)}] {m.group(2).strip()[:200]}")
+        return int(m.group(1))
     # an open obligation or hole after the edit: acceptance lost — its
     # site line names the culprit
-    m = re.search(r'at: ' + re.escape(f) + r':(\d+):\d+:', out)
-    if m: return int(m.group(1))
+    m = re.search(r'at: ' + re.escape(f) + r':(\d+):\d+:(.*)', out)
+    if m:
+        if os.environ.get('MIGRATE_DEBUG'): print(f"  [{f}:{m.group(1)}] open: {m.group(2).strip()[:160]}")
+        return int(m.group(1))
     if 'error' in out.lower(): return 10**9
     return None
 
@@ -162,6 +166,11 @@ def apply_file(f, original, es, dropped, skipped):
                 for (k2, ins2, env2, claim2) in sites:
                     if len(ins2) != 1 or not claim2 or len(env2) < 3 or re.search(r'\?\d|𝒮|\[|\]', ins2[0] + claim2): ok = False; break
                     x, x1, h = env2[-3], env2[-2], env2[-1]
+                    # an unnamed binder the instance or the claim refers to
+                    # (printed `_`, unspellable), or a case binder shadowing
+                    # an earlier name (the λ would capture the wrong one)
+                    if ('_' in env2 and re.search(r'(?<![\w])_(?![\w])', ins2[0] + ' ' + claim2)) or len({x, x1, h}) < 3 or any(n in env2[:-3] for n in (x, x1, h)):
+                        ok = False; break
                     r = render(ins2[0], module, imps, needed)
                     ct = render(claim2, module, imps, needed)
                     counter[0] += 1
@@ -171,8 +180,10 @@ def apply_file(f, original, es, dropped, skipped):
                 done['λ-claim / well-definedness'] += 1
                 continue
             rendered = []; unusable = False
+            env0 = sites[0][2] if sites else []
             for i in insts:
                 r = render(i, module, imps, needed)
+                if '_' in env0 and re.search(r'(?<![\w])_(?![\w])', r): unusable = True
                 if kind.startswith('well-definedness'):
                     # the wd binders (x, x′, h of the quot-elim's case)
                     # are the hypothesis's own: an instance applied to

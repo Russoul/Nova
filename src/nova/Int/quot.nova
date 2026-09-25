@@ -172,7 +172,11 @@ nZScale =
 nZIsIdeal : (n : Int) → IsIdeal _ intCommRing (nZ n) using (intRaddGroup.rw)
 nZIsIdeal =
   λn. idIntro
-    (let claim1 = intRaddGroup in let claim1 = intRaddGroup in nZIsSubgroup) n
+    (let claim1 = intRaddGroup
+         claim1 = intRaddGroup
+         claim1 = intRaddGroup
+         nZIsSubgroup)
+      n
     nZScale n
 
 -- ℤ/nℤ, as a commutative ring

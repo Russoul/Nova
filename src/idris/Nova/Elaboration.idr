@@ -3642,7 +3642,7 @@ searchLine st ctx env site kind p a b ty =
   stmt : NameEnv -> String
   stmt e = case ty of
     TopTy => "\{pr e a} ≡ \{pr e b}"
-    _ => "\{prE e a} ≡ \{prE e b} ∈ \{pr e ty}"
+    _ => "\{prE e a} ≡ \{prE e b} ∈ (\{pr e ty})"
   claimTy : String
   claimTy = case (ctx, env) of
     (c0 :< tA :< tA' :< tR, e0 :< x :< x' :< h) =>

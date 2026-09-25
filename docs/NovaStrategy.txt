@@ -444,9 +444,16 @@ that with statements in the text, measured site by site.
          tools/migrate-stated.py writes the mechanical part from the
          measure's audit (a root instance replaces its ⋆; placed or
          chained instances become local claims at the site's span;
-         every file verified by elaboration). 2026-09-25: 252 → 80
-         (36 ⋆ instances, 125 claim-wrapped sites, the stated tier's
-         closure).
+         every file verified by elaboration). 2026-09-25: 252 → 45
+         (36 ⋆ instances, 136 claim-wrapped sites, 6 quantified
+         well-definedness claims, the stated tier's closure, the
+         stated run's own candidate set). The residue is the author's:
+         27 well-definedness cases whose claim is chained, unspellable
+         (an unnamed binder in the item's type, a case binder
+         shadowing an outer name) or at an eliminator spanning lines;
+         13 type conversions and 3 implicit-spine types at multi-line
+         or overlapping spans; 2 ⋆; the 4 generated uniqueness
+         lemmas (the clausal emitter's to state).
   [ ] 4. Well-definedness as a claim (the 80 sites), by the same form.
   [ ] 5. Contexts carrying derivations outright, replacing the
          registry, once the engine's shape is settled.
