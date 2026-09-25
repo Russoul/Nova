@@ -171,7 +171,7 @@ qMulWDOuterElim : (G : 𝕌)
 qMulWDOuterElim =
   λG g N nn x x' h v. quot-elim
     w. quot-elim (z. QGroup _ g N) (q. qcls _ _ (gop g x q)) w
-      ≡ quot-elim (q. qcls _ _ (gop g x' q)) w
+      ≡ (let claim10 = qMulWDInnerCls _ _ _ nn x' in quot-elim (q. qcls _ _ (gop g x' q)) w)
     c. qMulWDOuterCls h
     v
 
@@ -239,7 +239,7 @@ qInv : (G : 𝕌)
   (N : G → Ω)
   → IsSubgroup g N → IsNormal g N → QGroup _ g N → QGroup _ g N
   using (QGroup.unfold, qInvWDCls)
-qInv = λG g N s nn u. quot-elim (a. qcls _ _ (ginv g a)) u
+qInv = λG g N s nn u. let claim9 = qInvWDCls _ _ _ s nn in quot-elim (a. qcls _ _ (ginv g a)) u
 
 qInvCls : (G : 𝕌)
   (g : IsGroup G)
@@ -295,13 +295,15 @@ qAssoc =
           _
           _
           _
-          ⋆
+          let claim7 = qMulCls _ _ _ nn a b in let claim8 = qMulCls _ _ _ nn (gop {G} g a b) c in ⋆
           trans
             _
             _
             qMul _ _ _ nn (class a) (qMul _ _ _ nn (class b) (class c))
             cong (λw. QGroup _ g N) (λw. class w) (gAssoc g a b c)
-            ⋆
+            let claim5 = qMulCls _ _ _ nn b c
+                claim6 = qMulCls _ _ _ nn a (gop {G} g b c)
+                ⋆
         w
       v
     u
@@ -349,7 +351,14 @@ qInvLaw : (G : 𝕌)
   → qMul _ _ _ nn (qInv _ _ _ s nn u) u ≡ qUnit _ _ _
   using (QGroup.unfold, qUnit.eq, qInvCls.rw, qMulCls.rw)
 qInvLaw =
-  λG g N s nn u. quot-elim (a. trans _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gInvL g a))) u
+  λG g N s nn u. quot-elim
+    a. trans
+      _
+      _
+      _
+      let claim3 = qInvCls _ _ _ s nn a in let claim4 = qMulCls _ _ _ nn (ginv {G} g a) a in ⋆
+      cong (λw. QGroup _ g N) (λw. class w) (gInvL g a)
+    u
 
 qInvLawR : (G : 𝕌)
   (g : IsGroup G)
@@ -360,7 +369,14 @@ qInvLawR : (G : 𝕌)
   → qMul _ _ _ nn u (qInv _ _ _ s nn u) ≡ qUnit _ _ _
   using (QGroup.unfold, qUnit.eq, qInvCls.rw, qMulCls.rw)
 qInvLawR =
-  λG g N s nn u. quot-elim (a. trans _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gInvR g a))) u
+  λG g N s nn u. quot-elim
+    a. trans
+      _
+      _
+      _
+      let claim1 = qInvCls _ _ _ s nn a in let claim2 = qMulCls _ _ _ nn a (ginv {G} g a) in ⋆
+      cong (λw. QGroup _ g N) (λw. class w) (gInvR g a)
+    u
 
 -- ===== G/N is a group =====
 qIsGroup : (G : 𝕌)

@@ -23,7 +23,7 @@ negSucPred : neg (suc (pred zero)) ≡ zero
     Qiit.int.pred.eq,
     Qiit.int.suc.eq,
     Qiit.int.zero.eq)
-negSucPred = ⋆
+negSucPred = let claim1 = predsuc zero in ⋆
 
 negPred : neg (pred zero) ≡ suc zero
   using (Qiit.int.I.eq,

@@ -159,7 +159,7 @@ qInv : Q → Q
     Rat.frac.Rat.unfold,
     Rat.Q.unfold,
     Rat.RatR.unfold)
-qInv = λu. quot-elim (p. class (invRep p)) u
+qInv = λu. let claim1 = invRepWDCls in quot-elim (p. class (invRep p)) u
 
 qInvCls : (p : Rat) → qInv (qcls p) ≡ qcls (invRep p)
   using (Int.Int.unfold,

@@ -73,4 +73,9 @@ tlCons =
     u v. ∥(w : stream a)
       × (u ≡ corec (p : a × stream a. p .π₁, out (p .π₂)) (out w) ∈ stream a) × (v ≡ w ∈ stream a)∥
     ⋆ (s, ⋆, ⋆)
-    u v h. squash-elim h (w. ⋆ (⋆, ⋆ (out (w .π₁) .π₂, ⋆, ⋆)))
+    u v h. squash-elim
+      h
+      w. ⋆
+        (,)
+          let claim3 = w .π₂ .π₁ in let claim4 = w .π₂ .π₂ in ⋆
+          ⋆ (out (w .π₁) .π₂, (let claim2 = w .π₂ .π₁ in ⋆), let claim1 = w .π₂ .π₂ in ⋆)

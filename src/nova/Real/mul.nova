@@ -613,11 +613,13 @@ rMulWDOuterCls = wdOuterOfComm rMul (rMulComm {}) rMulWDInnerCls
 rMulWDOuter : (x x' : RSeq)
   (h : REq x x')
   (v : Real)
-  → quot-elim (w. Real) (q. class (rMul x q)) v ≡ quot-elim (q. class (rMul x' q)) v
+  → quot-elim (w. Real) (q. class (rMul x q)) v
+    ≡ (let claim2 = rMulWDInnerCls x' in quot-elim (q. class (rMul x' q)) v)
   using (rMulWDInnerCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
 rMulWDOuter =
   λx x' h v. quot-elim
-    w. quot-elim (z. Real) (q. class (rMul x q)) w ≡ quot-elim (q. class (rMul x' q)) w
+    w. quot-elim (z. Real) (q. class (rMul x q)) w
+      ≡ (let claim1 = rMulWDInnerCls x' in quot-elim (q. class (rMul x' q)) w)
     c. rMulWDOuterCls h
     v
 

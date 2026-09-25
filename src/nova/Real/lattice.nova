@@ -102,11 +102,13 @@ rMaxWDOuterCls = wdOuterOfComm rMax rMaxComm rMaxWDInnerCls
 rMaxWDOuter : (x x' : RSeq)
   (h : REq x x')
   (v : Real)
-  → quot-elim (w. Real) (q. class (rMax x q)) v ≡ quot-elim (q. class (rMax x' q)) v
+  → quot-elim (w. Real) (q. class (rMax x q)) v
+    ≡ (let claim4 = rMaxWDInnerCls x' in quot-elim (q. class (rMax x' q)) v)
   using (rMaxWDInnerCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
 rMaxWDOuter =
   λx x' h v. quot-elim
-    w. quot-elim (z. Real) (q. class (rMax x q)) w ≡ quot-elim (q. class (rMax x' q)) w
+    w. quot-elim (z. Real) (q. class (rMax x q)) w
+      ≡ (let claim3 = rMaxWDInnerCls x' in quot-elim (q. class (rMax x' q)) w)
     c. rMaxWDOuterCls h
     v
 
@@ -211,11 +213,13 @@ rMinWDOuterCls = wdOuterOfComm rMin rMinComm rMinWDInnerCls
 rMinWDOuter : (x x' : RSeq)
   (h : REq x x')
   (v : Real)
-  → quot-elim (w. Real) (q. class (rMin x q)) v ≡ quot-elim (q. class (rMin x' q)) v
+  → quot-elim (w. Real) (q. class (rMin x q)) v
+    ≡ (let claim2 = rMinWDInnerCls x' in quot-elim (q. class (rMin x' q)) v)
   using (rMinWDInnerCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
 rMinWDOuter =
   λx x' h v. quot-elim
-    w. quot-elim (z. Real) (q. class (rMin x q)) w ≡ quot-elim (q. class (rMin x' q)) w
+    w. quot-elim (z. Real) (q. class (rMin x q)) w
+      ≡ (let claim1 = rMinWDInnerCls x' in quot-elim (q. class (rMin x' q)) w)
     c. rMinWDOuterCls h
     v
 

@@ -175,11 +175,11 @@ rleWDOuterCls = λx x' c h. propExt (λp. rleCongL _ h p) (λp. rleCongL _ (reqS
 rleWDOuter : (x x' : RSeq)
   (h : REq x x')
   (v : Real)
-  → quot-elim (w. Ω) (y. RLeP x y) v ≡ quot-elim (y. RLeP x' y) v
+  → quot-elim (w. Ω) (y. RLeP x y) v ≡ (let claim2 = rleWDInner x' in quot-elim (y. RLeP x' y) v)
   using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold, rleWDInner)
 rleWDOuter =
   λx x' h v. quot-elim
-    w. quot-elim (z. Ω) (y. RLeP x y) w ≡ quot-elim (y. RLeP x' y) w
+    w. quot-elim (z. Ω) (y. RLeP x y) w ≡ (let claim1 = rleWDInner x' in quot-elim (y. RLeP x' y) w)
     c. rleWDOuterCls h
     v
 

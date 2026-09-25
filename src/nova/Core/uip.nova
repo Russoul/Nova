@@ -10,11 +10,17 @@
 import Core.id (Id, refl, IdElimP, idToEq)
 import Core.equality (sym, trans)
 
-idCanon : {a : 𝕌} {x y : a} (p : Id _ x y) (h : x ≡ y) → p ≡ refl a x
+idCanon : {a : 𝕌} {x y : a} (p : Id _ x y) (h : x ≡ y) → p ≡ (let claim4 = h in refl a x)
   using (hyp.rw, Core.id.Id.eq, Core.id.Id.unfold, Core.id.refl.eq)
 idCanon =
   λa x y p h. squash-elim
-    IdElimP a (λu v w. ∥(k : u ≡ v) → w ≡ refl a u ∈ Id _ u v∥) (λu. ⋆ (λk. ⋆)) x y p
+    IdElimP
+      a
+      λu v w. ∥(k : u ≡ v) → w ≡ (let claim3 = k in refl a u) ∈ Id _ u v∥
+      λu. ⋆ (λk. ⋆)
+      x
+      y
+      p
     f. f h
 
 -- uniqueness of identity proofs: both are refl, by canonicity.
@@ -22,4 +28,9 @@ uip : {a : 𝕌} {x y : a} {p q : Id _ x y} → p ≡ q
   using (hyp.rw, Core.id.Id.eq, Core.id.Id.unfold, Core.id.idToEq.eq)
 uip =
   λa x y p q. let h = idToEq _ _ _ p
-                  trans _ (refl a x) _ (idCanon p h) (sym _ (refl a x) (idCanon q h))
+                  trans
+                    _
+                    (let claim2 = h in refl a) x
+                    _
+                    idCanon p h
+                    sym _ ((let claim1 = h in refl a) x) (idCanon q h)

@@ -170,7 +170,7 @@ nZScale =
         ≡⟨ sym _ _ (intRmul a x) ⟩ rmul _ intCommRing a x
 
 nZIsIdeal : (n : Int) → IsIdeal _ intCommRing (nZ n) using (intRaddGroup.rw)
-nZIsIdeal = λn. idIntro (nZIsSubgroup n) (nZScale n)
+nZIsIdeal = λn. idIntro ((let claim1 = intRaddGroup in nZIsSubgroup) n) (nZScale n)
 
 -- ℤ/nℤ, as a commutative ring
 intModRing : (n : Int) → IsCommRing (IntMod n)

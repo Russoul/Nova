@@ -61,7 +61,11 @@ nzMulOneL : {y : NZ} → nzMul nzOne y ≡ y
     zeroMult.rw,
     zeroPlusId,
     zeroPlusId.rw)
-nzMulOneL = λy. ⊎-elim (k. ⋆) (k. ⋆) y
+nzMulOneL =
+  λy. ⊎-elim
+    k. let claim29 = zeroMult k in let claim30 = zeroPlusId Z in let claim31 = zeroPlusId k in ⋆
+    k. let claim26 = zeroMult k in let claim27 = zeroPlusId Z in let claim28 = zeroPlusId k in ⋆
+    y
 
 nzMulOneR : {x : NZ} → nzMul x nzOne ≡ x
   using (multZeroId.rw,
@@ -73,7 +77,11 @@ nzMulOneR : {x : NZ} → nzMul x nzOne ≡ x
     Rat.frac.NZ.unfold,
     zeroPlusId,
     zeroPlusId.rw)
-nzMulOneR = λx. ⊎-elim (m. ⋆) (m. ⋆) x
+nzMulOneR =
+  λx. ⊎-elim
+    m. let claim23 = multZeroId m in let claim24 = zeroPlusId m in let claim25 = plusZeroId m in ⋆
+    m. let claim20 = multZeroId m in let claim21 = zeroPlusId m in let claim22 = plusZeroId m in ⋆
+    x
 
 -- ===== nat lemmas, in the orientation the engine can use =====
 --
@@ -109,7 +117,13 @@ intAddZeroL : (z : Int) → intZero + z ≡ z
     plusComm.rw,
     zeroPlusId,
     zeroPlusId.rw)
-intAddZeroL = λz. quot-elim (p. ⋆) z
+intAddZeroL =
+  λz. quot-elim
+    p. let claim17 = zeroPlusId (p .π₁)
+           claim18 = zeroPlusId (p .π₂)
+           claim19 = plusComm (p .π₂) (p .π₁)
+           ⋆
+    z
 
 intAddZeroR : (z : Int) → z + intZero ≡ z
   using (hyp.rw,
@@ -123,7 +137,13 @@ intAddZeroR : (z : Int) → z + intZero ≡ z
     plusZeroId.rw,
     zeroPlusId,
     zeroPlusId.rw)
-intAddZeroR = λz. quot-elim (p. ⋆) z
+intAddZeroR =
+  λz. quot-elim
+    p. let claim14 = plusZeroId (p .π₁)
+           claim15 = plusZeroId (p .π₂)
+           claim16 = plusComm (p .π₂) (p .π₁)
+           ⋆
+    z
 
 intScaleN : ℕ → Int → Int using (distribBack, distribBack.rw, hyp.rw, Int.Int.unfold)
 intScaleN = λn z. quot-elim (p. class (n * p .π₁, n * p .π₂)) z
@@ -141,7 +161,13 @@ intScaleNOne : (z : Int) → intScaleN (S Z) z ≡ z
     oneMult.rw,
     plusComm,
     plusComm.rw)
-intScaleNOne = λz. quot-elim (p. ⋆) z
+intScaleNOne =
+  λz. quot-elim
+    p. let claim11 = oneMult (p .π₁)
+           claim12 = oneMult (p .π₂)
+           claim13 = plusComm (p .π₂) (p .π₁)
+           ⋆
+    z
 
 -- scaling by n+1 really is n+1 iterated additions — the definition by
 -- representatives agrees with the recursive one
@@ -153,14 +179,17 @@ intScaleNSuc : (n : ℕ) (z : Int) → intScaleN (S n) z ≡ z + intScaleN n z
     Int.add.+.eq,
     sucMultBack,
     sucMultBack.rw)
-intScaleNSuc = λn z. quot-elim (p. ⋆) z
+intScaleNSuc =
+  λn z. quot-elim
+    p. let claim9 = sucMultBack n (p .π₁) in let claim10 = sucMultBack n (p .π₂) in ⋆
+    z
 
 intScale : NZ → Int → Int using (Int.Int.unfold, Rat.frac.NZ.unfold)
 intScale = λd z. ⊎-elim (n. intScaleN (S n) z) (n. intNeg (intScaleN (S n) z)) d
 
 intScaleOne : {z : Int} → intScale nzOne z ≡ z
   using (intScale.eq, intScaleNOne, Int.Int.unfold, nzOne.eq, nzPos.eq)
-intScaleOne = λz. ⋆
+intScaleOne = λz. let claim8 = intScaleNOne z in ⋆
 
 intScaleZero : (d : NZ) → intScale d intZero ≡ intZero
   using (Int.Int.unfold,
@@ -196,7 +225,11 @@ intAddScaleZeroL = λd y. ⊎-elim (n. intAddZeroL y) (n. intAddZeroL y) d
 
 intAddScaleZeroR : {d : NZ} {y : Int} → y + intScale d intZero ≡ y
   using (intAddZeroR, Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.intScaleZero)
-intAddScaleZeroR = λd y. ⊎-elim (n. intAddZeroR y) (n. intAddZeroR y) d
+intAddScaleZeroR =
+  λd y. ⊎-elim
+    n. let claim7 = intScaleZero (inj₁ n) in intAddZeroR y
+    n. let claim6 = intScaleZero (inj₂ n) in intAddZeroR y
+    d
 
 -- scaling by d agrees with multiplying by d's image in Int
 intScaleToInt : {d : NZ} → intScale d (class (S Z, Z)) ≡ nzToInt d
@@ -408,7 +441,13 @@ ratAddZeroR =
 -- (x + m) + k ≡ (x + k) + m: the addends the cross-sum needs swapped
 plusSwapRight : {x m k : ℕ} → x + m + k ≡ x + k + m
   using (hyp.rw, plusAssoc, plusAssoc.rw, plusComm, plusComm.rw, swapLeft, swapLeft.rw)
-plusSwapRight = λx m k. ⋆
+plusSwapRight =
+  λx m k. let claim1 = plusAssoc x m k
+              claim2 = swapLeft x m k
+              claim3 = swapLeft m x k
+              claim4 = plusComm k m
+              claim5 = plusAssoc x k m
+              ⋆
 
 -- the magnitude arithmetic of nzMul is symmetric: multComm on the
 -- product, then the swap above on the two summands

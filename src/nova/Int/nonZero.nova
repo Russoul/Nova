@@ -9,7 +9,7 @@
 -- well-definedness obligation arises, and nothing has to be erased.
 -- ===== the view =====
 
-import Natural (+, *, zeroMult, multSucId, sucPlus, plusComm)
+import Natural (+, *, zeroMult, multSucId, sucPlus, plusComm, plusZeroId, zeroPlusId)
 import Int (Int, IntR, intZero, intOne)
 import Int.mul (*, intMulCong2, classPairEta)
 import Natural.eq (zNotS)
@@ -79,7 +79,12 @@ nzToIntNonZero : (e : NZ) → ¬ (nzToInt e ≡ intZero)
     Rat.frac.NZ.unfold,
     Rat.frac.nzToInt.eq)
 nzToIntNonZero =
-  λe. ⊎-elim (n. intNeqOfNotRel (λr. zNotS (sym (S n) Z r))) (n. intNeqOfNotRel (λr. zNotS {n} r)) e
+  λe. ⊎-elim
+    n. intNeqOfNotRel
+      λr. zNotS ((let claim3 = plusZeroId (S n) in let claim4 = zeroPlusId Z in sym (S n) Z) r)
+    n. intNeqOfNotRel
+      λr. zNotS {n} (let claim1 = zeroPlusId Z in let claim2 = plusZeroId (S n) in r)
+    e
 
 -- ===== ℤ has no zero divisors =====
 --

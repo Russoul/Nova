@@ -12,7 +12,7 @@
 -- stated at w stated there. Reach for sigma-elim when a hypothesis
 -- has to move with the variable.
 
-import Natural (+)
+import Natural (+, plusZeroId)
 
 uncurry : (f : ℕ → ℕ → ℕ) (p : ℕ × ℕ) → ℕ
 uncurry = λf p. sigma-elim (a b. f a b) p
@@ -37,4 +37,4 @@ swapInvolutive = λp. sigma-elim (a b. ⋆) p
 -- components, and rewriting by it closes the goal
 sumOfSecondZero : (p : ℕ × ℕ) (h : p .π₂ ≡ Z) → p .π₁ + p .π₂ ≡ p .π₁
   using (hyp.rw, Natural.plusZeroId)
-sumOfSecondZero = λp h. sigma-elim (a b. ⋆) p
+sumOfSecondZero = λp h. sigma-elim (a b. let claim1 = h in let claim2 = plusZeroId a in ⋆) p

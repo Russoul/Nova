@@ -175,11 +175,13 @@ rAddWDOuterCls = wdOuterOfComm rAdd (rAddComm {}) rAddWDInnerCls
 rAddWDOuter : (x x' : RSeq)
   (h : REq x x')
   (v : Real)
-  → quot-elim (w. Real) (q. class (rAdd x q)) v ≡ quot-elim (q. class (rAdd x' q)) v
+  → quot-elim (w. Real) (q. class (rAdd x q)) v
+    ≡ (let claim4 = rAddWDInnerCls x' in quot-elim (q. class (rAdd x' q)) v)
   using (rAddWDInnerCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
 rAddWDOuter =
   λx x' h v. quot-elim
-    w. quot-elim (z. Real) (q. class (rAdd x q)) w ≡ quot-elim (q. class (rAdd x' q)) w
+    w. quot-elim (z. Real) (q. class (rAdd x q)) w
+      ≡ (let claim3 = rAddWDInnerCls x' in quot-elim (q. class (rAdd x' q)) w)
     c. rAddWDOuterCls h
     v
 
@@ -206,7 +208,11 @@ realAddComm : (u v : Real) → u + v ≡ v + u
     Real.add.realAddCls)
 realAddComm =
   λu v. quot-elim
-    p. quot-elim (q. cong (λw. Real) (λw. class w) {rAdd p q} {rAdd q p} rAddComm) v
+    p. quot-elim
+      q. let claim1 = realAddCls p q
+             claim2 = realAddCls q p
+             cong (λw. Real) (λw. class w) {rAdd p q} {rAdd q p} rAddComm
+      v
     u
 
 -- ℚ embeds as a homomorphism: a constant sequence samples to itself

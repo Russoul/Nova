@@ -124,7 +124,7 @@ qrMulWDOuterElim : (R : 𝕌)
 qrMulWDOuterElim =
   λR r I id x x' h v. quot-elim
     w. quot-elim (z. QRing _ r I) (q. qrCls (rmul _ r x q)) w
-      ≡ quot-elim (q. qrCls (rmul _ r x' q)) w
+      ≡ (let claim10 = qrMulWDInnerCls _ _ _ id x' in quot-elim (q. qrCls (rmul _ r x' q)) w)
     c. qrMulWDOuterCls id h
     v
 
@@ -197,7 +197,7 @@ qrMulAssoc =
           _
           _
           _
-          ⋆
+          let claim8 = qrMulCls _ _ _ id a b in let claim9 = qrMulCls _ _ _ id (rmul _ r a b) c in ⋆
           trans
             _
             _
@@ -208,7 +208,9 @@ qrMulAssoc =
               {rmul _ r (rmul _ r a b) c}
               {rmul _ r a (rmul _ r b c)}
               rMulAssoc
-            ⋆
+            let claim6 = qrMulCls _ _ _ id b c
+                claim7 = qrMulCls _ _ _ id a (rmul _ r b c)
+                ⋆
         w
       v
     u
@@ -293,13 +295,18 @@ qrDistribL =
           _
           _
           _
-          ⋆
+          let claim4 = qrAddCls _ _ _ id b c
+              claim5 = qrMulCls _ _ _ id a (gop {R} (raddGroup {R} r) b c)
+              ⋆
           trans
             _
             _
             qrAdd id (qrMul _ _ _ id (class a) (class b)) (qrMul _ _ _ id (class a) (class c))
             cong (λz. QRing _ r I) (λz. class z) (rDistribL _ r a b c)
-            ⋆
+            let claim1 = qrMulCls _ _ _ id a b
+                claim2 = qrMulCls _ _ _ id a c
+                claim3 = qrAddCls _ _ _ id (rmul _ r a b) (rmul _ r a c)
+                ⋆
         w
       v
     u

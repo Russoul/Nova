@@ -32,11 +32,25 @@ normSound : (a b : ℕ) → normPair a b .π₁ + b ≡ normPair a b .π₂ + a
     plusZeroId.rw,
     zeroPlusId,
     zeroPlusId.rw)
-normSound = λa. ℕ-elim (λb. ⋆) (n ih. λb. ℕ-elim ⋆ (m ihb. ⋆) b) a
+normSound =
+  λa. ℕ-elim
+    λb. let claim9 = normPairZero b in let claim10 = zeroPlusId b in let claim11 = plusZeroId b in ⋆
+    n ih. λb. ℕ-elim
+      let claim6 = normPairSucZero n
+          claim7 = plusZeroId (S n)
+          claim8 = zeroPlusId (S n)
+          ⋆
+      m ihb. let claim2 = normPairSucSuc n m
+                 claim3 = plusSucId (normPair n m .π₁) m
+                 claim4 = ih m
+                 claim5 = plusSucId (normPair n m .π₂) n
+                 ⋆
+      b
+    a
 
 -- at the quotient, normalization is invisible
 normClass : (a b : ℕ) → class (normPair a b) ≡ class (a, b) ∈ Int using (Int.Int.unfold, normSound)
-normClass = λa b. ⋆
+normClass = λa b. let claim1 = normSound a b in ⋆
 
 intNormalize : Int → Int using (hyp.rw, Int.Int.unfold, normClass, normClass.rw)
 intNormalize = λz. quot-elim (rep. class (normPair (rep .π₁) (rep .π₂))) z

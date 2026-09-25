@@ -32,8 +32,22 @@ intScaleIsMul : (d : NZ) (z : Int) → intScale d z ≡ nzToInt d * z
     zeroPlusId.rw)
 intScaleIsMul =
   λd z. ⊎-elim
-    n. quot-elim (v. intScale (nzPos n) v ≡ nzToInt (nzPos n) * v) (p. ⋆) z
-    n. quot-elim (v. intScale (nzNeg n) v ≡ nzToInt (nzNeg n) * v) (p. ⋆) z
+    n. quot-elim
+      v. intScale (nzPos n) v ≡ nzToInt (nzPos n) * v
+      p. let claim40 = zeroMult (p .π₂)
+             claim41 = zeroMult (p .π₁)
+             claim42 = plusZeroId (S n * p .π₁)
+             claim43 = plusZeroId (S n * p .π₂)
+             ⋆
+      z
+    n. quot-elim
+      v. intScale (nzNeg n) v ≡ nzToInt (nzNeg n) * v
+      p. let claim36 = zeroMult (p .π₁)
+             claim37 = zeroMult (p .π₂)
+             claim38 = zeroPlusId (S n * p .π₂)
+             claim39 = zeroPlusId (S n * p .π₁)
+             ⋆
+      z
     d
 
 -- (m+1)(k+1) = mk + m + k + 1: the magnitude law behind nzMul
@@ -70,8 +84,46 @@ nzToIntMul : (d e : NZ) → nzToInt (nzMul d e) ≡ nzToInt d * nzToInt e
     zeroPlusId.rw)
 nzToIntMul =
   λd e. ⊎-elim
-    m. ⊎-elim (v. nzToInt (nzMul (nzPos m) v) ≡ nzToInt (nzPos m) * nzToInt v) (k. ⋆) (k. ⋆) e
-    m. ⊎-elim (v. nzToInt (nzMul (nzNeg m) v) ≡ nzToInt (nzNeg m) * nzToInt v) (k. ⋆) (k. ⋆) e
+    m. ⊎-elim
+      v. nzToInt (nzMul (nzPos m) v) ≡ nzToInt (nzPos m) * nzToInt v
+      k. let claim28 = plusZeroId (S (m * k + m + k))
+             claim29 = sucMulSuc m k
+             claim30 = zeroPlusId (S m * S k)
+             claim31 = zeroMult Z
+             claim32 = zeroMult (S k)
+             claim33 = multZeroId (S m)
+             claim34 = zeroPlusId Z
+             claim35 = plusZeroId (S m * S k)
+             ⋆
+      k. let claim20 = zeroPlusId (S m * S k)
+             claim21 = sucMulSuc m k
+             claim22 = plusZeroId (S (m * k + m + k))
+             claim23 = zeroMult (S k)
+             claim24 = zeroMult Z
+             claim25 = multZeroId (S m)
+             claim26 = zeroPlusId Z
+             claim27 = plusZeroId (S m * S k)
+             ⋆
+      e
+    m. ⊎-elim
+      v. nzToInt (nzMul (nzNeg m) v) ≡ nzToInt (nzNeg m) * nzToInt v
+      k. let claim13 = zeroPlusId (S m * S k)
+             claim14 = sucMulSuc m k
+             claim15 = plusZeroId (S (m * k + m + k))
+             claim16 = zeroMult (S k)
+             claim17 = zeroMult Z
+             claim18 = multZeroId (S m)
+             claim19 = zeroPlusId Z
+             ⋆
+      k. let claim6 = plusZeroId (S (m * k + m + k))
+             claim7 = sucMulSuc m k
+             claim8 = zeroPlusId (S m * S k)
+             claim9 = zeroMult Z
+             claim10 = zeroMult (S k)
+             claim11 = multZeroId (S m)
+             claim12 = zeroPlusId Z
+             ⋆
+      e
     d
 
 -- ===== rearranging four-fold products =====
@@ -311,7 +363,8 @@ qAddWDOuterCls =
 qAddWDOuter : (p p' : Rat)
   (h : RatR p p')
   (v : Q)
-  → quot-elim (w. Q) (x. class (ratAdd p x)) v ≡ quot-elim (x. class (ratAdd p' x)) v
+  → quot-elim (w. Q) (x. class (ratAdd p x)) v
+    ≡ (let claim5 = qAddWDInnerCls {p'} in quot-elim (x. class (ratAdd p' x)) v)
   using (Int.Int.unfold,
     qAddWDInnerCls,
     Rat.frac.NZ.unfold,
@@ -320,7 +373,8 @@ qAddWDOuter : (p p' : Rat)
     Rat.RatR.unfold)
 qAddWDOuter =
   λp p' h v. quot-elim
-    w. quot-elim (z. Q) (x. class (ratAdd p x)) w ≡ quot-elim (x. class (ratAdd p' x)) w
+    w. quot-elim (z. Q) (x. class (ratAdd p x)) w
+      ≡ (let claim4 = qAddWDInnerCls {p'} in quot-elim (x. class (ratAdd p' x)) w)
     c. qAddWDOuterCls h
     v
 
@@ -800,7 +854,7 @@ qNeg : Q → Q
     Rat.frac.Rat.unfold,
     Rat.Q.unfold,
     Rat.RatR.unfold)
-qNeg = λu. quot-elim (p. class (ratNeg p)) u
+qNeg = λu. let claim3 = ratNegWDCls in quot-elim (p. class (ratNeg p)) u
 
 qNegCls : (p : Rat) → qNeg (qcls p) ≡ qcls (ratNeg p)
   using (Int.Int.unfold,
@@ -1124,7 +1178,8 @@ qMulWDOuterCls =
 qMulWDOuter : (p p' : Rat)
   (h : RatR p p')
   (v : Q)
-  → quot-elim (w. Q) (x. class (ratMul p x)) v ≡ quot-elim (x. class (ratMul p' x)) v
+  → quot-elim (w. Q) (x. class (ratMul p x)) v
+    ≡ (let claim2 = qMulWDInnerCls {p'} in quot-elim (x. class (ratMul p' x)) v)
   using (Int.Int.unfold,
     qMulWDInnerCls,
     Rat.frac.NZ.unfold,
@@ -1133,7 +1188,8 @@ qMulWDOuter : (p p' : Rat)
     Rat.RatR.unfold)
 qMulWDOuter =
   λp p' h v. quot-elim
-    w. quot-elim (z. Q) (x. class (ratMul p x)) w ≡ quot-elim (x. class (ratMul p' x)) w
+    w. quot-elim (z. Q) (x. class (ratMul p x)) w
+      ≡ (let claim1 = qMulWDInnerCls {p'} in quot-elim (x. class (ratMul p' x)) w)
     c. qMulWDOuterCls h
     v
 

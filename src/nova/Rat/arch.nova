@@ -19,13 +19,13 @@ import Natural (+, *, multZeroId, plusZeroId, zeroPlusId, sucPlus, multComm, zer
 import Int (Int, intZero, intOne, intNeg)
 import Int.add (+)
 import Int.mul (*, intMulZeroL, intMulNegL, intMulNegR, intNegNeg)
-import Int.order (intOfNat, intOfNatMul)
+import Int.order (intOfNat, intOfNatMul, intOfNatZero)
 import Int.nonZero (nzOfInt)
 import Rat.frac (NZ, nzPos, nzNeg, nzToInt, nzMul, Rat, mkRat, num, den, denInt, ratNeg, ratEta, intScale)
 import Rat (Q, qcls, +, qNeg, qZero, RatR, clsEqOfRel, nzToIntMul, dInt, qAddAssoc, qAddComm, qAddZeroR, qAddNegR, qAddNegL)
 import Rat.order (Sign, sZero, sPos, sNeg, sgnFlip, sgnQ, ratSgn, intSgn, intSgnZero, intSgnPos, intSgnNeg, NonNegS, ≤, sgnQCls, sgnQZero, sgnCases, sgnQNegFlip, qSubNeg, leQTrans, leQAntisym, sZeroNotPos, sZeroNotNeg, sNegNotPos, leQPlusMono, leQPlusMonoL, qNegAdd, qPairSwap)
 import Rat.bound (Bnd, qSubFlip, leQSelfAdd, nonNegNotNeg)
-import Rat.half (dbl, qInvHalf, leQInvDbl, leQZeroInvNat)
+import Rat.half (dbl, qInvHalf, leQInvDbl, leQZeroInvNat, nzPosInt)
 import Real (qInvNat, qInvNatPos)
 import Core.prop (⊥, absurdP)
 import Core.equality (trans, sym, cong, transport)
@@ -54,7 +54,10 @@ intSgnOfNatNonNeg : {k : ℕ} → NonNegS (intSgn (intOfNat k))
     Rat.order.NonNegS.unfold,
     Rat.order.Sign.unfold)
 intSgnOfNatNonNeg =
-  λk. ℕ-elim (inj₁ (eqToId _ _ intSgnZero)) (j ih. inj₂ (eqToId _ _ (intSgnPos j))) k
+  λk. ℕ-elim
+    inj₁ (eqToId _ _ (let claim9 = intOfNatZero in intSgnZero))
+    j ih. inj₂ (eqToId _ _ ((let claim8 = nzPosInt j in intSgnPos) j))
+    k
 
 -- ...so a fraction with a natural numerator over a positive
 -- denominator is never negative: its sign is that of the natural a·(b+1)
@@ -112,7 +115,15 @@ fracNumEq : {a b : ℕ}
     Rat.frac.intScale.eq,
     Rat.frac.intScaleN.eq,
     Rat.frac.nzPos.eq)
-fracNumEq = λa b. ⋆
+fracNumEq =
+  λa b. let claim1 = multZeroId (S b)
+            claim2 = zeroPlusId (S b * S Z)
+            claim3 = plusZeroId (S b * S a)
+            claim4 = multSucId (S b) a
+            claim5 = multSucId (S b) Z
+            claim6 = plusZeroId (S b)
+            claim7 = plusZeroId (S b + S b * a)
+            ⋆
 
 qDiffFracInv : (a b : ℕ) → qFrac (S a) b + qNeg (qInvNat b) ≡ qFrac (S b * a) (b * b + b + b)
   using (Int.order.intOfNat.eq,

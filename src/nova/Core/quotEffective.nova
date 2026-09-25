@@ -52,7 +52,7 @@ clsRelWd =
 -- the descent itself: quot-elim at the CONSTANT MOTIVE Ω. clsRelWd
 -- above discharges its well-definedness obligation
 clsRel : {A : 𝕌} (r : A → A → Ω) (a : A) → (A / (u v. r u v)) → Ω using (clsRelWd)
-clsRel = λA r a q. quot-elim (x. rClosure r a x) q
+clsRel = λA r a q. let claim3 = clsRelWd {A} r a in quot-elim (x. rClosure r a x) q
 
 -- ⟹ : EFFECTIVITY. clsRel a (class a) ≜ r⁺ a a holds by reflexivity of
 -- the closure, and the class equation transports it to b — el-quot-beta
@@ -99,7 +99,8 @@ natEq = λx y. x ≡ y
 
 natEqEffective : {a b : ℕ} → (class a ≡ class b ∈ ℕ / (u v. natEq u v)) → a ≡ b
   using (hyp.rw, Core.quotEffective.natEq.eq, Core.quotEffective.natEq.unfold)
-natEqEffective = effectiveAtEquiv natEq (λx. ⋆) (λx y z h1 h2. ⋆) (λx y h. ⋆)
+natEqEffective =
+  effectiveAtEquiv natEq (λx. ⋆) (λx y z h1 h2. let claim1 = h1 in let claim2 = h2 in ⋆) (λx y h. ⋆)
 
 -- and the refutation, kept as evidence: at the successor graph — not an
 -- equivalence — the one-hop equation holds by el-quot-eq, the two-hop

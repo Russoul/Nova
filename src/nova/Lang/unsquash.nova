@@ -18,7 +18,7 @@
 -- ever have named it. By the same token a type that names w blocks the
 -- rule outright — remove w and no proof of ∥A∥ is left to stand there.
 
-import Natural (+)
+import Natural (+, plusZeroId)
 
 halves : (n : ℕ) (w : ∥(k : ℕ) × n ≡ k + k∥) → ∥(k : ℕ) × n + Z ≡ k + k∥ using (Natural.plusZeroId)
 halves = λn w. unsquash (x. ⋆ x) w

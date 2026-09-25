@@ -31,7 +31,11 @@ oneMultL : (n : ℕ) → S Z * n ≡ n
     sucPlus.rw,
     zeroPlusId,
     zeroPlusId.rw)
-oneMultL = λn. ℕ-elim ⋆ (k ih. ⋆) n
+oneMultL =
+  λn. ℕ-elim
+    ⋆
+    k ih. let claim1 = ih in let claim2 = sucPlus Z k in let claim3 = zeroPlusId k in ⋆
+    n
 
 -- (ℕ, *, 1) is a monoid.
 natMulMonoid : IsMonoid ℕ using (Algebra.monoid.IsMonoid.unfold)

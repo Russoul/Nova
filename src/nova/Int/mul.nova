@@ -43,7 +43,13 @@ swap4 : (p q r s : ℕ) → p + q + (r + s) ≡ p + r + (q + s)
     plusAssoc.rw,
     swapLeft,
     swapLeft.rw)
-swap4 = λp q r s. ⋆
+swap4 =
+  λp q r s. let claim35 = plusAssoc p q (r + s)
+                claim36 = swapLeft p q (r + s)
+                claim37 = swapLeft q p (r + s)
+                claim38 = swapLeft q r s
+                claim39 = plusAssoc p r (q + s)
+                ⋆
 
 swap4b : {p q r s : ℕ} → p + q + (r + s) ≡ p + s + (q + r)
   using (Int.add.intAddCross, swap4, plusAssoc)
@@ -54,7 +60,7 @@ swap4b =
 -- are judgemental, so each is one ⋆ (and unlike a rewrite step, a
 -- lemma application is unconstrained by the position it lands in)
 plusCongL : {x y z : ℕ} → (x ≡ y) → x + z ≡ y + z using (hyp.rw)
-plusCongL = λx y z h. ⋆
+plusCongL = λx y z h. let claim34 = h in ⋆
 
 plusCongR : {x y z : ℕ} → (y ≡ z) → x + y ≡ x + z
 plusCongR = λx y z h. ⋆
@@ -189,7 +195,7 @@ intMulWDOuter =
       x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁)
       q
       ≡ quot-elim (x. class (b .π₁ * x .π₁ + b .π₂ * x .π₂, b .π₁ * x .π₂ + b .π₂ * x .π₁)) q
-    c. ⋆
+    c. let claim33 = intMulWDRep _ _ _ _ (c .π₁) (c .π₂) h in ⋆
     zy
 
 -- ===== multiplication =====
@@ -221,7 +227,7 @@ oneMult = λm. S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m 
 -- reflection makes the components judgemental, so this is one ⋆
 classCong2 : {u1 u2 v1 v2 : ℕ} → (u1 ≡ v1) → (u2 ≡ v2) → class (u1, u2) ≡ class (v1, v2) ∈ Int
   using (hyp.rw, Int.Int.unfold)
-classCong2 = λu1 u2 v1 v2 h1 h2. ⋆
+classCong2 = λu1 u2 v1 v2 h1 h2. let claim31 = h2 in let claim32 = h1 in ⋆
 
 -- multiplication by 1 on the LEFT does not compute (Natural.nova's * is
 -- recursive in its SECOND argument), so oneMult/zeroMult have to fire
@@ -237,7 +243,16 @@ intMulOneL : (z : Int) → intOne * z ≡ z
     plusZeroId.rw,
     zeroMult,
     zeroMult.rw)
-intMulOneL = λz. quot-elim (p. trans (class (p .π₁, p .π₂)) _ _ ⋆ (classPairEta p)) z
+intMulOneL =
+  λz. quot-elim
+    p. let claim25 = oneMult (p .π₁)
+           claim26 = oneMult (p .π₂)
+           claim27 = zeroMult (p .π₂)
+           claim28 = zeroMult (p .π₁)
+           claim29 = plusZeroId (p .π₁)
+           claim30 = plusZeroId (p .π₂)
+           trans (class (p .π₁, p .π₂)) _ _ ⋆ (classPairEta p)
+    z
 
 intMulOneR : (z : Int) → z * intOne ≡ z
   using (classPairEta,
@@ -252,7 +267,18 @@ intMulOneR : (z : Int) → z * intOne ≡ z
     plusZeroId.rw,
     zeroPlusId,
     zeroPlusId.rw)
-intMulOneR = λz. quot-elim (p. classPairEta p) z
+intMulOneR =
+  λz. quot-elim
+    p. let claim17 = multZeroId (p .π₂)
+           claim18 = multZeroId (p .π₁)
+           claim19 = zeroPlusId (p .π₂ * S Z)
+           claim20 = plusZeroId (p .π₁ * S Z)
+           claim21 = multSucId (p .π₁) Z
+           claim22 = plusZeroId (p .π₁)
+           claim23 = multSucId (p .π₂) Z
+           claim24 = plusZeroId (p .π₂)
+           classPairEta p
+    z
 
 intMulZeroL : (z : Int) → intZero * z ≡ intZero
   using (distribBack,
@@ -264,7 +290,14 @@ intMulZeroL : (z : Int) → intZero * z ≡ intZero
     Int.intZero.eq,
     zeroMult,
     zeroMult.rw)
-intMulZeroL = λz. quot-elim (p. ⋆) z
+intMulZeroL =
+  λz. quot-elim
+    p. let claim13 = distribBack {Z} {p .π₁} {p .π₂}
+           claim14 = distribBack {Z} {p .π₂} {p .π₁}
+           claim15 = zeroMult (p .π₁ + p .π₂)
+           claim16 = zeroMult (p .π₂ + p .π₁)
+           ⋆
+    z
 
 intMulZeroR : {z : Int} → z * intZero ≡ intZero using (Int.Int.unfold, Int.intZero.eq, Int.mul.*.eq)
 intMulZeroR = λz. quot-elim (p. ⋆) z
@@ -317,15 +350,24 @@ intMulDistribL : (x y z : Int) → x * (y + z) ≡ x * y + x * z
     plusAssoc.rw,
     sum4Distrib,
     sum4Distrib.rw)
-intMulDistribL = λx y z. quot-elim (a. quot-elim (b. quot-elim (c. ⋆) z) y) x
+intMulDistribL =
+  λx y z. quot-elim
+    a. quot-elim
+      b. quot-elim
+        c. let claim11 = sum4Distrib (a .π₁) (a .π₂) (b .π₁) (b .π₂) (c .π₂) (c .π₁)
+               claim12 = sum4Distrib (a .π₁) (a .π₂) (b .π₂) (b .π₁) (c .π₁) (c .π₂)
+               ⋆
+        z
+      y
+    x
 
 -- congruence in both arguments, for building chains: reflection makes
 -- the hypotheses judgemental, so each is one ⋆
 intAddCong2 : (x y u v : Int) → (x ≡ u) → (y ≡ v) → x + y ≡ u + v using (hyp.rw, Int.Int.unfold)
-intAddCong2 = λx y u v h1 h2. ⋆
+intAddCong2 = λx y u v h1 h2. let claim9 = h2 in let claim10 = h1 in ⋆
 
 intMulCong2 : (x y u v : Int) → (x ≡ u) → (y ≡ v) → x * y ≡ u * v using (hyp.rw, Int.Int.unfold)
-intMulCong2 = λx y u v h1 h2. ⋆
+intMulCong2 = λx y u v h1 h2. let claim7 = h2 in let claim8 = h1 in ⋆
 
 -- distributivity on the right, from the left law by commuting thrice
 intMulDistribR : (x y z : Int) → (x + y) * z ≡ x * z + y * z
@@ -351,7 +393,13 @@ intAddNegR : (z : Int) → z + intNeg z ≡ intZero
     plusComm,
     plusZeroId,
     plusZeroId.rw)
-intAddNegR = λz. quot-elim (p. ⋆) z
+intAddNegR =
+  λz. quot-elim
+    p. let claim4 = plusZeroId (p .π₁ + p .π₂)
+           claim5 = plusComm (p .π₂) (p .π₁)
+           claim6 = plusZeroId (p .π₂ + p .π₁)
+           ⋆
+    z
 
 intAddNegL : (z : Int) → intNeg z + z ≡ intZero
   using (Int.Int.unfold,
@@ -362,7 +410,13 @@ intAddNegL : (z : Int) → intNeg z + z ≡ intZero
     plusComm,
     plusZeroId,
     plusZeroId.rw)
-intAddNegL = λz. quot-elim (p. ⋆) z
+intAddNegL =
+  λz. quot-elim
+    p. let claim1 = plusZeroId (p .π₂ + p .π₁)
+           claim2 = plusComm (p .π₁) (p .π₂)
+           claim3 = plusZeroId (p .π₁ + p .π₂)
+           ⋆
+    z
 
 -- (−x)·y = −(x·y): the two representatives differ by plusComm in each
 -- component

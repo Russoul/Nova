@@ -7,7 +7,7 @@
 -- representatives must be touched (deciding the order) goes through
 -- the honest function intCanon.
 
-import Natural (+, *, plusComm, zeroPlusId, zeroMult)
+import Natural (+, *, plusComm, zeroPlusId, zeroMult, multZeroId, plusZeroId)
 import Natural.order (≤, leTotal, sumZeroL)
 import Int (Int, intZero, intNeg)
 import Int.add (+, intAddComm, intAddAssoc)
@@ -93,7 +93,7 @@ intPlusNegDiff =
 
 -- ===== the order =====
 leZRefl : (x : Int) → x ≤ x using (Int.order.≤.unfold, Int.order.intOfNatZero, Int.Int.unfold)
-leZRefl = λx. Z, eqToId _ _ (intAddZeroR x)
+leZRefl = λx. Z, eqToId _ _ ((let claim7 = intOfNatZero in intAddZeroR) x)
 
 leZOfEq : {x y : Int} → (x ≡ y) → x ≤ y
   using (Int.order.≤.unfold, Int.order.intOfNatZero, Int.Int.unfold)
@@ -231,7 +231,7 @@ sumSwapZL = λa b k h. k + b ≡⟨ plusComm b k ⟩ b + k ≡⟨ h ⟩ a ≡⟨
 
 clsOfRelGe : (a b k : ℕ) → (b + k ≡ a) → class (k, Z) ≡ class (a, b) ∈ Int
   using (Int.Int.unfold, plusComm, sumSwapZL, zeroPlusId)
-clsOfRelGe = λa b k h. ⋆
+clsOfRelGe = λa b k h. let claim6 = sumSwapZL _ _ _ h in ⋆
 
 clsOfRelLe : (a b k : ℕ) → (a + k ≡ b) → class (k, Z) ≡ class (b, a) ∈ Int
   using (Int.order.clsOfRelGe, Int.Int.unfold, plusComm, zeroPlusId)
@@ -305,7 +305,13 @@ intOfNatMul : (a b : ℕ) → intOfNat a * intOfNat b ≡ intOfNat (a * b)
     Natural.plusZeroId.rw,
     zeroPlusId,
     zeroPlusId.rw)
-intOfNatMul = λa b. ⋆
+intOfNatMul =
+  λa b. let claim1 = zeroMult Z
+            claim2 = zeroMult b
+            claim3 = multZeroId a
+            claim4 = zeroPlusId Z
+            claim5 = plusZeroId (a * b)
+            ⋆
 
 -- right distributivity, from the left one by commutativity
 intMulDistribR : (a b c : Int) → (a + b) * c ≡ a * c + b * c using (Int.Int.unfold)

@@ -45,7 +45,17 @@ multCancelLe =
                          cong (λu. ℕ) (λw. w * S k) (sym _ _ e)
                          multDistribR (S k) n (le .π₁)
                    jz : le .π₁ ≡ Z
-                     = multZeroInv _ _ (sym _ _ (plusCancelL (n * S k) Z (le .π₁ * S k) split))
+                     = multZeroInv
+                       _
+                       _
+                       sym
+                         _
+                         _
+                         plusCancelL
+                           n * S k
+                           Z
+                           le .π₁ * S k
+                           let claim26 = plusZeroId (n * S k) in split
                    trans
                      _
                      _
@@ -81,7 +91,8 @@ zeroMonus : (b : ℕ) → Z ∸ b ≡ Z
     Natural.more.monusSucR,
     Natural.more.monusSucR.rw,
     Natural.more.pred.eq)
-zeroMonus = λb. ℕ-elim (monusZeroR {Z}) (k ih. ⋆) b
+zeroMonus =
+  λb. ℕ-elim (monusZeroR {Z}) (k ih. let claim24 = monusSucR Z k in let claim25 = ih in ⋆) b
 
 sucMonusSuc : (a b : ℕ) → S a ∸ S b ≡ a ∸ b using (Natural.more.pred.eq, Natural.more.∸.eq)
 sucMonusSuc = λa b. ℕ-elim ⋆ (k ih. ⋆) b
@@ -97,7 +108,14 @@ plusMonus : (a b : ℕ) → a + b ∸ b ≡ a
     Natural.more.monusZeroR.rw,
     sucMonusSuc,
     sucMonusSuc.rw)
-plusMonus = λa b. ℕ-elim ⋆ (k ih. ⋆) b
+plusMonus =
+  λa b. ℕ-elim
+    let claim22 = monusZeroR {a + Z} in let claim23 = plusZeroId a in ⋆
+    k ih. let claim19 = plusSucId a k
+              claim20 = sucMonusSuc (a + k) k
+              claim21 = ih
+              ⋆
+    b
 
 -- subtracting a sum is subtracting twice
 monusPlus : (a b c : ℕ) → a ∸ (b + c) ≡ a ∸ b ∸ c using (Natural.+.eq, Natural.more.∸.eq)
@@ -105,7 +123,8 @@ monusPlus = λa b c. ℕ-elim ⋆ (k ih. ⋆) c
 
 monusSelf : {a : ℕ} → a ∸ a ≡ Z
   using (hyp.rw, Natural.more.zeroMonus, Natural.more.zeroMonus.rw, sucMonusSuc, sucMonusSuc.rw)
-monusSelf = λa. ℕ-elim (zeroMonus _) (k ih. ⋆) a
+monusSelf =
+  λa. ℕ-elim (zeroMonus _) (k ih. let claim17 = sucMonusSuc k k in let claim18 = ih in ⋆) a
 
 -- ...so a ≤ b makes a − b vanish
 monusZeroOfLe : (a b : ℕ) → a ≤ b → a ∸ b ≡ Z using (Core.id.Id.unfold, Natural.order.≤.unfold)
@@ -192,7 +211,16 @@ oneExp : (n : ℕ) → S Z ^ n ≡ S Z
     multZeroId.rw,
     plusZeroId,
     plusZeroId.rw)
-oneExp = λn. ℕ-elim (expZero _) (k ih. ⋆) n
+oneExp =
+  λn. ℕ-elim
+    expZero _
+    k ih. let claim12 = expSuc (S Z) k
+              claim13 = ih
+              claim14 = multSucId (S Z) Z
+              claim15 = multZeroId (S Z)
+              claim16 = plusZeroId (S Z)
+              ⋆
+    n
 
 -- x * (y * z) ≡ y * (x * z): the left-swap under associativity,
 -- stated in the exact shape expPlus's step case needs
@@ -215,7 +243,12 @@ expPlus : (a m n : ℕ) → a ^ (m + n) ≡ a ^ m * a ^ n
     multZeroId.rw)
 expPlus =
   λa m n. ℕ-elim
-    ⋆
+    let claim7 = plusZeroId m
+        claim8 = expZero a
+        claim9 = multSucId (a ^ m) Z
+        claim10 = multZeroId (a ^ m)
+        claim11 = plusZeroId (a ^ m)
+        ⋆
     k ih. a ^ (m + S k)
       ≡⟨ plusSucId m k ⟩ a ^ S (m + k)
       ≡⟨ expSuc a (m + k) ⟩ a * a ^ (m + k)
@@ -227,7 +260,15 @@ expPlus =
 -- ===== monus and a common summand =====
 monusPlusR : (a b k : ℕ) → a + k ∸ (b + k) ≡ a ∸ b
   using (hyp.rw, plusZeroId, plusZeroId.rw, plusSucId, plusSucId.rw, sucMonusSuc, sucMonusSuc.rw)
-monusPlusR = λa b k. ℕ-elim ⋆ (j ih. ⋆) k
+monusPlusR =
+  λa b k. ℕ-elim
+    let claim5 = plusZeroId a in let claim6 = plusZeroId b in ⋆
+    j ih. let claim1 = plusSucId a j
+              claim2 = plusSucId b j
+              claim3 = sucMonusSuc (a + j) (b + j)
+              claim4 = ih
+              ⋆
+    k
 
 monusPlusL : {k a b : ℕ} → k + a ∸ (k + b) ≡ a ∸ b
 monusPlusL =

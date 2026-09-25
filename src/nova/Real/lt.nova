@@ -16,7 +16,7 @@
 -- contradiction in ℚ, and ltROfQ, which is where Rat/arch.nova's
 -- Archimedean witness is spent.
 
-import Rat (Q, +, qNeg, qZero, qOne, qAddComm)
+import Rat (Q, +, qNeg, qZero, qOne, qAddComm, qAddZeroR)
 import Rat.order (Sign, sPos, sgnQ, ≤, leQAntisym, leQPlusMono, qPlusNegCancelR)
 import Rat.lt (<, sgnOfLtQ, ltQOfSgn, leQOfLtQ)
 import Rat.half (leQZeroInvNat)
@@ -24,9 +24,10 @@ import Rat.arch (ArchWit, qArch, qInvNatNotZero)
 import Real (qInvNat, Real, realOfQ, realZero, realOne)
 import Real.add (+, realAddComm, realAddAssoc, realAddZeroR, realAddNegR, realAddOfQ)
 import Real.neg (realNeg)
-import Real.order (≤, leRRefl, leRTrans, leRAddMono, leROfQ, leQOfLeR, leQZeroOne)
+import Real.order (≤, leRRefl, leRTrans, leRAddMono, leROfQ, leQOfLeR, leQZeroOne, sgnQOnePos)
 import Core.prop (⊥)
 import Core.equality (trans, sym, cong, transport, transportP)
+import Rat.bound (qNegZeroQ)
 
 infixl 4 <
 < : Real → Real → Ω
@@ -164,7 +165,12 @@ ltRZeroOne : realZero < realOne
     Real.lt.<.eq,
     Real.lt.<.unfold,
     Real.order.sgnQOnePos)
-ltRZeroOne = ltROfQ (ltQOfSgn qZero qOne ⋆)
+ltRZeroOne =
+  ltROfQ
+    ltQOfSgn
+      qZero
+      qOne
+      let claim1 = qNegZeroQ in let claim2 = qAddZeroR qOne in let claim3 = sgnQOnePos in ⋆
 
 -- ===== compatibility with addition =====
 ltRAddMono : (u v t : Real) → u < v → u + t < v + t using (Real.lt.<.unfold)
