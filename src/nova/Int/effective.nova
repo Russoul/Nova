@@ -42,8 +42,8 @@ cancelTrans = λa b c d e f h1 h2. plusCancel _ _ _ (cancelStep h1 h2)
 
 -- IntR is an equivalence. Reflexivity and symmetry are commutativity, so
 -- one ⋆ each; transitivity is cancelTrans at the four components
-intRRefl : {p : ℕ × ℕ} → IntR p p using (Int.IntR.unfold, plusComm)
-intRRefl = λp. ⋆
+intRRefl : {p : ℕ × ℕ} → IntR p p using (Int.IntR.unfold)
+intRRefl = λp. plusComm (p .π₂) (p .π₁)
 
 intRSymm : {p q : ℕ × ℕ} → IntR p q → IntR q p using (Int.IntR.eq, Int.IntR.unfold, plusComm)
 intRSymm =

@@ -82,9 +82,12 @@ multZeroId = λn. ⋆
 multSucId : (n m : ℕ) → n * S m ≡ n + n * m using (Natural.*.eq, Natural.+.eq)
 multSucId = λn m. ⋆
 
-zeroMult : (n : ℕ) → Z * n ≡ Z using (Natural.multZeroId)
+zeroMult : (n : ℕ) → Z * n ≡ Z
 zeroMult =
-  λn. ℕ-elim ⋆ (k ih. Z * S k ≡⟨ multSucId Z k ⟩ Z + Z * k ≡⟨ ih ⟩ Z + Z ≡⟨ zeroPlusId Z ⟩ Z) n
+  λn. ℕ-elim
+    multZeroId _
+    k ih. Z * S k ≡⟨ multSucId Z k ⟩ Z + Z * k ≡⟨ ih ⟩ Z + Z ≡⟨ zeroPlusId Z ⟩ Z
+    n
 
 sucMult : (n m : ℕ) → S n * m ≡ m + n * m
 sucMult =
