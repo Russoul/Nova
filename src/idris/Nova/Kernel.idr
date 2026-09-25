@@ -2405,7 +2405,7 @@ mutual
     -- given side's term alongside: an exposure inside the child is
     -- run where it sits (a stuck head whose scrutinee's type a
     -- definition hides), an application's codomain instantiated by
-    -- the side's argument; a bare head inverts from its term
+    -- the side's argument; a bare head is untyped
     headOfMT : Drv -> Elem -> KM (Maybe (Ty, Ty))
     headOfMT q term =
       if dSynth q
@@ -2470,11 +2470,10 @@ mutual
                   Just motK => done (substTy motK (Ext (foldl Ext Id (toList es)) w))
                   Nothing => pure Nothing
               else pure Nothing
-          _ => do
-            mt <- inferHead sig ctx term
-            case mt of
-              Just t => do t' <- kWhnfT sig t; pure (Just (t', t))
-              Nothing => pure Nothing
+          -- a bare head no child states: the position below it is
+          -- type-undetermined (the reader never types a term off a
+          -- side — the engine writes the typed neutral there)
+          _ => pure Nothing
      where
       done : Ty -> KM (Maybe (Ty, Ty))
       done t = do t' <- kWhnfT sig t; pure (Just (t', t))

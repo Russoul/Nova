@@ -54,6 +54,59 @@ congOfD : Drv -> Drv -> Drv
 congOfD DReflx _ = DReflx
 congOfD _ node = node
 
+||| Neutral inference (spines only, arguments unchecked): the type a
+||| well-typed neutral has at its position, by typing inversion — a
+||| neutral's typings all factor through its head's declared type. The
+||| BUILDER'S question (what type does this bare head have, so that
+||| the node above it can be written), never the reader's: the kernel
+||| types a head from the child derivation that states it
+||| (docs/NovaStrategy.txt, kernel programme item 3).
+export
+rdInferHead : Sig -> Ctx -> Elem -> KM (Maybe Ty)
+rdInferHead sig ctx (CtxVar i) = pure (ctxLookup ctx i)
+rdInferHead sig ctx (PiApp f e) = do
+  mf <- rdInferHead sig ctx f
+  case mf of
+    Just fTy => do
+      t <- kWhnfT sig fTy
+      case t of
+        PiTy _ b => pure (Just (substTy b (Ext Id e)))
+        _ => pure Nothing
+    Nothing => pure Nothing
+rdInferHead sig ctx (SigmaElim1 t) = do
+  mt <- rdInferHead sig ctx t
+  case mt of
+    Just tTy => do
+      t' <- kWhnfT sig tTy
+      case t' of
+        SigmaTy a _ => pure (Just a)
+        _ => pure Nothing
+    Nothing => pure Nothing
+rdInferHead sig ctx (SigmaElim2 t) = do
+  mt <- rdInferHead sig ctx t
+  case mt of
+    Just tTy => do
+      t' <- kWhnfT sig tTy
+      case t' of
+        SigmaTy _ b => pure (Just (substTy b (Ext Id (SigmaElim1 t))))
+        _ => pure Nothing
+    Nothing => pure Nothing
+rdInferHead sig ctx (Out t) = do
+  mt <- rdInferHead sig ctx t
+  case mt of
+    Just tTy => do
+      t' <- kWhnfT sig tTy
+      case t' of
+        NuTy f => pure (Just (reflectPoly f (Elem.NuTy f)))
+        _ => pure Nothing
+    Nothing => pure Nothing
+rdInferHead sig ctx (SigVar x es) =
+  kSigLookup sig x >>= \entryX => case entryX of
+    Just e => pure (Just (substTy (entryTy e) (embed es)))
+    Nothing => pure Nothing
+rdInferHead sig ctx _ = pure Nothing
+
+
 ||| The first computation, or — when it fails — the second (the
 ||| first's fuel is spent either way). A BUILDER'S combinator: the
 ||| untrusted re-derivation tries a shape and falls back; the kernel
@@ -136,7 +189,7 @@ mutual
       _ => do
         mt' <- the (KM (Maybe Ty)) $ case mt of
                  Just t => pure (Just t)
-                 Nothing => inferHead sig ctx orig
+                 Nothing => rdInferHead sig ctx orig
         case the (Maybe Ty) mt' of
           Nothing => pure (p1, Nothing)
           Just ty => do

@@ -7540,8 +7540,11 @@ elabItemGo irng (SData params decls) = do
                 -- application C ī ⌊r⌋, rewritten by the path equation
                 -- read right to left
                 let sgP = sgAt sgJ dlen
-                let swcAt : Ctx -> Drv
-                    swcAt c' = DApp DReflx (DSym (DPath (dSubstQSig (MkDSb (nS + nM + j + dlen) []) dsg) ej
+                -- the application congruence: the motive's head C ī as
+                -- the TYPED NEUTRAL it is (the reader types the node
+                -- from it), the argument rewritten by the path
+                let swcAt : Ctx -> Drv -> Drv
+                    swcAt c' hdD = DApp hdD (DSym (DPath (dSubstQSig (MkDSb (nS + nM + j + dlen) []) dsg) ej
                                  (fromMaybe (map varD (toList spineArgs)) (pathArgsB st0.sig c' sgP ej spineArgs))))
                 -- the ≡-TYPE IS the eq-prop (Prf retired): the sides
                 -- and the carried type; the rhs infers C ī ⌊r⌋ and is
@@ -7549,8 +7552,10 @@ elabItemGo irng (SData params decls) = do
                 let eqD : Ctx -> Drv
                     eqD c = piChainD st0 c (map (\t => (t, Nothing)) dtel) (\c' =>
                               let rhsD = case reInf st0 c' rhs of
-                                           Just (d, rTy) => DConv d Nothing (swcAt c')
-                                           Nothing => reChk st0 c' rhs cty
+                                           Just (d, PiApp hd _) => case reInf st0 c' hd of
+                                             Just (hdD, _) => DConv d Nothing (swcAt c' hdD)
+                                             Nothing => reChk st0 c' rhs cty
+                                           _ => reChk st0 c' rhs cty
                               in DEq (reChk st0 c' lhs cty) rhsD (reTy st0 c' cty))
                 pure (foldr PiTy (Elem.EqTy lhs rhs cty) dtel, eqD))
             (zipWithIndex 0 eqPs)

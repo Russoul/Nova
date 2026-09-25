@@ -159,14 +159,17 @@ pathArgs sig ctx sg k th = do
   (tel, _, _) <- liftQ (reflTel sg' (qwAt k) entry)
   rdTele sig ctx tel (toList th)
 
-||| The head of an elimination as a derivation child: reflexivity when
-||| its declared type already shows the shape the node needs (β — the
-||| reader inverts it from the side), else the typed neutral under the
-||| exposure that shows it. Returns the (exposed) type as well.
+||| The head of an elimination as a derivation child: the TYPED
+||| NEUTRAL — its derivation STATES its type, so the reader types the
+||| node from the child and never from the bare side — under the
+||| exposure that shows the shape the node needs when its declared
+||| type hides it. Returns the (exposed) type as well. A head no
+||| derivation states (not a spine) stays reflexivity; the position
+||| below it is then type-undetermined for the reader.
 export
 headD : Sig -> Ctx -> Elem -> (Ty -> Bool) -> KM (Maybe Ty, Drv)
 headD sig ctx hd want = do
-  hTy <- inferHead sig ctx hd
+  hTy <- rdInferHead sig ctx hd
   case hTy of
     Nothing =>
       if isSpine hd
@@ -174,8 +177,8 @@ headD sig ctx hd want = do
         else pure (Nothing, DReflx)
     Just t => do
       t' <- kWhnfT sig t
-      if want t' then pure (Just t, DReflx)
-        else do (d, t0) <- elemToDrv sig ctx hd; shapedD d t0
+      (d, t0) <- elemToDrv sig ctx hd
+      if want t' then pure (Just t, d) else shapedD d t0
  where
   shapedD : Drv -> Ty -> KM (Maybe Ty, Drv)
   shapedD d t = do
@@ -286,7 +289,7 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
       shaped "λ-congruence" (\t => case t of PiTy a c => Just (a, c); _ => Nothing) $ \((a, c), conv) =>
         (\(q, f') => (conv (DLam Nothing q), PiIntro f')) <$> go (ctx :< a) (Just c) (1 + b) f
     (PiApp f e, 0) => do
-      fTy <- inferHead sig ctx f
+      fTy <- rdInferHead sig ctx f
       (q, f') <- go ctx fTy b f
       q' <- exposedChild sig ctx fTy isPiTy q
       pure (DApp q' DReflx, PiApp f' e)
@@ -295,12 +298,12 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
       aTy <- domOf sig fTy
       (\(q, e') => (DApp pf q, PiApp f e')) <$> go ctx aTy b e
     (SigmaElim1 t, 0) => do
-      tTy <- inferHead sig ctx t
+      tTy <- rdInferHead sig ctx t
       (q, t') <- go ctx tTy b t
       q' <- exposedChild sig ctx tTy isSigmaTy q
       pure (DProj1 q', SigmaElim1 t')
     (SigmaElim2 t, 0) => do
-      tTy <- inferHead sig ctx t
+      tTy <- rdInferHead sig ctx t
       (q, t') <- go ctx tTy b t
       q' <- exposedChild sig ctx tTy isSigmaTy q
       pure (DProj2 q', SigmaElim2 t')
@@ -317,7 +320,7 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
       ((_, c), pt) <- sumParts t
       (\(q, r') => (DSumElim Nothing DReflx q pt, SumElim l r' t)) <$> go (ctx :< c) (map (\x => substTy x Wk) mty) (1 + b) r
     (SumElim l r t, 2) => do
-      tTy <- inferHead sig ctx t
+      tTy <- rdInferHead sig ctx t
       (q, t') <- go ctx tTy b t
       q' <- exposedChild sig ctx tTy isSumTy q
       mm <- elimMotive sig ctx mty u
@@ -361,7 +364,7 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
       shaped "class congruence" (\ty => case ty of QuotTy dom _ => Just dom; _ => Nothing) $ \(dom, conv) =>
         (\(q, a') => (conv (DClass Nothing q), Class a')) <$> go ctx (Just dom) b a
     (Out t, 0) => do
-      tTy <- inferHead sig ctx t
+      tTy <- rdInferHead sig ctx t
       (q, t') <- go ctx tTy b t
       q' <- exposedChild sig ctx tTy isNuTy q
       pure (DOut q', Out t')
@@ -380,7 +383,7 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
       ((a, _), pq) <- quotParts q0
       (\(q, f') => (DQuotElim Nothing Nothing q pq, QuotElim f' q0)) <$> go (ctx :< a) (map (\x => substTy x Wk) mty) (1 + b) f
     (QuotElim f q0, 1) => do
-      qTy <- inferHead sig ctx q0
+      qTy <- rdInferHead sig ctx q0
       (q, q0') <- go ctx qTy b q0
       q' <- exposedChild sig ctx qTy isQuotTy q
       mm <- elimMotive sig ctx mty u
