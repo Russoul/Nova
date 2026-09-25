@@ -499,13 +499,6 @@ compClassifier sig (Just pe) = do
           _ => UniverseTy)
 -- ===== Shared readers: β-join comparison, type agreement, prop-ness, polynomials, signatures =====
 
-||| A bare term — an embedded code of a polynomial or of a QIIT
-||| signature (the first-order fragment, A6) — checked at a type: its
-||| derivation is BUILT by the re-derivation below (untrusted) and
-||| READ (the verdict), the erasure compared with the term.
-kCheckBare : Sig -> Ctx -> Elem -> Ty -> KM ()
-kCheckTyBare : Sig -> Ctx -> Ty -> KM ()
-
 ||| Wk composed n times (the weakening Γ·(n entries) ⇒ Γ).
 wkSubN : Nat -> Sub
 wkSubN Z = Id
@@ -595,54 +588,6 @@ mutual
             pure (k' == PropTy)
           Nothing => pure False
 
-  ||| Γ ⊦ 𝔽 poly, kernel-side (Foundation's poly-* rules): each
-  ||| embedded code checked at 𝕌 in its binder context.
-  kCheckPolyK : Sig -> Ctx -> Poly -> KM ()
-  kCheckPolyK sig ctx PHole        = pure ()
-  kCheckPolyK sig ctx (PConst a)   = kCheckBare sig ctx a UniverseTy
-  kCheckPolyK sig ctx (PProd f g)  = do kCheckPolyK sig ctx f; kCheckPolyK sig ctx g
-  kCheckPolyK sig ctx (PSum f g)   = do kCheckPolyK sig ctx f; kCheckPolyK sig ctx g
-  kCheckPolyK sig ctx (PSigma a f) = do kCheckBare sig ctx a UniverseTy; kCheckPolyK sig (ctx :< a) f
-  kCheckPolyK sig ctx (PPi a f)    = do kCheckBare sig ctx a UniverseTy; kCheckPolyK sig (ctx :< a) f
-
-  ||| SMALLNESS (code-qiit's side condition), kernel-side: judgemental
-  ||| now that El and Prf are retired — every external Π domain typed
-  ||| or typed at 𝕌, checked in its own external context.
-  export
-  kQSigSmall : Sig -> Ctx -> QSig -> KM ()
-  kQSigSmall sig ctx sg = go sg
-   where
-    small : Ctx -> Ty -> KM Bool
-    small ectx a = do
-      u <- kTry (kCheckBare sig ectx a UniverseTy)
-      if u then pure True else kTry (kCheckBare sig ectx a PropTy)
-    walk : Ctx -> QTy -> KM ()
-    walk ectx (QPiExt a rest) = do
-      ok <- small ectx a
-      if ok then walk (ectx :< a) rest
-        else kerr "kernel: universe code for a LARGE signature (code-qiit requires smallness)"
-    walk ectx (QPiInd _ rest) = walk ectx rest
-    walk ectx _ = pure ()
-    go : QSig -> KM ()
-    go [] = pure ()
-    go (e :: rest) = do walk ctx e; go rest
-
-  ||| Γ ⊦ 𝒮 qsig — Foundation's qctx/qty/qtm read as a syntax-directed
-  ||| algorithm, for the fragment the elaborator emits: SORT entries
-  ||| take EXTERNAL-only index arities; constructor entries take
-  ||| external and inductive binders freely; codes are sort heads
-  ||| applied to external arguments; no equation-code binders, no
-  ||| external λ (first-order fragment). Rejecting the rest is
-  ||| incompleteness, never unsoundness. Embedded Nova pieces are
-  ||| checked with empty skeletons (neutral-checkable in the emitted
-  ||| fragment).
-  kQSigCheck : Sig -> Ctx -> QSig -> KM ()
-  kQSigCheck sig ctx sg = goEntries 0 sg
-   where
-    goEntries : Nat -> List QTy -> KM ()
-    goEntries k [] = pure ()
-    goEntries k (e :: rest) = do kQEntry sig ctx sg k e; goEntries (S k) rest
-
   ||| Resolve a ToS entry reference at (scope k, b inductive binders).
   kQEntryOf : (k : Nat) -> (b : Nat) -> Nat -> KM Nat
   kQEntryOf k b i =
@@ -681,108 +626,30 @@ mutual
             app f (Right t2) = QAppI f t2
         pure (foldl app hd args')
 
-  ||| Check a sort-headed CODE at (scope k, external zone ectx with
-  ||| extD external binders, b inductive binders with domain codes
-  ||| benv): the sort's binder telescope is walked against the
-  ||| arguments — external ones checked as Nova elements, INDUCTIVE
-  ||| ones (inductive-inductive sort indices) checked at their rebased
-  ||| domain codes.
-  kQCode : Sig -> Ctx -> QSig -> (k : Nat) -> Ctx -> (extD, b : Nat) -> List QTm -> QTm -> KM ()
-  kQCode sig ctx sg k ectx extD b benv (QEqC _ _ _) =
-    kerr "kernel: equation code in a binder position (first-order fragment)"
-  kQCode sig ctx sg k ectx extD b benv code =
-    case qChain code of
-      Nothing => kerr "kernel: qiit code is not an application chain"
-      Just (h, args) => do
-        pos <- kQEntryOf k b h
-        sortE <- case qEntry sg pos of
-                   Just e => pure e
-                   Nothing => kerr "kernel: qiit entry out of range"
-        case qEntryKind sortE of
-          QKSort => pure ()
-          _ => kerr "kernel: qiit code head is not a sort"
-        hd <- kQArgsWalk sig ctx sg k ectx extD b benv pos sortE args
-        case hd of
-          QU => pure ()
-          _ => kerr "kernel: internal — sort entry with a non-U head"
 
-  ||| Walk entry `src`'s binder telescope against an argument chain —
-  ||| external arguments checked as Nova elements at their instantiated
-  ||| domains, inductive arguments at their rebased domain codes —
-  ||| returning the entry's HEAD rebased to the current coordinates
-  ||| (QU for sorts, the result code for point constructors).
-  kQArgsWalk : Sig -> Ctx -> QSig -> (k : Nat) -> Ctx -> (extD, b : Nat) -> (benv : List QTm)
-            -> (src : Nat) -> QTy -> List (Either Elem QTm) -> KM QTy
-  kQArgsWalk sig ctx sg k ectx extD b benv src entry args0 =
-    goArgs 0 (wkSubN extD) [] entry args0
-   where
-    goArgs : (srcB : Nat) -> Sub -> List QTm -> QTy -> List (Either Elem QTm) -> KM QTy
-    goArgs srcB sub ivals (QPiExt a rest) (Left e :: as) = do
-      kCheckBare sig ectx e (substTy a sub)
-      goArgs srcB (Ext sub e) ivals rest as
-    goArgs srcB sub ivals (QPiInd u rest) (Right t' :: as) = do
-      expected <- kQRebase sg k b src srcB sub ivals u
-      kQTmAt sig ctx sg k ectx extD b benv expected t'
-      goArgs (S srcB) sub (t' :: ivals) rest as
-    goArgs srcB sub ivals (QEl code) [] =
-      QEl <$> kQRebase sg k b src srcB sub ivals code
-    goArgs srcB sub ivals QU [] = pure QU
-    goArgs _ _ _ _ _ = kerr "kernel: qiit spine mismatch (kind or saturation)"
+||| A carried signature's erasure (every piece an element derivation).
+qsigE : DQSig -> KM QSig
+qsigE dsg = maybe (kerr "kernel: a carried signature's piece derives no element") pure (eraseQSig dsg)
 
-  ||| Infer the CODE of a qiit term (a binder, or a saturated point-
-  ||| constructor chain), checking its arguments along the way.
-  kQTmInfer : Sig -> Ctx -> QSig -> (k : Nat) -> Ctx -> (extD, b : Nat) -> (benv : List QTm) -> QTm -> KM QTm
-  kQTmInfer sig ctx sg k ectx extD b benv t =
-    case qChain t of
-      Nothing => kerr "kernel: qiit term is not an application chain (first-order fragment)"
-      Just (h, args) =>
-        if h < b
-          then case (args, getAt h benv) of
-                 ([], Just c) => pure c
-                 ([], Nothing) => kerr "kernel: internal — qiit binder environment out of sync"
-                 _ => kerr "kernel: applied qiit binder (first-order fragment)"
-          else do
-            pos <- kQEntryOf k b h
-            ctorE <- case qEntry sg pos of
-                       Just e => pure e
-                       Nothing => kerr "kernel: qiit entry out of range"
-            case qEntryKind ctorE of
-              QKPoint => pure ()
-              _ => kerr "kernel: qiit term headed by a non-constructor"
-            hd <- kQArgsWalk sig ctx sg k ectx extD b benv pos ctorE args
-            case hd of
-              QEl code => pure code
-              _ => kerr "kernel: internal — point entry with a non-El head"
+||| A carried polynomial's erasure.
+polyE : DPoly -> KM Poly
+polyE dp = maybe (kerr "kernel: a carried polynomial's piece derives no element") pure (erasePoly dp)
 
-  ||| Check a qiit term against an expected code (both at the current
-  ||| coordinates); comparison is syntactic after β-JOINING the
-  ||| embedded Nova pieces (no δ: a piece spelled through a definition
-  ||| meets its expected code through a conversion, like any type).
-  kQTmAt : Sig -> Ctx -> QSig -> (k : Nat) -> Ctx -> (extD, b : Nat) -> List QTm -> QTm -> QTm -> KM ()
-  kQTmAt sig ctx sg k ectx extD b benv expected t = do
-    inferred <- kQTmInfer sig ctx sg k ectx extD b benv t
-    i' <- kJoinQTm sig inferred
-    e' <- kJoinQTm sig expected
-    if i' == e' then pure ()
-      else kerr "kernel: qiit term at the wrong sort"
+||| The application chain of a carried ToS term (qChain on derivations).
+dqChain : DQTm -> Maybe (Nat, List (Either Drv DQTm))
+dqChain t0 = go t0 []
+ where
+  go : DQTm -> List (Either Drv DQTm) -> Maybe (Nat, List (Either Drv DQTm))
+  go (DQVar i) acc = Just (i, acc)
+  go (DQAppE f e) acc = go f (Left e :: acc)
+  go (DQAppI f a) acc = go f (Right a :: acc)
+  go (DQEqC _ _ _) _ = Nothing
 
-  ||| Check one signature entry (position k).
-  kQEntry : Sig -> Ctx -> QSig -> (k : Nat) -> QTy -> KM ()
-  kQEntry sig ctx sg k entry = walk ctx 0 0 [] entry
-   where
-    walk : Ctx -> (extD : Nat) -> (b : Nat) -> List QTm -> QTy -> KM ()
-    walk ectx extD b benv (QPiExt a rest) = do
-      kCheckTyBare sig ectx a
-      walk (ectx :< a) (S extD) b (map (\c => substQTm c Wk) benv) rest
-    walk ectx extD b benv (QPiInd u rest) = do
-      kQCode sig ctx sg k ectx extD b benv u
-      walk ectx extD (S b) (qtmShift 1 u :: map (qtmShift 1) benv) rest
-    walk ectx extD b benv QU = pure ()
-    walk ectx extD b benv (QEl (QEqC l r u)) = do
-      kQCode sig ctx sg k ectx extD b benv u
-      kQTmAt sig ctx sg k ectx extD b benv u l
-      kQTmAt sig ctx sg k ectx extD b benv u r
-    walk ectx extD b benv (QEl code) = kQCode sig ctx sg k ectx extD b benv code
+||| A ToS chain rebuilt from its erased pieces.
+qApp : Nat -> List (Either Elem QTm) -> QTm
+qApp h = foldl (\f, a => case a of
+                          Left e => QAppE f e
+                          Right t => QAppI f t) (QVar h)
 
 -- ===== Derivations (docs/NovaKernel.txt §10): the kernel on proof terms alone =====
 --
@@ -1003,6 +870,158 @@ data DGoal : Type where
   DGRun : Bool -> Elem -> Maybe Elem -> DGoal
 
 mutual
+  ||| Γ ⊦ 𝔽 poly, read off the carried polynomial's derivations
+  ||| (Foundation's poly-* rules): each embedded code at 𝕌, the
+  ||| context growing by the binders' domain codes; the erasure out.
+  export
+  dPoly : Sig -> Ctx -> DPoly -> KM Poly
+  dPoly sig ctx DPHole = pure PHole
+  dPoly sig ctx (DPConst da) = PConst <$> dElemAt sig ctx da UniverseTy
+  dPoly sig ctx (DPProd f g) = [| PProd (dPoly sig ctx f) (dPoly sig ctx g) |]
+  dPoly sig ctx (DPSum f g) = [| PSum (dPoly sig ctx f) (dPoly sig ctx g) |]
+  dPoly sig ctx (DPSigma da f) = do
+    a <- dElemAt sig ctx da UniverseTy
+    PSigma a <$> dPoly sig (ctx :< a) f
+  dPoly sig ctx (DPPi da f) = do
+    a <- dElemAt sig ctx da UniverseTy
+    PPi a <$> dPoly sig (ctx :< a) f
+
+  ||| Γ ⊦ 𝒮 qsig, read off the carried signature's derivations —
+  ||| Foundation's qctx/qty/qtm as a syntax-directed algorithm over
+  ||| the fragment the elaborator emits (A6): the ToS structure walked
+  ||| on the erasure, every embedded Nova piece READ where it stands
+  ||| (an external domain as a type, an external argument at its
+  ||| instantiated domain). Returns the erasure and SMALLNESS: every
+  ||| external domain classifies at 𝕌 or Ω (code-qiit's side
+  ||| condition), decided by the domain's own classifier — never tried.
+  export
+  dQSig : Sig -> Ctx -> DQSig -> KM (QSig, Bool)
+  dQSig sig ctx dsg = do
+    sg <- qsigE dsg
+    smalls <- goEntries sg 0 dsg
+    pure (sg, all id smalls)
+   where
+    goEntries : QSig -> Nat -> List DQTy -> KM (List Bool)
+    goEntries sg k [] = pure []
+    goEntries sg k (e :: rest) = do
+      b <- dqEntry sig ctx sg k e
+      bs <- goEntries sg (S k) rest
+      pure (b :: bs)
+
+  ||| One signature entry (position k): its external domains read as
+  ||| types (their classifiers decide smallness), its codes checked.
+  dqEntry : Sig -> Ctx -> QSig -> (k : Nat) -> DQTy -> KM Bool
+  dqEntry sig ctx sg k entry = walk ctx 0 0 [] entry
+   where
+    walk : Ctx -> (extD : Nat) -> (b : Nat) -> List QTm -> DQTy -> KM Bool
+    walk ectx extD b benv (DQPiExt aD rest) = do
+      (a, kcls) <- dTypeK sig ectx aD
+      k' <- kWhnfT sig kcls
+      let small = case k' of
+                    PropTy => True
+                    UniverseTy => True
+                    _ => False
+      restSmall <- walk (ectx :< a) (S extD) b (map (\c => substQTm c Wk) benv) rest
+      pure (small && restSmall)
+    walk ectx extD b benv (DQPiInd u rest) = do
+      uE <- dqCode sig ctx sg k ectx extD b benv u
+      walk ectx extD (S b) (qtmShift 1 uE :: map (qtmShift 1) benv) rest
+    walk ectx extD b benv DQU = pure True
+    walk ectx extD b benv (DQEl (DQEqC l r u)) = do
+      uE <- dqCode sig ctx sg k ectx extD b benv u
+      _ <- dqTmAt sig ctx sg k ectx extD b benv uE l
+      _ <- dqTmAt sig ctx sg k ectx extD b benv uE r
+      pure True
+    walk ectx extD b benv (DQEl code) = do
+      _ <- dqCode sig ctx sg k ectx extD b benv code
+      pure True
+
+  ||| A sort-headed CODE at (scope k, external zone ectx with extD
+  ||| external binders, b inductive binders with domain codes benv):
+  ||| the sort's binder telescope walked against the arguments —
+  ||| external ones READ at their instantiated domains, inductive ones
+  ||| (inductive-inductive sort indices) at their rebased domain codes.
+  ||| The erased code out.
+  dqCode : Sig -> Ctx -> QSig -> (k : Nat) -> Ctx -> (extD, b : Nat) -> List QTm -> DQTm -> KM QTm
+  dqCode sig ctx sg k ectx extD b benv (DQEqC _ _ _) =
+    kerr "kernel: equation code in a binder position (first-order fragment)"
+  dqCode sig ctx sg k ectx extD b benv code =
+    case dqChain code of
+      Nothing => kerr "kernel: qiit code is not an application chain"
+      Just (h, args) => do
+        pos <- kQEntryOf k b h
+        sortE <- case qEntry sg pos of
+                   Just e => pure e
+                   Nothing => kerr "kernel: qiit entry out of range"
+        case qEntryKind sortE of
+          QKSort => pure ()
+          _ => kerr "kernel: qiit code head is not a sort"
+        (hd, argsE) <- dqArgsWalk sig ctx sg k ectx extD b benv pos sortE args
+        case hd of
+          QU => pure (qApp h argsE)
+          _ => kerr "kernel: internal — sort entry with a non-U head"
+
+  ||| Entry `src`'s binder telescope walked against an argument chain
+  ||| (as kQArgsWalk), the external arguments READ; the entry's head
+  ||| rebased to the current coordinates and the erased arguments out.
+  dqArgsWalk : Sig -> Ctx -> QSig -> (k : Nat) -> Ctx -> (extD, b : Nat) -> (benv : List QTm)
+            -> (src : Nat) -> QTy -> List (Either Drv DQTm) -> KM (QTy, List (Either Elem QTm))
+  dqArgsWalk sig ctx sg k ectx extD b benv src entry args0 =
+    goArgs 0 (wkSubN extD) [] entry args0
+   where
+    goArgs : (srcB : Nat) -> Sub -> List QTm -> QTy -> List (Either Drv DQTm) -> KM (QTy, List (Either Elem QTm))
+    goArgs srcB sub ivals (QPiExt a rest) (Left pe :: as) = do
+      e <- dElemAt sig ectx pe (substTy a sub)
+      (hd, rest') <- goArgs srcB (Ext sub e) ivals rest as
+      pure (hd, Left e :: rest')
+    goArgs srcB sub ivals (QPiInd u rest) (Right t' :: as) = do
+      expected <- kQRebase sg k b src srcB sub ivals u
+      tE <- dqTmAt sig ctx sg k ectx extD b benv expected t'
+      (hd, rest') <- goArgs (S srcB) sub (tE :: ivals) rest as
+      pure (hd, Right tE :: rest')
+    goArgs srcB sub ivals (QEl code) [] = do
+      c <- kQRebase sg k b src srcB sub ivals code
+      pure (QEl c, [])
+    goArgs srcB sub ivals QU [] = pure (QU, [])
+    goArgs _ _ _ _ _ = kerr "kernel: qiit spine mismatch (kind or saturation)"
+
+  ||| The CODE of a qiit term (a binder, or a saturated point-
+  ||| constructor chain), its arguments read along the way; with the
+  ||| erased term.
+  dqTmInfer : Sig -> Ctx -> QSig -> (k : Nat) -> Ctx -> (extD, b : Nat) -> (benv : List QTm) -> DQTm -> KM (QTm, QTm)
+  dqTmInfer sig ctx sg k ectx extD b benv t =
+    case dqChain t of
+      Nothing => kerr "kernel: qiit term is not an application chain (first-order fragment)"
+      Just (h, args) =>
+        if h < b
+          then case (args, getAt h benv) of
+                 ([], Just c) => pure (c, QVar h)
+                 ([], Nothing) => kerr "kernel: internal — qiit binder environment out of sync"
+                 _ => kerr "kernel: applied qiit binder (first-order fragment)"
+          else do
+            pos <- kQEntryOf k b h
+            ctorE <- case qEntry sg pos of
+                       Just e => pure e
+                       Nothing => kerr "kernel: qiit entry out of range"
+            case qEntryKind ctorE of
+              QKPoint => pure ()
+              _ => kerr "kernel: qiit term headed by a non-constructor"
+            (hd, argsE) <- dqArgsWalk sig ctx sg k ectx extD b benv pos ctorE args
+            case hd of
+              QEl code => pure (code, qApp h argsE)
+              _ => kerr "kernel: internal — point entry with a non-El head"
+
+  ||| A qiit term against an expected code (both at the current
+  ||| coordinates); comparison is syntactic after β-JOINING the
+  ||| embedded Nova pieces (no δ). The erased term out.
+  dqTmAt : Sig -> Ctx -> QSig -> (k : Nat) -> Ctx -> (extD, b : Nat) -> List QTm -> QTm -> DQTm -> KM QTm
+  dqTmAt sig ctx sg k ectx extD b benv expected t = do
+    (inferred, tE) <- dqTmInfer sig ctx sg k ectx extD b benv t
+    i' <- kJoinQTm sig inferred
+    e' <- kJoinQTm sig expected
+    if i' == e' then pure tE
+      else kerr "kernel: qiit term at the wrong sort"
+
   ||| ⇒ (10.3): the equation a derivation states, with its type.
   export
   dInfer : Sig -> Ctx -> Drv -> KM (Elem, Elem, Ty)
@@ -1041,7 +1060,8 @@ mutual
             Elem.EqTy l r a => pure (l, r, a)
             _ => kerr "kernel: reflection at a squash that is not an equation"
         _ => kerr "kernel: reflection at a non-equation type [\{show pty'}]"
-    DPath sg k ps => do
+    DPath dsg k ps => do
+      sg <- qsigE dsg
       sg' <- kJoinQSig sig sg
       entry <- case qEntry sg' k of
                  Just e => pure e
@@ -1158,7 +1178,8 @@ mutual
       (l, r) <- dCheck sig ctx p NatTy
       pure (NatIntro1 l, NatIntro1 r, NatTy)
     DCtor _ _ _ => kerr "kernel: a constructor in inference position (checked at its sort)"
-    DCorec f a g x => do
+    DCorec df a g x => do
+      f <- polyE df
       aC <- dElemAt sig ctx a UniverseTy
       g' <- dElemAt sig (ctx :< aC) g (substTy (reflectPoly f aC) Wk)
       x' <- dElemAt sig ctx x aC
@@ -1210,7 +1231,9 @@ mutual
           motK <- dTypeK sig (ctx :< QuotTy a rel) pM
           quotElimAt sig ctx (map Just motK) a rel wd f (ql, qr, qTy)
         _ => kerr "kernel: quot-elim of a non-quotient"
-    DQElim sg k (Just cs) cohs ms es w => qElimAt sig ctx sg k cs cohs ms es w
+    DQElim dsg k (Just cs) cohs ms es w => do
+      (sg, _) <- dQSig sig ctx dsg
+      qElimAt sig ctx sg k cs cohs ms es w
     DOut p => do
       (l, r, tTy) <- dInfer sig ctx p
       tTy' <- kWhnfT sig tTy
@@ -1268,13 +1291,11 @@ mutual
       (l, r, k) <- dInfer sig ctx p
       isCls sig k
       pure (Squash l, Squash r, PropTy)
-    DNu f => do
-      -- the polynomial's embedded codes are bare terms, checked at 𝕌
-      -- (neutral-checkable in the emitted fragment — A3's kin)
-      kCheckPolyK sig ctx f
+    DNu df => do
+      f <- dPoly sig ctx df
       pure (NuTy f, NuTy f, UniverseTy)
-    DSort sg k ps => do
-      kQSigCheck sig ctx sg
+    DSort dsg k ps => do
+      (sg, small) <- dQSig sig ctx dsg
       sortE <- case qEntry sg k of
                  Just e => pure e
                  Nothing => kerr "kernel: sort position out of range"
@@ -1283,7 +1304,6 @@ mutual
         _ => kerr "kernel: not a sort position"
       (tel, _, _) <- liftQ (reflTel sg (qwAt k) sortE)
       esE <- dTeleE sig ctx tel ps
-      small <- kTry (kQSigSmall sig ctx sg)
       pure (QSort sg k (cast (map fst esE)), QSort sg k (cast (map snd esE)), if small then UniverseTy else TopTy)
     _ => kerr "kernel: derivation in inference position needs its annotation [\{showDrv d}]"
 
@@ -1345,10 +1365,12 @@ mutual
       case ty' of
         QuotTy a _ => do (l, r) <- dCheck sig ctx p a; pure (Class l, Class r)
         _ => kerr "kernel: class checked at a non-quotient type"
-    DCtor sgC c ps => do
+    DCtor dsgC c ps => do
       -- el-qiit-intro, as §8: the type's carrier and the term's join
-      -- alike; the spine at the reflected telescope; the head's sort
-      -- and indices meet the type's
+      -- alike (the term's read where the type's was: a node carries
+      -- what nf(T) carries); the spine at the reflected telescope;
+      -- the head's sort and indices meet the type's
+      sgC <- qsigE dsgC
       ty' <- kJoinTy sig ty
       case ty' of
         QSort sgT srt es => do
@@ -1423,7 +1445,8 @@ mutual
         _ => kerr "kernel: quot-elim of a non-quotient"
     -- the QIIT eliminator without motives: the constant motives at the
     -- type flowing down
-    DQElim sg k Nothing cohs qm qs qw => do
+    DQElim dsg k Nothing cohs qm qs qw => do
+      (sg, _) <- dQSig sig ctx dsg
       mots <- constMotives sig ctx sg ty
       (l, r, t) <- qElimAtM sig ctx sg k mots cohs qm qs qw
       agree t
@@ -1568,14 +1591,14 @@ mutual
     (DSumElim _ l r t, SumElim l' r' t') => Just [(l, l'), (r, r'), (t, t')]
     (DQuotElim _ _ f q, QuotElim f' q') => Just [(f, f'), (q, q')]
     (DQElim sg k _ _ ms es w, QElim sg' k' fs es' w') =>
-      if sg == sg' && k == k' && length ms == length fs && length es == length (toList es')
+      if eraseQSig sg == Just sg' && k == k' && length ms == length fs && length es == length (toList es')
         then Just (zip ms fs ++ zip es (toList es') ++ [(w, w')]) else Nothing
     (DLam _ q, PiIntro f) => Just [(q, f)]
     (DPair _ u v, SigmaIntro u' v') => Just [(u, u'), (v, v')]
     (DInj1 _ q, Inj1 u) => Just [(q, u)]
     (DInj2 _ q, Inj2 u) => Just [(q, u)]
     (DClass _ q, Class u) => Just [(q, u)]
-    (DCorec pf a f x', Corec pf' a' f' x'') => if pf == pf' then Just [(a, a'), (f, f'), (x', x'')] else Nothing
+    (DCorec pf a f x', Corec pf' a' f' x'') => if erasePoly pf == Just pf' then Just [(a, a'), (f, f'), (x', x'')] else Nothing
     (DLet a b, Let a' b') => Just [(a, a'), (b, b')]
     (DPi a b, Elem.PiTy a' b') => Just [(a, a'), (b, b')]
     (DSigma a b, Elem.SigmaTy a' b') => Just [(a, a'), (b, b')]
@@ -1584,8 +1607,8 @@ mutual
     (DQuot a r, QuotTy a' r') => Just [(a, a'), (r, r')]
     (DSquash q, Squash u) => Just [(q, u)]
     (DRef y qs, SigVar y' es) => if y == y' && length qs == length (toList es) then Just (zip qs (toList es)) else Nothing
-    (DSort sg k qs, QSort sg' k' es) => if sg == sg' && k == k' && length qs == length (toList es) then Just (zip qs (toList es)) else Nothing
-    (DCtor sg k qs, QCtor sg' k' es) => if sg == sg' && k == k' && length qs == length (toList es) then Just (zip qs (toList es)) else Nothing
+    (DSort sg k qs, QSort sg' k' es) => if eraseQSig sg == Just sg' && k == k' && length qs == length (toList es) then Just (zip qs (toList es)) else Nothing
+    (DCtor sg k qs, QCtor sg' k' es) => if eraseQSig sg == Just sg' && k == k' && length qs == length (toList es) then Just (zip qs (toList es)) else Nothing
     _ => Nothing
 
 
@@ -1926,7 +1949,8 @@ mutual
       node (\x => case x of SigmaElim2 u => Just [u]; _ => Nothing)
            (\xs => case xs of [u] => Just (SigmaElim2 u); _ => Nothing)
            (\_ => do (_, tTy) <- headOfU q; pure [(ctx, tTy)]) [q]
-    (DCorec pf qa qf qx, _) =>
+    (DCorec dpf qa qf qx, _) => do
+      pf <- polyE dpf
       node (\u => case u of
                     Corec pf' a f x => if pf == pf' then Just [a, f, x] else Nothing
                     _ => Nothing)
@@ -1980,7 +2004,8 @@ mutual
                                       case mt of
                                         Just t => pure (ctx, t)
                                         Nothing => kerr "kernel: spine entry out of range") (indices es)) qs
-    (DSort sg k qs, _) =>
+    (DSort dsg k qs, _) => do
+      sg <- qsigE dsg
       node (\u => case u of
                     QSort sg' k' es => if sg == sg' && k == k' then Just (toList es) else Nothing
                     _ => Nothing)
@@ -1988,7 +2013,8 @@ mutual
            (\es => traverse (\i => case qSpineChildTy sg k (cast es) i of
                                       Just t => pure (ctx, t)
                                       Nothing => kerr "kernel: spine entry out of range") (indices es)) qs
-    (DCtor sg k qs, _) =>
+    (DCtor dsg k qs, _) => do
+      sg <- qsigE dsg
       node (\u => case u of
                     QCtor sg' k' es => if sg == sg' && k == k' then Just (toList es) else Nothing
                     _ => Nothing)
@@ -1996,7 +2022,8 @@ mutual
            (\es => traverse (\i => case qSpineChildTy sg k (cast es) i of
                                       Just t => pure (ctx, t)
                                       Nothing => kerr "kernel: spine entry out of range") (indices es)) qs
-    (DQElim sg k cs _ qm qs qw, _) => do
+    (DQElim dsg k cs _ qm qs qw, _) => do
+      (sg, _) <- dQSig sig ctx dsg
       -- motives derived in their sort contexts (none given: the
       -- CONSTANT motives, every sort's the position's type weakened
       -- into the sort's context — the checking sugar); the methods at
@@ -2186,11 +2213,11 @@ mutual
                 mot <- dType sig (ctx :< QuotTy a r) pM
                 done (substTy mot (Ext Id q))
               _ => pure Nothing
-          (DQElim sg k (Just cs) _ _ _ _, QElim sg' k' _ es w) =>
-            if sg == sg' && k == k'
+          (DQElim dsg k (Just cs) _ _ _ _, QElim sg' k' _ es w) =>
+            if eraseQSig dsg == Just sg' && k == k'
               then do
-                mots <- qMotives sig ctx sg cs
-                case (qOrdinal QKSort sg k >>= \o => getAt o mots) of
+                mots <- qMotives sig ctx sg' cs
+                case (qOrdinal QKSort sg' k >>= \o => getAt o mots) of
                   Just motK => done (substTy motK (Ext (foldl Ext Id (toList es)) w))
                   Nothing => pure Nothing
               else pure Nothing
@@ -2494,7 +2521,6 @@ mutual
   ||| … at given motive TYPES.
   qElimAtM : Sig -> Ctx -> QSig -> Nat -> List Ty -> List Drv -> List Drv -> List Drv -> Drv -> KM (Elem, Elem, Ty)
   qElimAtM sig ctx sg k mots cohs qm qs qw = do
-    kQSigCheck sig ctx sg
     sortE <- case qEntry sg k of
                Just x => pure x
                Nothing => kerr "kernel: eliminator sort out of range"
@@ -2861,7 +2887,10 @@ mutual
       -- has it so (its join enters carriers), and a node's carrier
       -- must match the side's syntactically (A3)
       sgJ <- kJoinQSig sig sg
-      let node = congOfD p1 (DQElim sgJ k Nothing [] (map (const DReflx) fs) (map (const DReflx) (toList es)) p1)
+      dsgJ <- case p1 of
+                DReflx => pure []
+                _ => rdQSig sig ctx sgJ
+      let node = congOfD p1 (DQElim dsgJ k Nothing [] (map (const DReflx) fs) (map (const DReflx) (toList es)) p1)
       case w' of
         QCtor sgW c theta => do
           sgWJ <- kJoinQSig sig sgW
@@ -2879,6 +2908,40 @@ mutual
               Squash _ => (u', node, mty)
               _ => (Squash u', node, mty))
     go mty e = pure (e, DReflx, mty)
+
+  ||| A bare signature's pieces re-derived (a builder): an external
+  ||| domain as a type under the external binders before it, an
+  ||| external argument by INFERENCE (neutral in the emitted fragment —
+  ||| as the elaborator elaborates them; the reader checks it at the
+  ||| arity).
+  export
+  rdQSig : Sig -> Ctx -> QSig -> KM DQSig
+  rdQSig sig ctx sg = traverse (rdQTy sig ctx) sg
+
+  rdQTy : Sig -> Ctx -> QTy -> KM DQTy
+  rdQTy sig ectx QU = pure DQU
+  rdQTy sig ectx (QEl t) = DQEl <$> rdQTm sig ectx t
+  rdQTy sig ectx (QPiExt a b) = do
+    aD <- rdType sig ectx a
+    DQPiExt aD <$> rdQTy sig (ectx :< a) b
+  rdQTy sig ectx (QPiInd u b) = [| DQPiInd (rdQTm sig ectx u) (rdQTy sig ectx b) |]
+
+  rdQTm : Sig -> Ctx -> QTm -> KM DQTm
+  rdQTm sig ectx (QVar i) = pure (DQVar i)
+  rdQTm sig ectx (QAppE f e) = [| DQAppE (rdQTm sig ectx f) (fst <$> rdInfer sig ectx e) |]
+  rdQTm sig ectx (QAppI f a) = [| DQAppI (rdQTm sig ectx f) (rdQTm sig ectx a) |]
+  rdQTm sig ectx (QEqC l r u) = [| DQEqC (rdQTm sig ectx l) (rdQTm sig ectx r) (rdQTm sig ectx u) |]
+
+  ||| A bare polynomial's codes re-derived, each at 𝕌 under the
+  ||| binders before it.
+  export
+  rdPoly : Sig -> Ctx -> Poly -> KM DPoly
+  rdPoly sig ctx PHole = pure DPHole
+  rdPoly sig ctx (PConst a) = DPConst <$> rdCheck sig ctx a UniverseTy
+  rdPoly sig ctx (PProd f g) = [| DPProd (rdPoly sig ctx f) (rdPoly sig ctx g) |]
+  rdPoly sig ctx (PSum f g) = [| DPSum (rdPoly sig ctx f) (rdPoly sig ctx g) |]
+  rdPoly sig ctx (PSigma a f) = [| DPSigma (rdCheck sig ctx a UniverseTy) (rdPoly sig (ctx :< a) f) |]
+  rdPoly sig ctx (PPi a f) = [| DPPi (rdCheck sig ctx a UniverseTy) (rdPoly sig (ctx :< a) f) |]
 
   ||| A term checked at a type whose SHAPE a definition may hide: the
   ||| type exposed by δ (proved) when the β-whnf lacks it, the term
@@ -2979,9 +3042,10 @@ mutual
       (tel, _, _) <- liftQ (reflTel sg (qwAt k) sortE)
       des <- rdTele sig ctx tel (toList es)
       dw <- rdCheck sig ctx w (QSort sg k es)
-      pure (DQElim sg k Nothing (map (const DReflx) eqPs) dms des dw)
+      dsg <- rdQSig sig ctx sg
+      pure (DQElim dsg k Nothing (map (const DReflx) eqPs) dms des dw)
     Corec p aC f x => rdShaped sig ctx ty (\t => case t of NuTy pf => Just pf; _ => Nothing) $ \_ =>
-      [| DCorec (pure p) (rdCheck sig ctx aC UniverseTy)
+      [| DCorec (rdPoly sig ctx p) (rdCheck sig ctx aC UniverseTy)
                 (rdCheck sig (ctx :< aC) f (substTy (reflectPoly p aC) Wk))
                 (rdCheck sig ctx x aC) |]
     ZeroElim t => DZeroElim Nothing <$> rdCheck sig ctx t ZeroTy
@@ -2996,7 +3060,8 @@ mutual
                  Just x => pure x
                  Nothing => kerr "re-derive: constructor position out of range"
       (tel, _, _) <- liftQ (reflTel sgC' (qwAt c) entry)
-      DCtor sgC c <$> rdTele sig ctx tel (toList theta)
+      dsg <- rdQSig sig ctx sgC
+      DCtor dsg c <$> rdTele sig ctx tel (toList theta)
     _ => do
       (d, t) <- rdInfer sig ctx e
       ok <- tyAgree sig ty t
@@ -3210,8 +3275,9 @@ mutual
                      Nothing => kerr "re-derive: sort position out of range"
           (tel, _, _) <- liftQ (reflTel sg (qwAt k) sortE)
           ds <- rdTele sig ctx tel (toList es)
-          small <- kTry (kQSigSmall sig ctx sg)
-          pure (DSort sg k ds, if small then UniverseTy else TopTy)
+          dsg <- rdQSig sig ctx sg
+          (_, small) <- dQSig sig ctx dsg
+          pure (DSort dsg k ds, if small then UniverseTy else TopTy)
         QElim sg k mths es w => kerr "re-derive: QIIT eliminator without motives or coherences"
         Elem.ZeroTy => pure (DZeroTy, UniverseTy)
         Elem.OneTy => pure (DOneTy, UniverseTy)
@@ -3228,7 +3294,7 @@ mutual
           da <- comp ctx a
           db <- comp ctx b
           pure (DSum da db, UniverseTy)
-        Elem.NuTy f => pure (DNu f, UniverseTy)
+        Elem.NuTy f => do df <- rdPoly sig ctx f; pure (DNu df, UniverseTy)
         QuotTy a r => do
           da <- comp ctx a
           dr <- rdCheck sig (ctx :< a :< substTy a Wk) r PropTy
@@ -3291,7 +3357,7 @@ mutual
     Elem.EqTy l r u => [| DEq (rdCheck sig ctx l u) (rdCheck sig ctx r u) (rdType sig ctx u) |]
     Squash u => DSquash <$> rdType sig ctx u
     QuotTy a r => [| DQuot (rdType sig ctx a) (rdCheck sig (ctx :< a :< substTy a Wk) r PropTy) |]
-    NuTy f => pure (DNu f)
+    NuTy f => DNu <$> rdPoly sig ctx f
     QSort _ _ _ => fst <$> rdInfer sig ctx t
     SigVar x es =>
       kSigLookup sig x >>= \entryX => case entryX of
@@ -3356,29 +3422,27 @@ mutual
       ds <- go (S i) rest
       pure (d :: ds)
 
-kCheckBare sig ctx e ty = do
-  d <- rdCheck sig ctx e ty
-  e' <- dElemAt sig ctx d ty
-  if e' == e then pure () else kerr "kernel: the re-derivation's erasure differs from the term"
-
-kCheckTyBare sig ctx t = do
-  d <- rdType sig ctx t
-  t' <- dType sig ctx d
-  if t' == t then pure () else kerr "kernel: the re-derivation's erasure differs from the type"
-
 -- ===== Probes for the elaborator =====
 
 ||| Decidable smallness probe for callers outside the fuel monad
 ||| (the elaborator's data-item emitter): True iff every external Π
-||| domain of the signature checks at 𝕌 or at Ω — over the
-||| given ambient context (a parameterized literal's externals mention
-||| the parameter variables).
+||| domain of the signature classifies at 𝕌 or at Ω — read off the
+||| signature's derivations over the given ambient context.
 export
-kQSigSmallB : Sig -> Nat -> Ctx -> QSig -> Bool
-kQSigSmallB sig fuel ctx sg =
-  case runKM (kQSigSmall sig ctx sg) fuel of
-    Right _ => True
+kQSigSmallD : Sig -> Nat -> Ctx -> DQSig -> Bool
+kQSigSmallD sig fuel ctx dsg =
+  case runKM (dQSig sig ctx dsg) fuel of
+    Right ((_, b), _) => b
     Left _ => False
+
+||| A bare polynomial's derivation (a corec's, taken from the ν-type
+||| it is checked at): re-derived, then READ.
+export
+kReDerivePoly : Sig -> Nat -> Ctx -> Poly -> Either KErr DPoly
+kReDerivePoly sig fuel ctx p = map fst (runKM (do
+  d <- rdPoly sig ctx p
+  p' <- dPoly sig ctx d
+  if p' == p then pure d else kerr "re-derive: the erasure differs from the polynomial") fuel)
 
 ||| Infer the type of a BARE core — the elaborator's capture-typing
 ||| source (unification's hole solutions): re-derived, then READ.

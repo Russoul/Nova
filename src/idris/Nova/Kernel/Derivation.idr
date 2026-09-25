@@ -32,6 +32,36 @@ mutual
     depth : Nat
     entries : List (Drv, Drv)
 
+  ||| A QIIT signature's ToS terms with their embedded Nova pieces as
+  ||| DERIVATIONS (an external argument derived where it stands): the
+  ||| carrier of a sort, constructor, eliminator or path node. Erasure
+  ||| gives the QSig the computation rules read.
+  public export
+  data DQTm : Type where
+    DQVar : Nat -> DQTm
+    DQAppE : DQTm -> Drv -> DQTm
+    DQAppI : DQTm -> DQTm -> DQTm
+    DQEqC : DQTm -> DQTm -> DQTm -> DQTm
+
+  ||| … and its ToS types: an external Π's domain a type derivation.
+  public export
+  data DQTy : Type where
+    DQU : DQTy
+    DQEl : DQTm -> DQTy
+    DQPiExt : Drv -> DQTy -> DQTy
+    DQPiInd : DQTm -> DQTy -> DQTy
+
+  ||| A polynomial with its embedded codes as derivations (each at 𝕌,
+  ||| under the binders before it): the carrier of ν and corec.
+  public export
+  data DPoly : Type where
+    DPHole : DPoly
+    DPConst : Drv -> DPoly
+    DPProd : DPoly -> DPoly -> DPoly
+    DPSum : DPoly -> DPoly -> DPoly
+    DPSigma : Drv -> DPoly -> DPoly
+    DPPi : Drv -> DPoly -> DPoly
+
   ||| The derivation grammar, spelled as §10.2 spells it. A node is the
   ||| former it derives, with derivations in the children's places; a
   ||| `Maybe Drv` annotation is the INFERENCE-mode form (what the type
@@ -55,7 +85,7 @@ mutual
     ||| ⟨π⟩ REFLECTION: π ⇒ p : (l ≡ r ∈ A) states l ≐ r : A
     DRefl : Drv -> Drv
     ||| qpath 𝕔 π̄: an imposed QIIT equation, its spine stated
-    DPath : QSig -> Nat -> List Drv -> Drv
+    DPath : List DQTy -> Nat -> List Drv -> Drv
     ||| x-δ π̄: x[ū] ≐ t[ū] for (Δ ⊦ x ≔ t : T), ū stated by π̄
     DDelta : String -> List Drv -> Drv
     ||| refl: the sides join under β
@@ -125,9 +155,9 @@ mutual
     ||| S π
     DSuc : Drv -> Drv
     ||| 𝒮.𝕔 π̄: a constructor, the signature carried
-    DCtor : QSig -> Nat -> List Drv -> Drv
+    DCtor : List DQTy -> Nat -> List Drv -> Drv
     ||| corec_𝔽 π_a π_f π_x
-    DCorec : Poly -> Drv -> Drv -> Drv -> Drv
+    DCorec : DPoly -> Drv -> Drv -> Drv -> Drv
     ||| let π_a π_b: the core's let, definiens inferred
     DLet : Drv -> Drv -> Drv
     ||| ⋆_{π_P} by π (el-eq-i): π_P ⇒ (l ≡ r ∈ A) : Ω, π ▷ l ≐ r : A;
@@ -154,7 +184,7 @@ mutual
     ||| 𝒮.𝕤-elim_{π̄_C ; coh̄} π̄_m π̄ π_w: motives (one per sort),
     ||| coherences (one per equation entry), methods, index spine,
     ||| eliminee
-    DQElim : QSig -> Nat -> Maybe (List Drv) -> List Drv -> List Drv -> List Drv -> Drv -> Drv
+    DQElim : List DQTy -> Nat -> Maybe (List Drv) -> List Drv -> List Drv -> List Drv -> Drv -> Drv
     ||| out π
     DOut : Drv -> Drv
     ||| π π′
@@ -169,8 +199,8 @@ mutual
     DEq : Drv -> Drv -> Drv -> Drv
     DQuot : Drv -> Drv -> Drv
     DSquash : Drv -> Drv
-    DNu : Poly -> Drv
-    DSort : QSig -> Nat -> List Drv -> Drv
+    DNu : DPoly -> Drv
+    DSort : List DQTy -> Nat -> List Drv -> Drv
 
 -- ===== Erasure =====
 
@@ -179,6 +209,11 @@ export
 wkN : Nat -> Sub
 wkN Z = Id
 wkN (S n) = Chain (wkN n) Wk
+
+||| A signature as a derivation carries it.
+public export
+DQSig : Type
+DQSig = List DQTy
 
 mutual
   ||| The ERASURE of an element derivation: drop the annotations, keep
@@ -208,8 +243,8 @@ mutual
   erase (DInj2 _ p) = Inj2 <$> erase p
   erase (DClass _ p) = Class <$> erase p
   erase (DSuc p) = NatIntro1 <$> erase p
-  erase (DCtor sg k ps) = QCtor sg k . cast <$> traverse erase ps
-  erase (DCorec f a g x) = [| Corec (pure f) (erase a) (erase g) (erase x) |]
+  erase (DCtor sg k ps) = [| (\g, xs => QCtor g k (cast xs)) (eraseQSig sg) (traverse erase ps) |]
+  erase (DCorec f a g x) = [| Corec (erasePoly f) (erase a) (erase g) (erase x) |]
   erase (DLet a b) = [| Let (erase a) (erase b) |]
   erase (DStar _ _) = Just Star
   erase (DSq _) = Just Star
@@ -220,7 +255,7 @@ mutual
   erase (DSumElim _ l r t) = [| SumElim (erase l) (erase r) (erase t) |]
   erase (DQuotElim _ _ f q) = [| QuotElim (erase f) (erase q) |]
   erase (DQElim sg k _ _ ms es w) =
-    [| (\fs, xs, w' => QElim sg k fs (cast xs) w') (traverse erase ms) (traverse erase es) (erase w) |]
+    [| (\g, fs, xs, w' => QElim g k fs (cast xs) w') (eraseQSig sg) (traverse erase ms) (traverse erase es) (erase w) |]
   erase (DOut p) = Out <$> erase p
   erase (DApp f a) = [| PiApp (erase f) (erase a) |]
   erase (DProj1 p) = SigmaElim1 <$> erase p
@@ -231,10 +266,39 @@ mutual
   erase (DEq l r t) = [| EqTy (erase l) (erase r) (erase t) |]
   erase (DQuot a r) = [| QuotTy (erase a) (erase r) |]
   erase (DSquash p) = Squash <$> erase p
-  erase (DNu f) = Just (NuTy f)
-  erase (DSort sg k ps) = QSort sg k . cast <$> traverse erase ps
+  erase (DNu f) = NuTy <$> erasePoly f
+  erase (DSort sg k ps) = [| (\g, xs => QSort g k (cast xs)) (eraseQSig sg) (traverse erase ps) |]
   -- equation forms derive no element
   erase _ = Nothing
+
+  ||| The erasure of a carried signature: each embedded piece erased.
+  export
+  eraseQTm : DQTm -> Maybe QTm
+  eraseQTm (DQVar i) = Just (QVar i)
+  eraseQTm (DQAppE f e) = [| QAppE (eraseQTm f) (erase e) |]
+  eraseQTm (DQAppI f a) = [| QAppI (eraseQTm f) (eraseQTm a) |]
+  eraseQTm (DQEqC l r u) = [| QEqC (eraseQTm l) (eraseQTm r) (eraseQTm u) |]
+
+  export
+  eraseQTy : DQTy -> Maybe QTy
+  eraseQTy DQU = Just QU
+  eraseQTy (DQEl t) = QEl <$> eraseQTm t
+  eraseQTy (DQPiExt a b) = [| QPiExt (erase a) (eraseQTy b) |]
+  eraseQTy (DQPiInd u b) = [| QPiInd (eraseQTm u) (eraseQTy b) |]
+
+  export
+  eraseQSig : List DQTy -> Maybe QSig
+  eraseQSig = traverse eraseQTy
+
+  ||| The erasure of a carried polynomial.
+  export
+  erasePoly : DPoly -> Maybe Poly
+  erasePoly DPHole = Just PHole
+  erasePoly (DPConst a) = PConst <$> erase a
+  erasePoly (DPProd f g) = [| PProd (erasePoly f) (erasePoly g) |]
+  erasePoly (DPSum f g) = [| PSum (erasePoly f) (erasePoly g) |]
+  erasePoly (DPSigma a f) = [| PSigma (erase a) (erasePoly f) |]
+  erasePoly (DPPi a f) = [| PPi (erase a) (erasePoly f) |]
 
   ||| The substitution a DSub denotes: ↑ᵈ extended by the entries'
   ||| erasures.
@@ -384,10 +448,58 @@ mutual
   showDrv (DEq l r t) = "\{argD l} ≡ \{argD r} ∈ \{argD t}"
   showDrv (DQuot a r) = "\{argD a} / \{argD r}"
   showDrv (DSquash p) = "∥\{showDrv p}∥"
-  showDrv (DNu f) = "ν \{show f}"
+  showDrv (DNu f) = "ν \{maybe "?" show (erasePoly f)}"
   showDrv (DSort _ k ps) = "𝒮.\{show k}[\{argsD ps}]"
 
 export
 covering
 Show Drv where
   show = showDrv
+
+-- ===== Weakening a carrier under binders (a builder's tool) =====
+--
+-- A carried signature elaborated over a context Γ is placed by the
+-- data-item emitter under n more binders. Its embedded pieces sit
+-- under the external binders before them, so the weakening is UNDER
+-- those binders — expressed within the grammar by the substitution
+-- node alone: ↑ⁿ⁺ᵐ extended by the m external variables at their
+-- (original) domain derivations, exactly §10.4's shape.
+
+||| π over Γ ▷ T₁ … Tₘ (tele the domains' derivations, outermost
+||| first) placed over Γ ▷ n entries ▷ T₁ … Tₘ.
+export
+wkUnder : Nat -> List Drv -> Drv -> Drv
+wkUnder Z _ p = p
+wkUnder n tele p =
+  let m = length tele
+  in DSubst p (MkDSub (n + m) (zipWith (\i, t => (DVar (minus (minus m 1) i), t)) [0 .. minus m 1] tele))
+
+mutual
+  export
+  wkDQTm : Nat -> List Drv -> DQTm -> DQTm
+  wkDQTm n tele (DQVar i) = DQVar i
+  wkDQTm n tele (DQAppE f e) = DQAppE (wkDQTm n tele f) (wkUnder n tele e)
+  wkDQTm n tele (DQAppI f a) = DQAppI (wkDQTm n tele f) (wkDQTm n tele a)
+  wkDQTm n tele (DQEqC l r u) = DQEqC (wkDQTm n tele l) (wkDQTm n tele r) (wkDQTm n tele u)
+
+  export
+  wkDQTy : Nat -> List Drv -> DQTy -> DQTy
+  wkDQTy n tele DQU = DQU
+  wkDQTy n tele (DQEl t) = DQEl (wkDQTm n tele t)
+  wkDQTy n tele (DQPiExt a b) = DQPiExt (wkUnder n tele a) (wkDQTy n (tele ++ [a]) b)
+  wkDQTy n tele (DQPiInd u b) = DQPiInd (wkDQTm n tele u) (wkDQTy n tele b)
+
+||| A carried signature under n more binders.
+export
+wkDQSig : Nat -> DQSig -> DQSig
+wkDQSig Z sg = sg
+wkDQSig n sg = map (wkDQTy n []) sg
+
+export
+wkDPoly : Nat -> List Drv -> DPoly -> DPoly
+wkDPoly n tele DPHole = DPHole
+wkDPoly n tele (DPConst a) = DPConst (wkUnder n tele a)
+wkDPoly n tele (DPProd f g) = DPProd (wkDPoly n tele f) (wkDPoly n tele g)
+wkDPoly n tele (DPSum f g) = DPSum (wkDPoly n tele f) (wkDPoly n tele g)
+wkDPoly n tele (DPSigma a f) = DPSigma (wkUnder n tele a) (wkDPoly n (tele ++ [a]) f)
+wkDPoly n tele (DPPi a f) = DPPi (wkUnder n tele a) (wkDPoly n (tele ++ [a]) f)

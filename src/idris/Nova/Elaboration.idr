@@ -4290,29 +4290,29 @@ mutual
   ||| Γ ⊢ F ⇝ 𝔽 poly (e-poly-*): each embedded piece a code at 𝕌, the
   ||| context growing under the binder forms; skeleton children
   ||| accumulate in binder order (the kernel's kCheckPolyK order).
-  elabPoly : Ctx -> NameEnv -> Site -> SPoly -> ElabM (Poly, List Drv)
-  elabPoly ctx env site SPHole = pure (PHole, [])
+  elabPoly : Ctx -> NameEnv -> Site -> SPoly -> ElabM (Poly, DPoly)
+  elabPoly ctx env site SPHole = pure (PHole, DPHole)
   elabPoly ctx env site (SPConst a) = do
-    (a', aSk) <- checkElem ctx env site a UniverseTy
-    pure (PConst a', [aSk])
+    (a', aD) <- checkElem ctx env site a UniverseTy
+    pure (PConst a', DPConst aD)
   elabPoly ctx env site (SPProd f g) = do
-    (f', fSks) <- elabPoly ctx env site f
-    (g', gSks) <- elabPoly ctx env site g
-    pure (PProd f' g', fSks ++ gSks)
+    (f', fD) <- elabPoly ctx env site f
+    (g', gD) <- elabPoly ctx env site g
+    pure (PProd f' g', DPProd fD gD)
   elabPoly ctx env site (SPSum f g) = do
-    (f', fSks) <- elabPoly ctx env site f
-    (g', gSks) <- elabPoly ctx env site g
-    pure (PSum f' g', fSks ++ gSks)
+    (f', fD) <- elabPoly ctx env site f
+    (g', gD) <- elabPoly ctx env site g
+    pure (PSum f' g', DPSum fD gD)
   elabPoly ctx env site (SPSigma (xn, xr) a f) = do
-    (a', aSk) <- checkElem ctx env site a UniverseTy
+    (a', aD) <- checkElem ctx env site a UniverseTy
     recordBinder xr ctx env xn a'
-    (f', fSks) <- elabPoly (ctx :< a') (env :< xn) site f
-    pure (PSigma a' f', aSk :: fSks)
+    (f', fD) <- elabPoly (ctx :< a') (env :< xn) site f
+    pure (PSigma a' f', DPSigma aD fD)
   elabPoly ctx env site (SPPi (xn, xr) a f) = do
-    (a', aSk) <- checkElem ctx env site a UniverseTy
+    (a', aD) <- checkElem ctx env site a UniverseTy
     recordBinder xr ctx env xn a'
-    (f', fSks) <- elabPoly (ctx :< a') (env :< xn) site f
-    pure (PPi a' f', aSk :: fSks)
+    (f', fD) <- elabPoly (ctx :< a') (env :< xn) site f
+    pure (PPi a' f', DPPi aD fD)
 
   -- Each of the three narrows the reported site to the node's own
   -- head span before dispatching (`Nova.Elaboration.Surface.headRange`),
@@ -4381,10 +4381,9 @@ mutual
     (r', rSk) <- checkElem (ctx :< a' :< substTy a' Wk) (env :< nx :< ny) site r PropTy
     pure (QuotTy a' r', DQuot aSk rSk)
   elabTyAt ctx env site (SNuC f) = do
-    -- e-ty-nu (the polynomial's embedded codes are checked by the
-    -- kernel from the polynomial itself: the node carries no children)
-    (f', _) <- elabPoly ctx env site f
-    pure (NuTy f', DNu f')
+    -- e-ty-nu: the node carries the polynomial with its codes derived
+    (f', fD) <- elabPoly ctx env site f
+    pure (NuTy f', DNu fD)
   elabTyAt ctx env site (SEqC rng l r (Just t)) = do
     -- e-ty-eq: the surface ≡-TYPE IS the equality prop, standing as
     -- a type (prop-lift; equality is Ω-valued)
@@ -4727,8 +4726,8 @@ mutual
     pure (Elem.EqTy l' r' t', PropTy, DEq lSk rSk (reTy st ctx t'))
   inferElemAt ctx env site (SNuC f) = do
     -- e-code-nu
-    (f', _) <- elabPoly ctx env site f
-    pure (Elem.NuTy f', UniverseTy, DNu f')
+    (f', fD) <- elabPoly ctx env site f
+    pure (Elem.NuTy f', UniverseTy, DNu fD)
   inferElemAt ctx env site (SOut t) = do
     -- e-out: fully inference-driven, the polynomial read off the
     -- scrutinee's type
@@ -5427,7 +5426,12 @@ mutual
         (f', fSk) <- checkElem (ctx :< a') (env :< xn) site f
                        (substTy (reflectPoly p a') Wk)
         (u', uSk) <- checkElem ctx env site u a'
-        pure (Corec p a' f' u', exposeD st ctx exp ty (DCorec p aSk fSk uSk))
+        -- the polynomial is the ν-type's: re-derived here (a builder,
+        -- read before it counts)
+        dp <- case kReDerivePoly st.sig kernelFuel ctx p of
+                Right d => pure d
+                Left e => throwAt site.srange "\{site}: the ν-type's polynomial does not re-derive: \{e}"
+        pure (Corec p a' f' u', exposeD st ctx exp ty (DCorec dp aSk fSk uSk))
       Nothing => throwShape site env "corec checked against" ty "a ν type"
   checkElemAt ctx env site (SCoind (xn, xr) (yn, yr) rS pS (mxn, mxr) (myn, myr) (mhn, mhr) qS) ty = do
     -- e-coind: el-nu-coind's surface form, at (l ≡ r ∈ ν F) —
@@ -7205,7 +7209,9 @@ elabItemGo irng (SData params decls) = do
   -- 1. elaborate the literal to a core signature, entry by entry; the
   --    parser already resolved names to ⬡-indices and classified the
   --    domains, so the only content is the embedded Nova pieces
-  sg <- traverse (elabDecl site pctx penv) decls
+  sgBoth <- traverse (elabDecl site pctx penv) decls
+  let sg = map fst sgBoth
+  let dsg = map snd sgBoth
   -- 2. EXPANSION: the batch of ordinary defs (docs/NovaElaboration.txt,
   --    QIIT section) — code-valued sorts, saturated constructors,
   --    ⋆ path-lemmas, one eliminator per sort with coherences as
@@ -7215,11 +7221,11 @@ elabItemGo irng (SData params decls) = do
   let named = zipWithIndex 0 decls
   ignore $ traverse (\(k, d) =>
     case qEntryKind (fromMaybe QU (qEntry sg k)) of
-      QKSort => do emitSort site pre sg k d.dqname
-                   emitElim site pre sg k False d.dqname
-                   emitElim site pre sg k True d.dqname
-      QKPoint => emitCtor site pre sg k d.dqname
-      QKEq => emitEq site pre sg k d.dqname) named
+      QKSort => do emitSort site pre sg dsg k d.dqname
+                   emitElim site pre sg dsg k False d.dqname
+                   emitElim site pre sg dsg k True d.dqname
+      QKPoint => emitCtor site pre sg dsg k d.dqname
+      QKEq => emitEq site pre sg dsg k d.dqname) named
   -- 3. RECORD what the expansion named, per sort: the shapes are in
   --    the carried signature, but the names this item minted — and the
   --    binder names it wrote — are nowhere else. In-place elimination
@@ -7277,35 +7283,43 @@ elabItemGo irng (SData params decls) = do
   wrapParams : List Ty -> Ty -> Ty
   wrapParams ptys ty = foldr PiTy ty ptys
 
-  elabSQTm : Site -> Ctx -> NameEnv -> SQTm -> ElabM QTm
-  elabSQTm site ectx env (SQVar _ i) = pure (QVar i)
+  ||| A ToS term with its embedded pieces DERIVED: the derivation the
+  ||| node carries, beside the erasure the computation rules read.
+  elabSQTm : Site -> Ctx -> NameEnv -> SQTm -> ElabM (QTm, DQTm)
+  elabSQTm site ectx env (SQVar _ i) = pure (QVar i, DQVar i)
   elabSQTm site ectx env (SQAppE f e) = do
-    f' <- elabSQTm site ectx env f
+    (f', fD) <- elabSQTm site ectx env f
     -- external arguments elaborate by INFERENCE (they are neutral in
-    -- the emitted fragment); the kernel re-checks them at the arity
-    (e', _, _) <- inferElem ectx env site e
-    pure (QAppE f' e')
-  elabSQTm site ectx env (SQAppI f a) =
-    [| QAppI (elabSQTm site ectx env f) (elabSQTm site ectx env a) |]
+    -- the emitted fragment); the kernel reads them at the arity
+    (e', _, eD) <- inferElem ectx env site e
+    pure (QAppE f' e', DQAppE fD eD)
+  elabSQTm site ectx env (SQAppI f a) = do
+    (f', fD) <- elabSQTm site ectx env f
+    (a', aD) <- elabSQTm site ectx env a
+    pure (QAppI f' a', DQAppI fD aD)
 
-  elabDecl : Site -> Ctx -> NameEnv -> SQDecl -> ElabM QTy
+  elabDecl : Site -> Ctx -> NameEnv -> SQDecl -> ElabM (QTy, DQTy)
   elabDecl site pctx penv d = go pctx penv d.dqbinders
    where
-    go : Ctx -> NameEnv -> List (String, Either STy SQTm) -> ElabM QTy
+    go : Ctx -> NameEnv -> List (String, Either STy SQTm) -> ElabM (QTy, DQTy)
     go ectx env ((x, Left t) :: rest) = do
-      (t', _) <- elabTy ectx env site t
-      QPiExt t' <$> go (ectx :< t') (env :< x) rest
+      (t', tD) <- elabTy ectx env site t
+      (rest', restD) <- go (ectx :< t') (env :< x) rest
+      pure (QPiExt t' rest', DQPiExt tD restD)
     go ectx env ((x, Right q) :: rest) = do
-      q' <- elabSQTm site ectx env q
-      QPiInd q' <$> go ectx env rest
+      (q', qD) <- elabSQTm site ectx env q
+      (rest', restD) <- go ectx env rest
+      pure (QPiInd q' rest', DQPiInd qD restD)
     go ectx env [] = case d.dqres of
-      SQResU => pure QU
-      SQResEl q => QEl <$> elabSQTm site ectx env q
+      SQResU => pure (QU, DQU)
+      SQResEl q => do
+        (q', qD) <- elabSQTm site ectx env q
+        pure (QEl q', DQEl qD)
       SQResEq l r u => do
-        l' <- elabSQTm site ectx env l
-        r' <- elabSQTm site ectx env r
-        u' <- elabSQTm site ectx env u
-        pure (QEl (QEqC l' r' u'))
+        (l', lD) <- elabSQTm site ectx env l
+        (r', rD) <- elabSQTm site ectx env r
+        (u', uD) <- elabSQTm site ectx env u
+        pure (QEl (QEqC l' r' u'), DQEl (DQEqC lD rD uD))
 
   entryAt : Site -> QSig -> Nat -> ElabM QTy
   entryAt site sg k = case qEntry sg k of
@@ -7315,13 +7329,13 @@ elabItemGo irng (SData params decls) = do
   ||| A sort: a code-valued def when the signature is SMALL; for a
   ||| LARGE signature, a type item (nullary sorts only — an indexed
   ||| large family has no closed-item spelling).
-  emitSort : Site -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
-  emitSort site (np, ptys) sg k nm = do
+  emitSort : Site -> (Nat, List Ty) -> QSig -> DQSig -> Nat -> String -> ElabM ()
+  emitSort site (np, ptys) sg dsg k nm = do
     entry <- entryAt site sg k
     (tel, _, _) <- liftQE site (reflTel sg (qwAt k) entry)
     let n = length tel
     st <- getSt
-    let isSmall = kQSigSmallB st.sig kernelFuel ([<] <>< ptys) sg
+    let isSmall = kQSigSmallD st.sig kernelFuel ([<] <>< ptys) dsg
     if isSmall
       then do
         let ty = wrapParams ptys (foldr PiTy UniverseTy tel)
@@ -7332,12 +7346,12 @@ elabItemGo irng (SData params decls) = do
         -- unfolded: the δ bridge rides along)
         emitCoreDef site nm ty (reTy st [<] ty) body (reChk st [<] body ty)
       else if n == 0 && np == 0
-        then emitCoreTyDef site nm (QSort sg k [<]) (DSort sg k [])
+        then emitCoreTyDef site nm (QSort sg k [<]) (DSort dsg k [])
         else throwAt site.srange "\{site}: an indexed or parameterized sort of a LARGE signature has no closed-item spelling (make the signature small)"
 
   ||| A point constructor: the saturated former, η-expanded once.
-  emitCtor : Site -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
-  emitCtor site (np, ptys) sg k nm = do
+  emitCtor : Site -> (Nat, List Ty) -> QSig -> DQSig -> Nat -> String -> ElabM ()
+  emitCtor site (np, ptys) sg dsg k nm = do
     entry <- entryAt site sg k
     ty0 <- liftQE site (reflQTy sg (qwAt k) entry)
     let n = qtyBinders entry
@@ -7355,8 +7369,8 @@ elabItemGo irng (SData params decls) = do
   ||| On later
   ||| items this def is an accepted lemma, so the QIIT's imposed
   ||| equations feed discharge through the standard store.
-  emitEq : Site -> (Nat, List Ty) -> QSig -> Nat -> String -> ElabM ()
-  emitEq site (np, ptys) sg k nm = do
+  emitEq : Site -> (Nat, List Ty) -> QSig -> DQSig -> Nat -> String -> ElabM ()
+  emitEq site (np, ptys) sg dsg k nm = do
     entry <- entryAt site sg k
     (tel, wEnd, hd) <- liftQE site (reflTel sg (qwAt k) entry)
     (lq, rq, uq) <- liftQE site (eqHead hd)
@@ -7366,7 +7380,7 @@ elabItemGo irng (SData params decls) = do
     let n = length tel
     let ty = wrapParams ptys (foldr PiTy (Elem.EqTy lE rE uT) tel)
     let body = wrapLams (np + n) Star
-    let cert = DPath (sgAt sg n) k (map varD (toList (varSpine n)))
+    let cert = DPath (wkDQSig n dsg) k (map varD (toList (varSpine n)))
     st <- getSt
     emitCoreDef site nm ty (reTy st [<] ty) body (lamsD (np + n) (DStar Nothing cert))
 
@@ -7381,8 +7395,8 @@ elabItemGo irng (SData params decls) = do
   ||| … → Ω, results the props themselves) — by proof irrelevance its
   ||| coherences hold outright (el-prf-prop), so it takes NO
   ||| coherence arguments and its qcoh certificates are bare FProp.
-  emitElim : Site -> (Nat, List Ty) -> QSig -> Nat -> (prop : Bool) -> String -> ElabM ()
-  emitElim site (np, ptys) sg s prop nm = do
+  emitElim : Site -> (Nat, List Ty) -> QSig -> DQSig -> Nat -> (prop : Bool) -> String -> ElabM ()
+  emitElim site (np, ptys) sg dsg s prop nm = do
     let sortPs = qPositions QKSort sg
     let pointPs = qPositions QKPoint sg
     let eqPs = qPositions QKEq sg
@@ -7455,7 +7469,7 @@ elabItemGo irng (SData params decls) = do
                 -- read right to left
                 let sgP = sgAt sgJ dlen
                 let swcAt : Ctx -> Drv
-                    swcAt c' = DApp DReflx (DSym (DPath sgP ej
+                    swcAt c' = DApp DReflx (DSym (DPath (wkDQSig (nS + nM + j + dlen) dsg) ej
                                  (fromMaybe (map varD (toList spineArgs)) (pathArgsB st0.sig c' sgP ej spineArgs))))
                 -- the ≡-TYPE IS the eq-prop (Prf retired): the sides
                 -- and the carried type; the rhs infers C ī ⌊r⌋ and is
@@ -7560,7 +7574,7 @@ elabItemGo irng (SData params decls) = do
                pure (maybe (reTy st (mctx :< selfTy) m) fst (reInf st (mctx :< selfTy) m)))
              (zip sortPs motsEnd)
     let bodySk = lamsD (np + bigN)
-                   (DQElim sgK s (Just motDs) cohCerts mSks (map varD idxAtEnd) wSk)
+                   (DQElim (wkDQSig bigN dsg) s (Just motDs) cohCerts mSks (map varD idxAtEnd) wSk)
     emitCoreDef site (nm ++ (if prop then "ElimP" else "Elim")) defTy defTySk body bodySk
    where
     upto : Nat -> List Nat

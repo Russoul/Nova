@@ -364,9 +364,17 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
       (q, t') <- go ctx tTy b t
       q' <- exposedChild sig ctx tTy isNuTy q
       pure (DOut q', Out t')
-    (Corec pf a f x, 0) => (\(q, a') => (DCorec pf q DReflx DReflx, Corec pf a' f x)) <$> go ctx (Just UniverseTy) b a
-    (Corec pf a f x, 1) => (\(q, f') => (DCorec pf DReflx q DReflx, Corec pf a f' x)) <$> go (ctx :< a) Nothing (1 + b) f
-    (Corec pf a f x, 2) => (\(q, x') => (DCorec pf DReflx DReflx q, Corec pf a f x')) <$> go ctx (Just a) b x
+    -- (the carriers re-derived: a node carries its polynomial's and
+    -- its signature's pieces as derivations)
+    (Corec pf a f x, 0) => do
+      dpf <- rdPoly sig ctx pf
+      (\(q, a') => (DCorec dpf q DReflx DReflx, Corec pf a' f x)) <$> go ctx (Just UniverseTy) b a
+    (Corec pf a f x, 1) => do
+      dpf <- rdPoly sig ctx pf
+      (\(q, f') => (DCorec dpf DReflx q DReflx, Corec pf a f' x)) <$> go (ctx :< a) Nothing (1 + b) f
+    (Corec pf a f x, 2) => do
+      dpf <- rdPoly sig ctx pf
+      (\(q, x') => (DCorec dpf DReflx DReflx q, Corec pf a f x')) <$> go ctx (Just a) b x
     (QuotElim f q0, 0) => do
       ((a, _), pq) <- quotParts q0
       (\(q, f') => (DQuotElim Nothing Nothing q pq, QuotElim f' q0)) <$> go (ctx :< a) (map (\x => substTy x Wk) mty) (1 + b) f
@@ -377,15 +385,18 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
       mm <- elimMotive sig ctx mty u
       pure (DQuotElim mm Nothing DReflx q', QuotElim f q0')
     (Squash t, 0) => (\(q, t') => (DSquash q, Squash t')) <$> go ctx (Just TopTy) b t
-    (QSort sg k es, _) =>
-      (\(qs, es') => (DSort sg k qs, QSort sg k es')) <$> spineWrap i es (go ctx (qSpineChildTy sg k es i) b)
-    (QCtor sg k es, _) =>
-      (\(qs, es') => (DCtor sg k qs, QCtor sg k es')) <$> spineWrap i es (go ctx (qSpineChildTy sg k es i) b)
-    (QElim sg k fs es w, _) =>
+    (QSort sg k es, _) => do
+      dsg <- rdQSig sig ctx sg
+      (\(qs, es') => (DSort dsg k qs, QSort sg k es')) <$> spineWrap i es (go ctx (qSpineChildTy sg k es i) b)
+    (QCtor sg k es, _) => do
+      dsg <- rdQSig sig ctx sg
+      (\(qs, es') => (DCtor dsg k qs, QCtor sg k es')) <$> spineWrap i es (go ctx (qSpineChildTy sg k es i) b)
+    (QElim sg k fs es w, _) => do
+      dsg <- rdQSig sig ctx sg
       if i == length (toList es)
-        then (\(q, w') => (DQElim sg k Nothing [] (map (const DReflx) fs) (map (const DReflx) (toList es)) q, QElim sg k fs es w'))
+        then (\(q, w') => (DQElim dsg k Nothing [] (map (const DReflx) fs) (map (const DReflx) (toList es)) q, QElim sg k fs es w'))
                <$> go ctx (Just (QSort sg k es)) b w
-        else (\(qs, es') => (DQElim sg k Nothing [] (map (const DReflx) fs) qs DReflx, QElim sg k fs es' w))
+        else (\(qs, es') => (DQElim dsg k Nothing [] (map (const DReflx) fs) qs DReflx, QElim sg k fs es' w))
                <$> spineWrap i es (go ctx (qSpineChildTy sg k es i) b)
     _ => kerr "proof: bad path [i=\{show i}, at \{show u}]"
  where
