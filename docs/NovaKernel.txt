@@ -1059,11 +1059,7 @@ through it:
                    kCheckEqDrv    Σ → Δ̄ → π_A → π → l → r → () | error
                    The telescope Δ̄ and the type are DERIVATIONS, read
                    before anything else; the equation's sides are bare
-                   because they are compared, never trusted.
-                   (kCheckEqBare, the same over a bare context and
-                   type, is TRANSITIONAL: the engine's contexts do not
-                   yet carry derivations — docs/NovaStrategy.txt,
-                   kernel programme item 2.) An
+                   because they are compared, never trusted. An
                    admitting entry point returns the entry it admits;
                    the engine extends the kernel's Σ with that entry
                    and nothing else (kernelAccept, one site).

@@ -2895,20 +2895,6 @@ kCheckEqDrv sig fuel tele dty d l r =
     rJ <- kJoinElem sig r
     dAt sig ctx d lJ rJ ty) fuel)
 
-||| TRANSITIONAL (docs/NovaStrategy.txt, kernel programme item 2): the
-||| equation check over a BARE context and type, for the sites where
-||| the engine cannot yet supply their derivations (its contexts are
-||| bare; a binder type spelled up to a conversion by an earlier
-||| hypothesis has no re-derivation). Counted by the engine's
-||| BRIDGE-FALLBACK audit; deleted at zero.
-export
-kCheckEqBare : Sig -> Ctx -> Nat -> Drv -> Elem -> Elem -> Ty -> Either KErr ()
-kCheckEqBare sig ctx fuel d l r ty =
-  map fst (runKM (do
-    lJ <- kJoinElem sig l
-    rJ <- kJoinElem sig r
-    dAt sig ctx d lJ rJ ty) fuel)
-
 -- ===== Probes for the elaborator =====
 
 ||| Decidable smallness probe for callers outside the fuel monad

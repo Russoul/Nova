@@ -292,19 +292,22 @@ Tranche 1 — acceptance-preserving, standalone:
          assumption entry point that READS the assumed type's
          derivation waits on contexts-as-derivations, like item 2's
          bare form: the engine cannot yet supply the derivations.)
-  [~] 2. The equation entry point takes the telescope and the type
+  [x] 2. The equation entry point takes the telescope and the type
          as derivations (as the definition entry point does); the
-         sides stay bare — compared, not trusted. DONE for the entry
-         point; TRANSITIONAL on the engine's side: its contexts are
-         bare, and its re-derivation bridge cannot rebuild every
-         entry — a binder type spelled up to a conversion by an
-         earlier hypothesis, a let hypothesis whose value is a proof
-         ⋆, a β-redex left in a motive instance — so at those sites
-         it falls back to the bare form kCheckEqBare and counts the
-         site (BRIDGE-FALLBACK: 86 sites at 26 items on 2026-09-25).
-         The bare form is deleted at zero, which is when the engine's
-         contexts carry their derivations (the next programme item
-         after 1). The bridge costs ~0.2s over the corpus meanwhile.
+         sides stay bare — compared, not trusted. The engine supplies
+         them from ITS OWN derivations first — an item-local registry
+         (ElabSt.tyDrvs) of the type derivations it built, keyed by
+         the bare context and type: every elaborated type, a let's
+         unfolding hypothesis (structural: ☐₀ ≡ e ∈ A from the
+         definiens' derivations), a λ's domain peeled off the expected
+         type's derivation — and from the re-derivation bridge
+         otherwise (the type as written, else its β-normal form, a
+         β-equal derivation every consumer compares under β). An entry
+         neither supplies fails the check as an engine defect. The
+         transitional bare form existed for one commit (86 fallback
+         sites) and is gone. The registry is the first step of
+         contexts carrying their derivations: it holds what the
+         elaborator knew and dropped, looked up, never guessed.
   [x] 5. No effects, no oracle in the reader: the whnf canary and
          the error dump move to the engine (which calls the exported
          whnf after acceptance); the let node carries its binding's

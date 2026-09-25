@@ -419,9 +419,21 @@ record ElabSt where
   ||| so the operator can see WHICH unfilled thing is blocking
   ||| verification rather than discovering it by inference.
   itemBlocked : Maybe String
+  ||| THE CONTEXT'S DERIVATIONS, item-local: the type derivations the
+  ||| elaborator itself built, keyed by the bare context and type
+  ||| they were built at — every elaborated type, a let's unfolding
+  ||| hypothesis, a λ's domain peeled off the expected type's
+  ||| derivation. What the re-derivation bridge consults before
+  ||| rebuilding a type from its bare spelling (it cannot rebuild a
+  ||| binder type spelled up to a conversion by an earlier hypothesis,
+  ||| or a let hypothesis whose value is a proof): a LOOKUP of the
+  ||| engine's own knowledge, never a guess (docs/NovaStrategy.txt,
+  ||| kernel programme item 2 — towards contexts carrying their
+  ||| derivations outright)
+  tyDrvs : List (Ctx, Ty, Drv)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<] [] 0 False Nothing
+initSt = MkElabSt [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<] [] 0 False Nothing []
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -3313,19 +3325,41 @@ deltaJoinC st a b = go 5 (nub (unfsOf st ++ defNamesOf st (refsE b (refsE a [<])
       let ns' = nub (ns ++ defNamesOf st (refsE b' (refsE a' [<]))) in
       if length ns' == length ns then Nothing else go k ns'
 
-||| A bare type derived at 𝕍.
+||| The derivation the elaborator built for this type at this
+||| context, if it noted one (ElabSt.tyDrvs).
+lookupTyD : ElabSt -> Ctx -> Ty -> Maybe Drv
+lookupTyD st ctx t = map (\(_, _, d) => d) (find (\(c, t', _) => t' == t && c == ctx) st.tyDrvs)
+
+||| Note a type derivation the elaborator built, for the bridge.
+noteTyD : Ctx -> Ty -> Drv -> ElabM ()
+noteTyD ctx t d = modifySt { tyDrvs $= ((ctx, t, d) ::) }
+
+||| … or nothing, where the node may leave the type to the kernel's
+||| own judgement (a checking-form annotation). The elaborator's own
+||| derivation first (lookupTyD); else the bridge rebuilds the type
+||| as written; else it rebuilds its β-normal form — a derivation of
+||| a β-equal type, which every consumer compares under β (a context
+||| entry, an equation's type, a node's annotation — never an
+||| erasure).
+reTyM : ElabSt -> Ctx -> Ty -> Maybe Drv
+reTyM st ctx t = lookupTyD st ctx t <|> asWritten <|> normalized
+ where
+  asWritten : Maybe Drv
+  asWritten = either (const Nothing) Just (kReDeriveTy st.sig kernelFuel ctx t)
+  normalized : Maybe Drv
+  normalized = let t' = compTy t in
+               if t' == t then Nothing
+                 else either (const Nothing) Just (kReDeriveTy st.sig kernelFuel ctx t')
+
+||| A bare type derived at 𝕍 (reTyM, or the audited 𝕍 leaf when
+||| nothing derives it — the DRV-BRIDGE line).
 reTy : ElabSt -> Ctx -> Ty -> Drv
 reTy st ctx t =
   let t0 = nowNs ()
-      r = kReDeriveTy st.sig kernelFuel ctx t
+      r = reTyM st ctx t
   in bump "bridge-ty" (nowNs () - t0) (case r of
-       Right d => d
-       Left e => audit "DRV-BRIDGE type | \{e} | \{show t}" DTop)
-
-||| … or nothing, where the node may leave the type to the kernel's
-||| own judgement (a checking-form annotation).
-reTyM : ElabSt -> Ctx -> Ty -> Maybe Drv
-reTyM st ctx t = either (const Nothing) Just (kReDeriveTy st.sig kernelFuel ctx t)
+       Just d => d
+       Nothing => audit "DRV-BRIDGE type | \{show t}" DTop)
 
 ||| A bare context as a telescope of derivations, each over the
 ||| entries before it — what the kernel's equation entry point reads
@@ -3343,14 +3377,11 @@ reTele st ctx = go ctx
       Nothing => Left t
 
 ||| The eager kernel check of an equation proof: the context and the
-||| type as derivations (kCheckEqDrv). Where the engine's bridge
-||| cannot re-derive a context entry or the type — the engine's
-||| contexts are BARE, and a binder type spelled up to a conversion
-||| by an earlier hypothesis has no re-derivation — the TRANSITIONAL
-||| bare form is used and the site counted (BRIDGE-FALLBACK): the
-||| measure that contexts-as-derivations in the engine drives to
-||| zero, after which the bare form goes (docs/NovaStrategy.txt,
-||| kernel programme item 2).
+||| type as derivations (kCheckEqDrv), the elaborator's own where it
+||| noted them (tyDrvs) and the bridge's otherwise. An entry neither
+||| supplies is an ENGINE defect, reported as the check's verdict —
+||| never a bare check (docs/NovaStrategy.txt, kernel programme
+||| item 2).
 checkEqK : ElabSt -> Ctx -> Drv -> Elem -> Elem -> Ty -> Either KErr ()
 checkEqK st ctx prf a b ty =
   let tyD = the (Either Ty Drv) $ case ty of
@@ -3358,11 +3389,8 @@ checkEqK st ctx prf a b ty =
               _ => maybe (Left ty) Right (reTyM st ctx ty)
   in case (reTele st ctx, tyD) of
        (Right tele, Right d) => kCheckEqDrv st.sig kernelFuel tele d prf a b
-       (tele, d) =>
-         let what = either (\t => "context entry \{show t}") (const "") tele
-                 ++ either (\t => " type \{show t}") (const "") d
-         in audit "BRIDGE-FALLBACK | \{st.modPrefix}:\{st.curItem} |\{what}"
-              (kCheckEqBare st.sig ctx kernelFuel prf a b ty)
+       (Left t, _) => Left "engine: no derivation for the context entry \{show t}"
+       (_, Left t) => Left "engine: no derivation for the equation's type \{show t}"
 
 ||| … with the classifier the derivation derives at, when it derives.
 reTyK : ElabSt -> Ctx -> Ty -> (Drv, Maybe Ty)
@@ -4351,7 +4379,10 @@ mutual
   -- whole item. `*At` is the clause group; the wrapper is what
   -- everything (including the clauses, recursively) calls.
   elabTy : Ctx -> NameEnv -> Site -> STy -> ElabM (Ty, Drv)
-  elabTy ctx env site t = elabTyAt ctx env (at site (headRangeTy t)) t
+  elabTy ctx env site t = do
+    r@(ty', d) <- elabTyAt ctx env (at site (headRangeTy t)) t
+    noteTyD ctx ty' d
+    pure r
 
   elabTyAt : Ctx -> NameEnv -> Site -> STy -> ElabM (Ty, Drv)
   elabTyAt ctx env site SZeroC = pure (ZeroTy, DZeroTy)
@@ -4597,9 +4628,12 @@ mutual
     (e', eTy, eSk) <- inferElem ctx env site e
     recordBinder xr ctx env x eTy
     let hyp = Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk)
-    (b', bTy, bSk) <- inferElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
     st <- getSt
-    pure (Let e' b', substTy bTy (Ext (Ext Id e') Star), DLet eSk (reTy st ctx eTy) bSk)
+    let eTyD = reTy st ctx eTy
+    noteTyD ctx eTy eTyD
+    noteTyD (ctx :< eTy) hyp (DEq (DVar 0) (weakenD 1 eSk) (weakenD 1 eTyD))
+    (b', bTy, bSk) <- inferElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
+    pure (Let e' b', substTy bTy (Ext (Ext Id e') Star), DLet eSk eTyD bSk)
   inferElemAt ctx env site (SUnsquash _ _ _) =
     -- like the squash-elim it is built on, unsquash is CHECKING-ONLY:
     -- el-squash-e-prf reaches only propositions, and only the expected
@@ -5417,6 +5451,12 @@ mutual
     case preferPi st ctx ty of
       Just (a, b, exp) => do
         recordBinder xr ctx env x a
+        -- the binder's type derivation is the expected type's domain
+        -- derivation when the elaborator built one (a Π written at
+        -- the item, a hypothesis spelled up to a conversion)
+        case lookupTyD st ctx ty of
+          Just (DPi aD bD) => do noteTyD ctx a aD; noteTyD (ctx :< a) b bD
+          _ => pure ()
         (t', tSk) <- checkElem (ctx :< a) (env :< x) site t b
         pure (PiIntro t', exposeD st ctx exp ty (DLam Nothing tSk))
       Nothing => throwShape site env "λ checked against" ty "a Π type"
@@ -5753,10 +5793,13 @@ mutual
     (e', eTy, eSk) <- inferElem ctx env site e
     recordBinder xr ctx env x eTy
     let hyp = Elem.EqTy (CtxVar 0) (substElem e' Wk) (substTy eTy Wk)
+    st <- getSt
+    let eTyD = reTy st ctx eTy
+    noteTyD ctx eTy eTyD
+    noteTyD (ctx :< eTy) hyp (DEq (DVar 0) (weakenD 1 eSk) (weakenD 1 eTyD))
     (b', bSk) <- checkElem (ctx :< eTy :< hyp) (env :< x :< wildcard) site b
                    (substTy (substTy ty Wk) Wk)
-    st <- getSt
-    pure (Let e' b', DLet eSk (reTy st ctx eTy) bSk)
+    pure (Let e' b', DLet eSk eTyD bSk)
   -- an implicit-headed spine in CHECKING position: the expected type
   -- is the recovery oracle's FIRST source (it must run before any
   -- argument whose domain mentions an unsolved implicit — a λ
@@ -7155,7 +7198,8 @@ elabItem : (irng : Maybe Range) -> SItem -> ElabM String
 elabItem irng item = withScope (if scopedMode then Just [] else Nothing) $ do
   base <- oblCount
   modifySt { curItem := clearBlocked (itemName item), curImps := []
-           , itemOblBase := base, itemAssumed := False, itemBlocked := Nothing }
+           , itemOblBase := base, itemAssumed := False, itemBlocked := Nothing
+           , tyDrvs := [] }
   pre <- getSt
   timedM "item \{pre.modPrefix}.\{itemName item}" (elabItemGo irng item)
 
