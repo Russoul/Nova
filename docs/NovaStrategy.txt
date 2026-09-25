@@ -422,17 +422,31 @@ that with statements in the text, measured site by site.
          instance at the root (with or without unfolding), 80 are
          well-definedness by one lemma, the rest place lemmas at
          positions or chain several. The count must only go down.
-  [ ] 2. THE STATED FORMS. A local claim states an instance and puts
-         it in scope as a hypothesis: `have h : a ≡ b ∈ A by e`, the
-         element e (a lemma applied, a hypothesis, a proof) checked at
-         the claim — the core's let of a proof, which the engine's
-         hypothesis source already reads. A stated instance closes a
-         site by lookup, at the root or at the position the
-         congruence descent determines; no lemma is instantiated by
-         matching.
-  [ ] 3. MIGRATE BY THE COUNT, item by item, until the strict run
+  [~] 2. THE STATED FORMS. A local claim states an instance and puts
+         it in scope as a hypothesis — today the surface's own
+         `let h = e in …` (or `let h : a ≡ b ∈ A = e in …`), the
+         element e a lemma applied, a hypothesis, a proof; the core's
+         let of a proof, which the engine's hypothesis source reads.
+         The stated tier is then CLOSURE OVER THE FACTS IN SCOPE
+         (hypotheses, local claims, chain links, the ≡-elim
+         hypothesis): rewriting by them to normal form at every
+         position, in either direction, and chaining through them —
+         deterministic, like δ-all; never a Σ-lemma instantiated by
+         matching. A ⋆ whose proof is one instance at the root is
+         simply that instance. Whether `have … by …` sugar is wanted
+         over `let` is a surface decision still open; the
+         well-definedness proof of a quotient elimination wants a slot
+         at the eliminator (the kernel node has one), the let outside
+         it cannot mention the case's binders.
+  [~] 3. MIGRATE BY THE COUNT, item by item, until the strict run
          accepts the corpus; then delete the search — candidate sets,
          the depth, hop chaining, the `.rw` rewrite loops.
+         tools/migrate-stated.py writes the mechanical part from the
+         measure's audit (a root instance replaces its ⋆; placed or
+         chained instances become local claims at the site's span;
+         every file verified by elaboration). 2026-09-25: 252 → 80
+         (36 ⋆ instances, 125 claim-wrapped sites, the stated tier's
+         closure).
   [ ] 4. Well-definedness as a claim (the 80 sites), by the same form.
   [ ] 5. Contexts carrying derivations outright, replacing the
          registry, once the engine's shape is settled.

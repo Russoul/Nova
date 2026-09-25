@@ -1819,7 +1819,10 @@ unfLogTy sig ctx = unfLogElem sig (Just (ctx, Just TopTy))
 ||| engine compares, the proof what the kernel checks).
 rwNfElemP : ElabSt -> Ctx -> Maybe Ty -> (unfs : List String) -> List Cand -> Elem -> (Elem, Maybe Drv)
 rwNfElemP st ctx mty unfs cands e =
-  if not st.statedOnly && (elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs)
+  -- the STATED tier rewrites by the facts in scope always (closure
+  -- over hypotheses, local claims and chain links, to normal form:
+  -- choice-free); the full engine only under a `.rw` licence
+  if st.statedOnly || elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
     -- the RAW side rewritten first (its positions are arguments of
     -- definitions with declared types: every leaf lands at a typed
     -- position), then unfolded, then the loop
@@ -1827,8 +1830,8 @@ rwNfElemP st ctx mty unfs cands e =
     else let (start, uP) = unfLogElem st.sig (Just (ctx, mty)) unfs e in (start, Just uP)
  where
   hypCs : List Cand
-  hypCs = filter (\c => (elem "hyp.rw" unfs && (c.candName == "hypothesis" || c.candName == "chain link"))
-                      || elem ("rw:" ++ c.candName) unfs) cands
+  hypCs = filter (\c => ((st.statedOnly || elem "hyp.rw" unfs) && (c.candName == "hypothesis" || c.candName == "chain link" || c.candName == "eq-elim"))
+                      || (not st.statedOnly && elem ("rw:" ++ c.candName) unfs)) cands
   done : Elem -> Maybe (List Drv) -> (Elem, Maybe Drv)
   done t acc = (t, map (chainP . reverse) acc)
   goS : Nat -> List Elem -> Elem -> Maybe (List Drv) -> (unfolded : Bool) -> (Elem, Maybe Drv)
@@ -1851,13 +1854,13 @@ rwNfElemP st ctx mty unfs cands e =
 ||| rwNfElemP for a type (at 𝕍; type positions descend as rewriteTyS).
 rwNfTyP : ElabSt -> Ctx -> (unfs : List String) -> List Cand -> Ty -> (Ty, Maybe Drv)
 rwNfTyP st ctx unfs cands ty =
-  if not st.statedOnly && (elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs)
+  if st.statedOnly || elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
     then goS rwFuel [] (compTy ty) (Just []) False
     else let (start, uP) = unfLogTy st.sig ctx unfs ty in (start, Just uP)
  where
   hypCs : List Cand
-  hypCs = filter (\c => (elem "hyp.rw" unfs && (c.candName == "hypothesis" || c.candName == "chain link"))
-                      || elem ("rw:" ++ c.candName) unfs) cands
+  hypCs = filter (\c => ((st.statedOnly || elem "hyp.rw" unfs) && (c.candName == "hypothesis" || c.candName == "chain link" || c.candName == "eq-elim"))
+                      || (not st.statedOnly && elem ("rw:" ++ c.candName) unfs)) cands
   done : Ty -> Maybe (List Drv) -> (Ty, Maybe Drv)
   done t acc = (t, map (chainP . reverse) acc)
   goS : Nat -> List Ty -> Ty -> Maybe (List Drv) -> (unfolded : Bool) -> (Ty, Maybe Drv)
@@ -2280,7 +2283,8 @@ mkCandSetAt st ctx skip locals =
       -- hops for chain links always; for hypotheses under
       -- a hyp.rw license; for Σ-lemmas under their <lemma>.rw license
       sHopsStrict = filter (\c => elem ("rw:" ++ c.candName) st.eqScope) sHops
-      hypLicensed = elem "hyp.rw" st.eqScope
+      -- (the stated tier chains through the facts in scope always)
+      hypLicensed = st.statedOnly || elem "hyp.rw" st.eqScope
   in case (locals, hypCands st sRw ctx skip) of
        ([], []) => MkCandSet sCs sRw sHopsStrict locals skip
        (ls, hs) =>
@@ -3624,6 +3628,7 @@ searchLine st env site kind p =
                Just (MkRange (MkPosition l c) (MkPosition l' c')) => "\{show l}:\{show c}-\{show l'}:\{show c'}"
                Nothing => "?"
   in "SEARCH-NEEDED \{kind} | \{st.modPrefix}:\{st.curItem} | \{site} | \{showDrv p} | at \{st.modFile}:\{span} | \{shape} | " ++ joinBy " ;; " insts
+     ++ " | env: " ++ joinBy " " (toList env)
  where
   -- the elements the reflection leaves ⟨e⟩ reflect
   collect : Drv -> List Elem
