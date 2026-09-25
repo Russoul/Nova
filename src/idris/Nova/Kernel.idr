@@ -363,6 +363,201 @@ liftQ : Either QErr a -> KM a
 liftQ (Left e) = kerr "kernel: \{e}"
 liftQ (Right x) = pure x
 
+-- ===== The β-whnf on DERIVATIONS =====
+--
+-- The weak-head form of a derivation: a derivation whose erasure is
+-- the β-whnf of the input's, with the head former VISIBLE — a node,
+-- possibly under substitution layers (§10.4 nodes the walk could not
+-- push further), or a stuck head. Every contraction clause of §1
+-- has its twin here: the redex's own subderivations under a
+-- substitution node — β extends the layers by (a : π_A), a
+-- projection selects a component, an eliminator on a constructor
+-- selects a branch with the constructor's pieces as entries, ν-β
+-- maps the polynomial (dMapPoly), squash-idem drops the squash —
+-- and a substitution node meeting a node is pushed ONE level (under
+-- a binder, lifted at the binder's domain derivation, which the
+-- node carries). Nothing substitutes INTO a derivation; the erasure
+-- of the result is the erasure-level whnf (the audit dWhnfAudit
+-- checks it on every item).
+--
+-- Two entries need a TYPE DERIVATION the redex does not carry: the
+-- element an injection or a class wraps (the branch's binder type)
+-- and a let's definiens. They come from the reader — `tyOf`, the
+-- type derivation of a STATING derivation (the reader's ⇒ on
+-- derivations; a scrutinee states, so the element inside its
+-- constructor does). A checking-form eliminator's induction
+-- hypothesis is typed at the constant motive: the type flowing
+-- down, `mty`, when the eliminator is the root.
+--
+-- Not yet: the QIIT eliminator's contraction (its section spine
+-- needs the signature's reflection on derivations).
+
+mutual
+  export
+  dWhnf : Sig -> (tyOf : Drv -> KM Drv) -> (mty : Maybe Drv) -> Drv -> KM Drv
+  dWhnf sig tyOf mty d = case d of
+    -- wrappers: the erasure is the inner's
+    DConv q _ _ => dWhnf sig tyOf mty q
+    DAscribe q _ _ => dWhnf sig tyOf mty q
+    DAt q _ _ => dWhnf sig tyOf mty q
+    -- a substitution node: the inner head first, then one push
+    DSubst q s => do
+      q' <- dWhnf sig tyOf Nothing q
+      dPush sig tyOf mty s q'
+    -- β
+    DApp f a => do
+      f' <- dWhnf sig tyOf Nothing f
+      case peel f' of
+        (DLam (Just pA) b, ls) => do
+          burn
+          let (b', pA') = liftThrough b pA ls
+          dWhnf sig tyOf mty (DSubst b' (MkDSub 0 [(a, pA')]))
+        (DLam Nothing _, _) => kerr "dWhnf: β at a λ that does not state (no domain)"
+        _ => pure (DApp f' a)
+    -- projections
+    DProj1 t => do
+      t' <- dWhnf sig tyOf Nothing t
+      case peel t' of
+        (DPair _ u _, ls) => do burn; dWhnf sig tyOf mty (underLayers u ls)
+        _ => pure (DProj1 t')
+    DProj2 t => do
+      t' <- dWhnf sig tyOf Nothing t
+      case peel t' of
+        (DPair _ _ v, ls) => do burn; dWhnf sig tyOf mty (underLayers v ls)
+        _ => pure (DProj2 t')
+    -- let is always a redex: b[id, a, ⋆] with the unfolding equation
+    DLet a b => do
+      burn
+      pA <- tyOf a
+      let eq = DEq (DVar 0) (wk1 a) (wk1 pA)
+      let wit = DStar (Just (DEq a a pA)) DReflx
+      dWhnf sig tyOf mty (DSubst b (MkDSub 0 [(a, pA), (wit, eq)]))
+    -- ℕ-elim
+    DNatElim m z st n => do
+      n' <- dWhnf sig tyOf Nothing n
+      case peel n' of
+        (DZero, _) => do burn; dWhnf sig tyOf mty z
+        (DSuc k, ls) => do
+          burn
+          let k' = underLayers k ls
+          ihTy <- motiveOf m
+          dWhnf sig tyOf mty (DSubst st (MkDSub 0 [(k', DNatTy), (DNatElim m z st k', ihTy)]))
+        _ => pure (DNatElim m z st n')
+    -- ⊎-elim: the branch at the injected element, typed by the reader
+    DSumElim m l r t => do
+      t' <- dWhnf sig tyOf Nothing t
+      case peel t' of
+        (DInj1 _ a, ls) => do
+          burn
+          let a' = underLayers a ls
+          pA <- tyOf a'
+          dWhnf sig tyOf mty (DSubst l (MkDSub 0 [(a', pA)]))
+        (DInj2 _ b, ls) => do
+          burn
+          let b' = underLayers b ls
+          pB <- tyOf b'
+          dWhnf sig tyOf mty (DSubst r (MkDSub 0 [(b', pB)]))
+        _ => pure (DSumElim m l r t')
+    -- quot-elim
+    DQuotElim m wd f q => do
+      q' <- dWhnf sig tyOf Nothing q
+      case peel q' of
+        (DClass _ a, ls) => do
+          burn
+          let a' = underLayers a ls
+          pA <- tyOf a'
+          dWhnf sig tyOf mty (DSubst f (MkDSub 0 [(a', pA)]))
+        _ => pure (DQuotElim m wd f q')
+    -- ν-β
+    DOut t => do
+      t' <- dWhnf sig tyOf Nothing t
+      case peel t' of
+        (DCorec dp a f x, ls) => do
+          burn
+          let nu = DNu dp
+          let rhs = dMapPoly dp nu (dCorecFun dp a f) (DSubst f (MkDSub 0 [(x, a)]))
+          dWhnf sig tyOf mty (underLayers rhs ls)
+        _ => pure (DOut t')
+    -- code-squash-idem
+    DSquash t => do
+      t' <- dWhnf sig tyOf Nothing t
+      case peel t' of
+        (DEq _ _ _, _) => do burn; pure t'
+        (DSquash _, _) => do burn; pure t'
+        _ => pure (DSquash t')
+    -- QIIT β: not yet
+    DQElim sg k cs cohs ms es w => do
+      w' <- dWhnf sig tyOf Nothing w
+      case peel w' of
+        (DCtor sgW c theta, _) =>
+          if eraseQSig sgW == eraseQSig sg
+            then kerr "dWhnf: the QIIT eliminator's contraction needs the signature's reflection on derivations (not yet)"
+            else pure (DQElim sg k cs cohs ms es w')
+        _ => pure (DQElim sg k cs cohs ms es w')
+    -- values, leaves, type formers, stuck heads: already a whnf
+    _ => pure d
+   where
+    -- the induction hypothesis's type: the motive, or the constant
+    -- motive at the type flowing down (the eliminator is the root)
+    motiveOf : Maybe Drv -> KM Drv
+    motiveOf (Just pM) = pure pM
+    motiveOf Nothing = case mty of
+      Just pT => pure (wk1 pT)
+      Nothing => kerr "dWhnf: a checking-form eliminator contracts with no type flowing down"
+    -- the λ's body and domain carried through the layers the λ sat
+    -- under: each layer lifted at the domain as it stands below it
+    liftThrough : Drv -> Drv -> List DSub -> (Drv, Drv)
+    liftThrough b pA [] = (b, pA)
+    liftThrough b pA (s :: ss) = liftThrough (DSubst b (dLift s pA)) (DSubst pA s) ss
+
+  ||| A substitution node pushed ONE level into a weak-head form: a
+  ||| variable resolves to its entry (a fresh head, normalized), a
+  ||| stuck head or a type former distributes it over the children
+  ||| (lifted under the binders the node carries domains for), a value
+  ||| whose binder domain the node does not carry keeps the node
+  ||| (peel sees through it).
+  dPush : Sig -> (tyOf : Drv -> KM Drv) -> Maybe Drv -> DSub -> Drv -> KM Drv
+  dPush sig tyOf mty s@(MkDSub dep es) q = case q of
+    DVar i =>
+      let k = length es in
+      if i < k
+        then case getAt (minus (minus k 1) i) es of
+               Just (e, _) => dWhnf sig tyOf mty e
+               Nothing => kerr "dWhnf: substitution entry out of range"
+        else pure (DVar (plus (minus i k) dep))
+    -- leaves without variables
+    DUnit => pure q
+    DZero => pure q
+    DZeroTy => pure q
+    DOneTy => pure q
+    DNatTy => pure q
+    DUniverse => pure q
+    DProp => pure q
+    DTop => pure q
+    -- stuck heads: the node over the children
+    DRef x qs => pure (DRef x (map (\p => DSubst p s) qs))
+    DApp f a => pure (DApp (DSubst f s) (DSubst a s))
+    DProj1 t => pure (DProj1 (DSubst t s))
+    DProj2 t => pure (DProj2 (DSubst t s))
+    DOut t => pure (DOut (DSubst t s))
+    DSuc n => pure (DSuc (DSubst n s))
+    -- type formers: the domain the binder is lifted at is right there
+    DPi a b => pure (DPi (DSubst a s) (DSubst b (dLift s a)))
+    DSigma a b => pure (DSigma (DSubst a s) (DSubst b (dLift s a)))
+    DSum a b => pure (DSum (DSubst a s) (DSubst b s))
+    DEq l r t => pure (DEq (DSubst l s) (DSubst r s) (DSubst t s))
+    DQuot a r => pure (DQuot (DSubst a s) (DSubst r (dLift (dLift s a) (wk1 a))))
+    DSquash t => dWhnf sig tyOf mty (DSquash (DSubst t s))
+    DNu dp => pure (DNu (dSubstPoly s dp))
+    DSort sg k qs => pure (DSort (dSubstQSig s sg) k (map (\p => DSubst p s) qs))
+    DCtor sg k qs => pure (DCtor (dSubstQSig s sg) k (map (\p => DSubst p s) qs))
+    -- an annotated λ: its body under the lifted node
+    DLam (Just a) b => pure (DLam (Just (DSubst a s)) (DSubst b (dLift s a)))
+    -- values whose binder domain the node does not carry, and stuck
+    -- eliminators (their branches sit under binders the reader
+    -- types): the node stays; peel sees the head through it
+    _ => pure (DSubst q s)
+
 -- ===== Context lookup =====
 
 export
@@ -2347,7 +2542,7 @@ mutual
     (t, t', k) <- dInfer sig ctx d
     if t == t' then pure () else kerr "kernel: a type annotation states a proper equation"
     ok <- tyAgree sig TopTy k
-    if ok then pure (t, k) else kerr "kernel: a type annotation derives no type [\{show t} : \{show k}]"
+    if ok then dWhnfAudit sig d t >> pure (t, k) else kerr "kernel: a type annotation derives no type [\{show t} : \{show k}]"
 
   ||| An ELEMENT derivation, inferred: its sides coincide.
   export
@@ -2367,7 +2562,30 @@ mutual
   dElemAt : Sig -> Ctx -> Drv -> Ty -> KM Elem
   dElemAt sig ctx d ty = do
     (t, t') <- dCheck sig ctx d ty
-    if t == t' then pure t else kerr "kernel: an element position states a proper equation [\{showDrv d}]"
+    if t == t' then dWhnfAudit sig d t >> pure t
+      else kerr "kernel: an element position states a proper equation [\{showDrv d}]"
+
+  ||| The canary of the derivation-level whnf (NOVA_DRV=1): every
+  ||| accepted derivation is normalized by dWhnf and the erasure of the
+  ||| result compared with the erasure-level whnf of the erasure. The
+  ||| oracle for a subderivation's type is not available yet (the
+  ||| reader's ⇒ on derivations): a contraction that needs it is
+  ||| reported, not judged.
+  dWhnfAudit : Sig -> Drv -> Elem -> KM ()
+  dWhnfAudit sig d t =
+    if not drvCanary then pure () else do
+      w <- kWhnfE sig t
+      r <- kCatch (Right <$> dWhnf sig (\_ => kerr "tyOf: no reader oracle yet") Nothing d) (\e => pure (Left e))
+      case r of
+        Left e => pure (audit "DWHNF-FAIL | \{e} | \{showDrv d}" ())
+        Right d' => case erase d' of
+          Nothing => pure (audit "DWHNF-NOERASE | \{showDrv d'}" ())
+          Just w' =>
+            if w' == w then pure ()
+              else do
+                w'' <- kWhnfE sig w'
+                if w'' == w then pure (audit "DWHNF-UNDERNORMAL | got \{show w'} | whnf \{show w} | \{showDrv d}" ())
+                  else pure (audit "DWHNF-DISAGREE | got \{show w'} | expected \{show w} | \{showDrv d}" ())
 
   ||| Is the classifier 𝕍, 𝕌 or Ω?
   isCls : Sig -> Ty -> KM ()

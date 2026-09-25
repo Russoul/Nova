@@ -641,3 +641,111 @@ mutual
   mapNamesP f (DPSum g h) = DPSum (mapNamesP f g) (mapNamesP f h)
   mapNamesP f (DPSigma a g) = DPSigma (mapNamesD f a) (mapNamesP f g)
   mapNamesP f (DPPi a g) = DPPi (mapNamesD f a) (mapNamesP f g)
+
+-- ===== Substitution nodes: lifting, pushing into carriers, layers =====
+--
+-- The β-whnf on derivations (Nova.Kernel, dWhnf) never substitutes
+-- INTO a derivation: it pushes substitution NODES, one level at a
+-- time, and a node pushed under a binder is LIFTED — the shape of
+-- §10.4 again (the entries weakened by one, the bound variable added
+-- at its domain's derivation). Everything here is pure bookkeeping
+-- on that shape.
+
+||| The weakening by one, as a substitution node.
+export
+wk1 : Drv -> Drv
+wk1 p = DSubst p (MkDSub 1 [])
+
+||| σ : Γ → Δ lifted under a binder whose domain derivation over Γ is
+||| a:  σ↑ : Γ ▷ A → Δ ▷ A[σ], the entries weakened by one and the
+||| bound variable ☐₀ added at a.
+export
+dLift : DSub -> Drv -> DSub
+dLift (MkDSub d es) a = MkDSub (S d) (map (\(e, t) => (wk1 e, t)) es ++ [(DVar 0, a)])
+
+mutual
+  ||| A substitution node pushed into a carried signature's pieces
+  ||| (under the external binders before each, lifted at their domains).
+  export
+  dSubstQTm : DSub -> DQTm -> DQTm
+  dSubstQTm s (DQVar i) = DQVar i
+  dSubstQTm s (DQAppE f e) = DQAppE (dSubstQTm s f) (DSubst e s)
+  dSubstQTm s (DQAppI f a) = DQAppI (dSubstQTm s f) (dSubstQTm s a)
+  dSubstQTm s (DQEqC l r u) = DQEqC (dSubstQTm s l) (dSubstQTm s r) (dSubstQTm s u)
+
+  export
+  dSubstQTy : DSub -> DQTy -> DQTy
+  dSubstQTy s DQU = DQU
+  dSubstQTy s (DQEl t) = DQEl (dSubstQTm s t)
+  dSubstQTy s (DQPiExt a b) = DQPiExt (DSubst a s) (dSubstQTy (dLift s a) b)
+  dSubstQTy s (DQPiInd u b) = DQPiInd (dSubstQTm s u) (dSubstQTy s b)
+
+export
+dSubstQSig : DSub -> DQSig -> DQSig
+dSubstQSig s = map (dSubstQTy s)
+
+||| … into a carried polynomial's codes.
+export
+dSubstPoly : DSub -> DPoly -> DPoly
+dSubstPoly s DPHole = DPHole
+dSubstPoly s (DPConst a) = DPConst (DSubst a s)
+dSubstPoly s (DPProd f g) = DPProd (dSubstPoly s f) (dSubstPoly s g)
+dSubstPoly s (DPSum f g) = DPSum (dSubstPoly s f) (dSubstPoly s g)
+dSubstPoly s (DPSigma a f) = DPSigma (DSubst a s) (dSubstPoly (dLift s a) f)
+dSubstPoly s (DPPi a f) = DPPi (DSubst a s) (dSubstPoly (dLift s a) f)
+
+||| A value or a stuck head under its substitution layers (innermost
+||| first), and the layers put back.
+export
+peel : Drv -> (Drv, List DSub)
+peel (DSubst q s) = let (h, ls) = peel q in (h, ls ++ [s])
+peel d = (d, [])
+
+export
+underLayers : Drv -> List DSub -> Drv
+underLayers d [] = d
+underLayers d (s :: ss) = underLayers (DSubst d s) ss
+
+-- ===== The coinductive computation rule, on derivations =====
+
+||| ⌊𝔽⌋(c): the code a polynomial decodes at a code c (reflectPoly on
+||| derivations; c's derivation weakened under the binder forms).
+export
+dReflectPoly : DPoly -> Drv -> Drv
+dReflectPoly DPHole c = c
+dReflectPoly (DPConst a) c = a
+dReflectPoly (DPProd f g) c = DSigma (dReflectPoly f c) (wk1 (dReflectPoly g c))
+dReflectPoly (DPSum f g) c = DSum (dReflectPoly f c) (dReflectPoly g c)
+dReflectPoly (DPSigma a f) c = DSigma a (dReflectPoly f (wk1 c))
+dReflectPoly (DPPi a f) c = DPi a (dReflectPoly f (wk1 c))
+
+||| hᵉˡ ≜ λ (corec 𝔽 a f[↑] ☐₀) — the corecursor as a function
+||| derivation (annotated at a: it states).
+export
+dCorecFun : DPoly -> Drv -> Drv -> Drv
+dCorecFun dp a f =
+  DLam (Just a) (DCorec (wkDPoly 1 [] dp) (wk1 a) (DSubst f (dLift (MkDSub 1 []) a)) (DVar 0))
+
+||| map_𝔽 g x at the target code nu (= ν 𝔽): mapPoly on derivations,
+||| every intro form in inference position annotated as its rule
+||| wants (the pair's family, the injection's other summand, the
+||| sum-elim's constant motive), so the result STATES.
+export
+dMapPoly : DPoly -> (nu : Drv) -> (g : Drv) -> (x : Drv) -> Drv
+dMapPoly DPHole nu g x = DApp g x
+dMapPoly (DPConst a) nu g x = x
+dMapPoly (DPProd f h) nu g x =
+  DPair (Just (wk1 (dReflectPoly h nu))) (dMapPoly f nu g (DProj1 x)) (dMapPoly h nu g (DProj2 x))
+dMapPoly (DPSum f h) nu g x =
+  let fT = dReflectPoly f nu
+      hT = dReflectPoly h nu
+  in DSumElim (Just (wk1 (DSum fT hT)))
+              (DInj1 (Just (wk1 hT)) (dMapPoly (wkDPoly 1 [] f) (wk1 nu) (wk1 g) (DVar 0)))
+              (DInj2 (Just (wk1 fT)) (dMapPoly (wkDPoly 1 [] h) (wk1 nu) (wk1 g) (DVar 0)))
+              x
+dMapPoly (DPSigma a f) nu g x =
+  DPair (Just (dReflectPoly f (wk1 nu)))
+        (DProj1 x)
+        (dMapPoly (dSubstPoly (MkDSub 0 [(DProj1 x, a)]) f) nu g (DProj2 x))
+dMapPoly (DPPi a f) nu g x =
+  DLam (Just a) (dMapPoly f (wk1 nu) (wk1 g) (DApp (wk1 x) (DVar 0)))
