@@ -809,7 +809,11 @@ building instead of checking:
     motive read off its base case's type (an ℕ-elim's z, a ⊎-elim's
     or quot-elim's case when it does not mention the branch variable;
     a bare QIIT eliminator does not infer), codes at 𝕌, types at 𝕍;
-  * a type as a type: formation, falling through to 𝕌 then Ω.
+  * a type as a type: formation; a type that is no large former is
+    classified by its OWN type — inferred, exposed to its head (a
+    definition may hide Ω or 𝕌), and read off (never tried at one
+    classifier and then the other) — and ascribed at that classifier,
+    the derivation READ there before it is handed out.
   When an eliminator's case is an intro form (a map from the quotient
   or the sum to itself, unfolded: abs, neg) its type does not infer;
   the scrutinee's own type is then the motive candidate, the case

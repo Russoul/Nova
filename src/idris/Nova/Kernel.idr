@@ -3304,30 +3304,23 @@ mutual
     -- then at Ω (as kCheckTyK falls through), ascribed
     cumul : KM Drv
     cumul = do
-      -- the likelier classifier first (a spine's head declares it; an
-      -- equation or a squash is a prop): a failed attempt at the
-      -- other costs a whole re-derivation
-      propFirst <- kTry (do
-        mt <- case t of
-                Elem.EqTy _ _ _ => pure (Just PropTy)
-                Squash _ => pure (Just PropTy)
-                _ => inferHead sig ctx t
-        case mt of
-          Just k => do k' <- kWhnfT sig k
-                       case k' of
-                         PropTy => pure ()
-                         _ => kerr "not a prop"
-          Nothing => kerr "unknown")
-      if propFirst then kOrElse (at PropTy DProp) (at UniverseTy DUniverse)
-        else kOrElse (at UniverseTy DUniverse) (at PropTy DProp)
-     where
-      -- built AND read at the classifier (the build alone cannot tell
-      -- a code from a prop)
-      at : Ty -> Drv -> KM Drv
-      at cls dcls = do
-        d <- rdCheck sig ctx t cls
-        _ <- dCheck sig ctx d cls
-        pure (DAscribe d (Just dcls) Nothing)
+      -- the classifier is the term's OWN type: inferred, exposed to
+      -- its head (a definition may hide Ω or 𝕌), and read off — never
+      -- tried
+      (d, k) <- rdInfer sig ctx t
+      (kX, pk) <- rdExpose sig ctx k
+      kW <- kWhnfT sig kX
+      (cls, dk) <- the (KM (Ty, Drv)) $ case kW of
+              PropTy => pure (PropTy, DProp)
+              UniverseTy => pure (UniverseTy, DUniverse)
+              _ => kerr "re-derive: a type stands at neither Ω nor 𝕌 [\{show t} : \{show kW}]"
+      let d' = case pk of
+                 DReflx => d
+                 _ => DConv d Nothing pk
+      -- built AND read at the classifier: a re-derivation that would
+      -- not read is a failure, never a derivation
+      _ <- dCheck sig ctx d' cls
+      pure (DAscribe d' (Just dk) Nothing)
 
   ||| A reference's spine at its telescope, each entry with its
   ||| skeleton child.
