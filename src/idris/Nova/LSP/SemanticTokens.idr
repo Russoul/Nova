@@ -6,7 +6,7 @@ import Data.String
 import Me.Russoul.Text.Range
 import Me.Russoul.Text.Position
 
-import Nova.Kernel.Parser
+import Nova.CoreParser
 import Nova.LSP.Capabilities
 import Nova.LSP.Encoding
 

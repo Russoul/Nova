@@ -17,7 +17,7 @@ import Me.Russoul.Text.Position
 import Language.LSP.Message.DocumentSymbols
 import Language.LSP.Message.Location
 
-import Nova.Kernel.Parser
+import Nova.CoreParser
 import Nova.Elaboration
 import Nova.Elaboration.Surface
 import Nova.Elaboration.Clauses

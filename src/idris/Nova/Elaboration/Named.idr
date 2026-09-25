@@ -23,13 +23,13 @@ import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
 
 import Nova.Kernel.Syntax
-import Nova.Kernel.Parser
+import Nova.CoreParser
 
 import Nova.Elaboration.Surface
 
 %default covering
 
--- Optional whitespace between tokens (Nova.Kernel.Parser.sp is private
+-- Optional whitespace between tokens (Nova.CoreParser.sp is private
 -- to that module, so this is its own local copy).
 sp : Rule ()
 sp = optSpace
@@ -60,7 +60,7 @@ resolveName (env :< y) x =
 
 -- ===== Local identifiers =====
 --
--- Distinct from Nova.Kernel.Parser.parseSigIdentifier (which lexes
+-- Distinct from Nova.CoreParser.parseSigIdentifier (which lexes
 -- *signature* identifiers, always followed by `[...]` and therefore never
 -- ambiguous with a local name). Local identifiers additionally allow `'`
 -- in the continuation (but not as the first character), matching common

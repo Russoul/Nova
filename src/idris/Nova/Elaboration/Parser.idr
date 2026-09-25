@@ -20,7 +20,7 @@ module Nova.Elaboration.Parser
 -- and a spine's `argPos` decides whether the new line is one more
 -- ARGUMENT (a term-initial line indented past the spine's reference
 -- column r — the indent of the line its head sits on). The two
--- columns live in the grammar state (Nova.Kernel.Parser.PState):
+-- columns live in the grammar state (Nova.CoreParser.PState):
 -- `block` is set by `inBlock` for the extent of a block argument or a
 -- data literal, `indent` follows the most recently crossed line break.
 
@@ -37,7 +37,7 @@ import Me.Russoul.Text.Parser.OverToken
 import Me.Russoul.Text.Position
 import Me.Russoul.Text.Range
 
-import Nova.Kernel.Parser
+import Nova.CoreParser
 import Nova.Elaboration.Named
 import Nova.Elaboration.Surface
 
@@ -93,7 +93,7 @@ col : Int -> String
 col c = show (c + 1)
 
 ||| The message a line that leaves its block carries — a DIAGNOSIS
-||| (leading "!", Nova.Kernel.Parser.splitDiagnoses) when it becomes
+||| (leading "!", Nova.CoreParser.splitDiagnoses) when it becomes
 ||| the error: at a required position it says exactly what went wrong,
 ||| while at an optional position its failure is how every construct
 ||| ends at the next item or block line.
@@ -1986,7 +1986,7 @@ normaliseTokens ((r, Whitespace) :: (_, Whitespace) :: rest) =
 normaliseTokens (t :: rest) = t :: normaliseTokens rest
 
 ||| Alongside the parsed value, returns every classified token span
-||| seen during the parse (see `Nova.Kernel.Parser.emit`) plus every
+||| seen during the parse (see `Nova.CoreParser.emit`) plus every
 ||| stripped comment's range (comments never reach the grammar as
 ||| tokens — `normaliseTokens` below turns them into whitespace before
 ||| parsing even starts, so they're tagged straight from the lexer's

@@ -45,7 +45,7 @@ import Nova.Kernel.Subst
 import Nova.Recovery
 import Nova.Elaboration.Beta
 import Nova.Kernel.QIIT
-import Nova.Kernel.Parser
+import Nova.CoreParser
 import Nova.Kernel
 import Nova.Kernel.Derivation
 import Nova.Elaboration.Rederive

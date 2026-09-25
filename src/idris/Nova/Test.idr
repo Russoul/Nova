@@ -10,7 +10,7 @@ import Me.Russoul.Text.Range
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Derivation
-import Nova.Kernel.Parser
+import Nova.CoreParser
 import Nova.Kernel
 import Nova.Diagnostic
 import Nova.Distill

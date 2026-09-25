@@ -12,7 +12,7 @@ modules = Nova.Diagnostic
         , Nova.Compute
         , Nova.Elaboration.Beta
         , Nova.Elaboration.Named
-        , Nova.Kernel.Parser
+        , Nova.CoreParser
         , Nova.Elaboration
         , Nova.Elaboration.Surface
         , Nova.Elaboration.Clauses

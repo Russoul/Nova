@@ -23,7 +23,7 @@ modules = Nova.Diagnostic
         , Nova.Elaboration.Clauses
         , Nova.Elaboration.Parser
         , Nova.Elaboration.Loader
-        , Nova.Kernel.Parser
+        , Nova.CoreParser
         , Nova.Distill
         , Nova.Recovery
         , Nova.Implicitize

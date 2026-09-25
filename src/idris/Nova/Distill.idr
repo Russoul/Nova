@@ -40,7 +40,7 @@ import Me.Russoul.Text.Range
 
 import Nova.Elaboration
 import Nova.Elaboration.Surface
-import Nova.Kernel.Parser
+import Nova.CoreParser
 import Nova.Kernel.Syntax
 import Nova.Kernel.Derivation
 import Nova.Elaboration.Named

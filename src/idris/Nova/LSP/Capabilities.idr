@@ -3,7 +3,7 @@ module Nova.LSP.Capabilities
 import Language.JSON
 import Language.LSP.Message
 
-import Nova.Kernel.Parser
+import Nova.CoreParser
 
 %default total
 

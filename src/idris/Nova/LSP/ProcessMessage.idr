@@ -15,7 +15,7 @@ import System
 import System.Clock
 import System.File
 
-import Nova.Kernel.Parser
+import Nova.CoreParser
 import Nova.Elaboration
 import Nova.Elaboration.Surface
 import Nova.Elaboration.Beta

@@ -37,7 +37,7 @@ import Me.Russoul.Text.Position
 
 import Data.SortedMap
 
-import Nova.Kernel.Parser
+import Nova.CoreParser
 import Nova.Elaboration
 import Nova.Kernel.Derivation
 import Nova.Elaboration.Loader

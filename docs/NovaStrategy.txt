@@ -188,10 +188,9 @@ re-derivation disappears as a concept rather than as a set of bugs.
 
 Smaller digressions, recorded so the audit can see them:
 
-  * Nova.Kernel.Parser lives in the kernel's namespace but is a
-    parser of core syntax for the tests, the distiller and the LSP;
-    it is not part of the reader and no kernel module imports it.
-    The audit treats it as engine-side. It should move.
+  * The core-syntax parser (Nova.CoreParser, for the tests, the
+    distiller and the LSP) once lived in the kernel's namespace; it
+    is not part of the reader and no kernel module imports it.
   * The kernel imports Nova.Profile for two diagnostics hooks
     (`drvCanary`, `audit`) — verdict-neutral, but an import outside
     the kernel's closure. Acceptable while the hooks stay pure of
@@ -269,6 +268,60 @@ recent changes (the skill `/roles-audit` walks them):
 
 A "yes" to any of J1–J7 is a digression to be reverted or recorded
 here as a known gap with the plan that closes it. J8 is the measure.
+
+////////// The kernel programme: the trusted reader //////////
+
+What the kernel still does that a trusted reader should not, and the
+order it is taken in (2026-09-25). The test that sorts the items is
+whether a change alters WHICH DERIVATIONS THE KERNEL ACCEPTS. Items
+that do not are taken standalone, the corpus green throughout. Items
+that shrink acceptance are taken ADDITIVELY and paired with the
+engine change that inhabits them: the kernel accepts the stricter
+form beside the old one, an audit line counts the old form as the
+engine migrates, and the old form is deleted at zero. The kernel
+never leads the engine by more than one additive step, because the
+corpus replay is the only large-scale evidence that the engine can
+inhabit the grammar.
+
+Tranche 1 — acceptance-preserving, standalone:
+
+  [ ] 1. Σ owned by construction. SigEntry abstract (read-only
+         accessors); the only ways to a signature are the empty one
+         and the entry points; an entry point kAssume reads a type
+         derivation and adds a stuck entry MARKED as an assumption.
+         The engine's second signature folds into the kernel's;
+         acceptance = the kernel's Σ has no assumptions; the audit's
+         E1/S1 become type-level facts.
+  [ ] 2. The equation entry point takes the telescope and the type
+         as derivations (as the definition entry point does); the
+         sides stay bare — compared, not trusted.
+  [ ] 5. No effects, no oracle in the reader: the whnf canary and
+         the error dump move to the engine (which calls the exported
+         whnf after acceptance); the let node carries its binding's
+         type derivation so the derivation-level whnf needs no
+         oracle; the Nova.Profile import goes.
+  [ ] 7. The trusted interface written down: entry points, Σ
+         accessors, the grammar, erasure, substitution, the whnf, the
+         β join. Engine-only helpers (the backtracking combinators
+         kOrElse/kTry) leave the kernel module; the rest is internal.
+  [x] 8. Nova.Kernel.Parser (a core-syntax parser for the tests, the
+         distiller and the LSP) leaves the kernel's namespace.
+
+Tranche 2 — acceptance-shrinking, additive, each paired with the
+engine (typed unfolding: the engine carries derivations):
+
+  [ ] 3. No bare-term typing in the reader: the fallback that types a
+         rewritten head off the SIDE (inferHead in headOfMT) is
+         retired once every head child states; prop-ness then comes
+         from the derivation; inferHead deleted.
+  [ ] 4. No δ-all leaf: δ only at a named leaf under the nodes to its
+         position. The δ-all count over the corpus (2726 leaves in
+         2050 certified derivations at the start) is the measure.
+  [ ] 6. Chains state their middles: the computed-middle transitivity
+         and the classifiers that plan its reading (runnable,
+         dirable, oneWay, the stated-link fallbacks) retired once the
+         engine always writes the middle it computed. Optional; the
+         largest simplification of the trusted base available.
 
 ////////// Relation to the other documents //////////
 

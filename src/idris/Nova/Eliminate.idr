@@ -27,7 +27,7 @@ import Me.Russoul.Text.Range
 
 import Nova.Kernel.Syntax
 import Nova.Kernel.Subst
-import Nova.Kernel.Parser
+import Nova.CoreParser
 import Nova.Elaboration.Surface
 import Nova.Recovery
 import Nova.Elaboration.Named

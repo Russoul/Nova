@@ -1,4 +1,8 @@
-module Nova.Kernel.Parser
+module Nova.CoreParser
+
+-- The parser of the CORE syntax (Nova.Kernel.Syntax) for the golden
+-- tests, the distiller and the LSP. Not part of the kernel: the
+-- reader takes derivations, never text (docs/NovaStrategy.txt).
 
 import Data.List
 import Data.Maybe
