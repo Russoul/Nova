@@ -9,6 +9,7 @@ import Test.Golden
 import Me.Russoul.Text.Range
 
 import Nova.Kernel.Syntax
+import Nova.Kernel.Derivation
 import Nova.Kernel.Parser
 import Nova.Kernel
 import Nova.Diagnostic

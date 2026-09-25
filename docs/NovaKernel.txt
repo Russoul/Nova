@@ -40,8 +40,14 @@ judgement is the T = 𝕍 instance of element typing (docs/
 NovaFoundation.txt, no-type dissolution) and a type equation is the
 T = 𝕍 instance of an element equation — one channel throughout.
 
-An accepted item enters Σ as its ERASURE (Δ ⊦ x ≔ |π| : |π_T|), since
-δ and β read erasures; the derivation is consumed by the check.
+An accepted item enters Σ as its DERIVATIONS (Δ ⊦ x ≔ π : π_T),
+with their erasures |π| and |π_T| beside them: the erasures are what
+δ and β read, a cache of the derivations and never a second source;
+the derivations are what the engine will read a definition's
+positions off (an unfolded body's motives, a declared type's parts).
+A declaration — a hole, an obligation — stores its type's derivation
+likewise (the elaborator re-derives the prop of an obligation it
+assumes; a read validates it).
 
 The kernel invariant is one-directional — kernel accepts the
 derivation ⟹ its erasure is Foundation-derivable at the stated type.
@@ -755,7 +761,8 @@ The type-directed leaves, given l, r (β-joined) and E:
 Items. A definition arrives as two derivations, Σ; Δ ⊦ π_T ⇒ T : 𝕍
 and Σ; Δ ⊦ π ⇐ T ⇒ t (kCheckDefDrv); a type definition as the first
 alone (kCheckTyDefDrv). Acceptance EXTENDS the kernel's Σ with the
-ERASURES (Δ ⊦ x ≔ t : T); the kernel's Σ is the authoritative one,
+entry (Δ ⊦ x ≔ π : π_T), the two derivations it read beside their
+erasures; the kernel's Σ is the authoritative one,
 and an item is checked from it alone — the elaborator's opinion of
 any earlier item is never consulted. (The kernel accepts Foundation's
 general form — nonempty Δ, x[e˲] references with derived spines — but

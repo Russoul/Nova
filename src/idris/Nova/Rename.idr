@@ -28,6 +28,7 @@ import Nova.Elaboration
 import Nova.Elaboration.Surface
 import Nova.Elaboration.Loader
 import Nova.Kernel.Syntax
+import Nova.Kernel.Derivation
 import Nova.Distill
 import Nova.Implicitize
 
@@ -290,8 +291,8 @@ renameSig : (String -> String) -> Sig -> Sig
 renameSig f = map entry
  where
   entry : SigEntry -> SigEntry
-  entry (SigDef ctx n body ty) = SigDef (map (rcT f) ctx) (f n) (rcE f body) (rcT f ty)
-  entry (SigDecl ctx n ty) = SigDecl (map (rcT f) ctx) (f n) (rcT f ty)
+  entry (SigDef ctx n body ty bd td) = SigDef (map (rcT f) ctx) (f n) (rcE f body) (rcT f ty) (mapNamesD f bd) (mapNamesD f td)
+  entry (SigDecl ctx n ty td) = SigDecl (map (rcT f) ctx) (f n) (rcT f ty) (mapNamesD f td)
 
 -- ===== The driver =====
 

@@ -38,6 +38,7 @@ import Data.SnocList
 import Data.String
 
 import Nova.Kernel.Syntax
+import Nova.Kernel.Derivation
 import Nova.Kernel.Subst
 import Nova.Elaboration.Beta
 
@@ -668,8 +669,8 @@ collectUses : Sig -> List SpineUse
 collectUses sig = foldl entry [] (toList sig)
  where
   entry : List SpineUse -> SigEntry -> List SpineUse
-  entry acc (SigDef _ _ body ty) = walkE True body (walkT ty acc)
-  entry acc (SigDecl _ _ ty) = walkT ty acc
+  entry acc (SigDef _ _ body ty _ _) = walkE True body (walkT ty acc)
+  entry acc (SigDecl _ _ ty _) = walkT ty acc
   entry acc _ = acc
 
 -- ===== The per-def fixpoint and the report =====
@@ -723,7 +724,7 @@ surveyStats : Sig -> List DefStat
 surveyStats sig =
   let uses = collectUses sig
       defs = mapMaybe (\e => case e of
-                               SigDef _ nm _ ty => Just (nm, ty)
+                               SigDef _ nm _ ty _ _ => Just (nm, ty)
                                _ => Nothing) (toList sig)
       stats = mapMaybe (\(nm, ty) => defStat nm ty (filter (\u => u.suHead == nm) uses)) defs
   in filter (\s => s.dsSites > 0) stats
@@ -745,7 +746,7 @@ surveyReport : Sig -> String
 surveyReport sig =
   let uses = collectUses sig
       defs = mapMaybe (\e => case e of
-                               SigDef _ nm _ ty => Just (nm, ty)
+                               SigDef _ nm _ ty _ _ => Just (nm, ty)
                                _ => Nothing) (toList sig)
       stats = mapMaybe (\(nm, ty) => defStat nm ty (filter (\u => u.suHead == nm) uses)) defs
       used = filter (\s => s.dsSites > 0) stats
@@ -918,10 +919,6 @@ rebuildTail (d :: ds) r = PiTy d (rebuildTail ds r)
 -- motive for expected type C is `absT 0 scrut C` (one binder), and
 -- instantiating it back at the scrutinee reproduces C exactly, so
 -- the elided form's switch conversion is α-trivial.
-
-wkN : Nat -> Sub
-wkN Z = Id
-wkN (S n) = Chain (wkN n) Wk
 
 mutual
   export

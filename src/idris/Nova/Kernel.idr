@@ -423,8 +423,8 @@ inferHead sig ctx (Out t) = do
     Nothing => pure Nothing
 inferHead sig ctx (SigVar x es) =
   kSigLookup sig x >>= \entryX => case entryX of
-    Just (SigDef _ _ _ ty) => pure (Just (substTy ty (embed es)))
-    Just (SigDecl _ _ ty) => pure (Just (substTy ty (embed es)))
+    Just (SigDef _ _ _ ty _ _) => pure (Just (substTy ty (embed es)))
+    Just (SigDecl _ _ ty _) => pure (Just (substTy ty (embed es)))
     _ => pure Nothing
 inferHead sig ctx _ = pure Nothing
 
@@ -456,7 +456,7 @@ unfoldAllK sig ns t = go t
     es' <- traverseSN go es
     if elem x ns
       then kSigLookup sig x >>= \entryX => case entryX of
-             Just (SigDef _ _ body _) => pure (substElem body (embed es'))
+             Just (SigDef _ _ body _ _ _) => pure (substElem body (embed es'))
              _ => pure (SigVar x es')
       else pure (SigVar x es')
   go (ZeroElim u) = ZeroElim <$> go u
@@ -515,8 +515,8 @@ export
 sigChildTy : Sig -> String -> List Elem -> Nat -> KM (Maybe Ty)
 sigChildTy sig x es i =
   kSigLookup sig x >>= \entryX => case entryX of
-    Just (SigDef delta _ _ _) => pure (inst delta)
-    Just (SigDecl delta _ _) => pure (inst delta)
+    Just (SigDef delta _ _ _ _ _) => pure (inst delta)
+    Just (SigDecl delta _ _ _) => pure (inst delta)
     _ => pure Nothing
  where
   inst : SnocList Ty -> Maybe Ty
@@ -1040,8 +1040,8 @@ mutual
       Nothing => kerr "kernel: variable out of bounds"
     DRef x ps =>
       kSigLookup sig x >>= \entryX => case entryX of
-        Just (SigDef delta _ _ ty) => dRefAt sig ctx x ps delta ty
-        Just (SigDecl delta _ ty) => dRefAt sig ctx x ps delta ty
+        Just (SigDef delta _ _ ty _ _) => dRefAt sig ctx x ps delta ty
+        Just (SigDecl delta _ ty _) => dRefAt sig ctx x ps delta ty
         Just _ => kerr "kernel: signature name is not a term entry"
         Nothing => kerr "kernel: unknown signature name '\{x}'"
     DUnit => pure (OneIntro, OneIntro, OneTy)
@@ -1088,7 +1088,7 @@ mutual
       pure (l, r, a)
     DDelta x ps =>
       kSigLookup sig x >>= \entryX => case entryX of
-        Just (SigDef delta _ body ty) => do
+        Just (SigDef delta _ body ty _ _) => do
           es <- dSpine sig ctx (toList delta) ps
           let esN = the SubNorm (cast es)
           pure (SigVar x esN, substElem body (embed esN), substTy ty (embed esN))
@@ -2633,7 +2633,7 @@ kCheckDefDrv sig fuel name tele dty body =
     ctx <- tele' [<] tele
     ty <- kCatch (dType sig ctx dty) (\e => kerr (e ++ dump "TYPE" dty))
     t <- kCatch (dElemAt sig ctx body ty) (\e => kerr (e ++ dump "BODY" body))
-    pure (SigDef ctx name t ty)) fuel
+    pure (SigDef ctx name t ty body dty)) fuel
  where
   tele' : Ctx -> List Drv -> KM Ctx
   tele' ctx [] = pure ctx
@@ -2647,7 +2647,7 @@ kCheckTyDefDrv sig fuel name tele dty =
   map fst $ runKM (do
     ctx <- tele' [<] tele
     ty <- kCatch (dType sig ctx dty) (\e => kerr (e ++ dump "TYPE" dty))
-    pure (SigDef ctx name ty TopTy)) fuel
+    pure (SigDef ctx name ty TopTy dty DTop)) fuel
  where
   tele' : Ctx -> List Drv -> KM Ctx
   tele' ctx [] = pure ctx

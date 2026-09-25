@@ -25,6 +25,7 @@ import Me.Russoul.Text.Range
 
 import Nova.Kernel.Parser
 import Nova.Kernel.Syntax
+import Nova.Kernel.Derivation
 import Nova.Compute
 
 import Nova.Diagnostic
@@ -269,8 +270,8 @@ runPath rootPath name = do
     sig <- elabProgramSig units
     case sigLookup name sig of
       Nothing                    => Left "'\{name}' not found"
-      Just (SigDef [<] _ body _) => Right (show (nfElem sig body))
-      Just (SigDef _ _ _ _)      => Left "'\{name}' has a non-empty declaration context"
+      Just (SigDef [<] _ body _ _ _) => Right (show (nfElem sig body))
+      Just (SigDef _ _ _ _ _ _)      => Left "'\{name}' has a non-empty declaration context"
       -- unreachable behind elabProgramSig's acceptance gate (a
       -- definitional Σ), but the match must cover the open entries
       Just _                     => Left "'\{name}' is not a definition"

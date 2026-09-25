@@ -649,7 +649,7 @@ resolveExpName st n = do
   let base = substr 0 (minus (length n) 7) n
   let q = resolveFlex st base
   case sigLookup q st.sig of
-    Just (SigDef _ _ _ _) => Just q
+    Just (SigDef _ _ _ _ _ _) => Just q
     _ => Nothing
 
 resolveEqName : ElabSt -> String -> Maybe String
@@ -659,7 +659,7 @@ resolveEqName st n = do
   let base = substr 0 (minus (length n) 3) n
   let q = resolveFlex st base
   case sigLookup q st.sig of
-    Just (SigDef _ _ _ _) => Just q
+    Just (SigDef _ _ _ _ _ _) => Just q
     _ => Nothing
 
 ||| Resolve and validate a `using` clause's names (term- or
@@ -1567,7 +1567,7 @@ mutual
     let es' = unfSubNorm sig deep unfs es in
     if elem x unfs
       then case cachedSigLookup sig x of
-             Just (SigDef _ _ a _) =>
+             Just (SigDef _ _ a _ _ _) =>
                let body = substElem a (embed es') in
                if deep then unfElem sig deep unfs body else body
              _ => SigVar x es'
@@ -1638,7 +1638,7 @@ dispUnfs sig ns = filter opens (ns ++ mapMaybe expName ns)
 
   opens : String -> Bool
   opens x = case cachedSigLookup sig x of
-    Just (SigDef _ _ body _) => not (any isHoleName (toList (refsE body [<])))
+    Just (SigDef _ _ body _ _ _) => not (any isHoleName (toList (refsE body [<])))
     _ => True
 
 -- ===== the LOGGED unfold: δ one contraction at a time, each a leaf =====
@@ -1684,7 +1684,7 @@ unfoldAllE sig unfs t0 = go t0 [<]
     let (es', u1) = mapAccumSN go es used in
     if elem x unfs
       then case cachedSigLookup sig x of
-             Just (SigDef _ _ body _) => (substElem body (embed es'), u1 :< x)
+             Just (SigDef _ _ body _ _ _) => (substElem body (embed es'), u1 :< x)
              _ => (SigVar x es', u1)
       else (SigVar x es', u1)
   go (ZeroElim u) used = let (u', u1) = go u used in (ZeroElim u', u1)
@@ -1912,7 +1912,7 @@ mutual
                                (noteBlocked x
                                  (audit "EXPOSE-BLOCKED \{st.modPrefix}:\{st.curItem} \{x} — cite \{x}.unfold" (SigVar x es))) else
     case cachedSigLookup st.sig x of
-      Just (SigDef _ _ a _) => bump "unf \{st.modPrefix}:\{st.curItem}|\{x}" 1 (exposeE st (substElem a (embed es)))
+      Just (SigDef _ _ a _ _ _) => bump "unf \{st.modPrefix}:\{st.curItem}|\{x}" 1 (exposeE st (substElem a (embed es)))
       _ => SigVar x es
   exposeE st (QuotElim f q) =
     case exposeE st q of
@@ -1949,7 +1949,7 @@ mutual
                                (noteBlocked x
                                  (audit "EXPOSE-BLOCKED \{st.modPrefix}:\{st.curItem} \{x} — cite \{x}.unfold" (SigVar x es))) else
     case cachedSigLookup st.sig x of
-      Just (SigDef _ _ a _) => bump "unf \{st.modPrefix}:\{st.curItem}|\{x}" 1 (exposeT st (substTy a (embed es)))
+      Just (SigDef _ _ a _ _ _) => bump "unf \{st.modPrefix}:\{st.curItem}|\{x}" 1 (exposeT st (substTy a (embed es)))
       _ => SigVar x es
   exposeT st t@(PiApp _ _) = case exposeE st t of
     t'@(PiApp _ _) => t'
@@ -2017,7 +2017,7 @@ isPropTyD = isPropTyWith (\st, ctx, t => kIsPropD st.kernelSig kernelFuel ctx t)
 ||| read measured at +1.5% on the corpus's elaborate phase.
 citable : Sig -> List String -> List String
 citable sig = filter (\x => case sigLookup x sig of
-                              Just (SigDef _ _ _ _) => True
+                              Just (SigDef _ _ _ _ _ _) => True
                               _ => False)
 
 blockedHint : Sig -> Maybe String
@@ -2338,8 +2338,8 @@ inferNe st ctx (SigVar x es) =
   -- cachedSigLookup: the name index (below trust — inferNe only feeds
   -- the engine, and its output is validated at replay)
   case cachedSigLookup st.sig x of
-    Just (SigDef _ _ _ ty) => Just (substTy ty (embed es))
-    Just (SigDecl _ _ ty) => Just (substTy ty (embed es))
+    Just (SigDef _ _ _ ty _ _) => Just (substTy ty (embed es))
+    Just (SigDecl _ _ ty _) => Just (substTy ty (embed es))
     _ => Nothing
 inferNe _ _ _ = Nothing
 
@@ -2986,7 +2986,7 @@ resugarQ st occ = go (toList st.sig)
 
   go : List SigEntry -> Maybe Elem
   go [] = Nothing
-  go (SigDef [<] name body _ :: rest) =
+  go (SigDef [<] name body _ _ _ :: rest) =
     let (n, core) = peel body in
     if not (headMatch core occ) then go rest else
     case matchElemP n 0 0 core occ [] of
@@ -3184,7 +3184,7 @@ trySolveSide : Sig -> (lhs : Elem) -> (rhs : Elem) -> Maybe (String, Elem)
 trySolveSide sig (SigVar h sp) t =
   if not (isSyntheticHole h) then Nothing else
   case sigLookup h sig of
-    Just (SigDecl dctx _ _) => do
+    Just (SigDecl dctx _ _ _) => do
       k <- spineShift (length dctx) sp
       t' <- strengthenBy k t
       if anySigNameE isSyntheticHole t' then Nothing else Just (h, t')
@@ -3205,7 +3205,7 @@ solveHoles sig = go (toList sig) []
 
   go : List SigEntry -> List (String, Elem) -> List (String, Elem)
   go [] acc = acc
-  go (SigDecl ctx n (Elem.EqTy a b _) :: rest) acc =
+  go (SigDecl ctx n (Elem.EqTy a b _) _ :: rest) acc =
     if not (isOblName n) then go rest acc
     else
       -- COMP-NORMALIZE both sides first, exactly as the report does
@@ -3233,11 +3233,11 @@ oblView : ElabSt -> List Obligation
 oblView st = go (toList st.sig) (toList st.oblMeta)
  where
   go : List SigEntry -> List OblMeta -> List Obligation
-  go (SigDecl ctx n (Elem.EqTy a b TopTy) :: rest) (m :: ms) =
+  go (SigDecl ctx n (Elem.EqTy a b TopTy) _ :: rest) (m :: ms) =
     if isOblName n
       then MkObl (displayStmtIn st m.ounfs (StTy ctx m.oenv a b)) m.osite m.ofile (map (displayStmtIn st m.ounfs) m.ocomposite) m.ohint m.oimps :: go rest ms
       else go rest (m :: ms)
-  go (SigDecl ctx n (Elem.EqTy a b ty) :: rest) (m :: ms) =
+  go (SigDecl ctx n (Elem.EqTy a b ty) _ :: rest) (m :: ms) =
     if isOblName n
       then MkObl (displayStmtIn st m.ounfs (StElem ctx m.oenv a b ty)) m.osite m.ofile (map (displayStmtIn st m.ounfs) m.ocomposite) m.ohint m.oimps :: go rest ms
       else go rest (m :: ms)
@@ -3293,8 +3293,8 @@ declView st = mapMaybe view (toList st.sig)
   metaFor : String -> Maybe DeclMeta
   metaFor x = find (\m => m.dname == x) (toList st.declMeta)
   view : SigEntry -> Maybe DeclView
-  view (SigDecl ctx x TopTy) = map (\m => MkDeclView x (displayCtx st ctx) m.denv Nothing m.dsite m.dfile m.drange m.dimps) (metaFor x)
-  view (SigDecl ctx x ty) = map (\m => MkDeclView x (displayCtxIn st m.dunfs ctx) m.denv (Just (displayTyIn st m.dunfs ty)) m.dsite m.dfile m.drange m.dimps) (metaFor x)
+  view (SigDecl ctx x TopTy _) = map (\m => MkDeclView x (displayCtx st ctx) m.denv Nothing m.dsite m.dfile m.drange m.dimps) (metaFor x)
+  view (SigDecl ctx x ty _) = map (\m => MkDeclView x (displayCtxIn st m.dunfs ctx) m.denv (Just (displayTyIn st m.dunfs ty)) m.dsite m.dfile m.drange m.dimps) (metaFor x)
   view _ = Nothing
 
 ||| The term-definition names among a collected reference pool.
@@ -3303,7 +3303,7 @@ defNamesOf st acc = nub (filter isDef (toList acc))
  where
   isDef : String -> Bool
   isDef x = case cachedSigLookup st.sig x of
-              Just (SigDef _ _ _ _) => True
+              Just (SigDef _ _ _ _ _ _) => True
               _ => False
 
 ||| The δβ join WITH ITS STEPS: both sides unfolded under a name set
@@ -3400,6 +3400,50 @@ hintT st ctx x y = lemmaHint <|> eqHint
           let ns' = nub (ns ++ defNamesOf st (refsT y' (refsT x' [<]))) in
           if length ns' == length ns then Nothing else go k ns'
 
+||| A bare type derived at 𝕍.
+reTy : ElabSt -> Ctx -> Ty -> Drv
+reTy st ctx t =
+  let t0 = nowNs ()
+      r = kReDeriveTy st.sig kernelFuel ctx t
+  in bump "bridge-ty" (nowNs () - t0) (case r of
+       Right d => d
+       Left e => audit "DRV-BRIDGE type | \{e} | \{show t}" DTop)
+
+||| … or nothing, where the node may leave the type to the kernel's
+||| own judgement (a checking-form annotation).
+reTyM : ElabSt -> Ctx -> Ty -> Maybe Drv
+reTyM st ctx t = either (const Nothing) Just (kReDeriveTy st.sig kernelFuel ctx t)
+
+||| … with the classifier the derivation derives at, when it derives.
+reTyK : ElabSt -> Ctx -> Ty -> (Drv, Maybe Ty)
+reTyK st ctx t =
+  let t0 = nowNs ()
+      r = kReDeriveTyK st.sig kernelFuel ctx t
+  in bump "bridge-ty" (nowNs () - t0) (case r of
+       Right (d, k) => (d, Just k)
+       Left e => audit "DRV-BRIDGE type | \{e} | \{show t}" (DTop, Nothing))
+
+||| An elaborated motive's classifier, read off its derivation (a
+||| type checked at Ω arrives ascribed so).
+motiveIsProp : Drv -> Bool
+motiveIsProp (DAscribe _ (Just DProp) _) = True
+motiveIsProp _ = False
+
+||| A bare term derived in checking mode at its type.
+reChk : ElabSt -> Ctx -> Elem -> Ty -> Drv
+reChk st ctx e ty =
+  let t0 = nowNs ()
+      r = kReDeriveChk st.sig kernelFuel ctx e ty
+  in bump "bridge-chk" (nowNs () - t0) (case r of
+       Right d => d
+       Left err => audit "DRV-BRIDGE check | \{err} | \{show e} : \{show ty}" DUnit)
+
+||| A bare term derived in inference mode, with the type it derives.
+reInf : ElabSt -> Ctx -> Elem -> Maybe (Drv, Ty)
+reInf st ctx e = case kReDeriveInf st.sig kernelFuel ctx e of
+  Right r => Just r
+  Left _ => Nothing
+
 ||| ASSUME (docs/NovaElaboration.txt, ↓ step 8): append the equation to
 ||| Σ as a constraint entry — sig-eq (type constraints at A = 𝕍); the signature is OPEN
 ||| from here until a rerun stops minting the entry — and record its
@@ -3419,7 +3463,7 @@ assume stmt site comp = do
     StElem ctx env a b ty => do
       if cheap
         then modifySt $ \s =>
-          { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty))
+          { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty) (DEq (reChk st ctx a ty) (reChk st ctx b ty) (reTy st ctx ty)))
           , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing (unfsOf st) st.curImps) } s
         else if assumedMatchE st ctx a b ty
         then modifySt { itemAssumed := True }
@@ -3427,12 +3471,12 @@ assume stmt site comp = do
           let aK = rwNfElem st ctx a
               bK = rwNfElem st ctx b in
           { assumedE $= ((elemSize aK + elemSize bK, ctx, aK, bK, engNfT st ty) ::)
-          , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty))
+          , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy a b ty) (DEq (reChk st ctx a ty) (reChk st ctx b ty) (reTy st ctx ty)))
           , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) (unfsOf st) st.curImps) } s
     StTy ctx env x y => do
       if cheap
         then modifySt $ \s =>
-          { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy))
+          { sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy) (DEq (reTy st ctx x) (reTy st ctx y) DTop))
           , oblMeta $= (:< MkOblMeta env site st.modFile comp Nothing (unfsOf st) st.curImps) } s
         else do
        let x' = rwNfTy st ctx x
@@ -3441,7 +3485,7 @@ assume stmt site comp = do
         then modifySt { itemAssumed := True }
         else modifySt $ \s =>
           { assumedT $= ((ctx, x', y') ::)
-          , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy))
+          , sig $= (:< SigDecl ctx (oblName (length (toList s.oblMeta))) (Elem.EqTy x y TopTy) (DEq (reTy st ctx x) (reTy st ctx y) DTop))
           , oblMeta $= (:< MkOblMeta env site st.modFile comp (if st.probing then Nothing else hintOf st <|> blockedHint st.sig) (unfsOf st) st.curImps) } s
  where
   hintFor : ElabSt -> Stmt -> Maybe String
@@ -3784,7 +3828,7 @@ mintHole ctx env site hrng label ty = do
     Just _ => throwAt (hrng <|> site.srange)
                 "\{site}: duplicate hole ?\{label} — every hole of an item needs its own name"
     Nothing => pure ()
-  modifySt $ { sig $= (:< SigDecl ctx q ty)
+  modifySt $ { sig $= (:< SigDecl ctx q ty (reTy st ctx ty))
              , declMeta $= (:< MkDeclMeta q env "\{site}" st.modFile (hrng <|> site.srange) (unfsOf st) st.curImps) }
   pure (SigVar q (varSpine (length ctx)))
 
@@ -4145,50 +4189,6 @@ sigmaPairSub = Ext (Chain Wk Wk) (SigmaIntro (CtxVar 1) (CtxVar 0))
 -- sides their site knows. A failure is audited (DRV-BRIDGE) and the
 -- kernel's reading of the item then says what is missing.
 
-||| A bare type derived at 𝕍.
-reTy : ElabSt -> Ctx -> Ty -> Drv
-reTy st ctx t =
-  let t0 = nowNs ()
-      r = kReDeriveTy st.sig kernelFuel ctx t
-  in bump "bridge-ty" (nowNs () - t0) (case r of
-       Right d => d
-       Left e => audit "DRV-BRIDGE type | \{e} | \{show t}" DTop)
-
-||| … or nothing, where the node may leave the type to the kernel's
-||| own judgement (a checking-form annotation).
-reTyM : ElabSt -> Ctx -> Ty -> Maybe Drv
-reTyM st ctx t = either (const Nothing) Just (kReDeriveTy st.sig kernelFuel ctx t)
-
-||| … with the classifier the derivation derives at, when it derives.
-reTyK : ElabSt -> Ctx -> Ty -> (Drv, Maybe Ty)
-reTyK st ctx t =
-  let t0 = nowNs ()
-      r = kReDeriveTyK st.sig kernelFuel ctx t
-  in bump "bridge-ty" (nowNs () - t0) (case r of
-       Right (d, k) => (d, Just k)
-       Left e => audit "DRV-BRIDGE type | \{e} | \{show t}" (DTop, Nothing))
-
-||| An elaborated motive's classifier, read off its derivation (a
-||| type checked at Ω arrives ascribed so).
-motiveIsProp : Drv -> Bool
-motiveIsProp (DAscribe _ (Just DProp) _) = True
-motiveIsProp _ = False
-
-||| A bare term derived in checking mode at its type.
-reChk : ElabSt -> Ctx -> Elem -> Ty -> Drv
-reChk st ctx e ty =
-  let t0 = nowNs ()
-      r = kReDeriveChk st.sig kernelFuel ctx e ty
-  in bump "bridge-chk" (nowNs () - t0) (case r of
-       Right d => d
-       Left err => audit "DRV-BRIDGE check | \{err} | \{show e} : \{show ty}" DUnit)
-
-||| A bare term derived in inference mode, with the type it derives.
-reInf : ElabSt -> Ctx -> Elem -> Maybe (Drv, Ty)
-reInf st ctx e = case kReDeriveInf st.sig kernelFuel ctx e of
-  Right r => Just r
-  Left _ => Nothing
-
 ||| The switch at a checking site: inferred ≐ expected (e-switch's
 ||| orientation), the derivation converted — nothing when the
 ||| discharge was assumed or the types agree.
@@ -4244,7 +4244,7 @@ emitInlineDefD site role ctx ty tyD body bodyD = do
   -- conat with u bound at the exposed ν) meets its switch there
   kernelAccept "\{site} \{q}"
     (\ksig => kCheckDefDrv ksig kernelFuel q [] (piCloseD st ctx tyD) (lamsD k bodyD))
-  modifySt $ { sig $= (:< SigDef [<] q cbody cty), transp $= (q ::) }
+  modifySt $ { sig $= (:< SigDef [<] q cbody cty (lamsD k bodyD) (piCloseD st ctx tyD)), transp $= (q ::) }
   pure q
 
 ||| An inline definition over its context: the type re-derived here.
@@ -4328,15 +4328,15 @@ mutual
     case sigLookup x st.sig of
       -- items are always declared in ε, so the reference carries the
       -- empty substitution
-      Just (SigDef [<] _ _ TopTy) => pure (SigVar x [<], DRef x [])
-      Just (SigDef _ _ _ TopTy) => throwAt site.srange "\{site}: '\{x}' has a non-empty declaration context"
-      Just (SigDecl [<] _ TopTy) => pure (SigVar x [<], DRef x [])
+      Just (SigDef [<] _ _ TopTy _ _) => pure (SigVar x [<], DRef x [])
+      Just (SigDef _ _ _ TopTy _ _) => throwAt site.srange "\{site}: '\{x}' has a non-empty declaration context"
+      Just (SigDecl [<] _ TopTy _) => pure (SigVar x [<], DRef x [])
       -- CUMULATIVITY (El and Prf retired): a 𝕌- or Ω-classified
       -- reference is a code or a prop — a type either way
-      Just (SigDef [<] _ _ UniverseTy) => pure (SigVar x [<], DRef x [])
-      Just (SigDecl [<] _ UniverseTy) => pure (SigVar x [<], DRef x [])
-      Just (SigDef [<] _ _ PropTy) => pure (SigVar x [<], DRef x [])
-      Just (SigDecl [<] _ PropTy) => pure (SigVar x [<], DRef x [])
+      Just (SigDef [<] _ _ UniverseTy _ _) => pure (SigVar x [<], DRef x [])
+      Just (SigDecl [<] _ UniverseTy _) => pure (SigVar x [<], DRef x [])
+      Just (SigDef [<] _ _ PropTy _ _) => pure (SigVar x [<], DRef x [])
+      Just (SigDecl [<] _ PropTy _) => pure (SigVar x [<], DRef x [])
       -- anything else: elaborate as a term at the classifier the
       -- probe reads off (covers entries whose 𝕌/Ω-classification is
       -- behind a definition)
@@ -4502,11 +4502,11 @@ mutual
     -- cachedSigLookup: positive-only name index; the unknown-name
     -- error path below always re-scans (negatives are never cached)
     case cachedSigLookup st.sig x of
-      Just (SigDef [<] _ _ ty) => do
+      Just (SigDef [<] _ _ ty _ _) => do
         recordBinderImps mrng ctx env x0 ty (fromMaybe [] (lookup x st.impls))
         pure (SigVar x [<], ty, DRef x [])
-      Just (SigDef _ _ _ _) => throwAt site.srange "\{site}: '\{x}' has a non-empty declaration context"
-      Just (SigDecl [<] _ ty) => do
+      Just (SigDef _ _ _ _ _ _) => throwAt site.srange "\{site}: '\{x}' has a non-empty declaration context"
+      Just (SigDecl [<] _ ty _) => do
         recordBinderImps mrng ctx env x0 ty (fromMaybe [] (lookup x st.impls))
         pure (SigVar x [<], ty, DRef x [])
       Just _ => throwAt site.srange "\{site}: '\{x}' is not usable as a term here"
@@ -6052,8 +6052,8 @@ mutual
     quickFit : ElabSt -> (Ty -> Ty) -> List (Maybe (Elem, Ty, Drv)) -> String -> Bool
     quickFit st jn pres q =
       case cachedSigLookup st.sig q of
-        Just (SigDef [<] _ _ ty) => argsMatch jn (fst (teleOf ty)) pres
-        Just (SigDecl [<] _ ty) => argsMatch jn (fst (teleOf ty)) pres
+        Just (SigDef [<] _ _ ty _ _) => argsMatch jn (fst (teleOf ty)) pres
+        Just (SigDecl [<] _ ty _) => argsMatch jn (fst (teleOf ty)) pres
         _ => True   -- let the conversion probes judge the unusual
 
 
@@ -6143,8 +6143,8 @@ mutual
 
     ordinaryHead : ElabSt -> String -> Bool
     ordinaryHead st q = case cachedSigLookup st.sig q of
-      Just (SigDef [<] _ _ ty) => ordinaryTele ty
-      Just (SigDecl [<] _ ty) => ordinaryTele ty
+      Just (SigDef [<] _ _ ty _ _) => ordinaryTele ty
+      Just (SigDecl [<] _ ty _) => ordinaryTele ty
       _ => False
 
     -- bare nodes out, as in `overloadOf` above
@@ -6183,8 +6183,8 @@ mutual
     (defTy, hdCore, hdD, imps) <- the (ElabM (Ty, Elem, Drv, List Nat)) $ case hd of
       SigHead q => do
         defTy <- case cachedSigLookup st.sig q of
-          Just (SigDef [<] _ _ ty) => pure ty
-          Just (SigDecl [<] _ ty) => pure ty
+          Just (SigDef [<] _ _ ty _ _) => pure ty
+          Just (SigDecl [<] _ ty _) => pure ty
           Just _ => throwAt site.srange "\{site}: '\{qName}' is not usable as a term here"
           Nothing => throwAt site.srange "\{site}: unknown name '\{qName}'"
         let imps = if noIns then [] else fromMaybe [] (lookup q st.impls)
@@ -7009,7 +7009,7 @@ emitCoreDef site x ty tySk body bodySk = do
     Nothing => pure ()
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckDefDrv ksig kernelFuel q [] tySk bodySk)
-  modifySt $ { sig $= (:< SigDef [<] q body ty) }
+  modifySt $ { sig $= (:< SigDef [<] q body ty bodySk tySk) }
   addVis (x, q)
   addLemma q [<] ty
 
@@ -7022,7 +7022,7 @@ emitCoreTyDef site x ty tySk = do
     Nothing => pure ()
   kernelAccept "\{site} \{x}"
     (\ksig => kCheckTyDefDrv ksig kernelFuel q [] tySk)
-  modifySt $ { sig $= (:< SigDef [<] q ty TopTy) }
+  modifySt $ { sig $= (:< SigDef [<] q ty TopTy tySk DTop) }
   addVis (x, q)
 
 ||| The derivation of a right-nested Π-chain over a context: each
@@ -7159,7 +7159,7 @@ elabItemGo irng (SDef nrng x ty body muses) = do
   (body', bodySk) <- withScope sc (withEqScope eqs (checkElem [<] [<] (MkSite "def \{x}" irng) body ty'))
   kernelAccept "def \{x}"
     (\ksig => kCheckDefDrv ksig kernelFuel q [] tySk bodySk)
-  modifySt $ { sig $= (:< SigDef [<] q body' ty') }
+  modifySt $ { sig $= (:< SigDef [<] q body' ty' bodySk tySk) }
   addVis (x, q)
   addLemma q [<] ty'
   registerImps q ty
@@ -7178,7 +7178,7 @@ elabItemGo irng (SDeclDef nrng x ty) = do
     Nothing => pure ()
   (ty', tySk) <- elabTy [<] [<] (MkSite "def \{x}" irng) ty
   recordBinder nrng [<] [<] x ty'
-  modifySt $ { sig $= (:< SigDecl [<] q ty')
+  modifySt $ { sig $= (:< SigDecl [<] q ty' tySk)
              , declMeta $= (:< MkDeclMeta q [<] "def \{x}" st.modFile nrng (unfsOf st) st.curImps) }
   addVis (x, q)
   -- a DECLARED equation is a lemma like any accepted one: its stuck
@@ -7231,7 +7231,7 @@ elabItemGo irng (SData params decls) = do
   -- the written entry names hover like definition sites: each is
   -- ascribed the type of the def the expansion emitted for it
   ignore $ traverse (\d => case cachedSigLookup st.sig (qual d.dqname) of
-                              Just (SigDef [<] _ _ dty) => recordBinder d.dqrng [<] [<] d.dqname dty
+                              Just (SigDef [<] _ _ dty _ _) => recordBinder d.dqrng [<] [<] d.dqname dty
                               _ => pure ()) decls
   let kindOf : Nat -> QEntryKind
       kindOf k = qEntryKind (fromMaybe QU (qEntry sg k))

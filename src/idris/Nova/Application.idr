@@ -11,6 +11,7 @@ import Nova.Elaboration.Loader
 import Nova.Eliminate
 import Nova.Implicitize
 import Nova.Kernel.Syntax
+import Nova.Kernel.Derivation
 import Nova.Profile
 import Nova.Recovery
 import Nova.Rename

@@ -15,6 +15,7 @@ module Nova.Elaboration.Beta
 -- kJoin*/kWhnf* are the surviving trusted-side relatives.)
 
 import Nova.Kernel.Syntax
+import Nova.Kernel.Derivation
 import Nova.Kernel.Subst
 import Nova.Kernel.QIIT
 

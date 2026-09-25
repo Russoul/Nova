@@ -503,3 +503,141 @@ wkDPoly n tele (DPProd f g) = DPProd (wkDPoly n tele f) (wkDPoly n tele g)
 wkDPoly n tele (DPSum f g) = DPSum (wkDPoly n tele f) (wkDPoly n tele g)
 wkDPoly n tele (DPSigma a f) = DPSigma (wkUnder n tele a) (wkDPoly n (tele ++ [a]) f)
 wkDPoly n tele (DPPi a f) = DPPi (wkUnder n tele a) (wkDPoly n (tele ++ [a]) f)
+
+-- ===== The signature: an item is its derivations =====
+--
+-- Σ stores what the kernel READ: an item's type and body derivations
+-- (§8), beside their ERASURES — the terms the computation rules read
+-- (δ unfolds a stored erasure; β and the join run on erasures). The
+-- erasures are a cache of the derivations, never a second source.
+
+||| TWO entry kinds (Foundation: type definitions and type
+||| declarations are the A = TopTy instances; an equation CONSTRAINT
+||| is a hole at the equation's prop — a declaration at
+||| (a₀ ≡ a₁ ∈ A) — used through el-sig-decl + el-reflect).
+public export
+data SigEntry : Type where
+  ||| Γ ⊦ x ≔ π : π_T  (a definition; a TYPE definition when the
+  ||| type is 𝕍 — then π derives the type and π_T is the leaf 𝕍),
+  ||| with the erasures |π| and |π_T|
+  SigDef : Ctx -> SigIdentifier -> (body : Elem) -> (ty : Ty) -> (bodyD : Drv) -> (tyD : Drv) -> SigEntry
+  ||| Γ ⊦ x : π_T  (a declaration — a hole; references are stuck,
+  ||| el-sig-decl; a TYPE declaration when the type is 𝕍; an
+  ||| equation OBLIGATION when it is the equation's prop), with the
+  ||| erasure |π_T|
+  SigDecl : Ctx -> SigIdentifier -> (ty : Ty) -> (tyD : Drv) -> SigEntry
+
+||| The name a signature entry binds.
+public export
+sigEntryName : SigEntry -> Maybe SigIdentifier
+sigEntryName (SigDef _ x _ _ _ _) = Just x
+sigEntryName (SigDecl _ x _ _) = Just x
+
+||| Is this entry a definition? A signature all of whose entries are
+||| definitions is DEFINITIONAL (Foundation: acceptance requires it).
+public export
+sigEntryIsDef : SigEntry -> Bool
+sigEntryIsDef (SigDef _ _ _ _ _ _) = True
+sigEntryIsDef _ = False
+
+public export
+Sig : Type
+Sig = SnocList SigEntry
+
+||| Find a signature entry by name (innermost/most-recent declaration wins).
+export covering
+sigLookup : SigIdentifier -> Sig -> Maybe SigEntry
+sigLookup _ [<] = Nothing
+sigLookup x (rest :< entry) =
+  if sigEntryName entry == Just x then Just entry else sigLookup x rest
+
+-- ===== Renaming the signature names a derivation mentions =====
+
+mutual
+  ||| Every signature name inside a derivation mapped (a reference, a
+  ||| δ leaf, a δ-all leaf), the structure kept.
+  export
+  mapNamesD : (String -> String) -> Drv -> Drv
+  mapNamesD f d = case d of
+    DVar i => DVar i
+    DRef x qs => DRef (f x) (map (mapNamesD f) qs)
+    DUnit => DUnit
+    DZero => DZero
+    DZeroTy => DZeroTy
+    DOneTy => DOneTy
+    DNatTy => DNatTy
+    DUniverse => DUniverse
+    DProp => DProp
+    DTop => DTop
+    DRefl q => DRefl (mapNamesD f q)
+    DPath sg k qs => DPath (map (mapNamesQTy f) sg) k (map (mapNamesD f) qs)
+    DDelta x qs => DDelta (f x) (map (mapNamesD f) qs)
+    DReflx => DReflx
+    DSym q => DSym (mapNamesD f q)
+    DTrans p q => DTrans (mapNamesD f p) (mapNamesD f q)
+    DTransAt p m q => DTransAt (mapNamesD f p) (mapNamesD f m) (mapNamesD f q)
+    DDeltaAll ns => DDeltaAll (map f ns)
+    DIrrel mp => DIrrel (map (mapNamesD f) mp)
+    DEtaPi q => DEtaPi (mapNamesD f q)
+    DEtaSigma p q => DEtaSigma (mapNamesD f p) (mapNamesD f q)
+    DQuotWit mq => DQuotWit (map (mapNamesD f) mq)
+    DQuotWitPrf q => DQuotWitPrf (mapNamesD f q)
+    DInj q => DInj (mapNamesD f q)
+    DPropExt p q => DPropExt (mapNamesD f p) (mapNamesD f q)
+    DPrfCong mp mq q => DPrfCong (map (mapNamesD f) mp) (map (mapNamesD f) mq) (mapNamesD f q)
+    DConv q mT b => DConv (mapNamesD f q) (map (mapNamesD f) mT) (mapNamesD f b)
+    DAt q pT b => DAt (mapNamesD f q) (mapNamesD f pT) (mapNamesD f b)
+    DSubst q (MkDSub dp es) => DSubst (mapNamesD f q) (MkDSub dp (map (\(a, b) => (mapNamesD f a, mapNamesD f b)) es))
+    DAscribe q mT mb => DAscribe (mapNamesD f q) (map (mapNamesD f) mT) (map (mapNamesD f) mb)
+    DLam m q => DLam (map (mapNamesD f) m) (mapNamesD f q)
+    DPair m u v => DPair (map (mapNamesD f) m) (mapNamesD f u) (mapNamesD f v)
+    DInj1 m q => DInj1 (map (mapNamesD f) m) (mapNamesD f q)
+    DInj2 m q => DInj2 (map (mapNamesD f) m) (mapNamesD f q)
+    DClass m q => DClass (map (mapNamesD f) m) (mapNamesD f q)
+    DSuc q => DSuc (mapNamesD f q)
+    DCtor sg k qs => DCtor (map (mapNamesQTy f) sg) k (map (mapNamesD f) qs)
+    DCorec dp a g x => DCorec (mapNamesP f dp) (mapNamesD f a) (mapNamesD f g) (mapNamesD f x)
+    DLet a b => DLet (mapNamesD f a) (mapNamesD f b)
+    DStar m q => DStar (map (mapNamesD f) m) (mapNamesD f q)
+    DSq q => DSq (mapNamesD f q)
+    DSquashElim m e b => DSquashElim (map (mapNamesD f) m) (mapNamesD f e) (mapNamesD f b)
+    DCoind m r p q => DCoind (map (mapNamesD f) m) (mapNamesD f r) (mapNamesD f p) (mapNamesD f q)
+    DZeroElim m q => DZeroElim (map (mapNamesD f) m) (mapNamesD f q)
+    DNatElim m z st n => DNatElim (map (mapNamesD f) m) (mapNamesD f z) (mapNamesD f st) (mapNamesD f n)
+    DSumElim m l r t => DSumElim (map (mapNamesD f) m) (mapNamesD f l) (mapNamesD f r) (mapNamesD f t)
+    DQuotElim m wd g q => DQuotElim (map (mapNamesD f) m) (map (mapNamesD f) wd) (mapNamesD f g) (mapNamesD f q)
+    DQElim sg k cs cohs ms es w =>
+      DQElim (map (mapNamesQTy f) sg) k (map (map (mapNamesD f)) cs) (map (mapNamesD f) cohs)
+             (map (mapNamesD f) ms) (map (mapNamesD f) es) (mapNamesD f w)
+    DOut q => DOut (mapNamesD f q)
+    DApp g a => DApp (mapNamesD f g) (mapNamesD f a)
+    DProj1 q => DProj1 (mapNamesD f q)
+    DProj2 q => DProj2 (mapNamesD f q)
+    DPi a b => DPi (mapNamesD f a) (mapNamesD f b)
+    DSigma a b => DSigma (mapNamesD f a) (mapNamesD f b)
+    DSum a b => DSum (mapNamesD f a) (mapNamesD f b)
+    DEq l r t => DEq (mapNamesD f l) (mapNamesD f r) (mapNamesD f t)
+    DQuot a r => DQuot (mapNamesD f a) (mapNamesD f r)
+    DSquash q => DSquash (mapNamesD f q)
+    DNu dp => DNu (mapNamesP f dp)
+    DSort sg k qs => DSort (map (mapNamesQTy f) sg) k (map (mapNamesD f) qs)
+
+  mapNamesQTm : (String -> String) -> DQTm -> DQTm
+  mapNamesQTm f (DQVar i) = DQVar i
+  mapNamesQTm f (DQAppE t e) = DQAppE (mapNamesQTm f t) (mapNamesD f e)
+  mapNamesQTm f (DQAppI t a) = DQAppI (mapNamesQTm f t) (mapNamesQTm f a)
+  mapNamesQTm f (DQEqC l r u) = DQEqC (mapNamesQTm f l) (mapNamesQTm f r) (mapNamesQTm f u)
+
+  mapNamesQTy : (String -> String) -> DQTy -> DQTy
+  mapNamesQTy f DQU = DQU
+  mapNamesQTy f (DQEl t) = DQEl (mapNamesQTm f t)
+  mapNamesQTy f (DQPiExt a b) = DQPiExt (mapNamesD f a) (mapNamesQTy f b)
+  mapNamesQTy f (DQPiInd u b) = DQPiInd (mapNamesQTm f u) (mapNamesQTy f b)
+
+  mapNamesP : (String -> String) -> DPoly -> DPoly
+  mapNamesP f DPHole = DPHole
+  mapNamesP f (DPConst a) = DPConst (mapNamesD f a)
+  mapNamesP f (DPProd g h) = DPProd (mapNamesP f g) (mapNamesP f h)
+  mapNamesP f (DPSum g h) = DPSum (mapNamesP f g) (mapNamesP f h)
+  mapNamesP f (DPSigma a g) = DPSigma (mapNamesD f a) (mapNamesP f g)
+  mapNamesP f (DPPi a g) = DPPi (mapNamesD f a) (mapNamesP f g)

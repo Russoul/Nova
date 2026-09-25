@@ -47,6 +47,7 @@ import Nova.Elaboration
 import Nova.Elaboration.Surface
 import Nova.Elaboration.Loader
 import Nova.Kernel.Syntax
+import Nova.Kernel.Derivation
 import Nova.Recovery
 import Nova.Distill
 
@@ -381,7 +382,7 @@ driftCulprits : Sig -> Sig -> List String
 driftCulprits a b = nub (go (toList a) (toList b))
  where
   go : List SigEntry -> List SigEntry -> List String
-  go (SigDef _ _ body ty :: xs) (SigDef _ _ body' ty' :: ys) =
+  go (SigDef _ _ body ty _ _ :: xs) (SigDef _ _ body' ty' _ _ :: ys) =
     dhE body body' ++ dhT ty ty' ++ go xs ys
   go (_ :: xs) (_ :: ys) = go xs ys
   go _ _ = []

@@ -105,6 +105,7 @@ module Nova.Compute
 --    rather than being silently passed through.
 
 import Nova.Kernel.Syntax
+import Nova.Kernel.Derivation
 import Nova.Kernel.Subst
 import Nova.Kernel.QIIT
 
@@ -160,7 +161,7 @@ mutual
   whnfElem sig (QuotTy a r)       = QuotTy a r
   whnfElem sig (SigVar x es) =
     case sigLookup x sig of
-      Just (SigDef _ _ a _) => whnfElem sig (substElem a (embed es))
+      Just (SigDef _ _ a _ _ _) => whnfElem sig (substElem a (embed es))
       -- the evaluator runs over ACCEPTED (definitional) signatures
       -- only; a declaration or wrong-class reference is unreachable
       Just _                => assert_total $ idris_crash "whnfElem: signature identifier '\{x}' is not a term definition (Compute assumes a definitional Σ)"

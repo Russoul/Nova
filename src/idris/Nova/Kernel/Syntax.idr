@@ -222,33 +222,6 @@ public export
 SigIdentifier : Type
 SigIdentifier = String
 
-||| TWO entry kinds (Foundation: type definitions and type
-||| declarations are the A = TopTy instances; an equation CONSTRAINT
-||| is a hole at the equation's prop — a declaration at
-||| (a₀ ≡ a₁ ∈ A) — used through el-sig-decl + el-reflect and
-||| closed by INSTANTIATION with ⋆).
-public export
-data SigEntry : Type where
-  ||| Γ ⊦ x ≔ a : A  (definition; a TYPE definition when A = TopTy)
-  SigDef : Ctx -> SigIdentifier -> Elem -> Ty -> SigEntry
-  ||| Γ ⊦ x : A  (declaration — a hole; references are stuck,
-  ||| el-sig-decl; a TYPE declaration when A = TopTy; an equation
-  ||| OBLIGATION when A is the equation's prop)
-  SigDecl : Ctx -> SigIdentifier -> Ty -> SigEntry
-
-||| The name a signature entry binds.
-public export
-sigEntryName : SigEntry -> Maybe SigIdentifier
-sigEntryName (SigDef _ x _ _) = Just x
-sigEntryName (SigDecl _ x _) = Just x
-
-||| Is this entry a definition? A signature all of whose entries are
-||| definitions is DEFINITIONAL (Foundation: acceptance requires it).
-public export
-sigEntryIsDef : SigEntry -> Bool
-sigEntryIsDef (SigDef _ _ _ _) = True
-sigEntryIsDef _ = False
-
 ||| Machine names for equation-obligation holes — a spelling no
 ||| surface identifier can take, so views can tell an obligation from
 ||| a user declaration. Deterministic (a per-run counter), so reruns
@@ -302,17 +275,6 @@ holeLabel x = "?" ++ pack (reverse (takeWhile (/= '.') (reverse (unpack x))))
 public export
 holeOwner : SigIdentifier -> String
 holeOwner x = pack (takeWhile (/= '/') (unpack (holeLabel x)))
-
-public export
-Sig : Type
-Sig = SnocList SigEntry
-
-||| Find a signature entry by name (innermost/most-recent declaration wins).
-export covering
-sigLookup : SigIdentifier -> Sig -> Maybe SigEntry
-sigLookup _ [<] = Nothing
-sigLookup x (rest :< entry) =
-  if sigEntryName entry == Just x then Just entry else sigLookup x rest
 
 ||| σ⁺ ≜ σ∘↑, ☐₀
 public export

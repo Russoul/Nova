@@ -42,6 +42,7 @@ import Nova.Elaboration
 import Nova.Elaboration.Surface
 import Nova.Kernel.Parser
 import Nova.Kernel.Syntax
+import Nova.Kernel.Derivation
 import Nova.Elaboration.Named
 import Nova.Elaboration.Parser
 import Nova.Elaboration.Loader
@@ -1105,8 +1106,8 @@ sigCompare : Sig -> Sig -> Maybe String
 sigCompare a b = go (toList a) (toList b)
  where
   showEntry : SigEntry -> String
-  showEntry (SigDef ctx n body ty) = "def \{n} : \{show ty} ≔ \{show body} [\{show ctx}]"
-  showEntry (SigDecl ctx n ty) = "decl \{n} : \{show ty} [\{show ctx}]"
+  showEntry (SigDef ctx n body ty _ _) = "def \{n} : \{show ty} ≔ \{show body} [\{show ctx}]"
+  showEntry (SigDecl ctx n ty _) = "decl \{n} : \{show ty} [\{show ctx}]"
 
   go : List SigEntry -> List SigEntry -> Maybe String
   go [] [] = Nothing

@@ -39,6 +39,7 @@ import Data.SortedMap
 
 import Nova.Kernel.Parser
 import Nova.Elaboration
+import Nova.Kernel.Derivation
 import Nova.Elaboration.Loader
 import Nova.LSP.Capabilities
 import Nova.LSP.SemanticTokens
