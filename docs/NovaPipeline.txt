@@ -171,7 +171,7 @@ refold. The engine writes the DERIVATION AS IT SEARCHES
 of docs/NovaKernel.txt §10): a rewrite it performs is emitted as the
 licence's leaf inside the node skeleton of the position at once — a
 candidate's leaf built once over its own context and instantiated by
-the substitution node — a closing step as its leaf, and the search
+substitution — a closing step as its leaf, and the search
 returns the finished derivation; there is no certificate language
 between the engine and the kernel, no translation at the boundary;
 the kernel reads the derivation and nothing else.

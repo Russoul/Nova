@@ -97,16 +97,14 @@ record Cand where
   postP : Drv
   ||| the LENGTH of the base context the candidate was built over (its
   ||| proofs are over base ▷ p_{k-1} … p₀ and never move: a use
-  ||| instantiates them by the substitution node, docs/NovaKernel.txt
-  ||| §10.4, whose weakening depth is the use context's length past
-  ||| the base plus the binders crossed)
+  ||| instantiates them by SUBSTITUTION, docs/NovaKernel.txt §4, whose
+  ||| weakening depth is the use context's length past the base plus
+  ||| the binders crossed)
   base : Nat
   ||| the parametric entries' types AS BUILT (paramTys may be weakened
-  ||| by an extension, for matching; these are the substitution node's
-  ||| telescope), their derivations over their prefixes, and the
-  ||| pattern context itself (base ▷ p_{k-1} … p₀, as built)
+  ||| by an extension, for matching; a binding is derived at these),
+  ||| and the pattern context itself (base ▷ p_{k-1} … p₀, as built)
   paramTys0 : List Ty
-  paramTyDs : List Drv
   patCtx : Ctx
   ||| the LICENCE LEAF over the pattern context — the stating
   ||| derivation of lhs ≐ rhs (the licence bridged from its raw
@@ -1233,32 +1231,31 @@ kernelFuel = 1000000
 ||| A candidate's LICENCE LEAF at complete match bindings, in the use
 ||| context `ctx` (the site's context extended by the `d` binders the
 ||| rewriter crossed — the bindings, found at the site, are weakened
-||| by d): the leaf over the pattern context under the SUBSTITUTION
-||| NODE (§10.4) — weakening by the use context's length past the
-||| candidate's base, then the bindings as the typed extension, each
-||| derived at its parameter's type instantiated by the earlier ones —
-||| and the orientation.
+||| by d): the leaf over the pattern context SUBSTITUTED (§4) —
+||| weakening by the use context's length past the candidate's base,
+||| then the bindings, each derived at its parameter's type
+||| instantiated by the earlier ones — and the orientation.
 licLeafK : ElabSt -> Ctx -> Cand -> Bindings -> (d : Nat) -> (flip : Bool) -> KM Drv
 licLeafK st ctx c bs d flip = do
   leaf <- case c.leafP of
             Just l => pure l
             Nothing => kerr "proof: the candidate '\{c.candName}' has no licence leaf"
   let depth = minus (length ctx) c.base
-  entries <- go (wkN depth) (if c.params == 0 then [] else reverse [0 .. minus c.params 1]) (zip c.paramTys0 c.paramTyDs)
-  let node = DSubst leaf (MkDSub depth entries)
+  entries <- go (wkN depth) (if c.params == 0 then [] else reverse [0 .. minus c.params 1]) c.paramTys0
+  let node = substD leaf (MkDSb depth entries)
   pure (if flip then dSym node else node)
  where
   -- the entries outermost first (p_{k-1} … p₀), each binding derived
   -- at its type under the substitution built so far
-  go : Sub -> List Nat -> List (Ty, Drv) -> KM (List (Drv, Drv))
+  go : Sub -> List Nat -> List Ty -> KM (List Drv)
   go sub [] _ = pure []
-  go sub (p :: ps) ((ty, tyD) :: rest) = do
+  go sub (p :: ps) (ty :: rest) = do
     e <- case lookup p bs of
            Just e => pure (weakenElemN d e)
            Nothing => kerr "proof: unbound parameter \{show p} of '\{c.candName}'"
     eD <- rdCheck st.sig ctx e (substTy ty sub)
     more <- go (Ext sub e) ps rest
-    pure ((eD, tyD) :: more)
+    pure (eD :: more)
   go _ _ _ = kerr "proof: parameter telescope mismatch in '\{c.candName}'"
 
 ||| The candidate's leaf at the ROOT of a side (no binders crossed).
@@ -2111,14 +2108,7 @@ withLeaf st c = { leafP := leafOf st c } c
 mkCandD : ElabSt -> Ctx -> String -> (k : Nat) -> List Ty -> Elem -> Elem
        -> (Nat -> Bindings -> Maybe Licence) -> Drv -> Drv -> Cand
 mkCandD st baseCtx name k ptys lhs rhs emit preP postP =
-  let ptyDs = the (Maybe (List Drv)) (traverse (\(i, ty) => runPA "parameter type of \{name}"
-                                                  (rdType st.sig (patCtxOf baseCtx (take i ptys)) ty))
-                                       (zip (if null ptys then [] else [0 .. minus (length ptys) 1]) ptys))
-      c0 = MkCand name k ptys lhs rhs emit preP postP (length baseCtx) ptys
-                  (fromMaybe [] ptyDs) (patCtxOf baseCtx ptys) Nothing
-  in case ptyDs of
-       Nothing => c0
-       Just _ => withLeaf st c0
+  withLeaf st (MkCand name k ptys lhs rhs emit preP postP (length baseCtx) ptys (patCtxOf baseCtx ptys) Nothing)
 
 ||| Close a candidate under S-INJECTIVITY: a candidate S x ≡ S y also
 ||| licenses x ≡ y, by the predecessor congruence (Proof.predCong — a
@@ -2365,8 +2355,8 @@ extendCS st ctx' cs = mkCandSetAt st ctx' (S cs.skip) (map wk cs.locals)
 
   -- the PATTERNS weakened past the new binder (matching happens in
   -- the extended context); the proofs stay over the pattern context
-  -- (a use instantiates them by the substitution node, whose depth
-  -- counts the extension)
+  -- (a use instantiates them by substD, whose depth counts the
+  -- extension)
   wk : Cand -> Cand
   wk c = { lhs $= (\e => substElem e (liftK c.params))
          , rhs $= (\e => substElem e (liftK c.params))
@@ -7375,7 +7365,7 @@ elabItemGo irng (SData params decls) = do
     let n = length tel
     let ty = wrapParams ptys (foldr PiTy (Elem.EqTy lE rE uT) tel)
     let body = wrapLams (np + n) Star
-    let cert = DPath (wkDQSig n dsg) k (map varD (toList (varSpine n)))
+    let cert = DPath (dSubstQSig (MkDSb n []) dsg) k (map varD (toList (varSpine n)))
     st <- getSt
     emitCoreDef site nm ty (reTy st [<] ty) body (lamsD (np + n) (DStar Nothing cert))
 
@@ -7464,7 +7454,7 @@ elabItemGo irng (SData params decls) = do
                 -- read right to left
                 let sgP = sgAt sgJ dlen
                 let swcAt : Ctx -> Drv
-                    swcAt c' = DApp DReflx (DSym (DPath (wkDQSig (nS + nM + j + dlen) dsg) ej
+                    swcAt c' = DApp DReflx (DSym (DPath (dSubstQSig (MkDSb (nS + nM + j + dlen) []) dsg) ej
                                  (fromMaybe (map varD (toList spineArgs)) (pathArgsB st0.sig c' sgP ej spineArgs))))
                 -- the ≡-TYPE IS the eq-prop (Prf retired): the sides
                 -- and the carried type; the rhs infers C ī ⌊r⌋ and is
@@ -7569,7 +7559,7 @@ elabItemGo irng (SData params decls) = do
                pure (maybe (reTy st (mctx :< selfTy) m) fst (reInf st (mctx :< selfTy) m)))
              (zip sortPs motsEnd)
     let bodySk = lamsD (np + bigN)
-                   (DQElim (wkDQSig bigN dsg) s (Just motDs) cohCerts mSks (map varD idxAtEnd) wSk)
+                   (DQElim (dSubstQSig (MkDSb bigN []) dsg) s (Just motDs) cohCerts mSks (map varD idxAtEnd) wSk)
     emitCoreDef site (nm ++ (if prop then "ElimP" else "Elim")) defTy defTySk body bodySk
    where
     upto : Nat -> List Nat

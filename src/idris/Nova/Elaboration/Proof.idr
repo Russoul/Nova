@@ -428,7 +428,7 @@ wrapAt sig ctx mty b u (i :: p) leaf = do
 ||| A LICENCE: what a candidate emits — the construction of the stating
 ||| derivation of its equation, in the context it is built in (the
 ||| candidate's own pattern context, §10.4: the licence is built ONCE
-||| there and instantiated by the substitution node at each use).
+||| there and instantiated by substitution (substD) at each use).
 public export
 Licence : Type
 Licence = Sig -> Ctx -> KM Drv
@@ -574,7 +574,6 @@ hintNamesP p = go p
   headName (DApp f _) = headName f
   headName (DAscribe q _ _) = headName q
   headName (DConv q _ _) = headName q
-  headName (DSubst q _) = headName q
   headName _ = []
   go : Drv -> List String
   go (DRefl q) = headName q
@@ -584,7 +583,6 @@ hintNamesP p = go p
   go (DAscribe q _ mb) = go q ++ maybe [] go mb
   go (DConv q _ b) = go q ++ go b
   go (DAt q _ b) = go q ++ go b
-  go (DSubst q _) = go q
   go (DEtaPi q) = go q
   go (DEtaSigma q r) = go q ++ go r
   go (DQuotWit (Just q)) = go q

@@ -21,17 +21,6 @@ import Nova.Kernel.Subst
 %default covering
 
 mutual
-  ||| A substitution as the grammar spells it (§10.4): a weakening by
-  ||| `depth` binders followed by a typed extension — entry i is a
-  ||| derivation and the derivation of the telescope type it is checked
-  ||| against, over Δ↓depth ▷ T₁ … Tᵢ₋₁. The only shape the engine
-  ||| performs; general substitutions have no node.
-  public export
-  record DSub where
-    constructor MkDSub
-    depth : Nat
-    entries : List (Drv, Drv)
-
   ||| A QIIT signature's ToS terms with their embedded Nova pieces as
   ||| DERIVATIONS (an external argument derived where it stands): the
   ||| carrier of a sort, constructor, eliminator or path node. Erasure
@@ -130,8 +119,6 @@ mutual
     ||| (π : π_T by β): a STATED equation ascribed to the type π_T
     ||| derives, β ▷ its type ≐ that
     DAt : Drv -> Drv -> Drv -> Drv
-    ||| π[σ] (§10.4): the substitution lemma as a rule; inference only
-    DSubst : Drv -> DSub -> Drv
     ||| (π : π_T? by β?): an ASCRIPTION — π checked at a type the
     ||| annotation derives, or, the annotation absent, at the type β
     ||| PRODUCES when run from the position's type (β → T ≐ T′: an
@@ -217,8 +204,7 @@ DQSig = List DQTy
 
 mutual
   ||| The ERASURE of an element derivation: drop the annotations, keep
-  ||| the former; a witness node erases to ⋆, a substitution node to
-  ||| the substituted erasure. Nothing at an equation form (a
+  ||| the former; a witness node erases to ⋆. Nothing at an equation form (a
   ||| reflection, a δ leaf, refl, …) in an element position: those
   ||| state equations and derive no element — they occur only where a
   ||| node takes a proof, which the erasure does not enter.
@@ -236,7 +222,6 @@ mutual
   erase DTop = Just TopTy
   erase (DConv p _ _) = erase p
   erase (DAscribe p _ _) = erase p
-  erase (DSubst p sg) = [| substElem (erase p) (eraseSub sg) |]
   erase (DLam _ p) = PiIntro <$> erase p
   erase (DPair _ u v) = [| SigmaIntro (erase u) (erase v) |]
   erase (DInj1 _ p) = Inj1 <$> erase p
@@ -300,12 +285,6 @@ mutual
   erasePoly (DPSigma a f) = [| PSigma (erase a) (erasePoly f) |]
   erasePoly (DPPi a f) = [| PPi (erase a) (erasePoly f) |]
 
-  ||| The substitution a DSub denotes: ↑ᵈ extended by the entries'
-  ||| erasures.
-  export
-  eraseSub : DSub -> Maybe Sub
-  eraseSub (MkDSub d es) = foldl Ext (wkN d) <$> traverse (erase . fst) es
-
 ||| Is the derivation an ELEMENT derivation — does it erase?
 export
 derivesElem : Drv -> Bool
@@ -340,7 +319,6 @@ atomicD (DPrfCong _ _ _) = True
 atomicD (DConv _ _ _) = True
 atomicD (DAscribe _ _ _) = True
 atomicD (DAt _ _ _) = True
-atomicD (DSubst _ _) = True
 atomicD (DPair _ _ _) = True
 atomicD (DSq _) = True
 atomicD (DProj1 _) = True
@@ -363,8 +341,6 @@ mutual
   argsD : List Drv -> String
   argsD ps = concat (intersperse ", " (map showDrv ps))
 
-  entryD : (Drv, Drv) -> String
-  entryD (e, t) = " ▷ " ++ showDrv e ++ " : " ++ showDrv t
 
   wdD : Drv -> String
   wdD w = " ; " ++ showDrv w
@@ -411,8 +387,6 @@ mutual
   showDrv (DAt p t b) = "(\{showDrv p} : \{showDrv t} by \{showDrv b})"
   showDrv (DAscribe p t Nothing) = "(\{showDrv p} : \{maybe "_" showDrv t})"
   showDrv (DAscribe p t (Just b)) = "(\{showDrv p} : \{maybe "_" showDrv t} by \{showDrv b})"
-  showDrv (DSubst p (MkDSub d es)) =
-    "\{argD p}[↑\{show d}\{concatMap entryD es}]"
   -- intro forms
   showDrv (DLam a p) = "λ\{annD a} \{showDrv p}"
   showDrv (DPair b u v) = "(\{showDrv u}, \{showDrv v})\{annD b}"
@@ -455,54 +429,6 @@ export
 covering
 Show Drv where
   show = showDrv
-
--- ===== Weakening a carrier under binders (a builder's tool) =====
---
--- A carried signature elaborated over a context Γ is placed by the
--- data-item emitter under n more binders. Its embedded pieces sit
--- under the external binders before them, so the weakening is UNDER
--- those binders — expressed within the grammar by the substitution
--- node alone: ↑ⁿ⁺ᵐ extended by the m external variables at their
--- (original) domain derivations, exactly §10.4's shape.
-
-||| π over Γ ▷ T₁ … Tₘ (tele the domains' derivations, outermost
-||| first) placed over Γ ▷ n entries ▷ T₁ … Tₘ.
-export
-wkUnder : Nat -> List Drv -> Drv -> Drv
-wkUnder Z _ p = p
-wkUnder n tele p =
-  let m = length tele
-  in DSubst p (MkDSub (n + m) (zipWith (\i, t => (DVar (minus (minus m 1) i), t)) [0 .. minus m 1] tele))
-
-mutual
-  export
-  wkDQTm : Nat -> List Drv -> DQTm -> DQTm
-  wkDQTm n tele (DQVar i) = DQVar i
-  wkDQTm n tele (DQAppE f e) = DQAppE (wkDQTm n tele f) (wkUnder n tele e)
-  wkDQTm n tele (DQAppI f a) = DQAppI (wkDQTm n tele f) (wkDQTm n tele a)
-  wkDQTm n tele (DQEqC l r u) = DQEqC (wkDQTm n tele l) (wkDQTm n tele r) (wkDQTm n tele u)
-
-  export
-  wkDQTy : Nat -> List Drv -> DQTy -> DQTy
-  wkDQTy n tele DQU = DQU
-  wkDQTy n tele (DQEl t) = DQEl (wkDQTm n tele t)
-  wkDQTy n tele (DQPiExt a b) = DQPiExt (wkUnder n tele a) (wkDQTy n (tele ++ [a]) b)
-  wkDQTy n tele (DQPiInd u b) = DQPiInd (wkDQTm n tele u) (wkDQTy n tele b)
-
-||| A carried signature under n more binders.
-export
-wkDQSig : Nat -> DQSig -> DQSig
-wkDQSig Z sg = sg
-wkDQSig n sg = map (wkDQTy n []) sg
-
-export
-wkDPoly : Nat -> List Drv -> DPoly -> DPoly
-wkDPoly n tele DPHole = DPHole
-wkDPoly n tele (DPConst a) = DPConst (wkUnder n tele a)
-wkDPoly n tele (DPProd f g) = DPProd (wkDPoly n tele f) (wkDPoly n tele g)
-wkDPoly n tele (DPSum f g) = DPSum (wkDPoly n tele f) (wkDPoly n tele g)
-wkDPoly n tele (DPSigma a f) = DPSigma (wkUnder n tele a) (wkDPoly n (tele ++ [a]) f)
-wkDPoly n tele (DPPi a f) = DPPi (wkUnder n tele a) (wkDPoly n (tele ++ [a]) f)
 
 -- ===== The signature: an item is its derivations =====
 --
@@ -587,7 +513,6 @@ mutual
     DPrfCong mp mq q => DPrfCong (map (mapNamesD f) mp) (map (mapNamesD f) mq) (mapNamesD f q)
     DConv q mT b => DConv (mapNamesD f q) (map (mapNamesD f) mT) (mapNamesD f b)
     DAt q pT b => DAt (mapNamesD f q) (mapNamesD f pT) (mapNamesD f b)
-    DSubst q (MkDSub dp es) => DSubst (mapNamesD f q) (MkDSub dp (map (\(a, b) => (mapNamesD f a, mapNamesD f b)) es))
     DAscribe q mT mb => DAscribe (mapNamesD f q) (map (mapNamesD f) mT) (map (mapNamesD f) mb)
     DLam m q => DLam (map (mapNamesD f) m) (mapNamesD f q)
     DPair m u v => DPair (map (mapNamesD f) m) (mapNamesD f u) (mapNamesD f v)
@@ -642,69 +567,166 @@ mutual
   mapNamesP f (DPSigma a g) = DPSigma (mapNamesD f a) (mapNamesP f g)
   mapNamesP f (DPPi a g) = DPPi (mapNamesD f a) (mapNamesP f g)
 
--- ===== Substitution nodes: lifting, pushing into carriers, layers =====
+-- ===== Substitution on derivations =====
 --
--- The β-whnf on derivations (Nova.Kernel, dWhnf) never substitutes
--- INTO a derivation: it pushes substitution NODES, one level at a
--- time, and a node pushed under a binder is LIFTED — the shape of
--- §10.4 again (the entries weakened by one, the bound variable added
--- at its domain's derivation). Everything here is pure bookkeeping
--- on that shape.
+-- A substitution is a FUNCTION on derivations, not a node: the
+-- substitution lemma, admissible in the theory, applied by whoever
+-- builds — the engine instantiating a licence at its bindings, the
+-- emitter placing a carrier under binders — and by the kernel's own
+-- normalizer (β on derivations), exactly as the erasure-level
+-- normalizer applies substElem. Its result is read like any
+-- derivation; nothing is trusted about it. Shape: a weakening by
+-- `depth` followed by an extension by `entries`, the newest LAST
+-- (☐₀ is the last entry) — the only shape anyone performs.
 
-||| The weakening by one, as a substitution node.
-export
-wk1 : Drv -> Drv
-wk1 p = DSubst p (MkDSub 1 [])
+public export
+record DSb where
+  constructor MkDSb
+  depth : Nat
+  entries : List Drv
 
-||| σ : Γ → Δ lifted under a binder whose domain derivation over Γ is
-||| a:  σ↑ : Γ ▷ A → Δ ▷ A[σ], the entries weakened by one and the
-||| bound variable ☐₀ added at a.
+||| The length of an equation entry's DISPLAYED context (dispWalk):
+||| one entry per external binder, two per inductive one (the value
+||| and its induction hypothesis) — where a coherence derivation lives.
 export
-dLift : DSub -> Drv -> DSub
-dLift (MkDSub d es) a = MkDSub (S d) (map (\(e, t) => (wk1 e, t)) es ++ [(DVar 0, a)])
+dTelLen : QTy -> Nat
+dTelLen (QPiExt _ b) = S (dTelLen b)
+dTelLen (QPiInd _ b) = S (S (dTelLen b))
+dTelLen _ = Z
 
 mutual
-  ||| A substitution node pushed into a carried signature's pieces
-  ||| (under the external binders before each, lifted at their domains).
+  ||| Structural substitution: a variable resolves to its entry or
+  ||| shifts past the weakening; a binder lifts the substitution; a
+  ||| carrier's pieces are substituted under the external binders
+  ||| before them; the QIIT eliminator's motives and coherences under
+  ||| their telescopes, read off the erased signature.
   export
-  dSubstQTm : DSub -> DQTm -> DQTm
+  substD : Drv -> DSb -> Drv
+  substD d s = case d of
+    DVar i =>
+      let k = length s.entries in
+      if i < k
+        then fromMaybe (DVar i) (getAt (minus (minus k 1) i) s.entries)
+        else DVar (plus (minus i k) s.depth)
+    DRef x qs => DRef x (map (sb s) qs)
+    DUnit => d
+    DZero => d
+    DZeroTy => d
+    DOneTy => d
+    DNatTy => d
+    DUniverse => d
+    DProp => d
+    DTop => d
+    DRefl q => DRefl (sb s q)
+    DPath sg k qs => DPath (dSubstQSig s sg) k (map (sb s) qs)
+    DDelta x qs => DDelta x (map (sb s) qs)
+    DReflx => d
+    DSym q => DSym (sb s q)
+    DTrans p q => DTrans (sb s p) (sb s q)
+    DTransAt p m q => DTransAt (sb s p) (sb s m) (sb s q)
+    DDeltaAll _ => d
+    DIrrel mp => DIrrel (map (sb s) mp)
+    DEtaPi q => DEtaPi (sb (dsbLift s) q)
+    DEtaSigma p q => DEtaSigma (sb s p) (sb s q)
+    DQuotWit mq => DQuotWit (map (sb s) mq)
+    DQuotWitPrf q => DQuotWitPrf (sb s q)
+    DInj q => DInj (sb s q)
+    DPropExt p q => DPropExt (sb s p) (sb s q)
+    DPrfCong mp mq q => DPrfCong (map (sb s) mp) (map (sb s) mq) (sb s q)
+    DConv q mT b => DConv (sb s q) (map (sb s) mT) (sb s b)
+    DAt q pT b => DAt (sb s q) (sb s pT) (sb s b)
+    DAscribe q mT mb => DAscribe (sb s q) (map (sb s) mT) (map (sb s) mb)
+    DLam m q => DLam (map (sb s) m) (sb (dsbLift s) q)
+    DPair m u v => DPair (map (sb (dsbLift s)) m) (sb s u) (sb s v)
+    DInj1 m q => DInj1 (map (sb s) m) (sb s q)
+    DInj2 m q => DInj2 (map (sb s) m) (sb s q)
+    DClass m q => DClass (map (sb (liftN 2 s)) m) (sb s q)
+    DSuc q => DSuc (sb s q)
+    DCtor sg k qs => DCtor (dSubstQSig s sg) k (map (sb s) qs)
+    DCorec dp a g x => DCorec (dSubstPoly s dp) (sb s a) (sb (dsbLift s) g) (sb s x)
+    DLet a b => DLet (sb s a) (sb (liftN 2 s) b)
+    DStar m q => DStar (map (sb s) m) (sb s q)
+    DSq q => DSq (sb s q)
+    DSquashElim m e b => DSquashElim (map (sb s) m) (sb s e) (sb (dsbLift s) b)
+    DCoind m r p q => DCoind (map (sb s) m) (sb (liftN 2 s) r) (sb s p) (sb (liftN 3 s) q)
+    DZeroElim m q => DZeroElim (map (sb s) m) (sb s q)
+    DNatElim m z st n => DNatElim (map (sb (dsbLift s)) m) (sb s z) (sb (liftN 2 s) st) (sb s n)
+    DSumElim m l r t => DSumElim (map (sb (dsbLift s)) m) (sb (dsbLift s) l) (sb (dsbLift s) r) (sb s t)
+    DQuotElim m wd f q => DQuotElim (map (sb (dsbLift s)) m) (map (sb (liftN 3 s)) wd) (sb (dsbLift s) f) (sb s q)
+    DQElim sg k cs cohs ms es w =>
+      let sgE = fromMaybe [] (eraseQSig sg)
+          sortPs = qPositions QKSort sgE
+          eqPs = qPositions QKEq sgE
+          motLift : Nat -> Nat
+          motLift sj = maybe 0 (\e => S (qtyBinders e)) (qEntry sgE sj)
+          cohLift : Nat -> Nat
+          cohLift ej = maybe 0 dTelLen (qEntry sgE ej)
+      in DQElim (dSubstQSig s sg) k
+                (map (\cs' => zipWith (\sj, c => sb (liftN (motLift sj) s) c) sortPs cs') cs)
+                (zipWith (\ej, c => sb (liftN (cohLift ej) s) c) eqPs cohs)
+                (map (sb s) ms) (map (sb s) es) (sb s w)
+    DOut q => DOut (sb s q)
+    DApp g a => DApp (sb s g) (sb s a)
+    DProj1 q => DProj1 (sb s q)
+    DProj2 q => DProj2 (sb s q)
+    DPi a b => DPi (sb s a) (sb (dsbLift s) b)
+    DSigma a b => DSigma (sb s a) (sb (dsbLift s) b)
+    DSum a b => DSum (sb s a) (sb s b)
+    DEq l r t => DEq (sb s l) (sb s r) (sb s t)
+    DQuot a r => DQuot (sb s a) (sb (liftN 2 s) r)
+    DSquash q => DSquash (sb s q)
+    DNu dp => DNu (dSubstPoly s dp)
+    DSort sg k qs => DSort (dSubstQSig s sg) k (map (sb s) qs)
+   where
+    sb : DSb -> Drv -> Drv
+    sb s' q = substD q s'
+
+  ||| Weakening by n binders.
+  export
+  weakenD : Nat -> Drv -> Drv
+  weakenD Z p = p
+  weakenD n p = substD p (MkDSb n [])
+
+  ||| σ : Γ → Δ lifted under a binder: σ↑ : Γ ▷ A → Δ ▷ A[σ] — the
+  ||| entries weakened by one, ☐₀ added.
+  export
+  dsbLift : DSb -> DSb
+  dsbLift (MkDSb d es) = MkDSb (S d) (map (weakenD 1) es ++ [DVar 0])
+
+  export
+  liftN : Nat -> DSb -> DSb
+  liftN Z s = s
+  liftN (S n) s = liftN n (dsbLift s)
+
+  ||| … into a carried signature's pieces, under the external binders
+  ||| before each.
+  export
+  dSubstQTm : DSb -> DQTm -> DQTm
   dSubstQTm s (DQVar i) = DQVar i
-  dSubstQTm s (DQAppE f e) = DQAppE (dSubstQTm s f) (DSubst e s)
+  dSubstQTm s (DQAppE f e) = DQAppE (dSubstQTm s f) (substD e s)
   dSubstQTm s (DQAppI f a) = DQAppI (dSubstQTm s f) (dSubstQTm s a)
   dSubstQTm s (DQEqC l r u) = DQEqC (dSubstQTm s l) (dSubstQTm s r) (dSubstQTm s u)
 
   export
-  dSubstQTy : DSub -> DQTy -> DQTy
+  dSubstQTy : DSb -> DQTy -> DQTy
   dSubstQTy s DQU = DQU
   dSubstQTy s (DQEl t) = DQEl (dSubstQTm s t)
-  dSubstQTy s (DQPiExt a b) = DQPiExt (DSubst a s) (dSubstQTy (dLift s a) b)
+  dSubstQTy s (DQPiExt a b) = DQPiExt (substD a s) (dSubstQTy (dsbLift s) b)
   dSubstQTy s (DQPiInd u b) = DQPiInd (dSubstQTm s u) (dSubstQTy s b)
 
-export
-dSubstQSig : DSub -> DQSig -> DQSig
-dSubstQSig s = map (dSubstQTy s)
+  export
+  dSubstQSig : DSb -> DQSig -> DQSig
+  dSubstQSig s = map (dSubstQTy s)
 
-||| … into a carried polynomial's codes.
-export
-dSubstPoly : DSub -> DPoly -> DPoly
-dSubstPoly s DPHole = DPHole
-dSubstPoly s (DPConst a) = DPConst (DSubst a s)
-dSubstPoly s (DPProd f g) = DPProd (dSubstPoly s f) (dSubstPoly s g)
-dSubstPoly s (DPSum f g) = DPSum (dSubstPoly s f) (dSubstPoly s g)
-dSubstPoly s (DPSigma a f) = DPSigma (DSubst a s) (dSubstPoly (dLift s a) f)
-dSubstPoly s (DPPi a f) = DPPi (DSubst a s) (dSubstPoly (dLift s a) f)
-
-||| A value or a stuck head under its substitution layers (innermost
-||| first), and the layers put back.
-export
-peel : Drv -> (Drv, List DSub)
-peel (DSubst q s) = let (h, ls) = peel q in (h, ls ++ [s])
-peel d = (d, [])
-
-export
-underLayers : Drv -> List DSub -> Drv
-underLayers d [] = d
-underLayers d (s :: ss) = underLayers (DSubst d s) ss
+  ||| … into a carried polynomial's codes.
+  export
+  dSubstPoly : DSb -> DPoly -> DPoly
+  dSubstPoly s DPHole = DPHole
+  dSubstPoly s (DPConst a) = DPConst (substD a s)
+  dSubstPoly s (DPProd f g) = DPProd (dSubstPoly s f) (dSubstPoly s g)
+  dSubstPoly s (DPSum f g) = DPSum (dSubstPoly s f) (dSubstPoly s g)
+  dSubstPoly s (DPSigma a f) = DPSigma (substD a s) (dSubstPoly (dsbLift s) f)
+  dSubstPoly s (DPPi a f) = DPPi (substD a s) (dSubstPoly (dsbLift s) f)
 
 -- ===== The coinductive computation rule, on derivations =====
 
@@ -714,17 +736,17 @@ export
 dReflectPoly : DPoly -> Drv -> Drv
 dReflectPoly DPHole c = c
 dReflectPoly (DPConst a) c = a
-dReflectPoly (DPProd f g) c = DSigma (dReflectPoly f c) (wk1 (dReflectPoly g c))
+dReflectPoly (DPProd f g) c = DSigma (dReflectPoly f c) (weakenD 1 (dReflectPoly g c))
 dReflectPoly (DPSum f g) c = DSum (dReflectPoly f c) (dReflectPoly g c)
-dReflectPoly (DPSigma a f) c = DSigma a (dReflectPoly f (wk1 c))
-dReflectPoly (DPPi a f) c = DPi a (dReflectPoly f (wk1 c))
+dReflectPoly (DPSigma a f) c = DSigma a (dReflectPoly f (weakenD 1 c))
+dReflectPoly (DPPi a f) c = DPi a (dReflectPoly f (weakenD 1 c))
 
 ||| hᵉˡ ≜ λ (corec 𝔽 a f[↑] ☐₀) — the corecursor as a function
 ||| derivation (annotated at a: it states).
 export
 dCorecFun : DPoly -> Drv -> Drv -> Drv
 dCorecFun dp a f =
-  DLam (Just a) (DCorec (wkDPoly 1 [] dp) (wk1 a) (DSubst f (dLift (MkDSub 1 []) a)) (DVar 0))
+  DLam (Just a) (DCorec (dSubstPoly (MkDSb 1 []) dp) (weakenD 1 a) (substD f (dsbLift (MkDSb 1 []))) (DVar 0))
 
 ||| map_𝔽 g x at the target code nu (= ν 𝔽): mapPoly on derivations,
 ||| every intro form in inference position annotated as its rule
@@ -735,17 +757,17 @@ dMapPoly : DPoly -> (nu : Drv) -> (g : Drv) -> (x : Drv) -> Drv
 dMapPoly DPHole nu g x = DApp g x
 dMapPoly (DPConst a) nu g x = x
 dMapPoly (DPProd f h) nu g x =
-  DPair (Just (wk1 (dReflectPoly h nu))) (dMapPoly f nu g (DProj1 x)) (dMapPoly h nu g (DProj2 x))
+  DPair (Just (weakenD 1 (dReflectPoly h nu))) (dMapPoly f nu g (DProj1 x)) (dMapPoly h nu g (DProj2 x))
 dMapPoly (DPSum f h) nu g x =
   let fT = dReflectPoly f nu
       hT = dReflectPoly h nu
-  in DSumElim (Just (wk1 (DSum fT hT)))
-              (DInj1 (Just (wk1 hT)) (dMapPoly (wkDPoly 1 [] f) (wk1 nu) (wk1 g) (DVar 0)))
-              (DInj2 (Just (wk1 fT)) (dMapPoly (wkDPoly 1 [] h) (wk1 nu) (wk1 g) (DVar 0)))
+  in DSumElim (Just (weakenD 1 (DSum fT hT)))
+              (DInj1 (Just (weakenD 1 hT)) (dMapPoly (dSubstPoly (MkDSb 1 []) f) (weakenD 1 nu) (weakenD 1 g) (DVar 0)))
+              (DInj2 (Just (weakenD 1 fT)) (dMapPoly (dSubstPoly (MkDSb 1 []) h) (weakenD 1 nu) (weakenD 1 g) (DVar 0)))
               x
 dMapPoly (DPSigma a f) nu g x =
-  DPair (Just (dReflectPoly f (wk1 nu)))
+  DPair (Just (dReflectPoly f (weakenD 1 nu)))
         (DProj1 x)
-        (dMapPoly (dSubstPoly (MkDSub 0 [(DProj1 x, a)]) f) nu g (DProj2 x))
+        (dMapPoly (dSubstPoly (MkDSb 0 [DProj1 x]) f) nu g (DProj2 x))
 dMapPoly (DPPi a f) nu g x =
-  DLam (Just a) (dMapPoly f (wk1 nu) (wk1 g) (DApp (wk1 x) (DVar 0)))
+  DLam (Just a) (dMapPoly f (weakenD 1 nu) (weakenD 1 g) (DApp (weakenD 1 x) (DVar 0)))

@@ -208,7 +208,7 @@ parentheses.
       | prop-lift(π_p?, π_q?, π)             (DPrfCong) each side a
                                prop: derived at Ω, or (absent) the
                                given side judged a prop by the kernel
-  -- conversion, ascription, substitution
+  -- conversion, ascription
       | π ∷ π_T by β           inference: the type CONVERTED —
                                π_T ⇒ T′ : 𝕍, β ▷ T ≐ T′   (DConv, annotated)
       | π by β                 checking at T: π ⇒ T′, β ▷ T′ ≐ T; in
@@ -232,8 +232,6 @@ parentheses.
                                a chain of rule applications (no copy
                                of an exposed type enters a
                                derivation)                  (DAscribe)
-      | π[↑ᵈ ▷ (π₁ : π_T₁) … (πₖ : π_Tₖ)]   SUBSTITUTION (§4),
-                               inference only               (DSubst)
   -- intro forms: the subscript is the INFERENCE-mode annotation,
   -- what the type would have supplied; absent under checking
       | λ_{π_A} π              domain                       (DLam)
@@ -278,16 +276,15 @@ derivation at each external domain and argument; DPoly with one at
 each code), read when the carrier is (§8); a carrier is no CONGRUENCE
 position — its erasure must match the side's (A3, §9). Placed under
 binders by the data-item emitter, a carrier is weakened within the
-grammar: each piece under the substitution node ↑ⁿ⁺ᵐ extended by the
-m external variables before it at their domain derivations (§4).
+grammar: each piece substituted by ↑ⁿ⁺ᵐ extended by the m external
+variables before it (§4).
 
 showDrv prints the grammar above in the core's own syntax (an
-annotation in braces, a substitution as [↑ᵈ ▷ …]); the elaborator's
-diagnostics and the engine's audits print derivations so.
+annotation in braces); the elaborator's diagnostics and the engine's
+audits print derivations so.
 
-Substitution acts on a derivation through the substitution node
-alone (§4). Weakening a derivation under binders — a hypothesis
-under three binders — is ⟨☐ᵢ⟩[↑³].
+Substitution is a FUNCTION on derivations (§4), not a node: a
+hypothesis under three binders is the weakened ⟨☐ᵢ₊₃⟩.
 
 DECIDED: motives are mandatory on eliminator nodes — knowing the
 type of an ℕ-elim determines its motive's INSTANCE at the scrutinee,
@@ -455,7 +452,7 @@ The classifiers of a derivation's shape (decided before any reading):
 STATING (dSynth) — a leaf, a node over stating heads and CHECKABLE
 children at its checked positions, an annotated intro, an eliminator
 with its motive, a chain one of whose links states and whose other
-link runs the other way, a substitution of a stating derivation;
+link runs the other way;
 CHECKABLE (dCheckable) — stating, or a checking-mode intro over
 checkable children, an eliminator at the constant motive, a switch
 π by β, an ascription, a type former; DIRECTIONAL by shape (dDirable,
@@ -477,54 +474,65 @@ by propext, under Π refl …). A universe-code equation is already a
 type equation by cumulativity (code-lift-eq) — no transport is
 involved.
 
-////////// 4. The substitution node //////////
+////////// 4. Substitution //////////
 
-  σ ::= ↑ᵈ ▷ (π₁ : π_T₁) … (πₖ : π_Tₖ)      d ≥ 0, k ≥ 0
+  σ ::= ↑ᵈ ▷ π₁ … πₖ      d ≥ 0, k ≥ 0        (DSb: depth, entries)
 
-  Γ = Δ↓d ▷ T₁ … Tₖ  where  Δ↓d ⊦ π_T₁ ⇒ T₁ : 𝕍,
-                            Δ↓d ▷ T₁ … Tᵢ₋₁ ⊦ π_Tᵢ ⇒ Tᵢ : 𝕍
-  Σ; Δ ⊦ πᵢ ⇒ eᵢ : Eᵢ    Eᵢ agrees Tᵢ[↑ᵈ, e₁, …, eᵢ₋₁]      (each i)
-  Σ; Γ ⊦ π ⇒ l ≐ r : A
-  ---------------------------------------------------------------------
-  Σ; Δ ⊦ π[σ] ⇒ l[σ] ≐ r[σ] : A[σ]                            # subst
+  π[σ]  the derivation π with ☐ᵢ replaced by πₖ₋₁₋ᵢ for i < k and by
+        ☐ᵢ₋ₖ₊d otherwise, every entry weakened past the binders π
+        crosses (weakenD; dsbLift lifts σ under one binder, the new
+        variable its own entry)
 
-Δ↓d is Δ without its d newest entries. This is the substitution
-lemma, admissible in the theory, made a rule of the kernel — as it is
-in a CwF, where substitution is primitive. Its shape is a weakening
-followed by a typed extension, which is the ONLY shape of
-substitution the engine performs (a match's instantiation under the
-binders it crossed, a hypothesis moved under a binder, a lemma
-instantiated at its parameters); the telescope is carried because it
-cannot be recovered from the entries' types (Tᵢ abstracts the
-earlier entries, which the Δ-types Eᵢ have already substituted).
-General substitutions — permutations, contractions — do not arise
-and have no node. The node is INFERENCE-only: under checking at T the
-kernel would need a Γ-type whose substitution is T, and σ is not
-invertible. Harmless: what the engine substitutes are licences,
-reflected typed neutrals, which infer; a checking-mode derivation
-placed under a substitution is written in its inference form.
-Substitution acts on derivations through this node ONLY: there is no
-function substituting into a derivation (the erasure of π[σ] is
-|π|[σ], computed on the erasure).
+Substitution is the substitution LEMMA of the theory, admissible, and
+the kernel needs no rule for it: it is a total FUNCTION on the
+grammar of §2 (substD), computable at every derivation, and its
+erasure commutes — |π[σ]| = |π|[|σ|]. Every node is closed under it:
+a variable is replaced or shifted; a binder lifts σ; an annotation,
+a motive, a stated middle, a carried signature or polynomial (their
+embedded pieces, §2) is substituted as a derivation in its own
+context — a QIIT motive under the sort's binders plus the point,
+a coherence method under its equation's displayed telescope
+(dTelLen); a δ leaf, a signature reference or a δ-all leaf has its
+spine substituted and its name kept (σ is a substitution of the
+CONTEXT; Σ is untouched); refl, the type-directed leaves and the
+constants are fixed. The shape ↑ᵈ ▷ π̄ — a weakening followed by an
+extension — is the only shape the engine performs (a match's
+instantiation under the binders it crossed, a hypothesis moved
+under a binder, a lemma instantiated at its parameters, a carrier
+placed under binders); general substitutions are not needed and are
+not built.
+
+The result is a derivation like any other, read by §3 and §7 with
+nothing remembered of the substitution: a stating leaf stays
+stating (an entry at a variable is itself a derivation that states
+or is checkable where the variable was — the engine substitutes
+reflected typed neutrals, which infer), a chain stays a chain, and
+whether the substituted derivation reads at a position is decided
+by its shape as for one written there directly. No typing of the
+entries is carried: the substituted derivation is re-read where it
+lands, and an ill-typed entry fails there (a substitution that
+mistypes a variable produces a derivation that does not read).
 
 What it buys: a candidate stores its licence ONCE, a proof over its
-own context, and is instantiated by wrapping (lic[σ]); a hypothesis
-under three binders is ⟨☐ᵢ⟩[↑³]; and a written derivation is shared
-across its instances.
+own context, and each use is the substituted copy; a hypothesis
+under three binders is the weakened variable; the β-whnf on
+derivations (§3, dWhnf) contracts a redex by substD — the body of a
+λ at its argument's derivation, a let's body at its binding and the
+⋆ witness of its equation, a corecursion's unfolding at the seed —
+so the derivation-level normalizer needs no node either.
 
-IMPLEMENTATION (the engine, Nova.Elaboration): a candidate records the LENGTH of the base
-context it was built over and its parameters' types with their
-derivations over their prefixes; its LEAF — the licence at the
-pattern variables bridged by the normalization proofs, pL⁻¹ ; lic ;
-pR, the whole of it stating (lic states, pR runs forward, pL⁻¹ runs
-backward) — is built once over the pattern context. A use writes
-leaf[↑ᵈ ▷ (e₁ : π_T₁) … (eₖ : π_Tₖ)] with d the use context's length
-past the base (binders the rewriter crossed included) and each
-binding derived at its parameter's type under the earlier entries.
-Extending a candidate set under a binder weakens the PATTERNS (the
-matcher works in the extended context) and nothing else; the
-hypotheses of the new context are still rebuilt (a rebuild of what a
-wrap could give — the remaining sharing).
+IMPLEMENTATION (the engine, Nova.Elaboration): a candidate records
+the LENGTH of the base context it was built over and its parameters'
+types; its LEAF — the licence at the pattern variables bridged by
+the normalization proofs, pL⁻¹ ; lic ; pR — is built once over the
+pattern context. A use writes substD leaf (↑ᵈ ▷ e₁ … eₖ) with d the
+use context's length past the base (binders the rewriter crossed
+included) and each eᵢ the matched term's derivation (a reflected
+typed neutral) over the use context. Extending a candidate set under
+a binder weakens the PATTERNS (the matcher works in the extended
+context) and nothing else; the hypotheses of the new context are
+still rebuilt (a rebuild of what a wrap could give — the remaining
+sharing).
 
 
 ////////// 5. Injectivity //////////
@@ -693,7 +701,12 @@ A node passes the hint down at its parts when the hint has its shape
 given side and hands its neighbour the middle with the hint; when
 that link cannot run, the link at the hint runs from the hint and
 the other link reads from the given side with that middle as ITS
-hint — so a chain may mix directions (a rewrite run from the left,
+hint; when neither runs, a STATING link supplies the middle — the
+link at the given side (one-way against the direction) by its
+statement, its outer side compared with the given side and the
+other link run from its inner side with the hint, else the far link,
+the near one then read from the given side towards its inner side —
+so a chain may mix directions (a rewrite run from the left,
 an unfolding run from the right), and a wrapper over a chain is read
 through first so the chain is never run as a whole from one side.
 The classifiers agree with the reader: a chain STATES through one
@@ -873,8 +886,8 @@ irrelevance leaf or a prop-lift's sides — or the node is rejected.
 The engine (docs/NovaPipeline.txt; Nova.Elaboration.Proof, untrusted)
 WRITES derivations as it searches: a licence applied at a position is
 its leaf inside the nodes along the path — the candidate's leaf built
-once over its pattern context and instantiated by the substitution
-node (§4) — with refl at the siblings, a rewritten head or scrutinee
+once over its pattern context and instantiated by substitution
+(§4) — with refl at the siblings, a rewritten head or scrutinee
 child under the exposure of its type when a definition hides the
 shape, a δ-round a δ-all leaf, a closing step by the type's shape
 its type-directed leaf, the rewrites of one side a chain, the two
@@ -992,7 +1005,7 @@ and every discharge the re-derivation could express); (3) the
 elaborator returns derivations at every site, the data-item emitters
 build them, re-derivation replaced skeleton reconstruction; (4) the
 engine writes derivations, candidates store one leaf and are
-instantiated by the substitution node, the undetermined position
+instantiated by a substitution node, the undetermined position
 removed (its corpus sites disappeared once the engine's normalization
 loop rewrites the raw sides before unfolding and the reader inverts
 a head's type structurally through the child's nodes — a proof
@@ -1005,9 +1018,16 @@ embedded pieces of carriers checked by re-derivation, this document
 rewritten; then (2026-09-25) carriers carry their pieces as
 derivations and the kernel reads them (no bare-term check remains),
 and re-derivation left the kernel module for
-Nova.Elaboration.Rederive.
+Nova.Elaboration.Rederive; the signature stores each entry's
+derivations beside their erasures; a β-whnf on derivations (§3);
+and the substitution node became the function of §4 (its reading
+was the substituted derivation's own, so the node carried nothing —
+its typed entries were never read at a use; and a chain a use
+inlines is read link by link like any chain: a stating link at the
+given side, one-way against the direction, supplies the middle by
+its statement, §7).
 
 Open: whether a proof-level let (α ≔ π in π′) is wanted for sharing
-beyond what [σ] gives — deferred to the let-sharing item; the
+beyond what substitution gives — deferred to the let-sharing item; the
 hypotheses of an extended candidate set are still rebuilt per
 extension (a wrap could share them).
