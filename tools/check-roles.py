@@ -49,7 +49,9 @@ ESCAPES = ["believe_me", "assert_total", "assert_smaller", "unsafePerformIO",
 AUDIT_FUNCTIONS = set()
 
 # K4: the entry points, by name, and which of them admit an entry
-ENTRY_POINTS = {"kCheckDefDrv": True, "kCheckTyDefDrv": True, "kCheckEqDrv": False}
+# kCheckEqBare is TRANSITIONAL (kernel programme item 2): deleted when
+# the engine's BRIDGE-FALLBACK count reaches zero
+ENTRY_POINTS = {"kCheckDefDrv": True, "kCheckTyDefDrv": True, "kCheckEqDrv": False, "kCheckEqBare": False}
 
 failures = []
 

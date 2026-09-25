@@ -2703,39 +2703,55 @@ mutual
 
 ||| A definition item as derivations: the telescope, the type, the
 ||| body; the entry extends Σ with their ERASURES.
+||| A telescope as derivations, each read over the ones before it.
+teleCtx : Sig -> List Drv -> KM Ctx
+teleCtx sig = go [<]
+ where
+  go : Ctx -> List Drv -> KM Ctx
+  go ctx [] = pure ctx
+  go ctx (d :: rest) = do
+    t <- dType sig ctx d
+    go (ctx :< t) rest
+
 export
 kCheckDefDrv : Sig -> Nat -> String -> List Drv -> Drv -> Drv -> Either KErr SigEntry
 kCheckDefDrv sig fuel name tele dty body =
   map fst $ runKM (do
-    ctx <- tele' [<] tele
+    ctx <- teleCtx sig tele
     ty <- dType sig ctx dty
     t <- dElemAt sig ctx body ty
     pure (SigDef ctx name t ty body dty)) fuel
- where
-  tele' : Ctx -> List Drv -> KM Ctx
-  tele' ctx [] = pure ctx
-  tele' ctx (d :: rest) = do
-    t <- dType sig ctx d
-    tele' (ctx :< t) rest
 
 export
 kCheckTyDefDrv : Sig -> Nat -> String -> List Drv -> Drv -> Either KErr SigEntry
 kCheckTyDefDrv sig fuel name tele dty =
   map fst $ runKM (do
-    ctx <- tele' [<] tele
+    ctx <- teleCtx sig tele
     ty <- dType sig ctx dty
     pure (SigDef ctx name ty TopTy dty DTop)) fuel
- where
-  tele' : Ctx -> List Drv -> KM Ctx
-  tele' ctx [] = pure ctx
-  tele' ctx (d :: rest) = do
-    t <- dType sig ctx d
-    tele' (ctx :< t) rest
 
-||| An equation proof read against its sides (the engine's check).
+||| An equation proof read against its sides (the engine's check):
+||| the telescope and the type as derivations, read first; the sides
+||| bare — compared, never trusted.
 export
-kCheckEqDrv : Sig -> Ctx -> Nat -> Drv -> Elem -> Elem -> Ty -> Either KErr ()
-kCheckEqDrv sig ctx fuel d l r ty =
+kCheckEqDrv : Sig -> Nat -> List Drv -> Drv -> Drv -> Elem -> Elem -> Either KErr ()
+kCheckEqDrv sig fuel tele dty d l r =
+  map fst (runKM (do
+    ctx <- teleCtx sig tele
+    ty <- dType sig ctx dty
+    lJ <- kJoinElem sig l
+    rJ <- kJoinElem sig r
+    dAt sig ctx d lJ rJ ty) fuel)
+
+||| TRANSITIONAL (docs/NovaStrategy.txt, kernel programme item 2): the
+||| equation check over a BARE context and type, for the sites where
+||| the engine cannot yet supply their derivations (its contexts are
+||| bare; a binder type spelled up to a conversion by an earlier
+||| hypothesis has no re-derivation). Counted by the engine's
+||| BRIDGE-FALLBACK audit; deleted at zero.
+export
+kCheckEqBare : Sig -> Ctx -> Nat -> Drv -> Elem -> Elem -> Ty -> Either KErr ()
+kCheckEqBare sig ctx fuel d l r ty =
   map fst (runKM (do
     lJ <- kJoinElem sig l
     rJ <- kJoinElem sig r

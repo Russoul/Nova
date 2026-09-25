@@ -283,19 +283,28 @@ Tranche 1 — acceptance-preserving, standalone:
          The engine's second signature folds into the kernel's;
          acceptance = the kernel's Σ has no assumptions; the audit's
          E1/S1 become type-level facts.
-  [ ] 2. The equation entry point takes the telescope and the type
+  [~] 2. The equation entry point takes the telescope and the type
          as derivations (as the definition entry point does); the
-         sides stay bare — compared, not trusted.
+         sides stay bare — compared, not trusted. DONE for the entry
+         point; TRANSITIONAL on the engine's side: its contexts are
+         bare, and its re-derivation bridge cannot rebuild every
+         entry — a binder type spelled up to a conversion by an
+         earlier hypothesis, a let hypothesis whose value is a proof
+         ⋆, a β-redex left in a motive instance — so at those sites
+         it falls back to the bare form kCheckEqBare and counts the
+         site (BRIDGE-FALLBACK: 86 sites at 26 items on 2026-09-25).
+         The bare form is deleted at zero, which is when the engine's
+         contexts carry their derivations (the next programme item
+         after 1). The bridge costs ~0.2s over the corpus meanwhile.
   [x] 5. No effects, no oracle in the reader: the whnf canary and
          the error dump move to the engine (which calls the exported
          whnf after acceptance); the let node carries its binding's
          type derivation so the derivation-level whnf needs no
          oracle; the Nova.Profile import goes.
-  [~] 7. The trusted interface written down: entry points, Σ
-         accessors, the grammar, erasure, substitution, the whnf, the
-         β join. Engine-only helpers (the backtracking combinators
-         kOrElse/kTry) leave the kernel module (done); the interface
-         section of docs/NovaKernel.txt (pending).
+  [x] 7. The trusted interface written down (docs/NovaKernel.txt
+         §11: the trusted interface and the library, the latter
+         expected to shrink); the backtracking combinators
+         kOrElse/kTry left the kernel module.
   [x] 8. Nova.Kernel.Parser (a core-syntax parser for the tests, the
          distiller and the LSP) leaves the kernel's namespace.
 

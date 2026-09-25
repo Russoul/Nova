@@ -1036,3 +1036,64 @@ Open: whether a proof-level let (α ≔ π in π′) is wanted for sharing
 beyond what substitution gives — deferred to the let-sharing item; the
 hypotheses of an extended candidate set are still rebuilt per
 extension (a wrap could share them).
+
+
+////////// 11. The interface //////////
+
+What passes between the kernel and the rest of the program, in two
+layers (docs/NovaStrategy.txt, the roles). Nothing else the kernel
+modules export is meant to be called; what remains exported is
+listed under the LIBRARY, with the reason.
+
+THE TRUSTED INTERFACE — every verdict passes through it, and only
+through it:
+
+  entry points     kCheckDefDrv   Σ → Δ̄ → π_T → π → SigEntry | error
+                   kCheckTyDefDrv Σ → Δ̄ → π_T → SigEntry | error
+                   kCheckEqDrv    Σ → Δ̄ → π_A → π → l → r → () | error
+                   The telescope Δ̄ and the type are DERIVATIONS, read
+                   before anything else; the equation's sides are bare
+                   because they are compared, never trusted.
+                   (kCheckEqBare, the same over a bare context and
+                   type, is TRANSITIONAL: the engine's contexts do not
+                   yet carry derivations — docs/NovaStrategy.txt,
+                   kernel programme item 2.) An
+                   admitting entry point returns the entry it admits;
+                   the engine extends the kernel's Σ with that entry
+                   and nothing else (kernelAccept, one site).
+  the signature    SigEntry, Sig, sigLookup, sigEntryName,
+                   sigEntryIsDef — the entries the kernel admitted,
+                   erasures beside the derivations it read (§8).
+  the grammar      Drv, DQTm, DQTy, DQSig, DPoly (§2) — the input
+                   language; the engine writes it, the kernel reads it.
+  on derivations   erase (and eraseQTm/QTy/QSig, erasePoly), substD
+                   with DSb, weakenD, dsbLift, liftN, the carrier
+                   substitutions (§4); dWhnf (§3); showDrv;
+                   drvChildren; mapNamesD (renaming the Σ names a
+                   derivation mentions, for module prefixes).
+
+THE LIBRARY — pure functions of the reader, exported so the engine's
+UNTRUSTED builders can run them: the re-derivation builder
+(Nova.Elaboration.Rederive) validates the derivations it rebuilds
+from bare terms by the reader's own readings, and the proof library
+types positions by the same functions the reader uses. Calling any
+of them cannot affect a verdict, because a verdict is only what the
+entry points return over the kernel's Σ. They are:
+
+  the readings     dInfer, dCheck, dAt, dDir, dType, dTypeK, dElemTy,
+                   dElemAt, dQSig, dPoly (§3, §7, §8)
+  the β join       kWhnfE, kWhnfT, kJoinElem, kJoinTy, kJoinQTm,
+                   kJoinQSig, kJoinSubNorm, liftQ (§1)
+  comparison       sameB, tyAgree, kIsProp
+  classifiers      dSynth (§3)
+  helpers          ctxLookup, weakenTyN, inferHead, unfoldAllK,
+                   compClassifier, sigChildTy, qSpineChildTy,
+                   constMotives, qMotives, kQSigSmallD
+  the monad        KM, runKM, kerr, kCatch, kSigLookup
+
+The library is expected to SHRINK: inferHead and unfoldAllK go with
+tranche 2 of the kernel programme (the engine unfolding with types,
+docs/NovaStrategy.txt), and the readings leave the library when the
+engine carries derivations everywhere and re-derivation of bare
+terms is no longer needed. Backtracking combinators are not the
+kernel's: the builder defines its own over kCatch.

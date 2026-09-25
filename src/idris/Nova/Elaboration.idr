@@ -3316,6 +3316,87 @@ deltaJoinC st a b = go 5 (nub (unfsOf st ++ defNamesOf st (refsE b (refsE a [<])
       let ns' = nub (ns ++ defNamesOf st (refsE b' (refsE a' [<]))) in
       if length ns' == length ns then Nothing else go k ns'
 
+||| A bare type derived at 𝕍.
+reTy : ElabSt -> Ctx -> Ty -> Drv
+reTy st ctx t =
+  let t0 = nowNs ()
+      r = kReDeriveTy st.sig kernelFuel ctx t
+  in bump "bridge-ty" (nowNs () - t0) (case r of
+       Right d => d
+       Left e => audit "DRV-BRIDGE type | \{e} | \{show t}" DTop)
+
+||| … or nothing, where the node may leave the type to the kernel's
+||| own judgement (a checking-form annotation).
+reTyM : ElabSt -> Ctx -> Ty -> Maybe Drv
+reTyM st ctx t = either (const Nothing) Just (kReDeriveTy st.sig kernelFuel ctx t)
+
+||| A bare context as a telescope of derivations, each over the
+||| entries before it — what the kernel's equation entry point reads
+||| before the proof (docs/NovaKernel.txt §11) — or the first entry
+||| the bridge cannot re-derive.
+reTele : ElabSt -> Ctx -> Either Ty (List Drv)
+reTele st ctx = go ctx
+ where
+  go : Ctx -> Either Ty (List Drv)
+  go [<] = Right []
+  go (rest :< t) = do
+    ds <- go rest
+    case reTyM st rest t of
+      Just d => Right (ds ++ [d])
+      Nothing => Left t
+
+||| The eager kernel check of an equation proof: the context and the
+||| type as derivations (kCheckEqDrv). Where the engine's bridge
+||| cannot re-derive a context entry or the type — the engine's
+||| contexts are BARE, and a binder type spelled up to a conversion
+||| by an earlier hypothesis has no re-derivation — the TRANSITIONAL
+||| bare form is used and the site counted (BRIDGE-FALLBACK): the
+||| measure that contexts-as-derivations in the engine drives to
+||| zero, after which the bare form goes (docs/NovaStrategy.txt,
+||| kernel programme item 2).
+checkEqK : ElabSt -> Ctx -> Drv -> Elem -> Elem -> Ty -> Either KErr ()
+checkEqK st ctx prf a b ty =
+  let tyD = the (Either Ty Drv) $ case ty of
+              TopTy => Right DTop
+              _ => maybe (Left ty) Right (reTyM st ctx ty)
+  in case (reTele st ctx, tyD) of
+       (Right tele, Right d) => kCheckEqDrv st.sig kernelFuel tele d prf a b
+       (tele, d) =>
+         let what = either (\t => "context entry \{show t}") (const "") tele
+                 ++ either (\t => " type \{show t}") (const "") d
+         in audit "BRIDGE-FALLBACK | \{st.modPrefix}:\{st.curItem} |\{what}"
+              (kCheckEqBare st.sig ctx kernelFuel prf a b ty)
+
+||| … with the classifier the derivation derives at, when it derives.
+reTyK : ElabSt -> Ctx -> Ty -> (Drv, Maybe Ty)
+reTyK st ctx t =
+  let t0 = nowNs ()
+      r = kReDeriveTyK st.sig kernelFuel ctx t
+  in bump "bridge-ty" (nowNs () - t0) (case r of
+       Right (d, k) => (d, Just k)
+       Left e => audit "DRV-BRIDGE type | \{e} | \{show t}" (DTop, Nothing))
+
+||| An elaborated motive's classifier, read off its derivation (a
+||| type checked at Ω arrives ascribed so).
+motiveIsProp : Drv -> Bool
+motiveIsProp (DAscribe _ (Just DProp) _) = True
+motiveIsProp _ = False
+
+||| A bare term derived in checking mode at its type.
+reChk : ElabSt -> Ctx -> Elem -> Ty -> Drv
+reChk st ctx e ty =
+  let t0 = nowNs ()
+      r = kReDeriveChk st.sig kernelFuel ctx e ty
+  in bump "bridge-chk" (nowNs () - t0) (case r of
+       Right d => d
+       Left err => audit "DRV-BRIDGE check | \{err} | \{show e} : \{show ty}" DUnit)
+
+||| A bare term derived in inference mode, with the type it derives.
+reInf : ElabSt -> Ctx -> Elem -> Maybe (Drv, Ty)
+reInf st ctx e = case kReDeriveInf st.sig kernelFuel ctx e of
+  Right r => Just r
+  Left _ => Nothing
+
 ||| §5.4 (docs/SearchlessElaboration.md): when a SCOPED site is about
 ||| to assume, probe the GLOBAL store once. A discharge the kernel
 ||| replays becomes a hint on the obligation — search as feedback,
@@ -3334,7 +3415,7 @@ hintE st ctx a b ty = lemmaHint <|> eqHint
         case spEqElemC spDepth stG (mkCandSet stG ctx) ctx a b ty of
           Nothing => Nothing
           Just prf =>
-            case kCheckEqDrv stG.sig ctx kernelFuel prf a b ty of
+            case checkEqK stG ctx prf a b ty of
               Left _ => Nothing
               Right _ =>
                 case nub (hintNamesP prf) of
@@ -3368,7 +3449,7 @@ hintT st ctx x y = lemmaHint <|> eqHint
         case spEqTyC spDepth stG (mkCandSet stG ctx) ctx x y of
           Nothing => Nothing
           Just prf =>
-            case kCheckEqDrv stG.sig ctx kernelFuel prf x y TopTy of
+            case checkEqK stG ctx prf x y TopTy of
               Left _ => Nothing
               Right _ =>
                 case nub (hintNamesP prf) of
@@ -3390,49 +3471,6 @@ hintT st ctx x y = lemmaHint <|> eqHint
           let ns' = nub (ns ++ defNamesOf st (refsT y' (refsT x' [<]))) in
           if length ns' == length ns then Nothing else go k ns'
 
-||| A bare type derived at 𝕍.
-reTy : ElabSt -> Ctx -> Ty -> Drv
-reTy st ctx t =
-  let t0 = nowNs ()
-      r = kReDeriveTy st.sig kernelFuel ctx t
-  in bump "bridge-ty" (nowNs () - t0) (case r of
-       Right d => d
-       Left e => audit "DRV-BRIDGE type | \{e} | \{show t}" DTop)
-
-||| … or nothing, where the node may leave the type to the kernel's
-||| own judgement (a checking-form annotation).
-reTyM : ElabSt -> Ctx -> Ty -> Maybe Drv
-reTyM st ctx t = either (const Nothing) Just (kReDeriveTy st.sig kernelFuel ctx t)
-
-||| … with the classifier the derivation derives at, when it derives.
-reTyK : ElabSt -> Ctx -> Ty -> (Drv, Maybe Ty)
-reTyK st ctx t =
-  let t0 = nowNs ()
-      r = kReDeriveTyK st.sig kernelFuel ctx t
-  in bump "bridge-ty" (nowNs () - t0) (case r of
-       Right (d, k) => (d, Just k)
-       Left e => audit "DRV-BRIDGE type | \{e} | \{show t}" (DTop, Nothing))
-
-||| An elaborated motive's classifier, read off its derivation (a
-||| type checked at Ω arrives ascribed so).
-motiveIsProp : Drv -> Bool
-motiveIsProp (DAscribe _ (Just DProp) _) = True
-motiveIsProp _ = False
-
-||| A bare term derived in checking mode at its type.
-reChk : ElabSt -> Ctx -> Elem -> Ty -> Drv
-reChk st ctx e ty =
-  let t0 = nowNs ()
-      r = kReDeriveChk st.sig kernelFuel ctx e ty
-  in bump "bridge-chk" (nowNs () - t0) (case r of
-       Right d => d
-       Left err => audit "DRV-BRIDGE check | \{err} | \{show e} : \{show ty}" DUnit)
-
-||| A bare term derived in inference mode, with the type it derives.
-reInf : ElabSt -> Ctx -> Elem -> Maybe (Drv, Ty)
-reInf st ctx e = case kReDeriveInf st.sig kernelFuel ctx e of
-  Right r => Just r
-  Left _ => Nothing
 
 ||| ASSUME (docs/NovaElaboration.txt, ↓ step 8): append the equation to
 ||| Σ as a constraint entry — sig-eq (type constraints at A = 𝕍); the signature is OPEN
@@ -3524,7 +3562,7 @@ mutual
         if timed "tier1" (\_ => compElem a == compElem b)
           then do
             let prf = bump "comp-eq-elem" 1 DReflx
-            case kCheckEqDrv st.sig ctx kernelFuel prf a b ty of
+            case checkEqK st ctx prf a b ty of
               Right () => pure (Right prf)
               Left kerrMsg => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
           else do
@@ -3539,7 +3577,7 @@ mutual
             case mprf of
               Nothing => pure (Left site)
               Just prf =>
-                let kres = kCheckEqDrv st.sig ctx kernelFuel prf a b ty in
+                let kres = checkEqK st ctx prf a b ty in
                 case bump "kernel" (nowNs () - t2) kres of
                   Right () =>
                     let prf1 = if isReflx prf then bump "triv-stepless-elem" 1 prf else prf in
@@ -3566,7 +3604,7 @@ mutual
         if timed "tier1" (\_ => compTy tyA == compTy tyB)
           then do
             let prf = bump "comp-eq-ty" 1 DReflx
-            case kCheckEqDrv st.sig ctx kernelFuel prf tyA tyB TopTy of
+            case checkEqK st ctx prf tyA tyB TopTy of
               Right () => pure (Right prf)
               Left kerrMsg => pure (Left (sub site "\{site} [replay failed: \{kerrMsg}]"))
           else do
@@ -3578,7 +3616,7 @@ mutual
             case mprf of
               Nothing => pure (Left site)
               Just prf =>
-                let kres = kCheckEqDrv st.sig ctx kernelFuel prf tyA tyB TopTy in
+                let kres = checkEqK st ctx prf tyA tyB TopTy in
                 case bump "kernel" (nowNs () - t2) kres of
                   Right () =>
                     let names = nub (hintNamesP prf) in
@@ -5599,7 +5637,7 @@ mutual
               -- bridge the equation's sides to the chain's written
               -- ends; every link is its own proof
               let prf = chainPrf (map snd points) ([c0] ++ catMaybes adjCerts ++ [cn]) in
-              case kCheckEqDrv st.sig ctx kernelFuel prf l r tA of
+              case checkEqK st ctx prf l r tA of
                 Right () => pure (Just prf)
                 Left kerr => audit "CHAIN-COMPOSITE-FAIL \{site}: \{kerr}" fallback
      where
