@@ -83,7 +83,9 @@ def main():
         if kind.startswith('chain, step'): skipped['chain step'] += 1; continue
         if c0 == 0: skipped['whole item (a generated item\'s site)'] += 1; continue
         module = item.split(':')[0]
-        edits[f].append((l0, c0, c1, shape, kind, [i.strip() for i in insts.split(';;') if i.strip()], module))
+        env = parts[7].replace('env:', '').split() if len(parts) > 7 else []
+        claim = parts[8].replace('claim:', '', 1).strip() if len(parts) > 8 else ''
+        edits[f].append((l0, c0, c1, shape, kind, [i.strip() for i in insts.split(';;') if i.strip()], module, env, claim))
     done = collections.Counter()
     for f, es in edits.items():
         original = open(f, encoding='utf-8').read()
@@ -125,11 +127,12 @@ def apply_file(f, original, es, dropped, skipped):
         imps = imports_of(text); needed = collections.defaultdict(set)
         # one edit per span: sites sharing a span pool their instances
         by_span = collections.OrderedDict()
-        for (l0, c0, c1, shape, kind, insts, module) in es:
+        for (l0, c0, c1, shape, kind, insts, module, env, claim) in es:
             key = (l0, c0, c1)
-            if key not in by_span: by_span[key] = (shape, kind, [], module)
+            if key not in by_span: by_span[key] = (shape, kind, [], module, [])
             for i in insts:
                 if i not in by_span[key][2]: by_span[key][2].append(i)
+            by_span[key][4].append((kind, insts, env, claim))
         # overlapping spans on one line are left to the author
         spans = sorted(by_span)
         clash = set()
@@ -138,7 +141,7 @@ def apply_file(f, original, es, dropped, skipped):
                 if a[0] == b[0] and not (a[2] <= b[1] or b[2] <= a[1]): clash.add(a); clash.add(b)
         counter = [0]
         for key in sorted(by_span, reverse=True):
-            l0, c0, c1 = key; shape, kind, insts, module = by_span[key]
+            l0, c0, c1 = key; shape, kind, insts, module, sites = by_span[key]
             if key in dropped: continue
             if key in clash: skipped['overlapping spans'] += 1; continue
             line = src[l0]   # positions are 0-based
@@ -149,6 +152,23 @@ def apply_file(f, original, es, dropped, skipped):
                 if ' ' in inst: inst = f'({inst})'
                 src[l0] = line[:c0] + inst + line[c1:]
                 done['⋆ := instance'] += 1
+                continue
+            if kind.startswith('well-definedness'):
+                # each well-definedness obligation at this eliminator: a
+                # claim QUANTIFIED over the case's binders (x x′ h), its
+                # type the measure's rendering of the statement, its
+                # proof the instance as a λ over them
+                lets = ''; ok = True
+                for (k2, ins2, env2, claim2) in sites:
+                    if len(ins2) != 1 or not claim2 or len(env2) < 3 or re.search(r'\?\d|𝒮|\[|\]', ins2[0] + claim2): ok = False; break
+                    x, x1, h = env2[-3], env2[-2], env2[-1]
+                    r = render(ins2[0], module, imps, needed)
+                    ct = render(claim2, module, imps, needed)
+                    counter[0] += 1
+                    lets += f'let claim{counter[0]} : {ct} = λ{x} {x1} {h}. {r} in '
+                if not ok: skipped['well-definedness: not one instance, or unspellable'] += 1; continue
+                src[l0] = line[:c0] + '(' + lets + span + ')' + line[c1:]
+                done['λ-claim / well-definedness'] += 1
                 continue
             rendered = []; unusable = False
             for i in insts:

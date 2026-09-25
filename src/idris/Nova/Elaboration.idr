@@ -3619,8 +3619,8 @@ assume stmt site comp = do
 ||| leaves state, rendered in the site's surface names (each ⟨e⟩ leaf
 ||| as the element e), with whether the proof is one such instance at
 ||| the root (then the ⋆ is simply that instance) or places them.
-searchLine : ElabSt -> NameEnv -> Site -> String -> Drv -> String
-searchLine st env site kind p =
+searchLine : ElabSt -> Ctx -> NameEnv -> Site -> String -> Drv -> Elem -> Elem -> Ty -> String
+searchLine st ctx env site kind p a b ty =
   let leaves = collect p
       insts = map (\e => prettyElemN st.impls st.modFix env (displayElemIn st (unfsOf st) e)) leaves
       shape = if rootOnly p && length leaves == 1 then "root" else "placed"
@@ -3629,6 +3629,27 @@ searchLine st env site kind p =
                Nothing => "?"
   in "SEARCH-NEEDED \{kind} | \{st.modPrefix}:\{st.curItem} | \{site} | \{showDrv p} | at \{st.modFile}:\{span} | \{shape} | " ++ joinBy " ;; " insts
      ++ " | env: " ++ joinBy " " (toList env)
+     ++ " | claim: " ++ claimTy
+ where
+  -- the statement of the site as a local claim's TYPE, in surface
+  -- syntax: the well-definedness case's binders (x x′ h) quantified
+  -- in front, so the claim can be stated OUTSIDE the eliminator as a
+  -- λ over them; any other site's statement as it stands
+  pr : NameEnv -> Ty -> String
+  pr e t = prettyTyN st.impls st.modFix e (displayTyIn st (unfsOf st) t)
+  prE : NameEnv -> Elem -> String
+  prE e t = prettyElemN st.impls st.modFix e (displayElemIn st (unfsOf st) t)
+  stmt : NameEnv -> String
+  stmt e = case ty of
+    TopTy => "\{pr e a} ≡ \{pr e b}"
+    _ => "\{prE e a} ≡ \{prE e b} ∈ \{pr e ty}"
+  claimTy : String
+  claimTy = case (ctx, env) of
+    (c0 :< tA :< tA' :< tR, e0 :< x :< x' :< h) =>
+      if isSuffixOf "well-definedness of quot-elim case" site.sname
+        then "(\{x} : \{pr e0 tA}) → (\{x'} : \{pr (e0 :< x) tA'}) → (\{h} : \{pr (e0 :< x :< x') tR}) → \{stmt env}"
+        else stmt env
+    _ => stmt env
  where
   -- the elements the reflection leaves ⟨e⟩ reflect
   collect : Drv -> List Elem
@@ -3700,7 +3721,7 @@ mutual
             -- alone — a claim normalized by the licensed Σ rules would
             -- vanish into triviality before it could state anything)
             let mprf = withStated (\stX => spEqElemC (fromMaybe spDepth st.depthOv) stX (if stX.statedOnly then mkCandSet stX ctx else cs) ctx a b tyM2)
-                         (searchLine st env site "elem") st
+                         (\p => searchLine st ctx env site "elem" p a b ty) st
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mprf of
               Nothing => pure (Left site)
@@ -3740,7 +3761,7 @@ mutual
             let cs = mkCandSet st ctx
             let t1 = bump "cands" (nowNs () - t0) (nowNs ())
             let mprf = withStated (\stX => spEqTyC (fromMaybe spDepth st.depthOv) stX (if stX.statedOnly then mkCandSet stX ctx else cs) ctx tyA tyB)
-                         (searchLine st env site "ty") st
+                         (\p => searchLine st ctx env site "ty" p tyA tyB TopTy) st
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mprf of
               Nothing => pure (Left site)

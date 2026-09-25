@@ -40,7 +40,12 @@ intOfNatInjZ : {k : ℕ} → (intOfNat k ≡ intZero) → k ≡ Z
     Int.intZero.eq,
     Natural.plusZeroId,
     Natural.plusZeroId.rw)
-intOfNatInjZ = λk h. let r = intEffective h in ⋆
+intOfNatInjZ =
+  λk h. let r = intEffective h
+            claim2 = plusZeroId k
+            claim3 = r
+            claim4 = plusZeroId Z
+            ⋆
 
 -- x + ofNat (a + b) ≡ (x + ofNat a) + ofNat b, hypothesis-free
 intOfNatSplit : {x : Int} {a b : ℕ} → x + intOfNat (a + b) ≡ x + intOfNat a + intOfNat b
@@ -93,7 +98,8 @@ intPlusNegDiff =
 
 -- ===== the order =====
 leZRefl : (x : Int) → x ≤ x using (Int.order.≤.unfold, Int.order.intOfNatZero, Int.Int.unfold)
-leZRefl = λx. Z, eqToId _ _ ((let claim7 = intOfNatZero in intAddZeroR) x)
+leZRefl =
+  λx. Z, eqToId _ _ ((let claim1 = intOfNatZero in let claim7 = intOfNatZero in intAddZeroR) x)
 
 leZOfEq : {x y : Int} → (x ≡ y) → x ≤ y
   using (Int.order.≤.unfold, Int.order.intOfNatZero, Int.Int.unfold)

@@ -39,6 +39,15 @@ intAddWD =
               claim16 = plusAssoc k b2 (a1 + c1)
               claim17 = plusAssoc (S k) b2 (a1 + c1)
               claim18 = sucPlus k (b2 + (a1 + c1))
+              claim3 = plusAssoc a1 b1 (S k + c2)
+              claim4 = sucPlus k c2
+              claim5 = plusSucId b1 (k + c2)
+              claim6 = plusSucId a1 (b1 + (k + c2))
+              claim7 = plusAssoc a1 b1 (k + c2)
+              claim8 = claim15
+              claim9 = plusAssoc k b2 (a1 + c1)
+              claim10 = plusAssoc (S k) b2 (a1 + c1)
+              claim11 = sucPlus k (b2 + (a1 + c1))
               ⋆
     a2
 
@@ -79,12 +88,24 @@ intAddWDOuter : (a b : ℕ × ℕ)
   (h : a .π₁ + b .π₂ ≡ a .π₂ + b .π₁)
   (zy : Int)
   → quot-elim (z. Int) (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)) zy
-    ≡ quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) zy
+    ≡ (let claim2 : (x x' : ℕ × ℕ)
+             (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
+             → class (b .π₁ + x .π₁, b .π₂ + x .π₂)
+               ≡ class (b .π₁ + x' .π₁, b .π₂ + x' .π₂)
+               ∈ ℕ × ℕ / (y z. y .π₁ + z .π₂ ≡ y .π₂ + z .π₁)
+             = λx x' h. intAddWD (b .π₁) (b .π₂) _ _ _ _ h
+           quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) zy)
   using (intAddCross, intAddWD, Int.Int.unfold, plusAssoc)
 intAddWDOuter =
   λa b h zy. quot-elim
     q. quot-elim (z. Int) (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)) q
-      ≡ quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) q
+      ≡ (let claim1 : (x x' : ℕ × ℕ)
+               (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
+               → class (b .π₁ + x .π₁, b .π₂ + x .π₂)
+                 ≡ class (b .π₁ + x' .π₁, b .π₂ + x' .π₂)
+                 ∈ ℕ × ℕ / (y z. y .π₁ + z .π₂ ≡ y .π₂ + z .π₁)
+               = λx x' h. intAddWD (b .π₁) (b .π₂) _ _ _ _ h
+             quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) q)
     c. let claim4 = intAddCross _ _ _ _ (c .π₁) (c .π₂) h in ⋆
     zy
 

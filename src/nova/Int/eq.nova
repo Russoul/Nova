@@ -166,7 +166,12 @@ normPairWD =
 
 -- the canonical representative of an integer
 intCanon : Int → ℕ × ℕ using (Int.Int.unfold, normPairWD)
-intCanon = λz. quot-elim (p. normPair (p .π₁) (p .π₂)) z
+intCanon =
+  λz. let claim1 : (p p' : ℕ × ℕ)
+            (h : p .π₁ + p' .π₂ ≡ p .π₂ + p' .π₁)
+            → normPair (p .π₁) (p .π₂) ≡ normPair (p' .π₁) (p' .π₂)
+            = λp p' h. normPairWD _ _ _ _ h
+          quot-elim (p. normPair (p .π₁) (p .π₂)) z
 
 intCanonToInt : (z : Int) → toInt (intCanon z) ≡ z
   using (classNormPairEq,

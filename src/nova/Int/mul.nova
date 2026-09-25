@@ -177,7 +177,13 @@ intMulWDOuter : (a b : ℕ × ℕ)
   (h : a .π₁ + b .π₂ ≡ a .π₂ + b .π₁)
   (zy : Int)
   → quot-elim (z. Int) (x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁)) zy
-    ≡ quot-elim (x. class (b .π₁ * x .π₁ + b .π₂ * x .π₂, b .π₁ * x .π₂ + b .π₂ * x .π₁)) zy
+    ≡ (let claim3 : (x x' : ℕ × ℕ)
+             (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
+             → class (b .π₁ * x .π₁ + b .π₂ * x .π₂, b .π₁ * x .π₂ + b .π₂ * x .π₁)
+               ≡ class (b .π₁ * x' .π₁ + b .π₂ * x' .π₂, b .π₁ * x' .π₂ + b .π₂ * x' .π₁)
+               ∈ ℕ × ℕ / (y z. y .π₁ + z .π₂ ≡ y .π₂ + z .π₁)
+             = λx x' h. intMulWD (b .π₁) (b .π₂) _ _ _ _ h
+           quot-elim (x. class (b .π₁ * x .π₁ + b .π₂ * x .π₂, b .π₁ * x .π₂ + b .π₂ * x .π₁)) zy)
   using (distribBack,
     distribBackR,
     Int.Int.unfold,
@@ -194,7 +200,13 @@ intMulWDOuter =
       z. Int
       x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁)
       q
-      ≡ quot-elim (x. class (b .π₁ * x .π₁ + b .π₂ * x .π₂, b .π₁ * x .π₂ + b .π₂ * x .π₁)) q
+      ≡ (let claim2 : (x x' : ℕ × ℕ)
+               (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
+               → class (b .π₁ * x .π₁ + b .π₂ * x .π₂, b .π₁ * x .π₂ + b .π₂ * x .π₁)
+                 ≡ class (b .π₁ * x' .π₁ + b .π₂ * x' .π₂, b .π₁ * x' .π₂ + b .π₂ * x' .π₁)
+                 ∈ ℕ × ℕ / (y z. y .π₁ + z .π₂ ≡ y .π₂ + z .π₁)
+               = λx x' h. intMulWD (b .π₁) (b .π₂) _ _ _ _ h
+             quot-elim (x. class (b .π₁ * x .π₁ + b .π₂ * x .π₂, b .π₁ * x .π₂ + b .π₂ * x .π₁)) q)
     c. let claim33 = intMulWDRep _ _ _ _ (c .π₁) (c .π₂) h in ⋆
     zy
 
@@ -204,7 +216,13 @@ infixl 7 *
   using (distribBackR, intMulWDOuter, Int.Int.unfold, Int.mul.intMulWD, plusAssoc, sum4Distrib)
 (*) =
   λx y. quot-elim
-    a. quot-elim (b. class (a .π₁ * b .π₁ + a .π₂ * b .π₂, a .π₁ * b .π₂ + a .π₂ * b .π₁)) y
+    a. let claim1 : (b b' : ℕ × ℕ)
+             (h : b .π₁ + b' .π₂ ≡ b .π₂ + b' .π₁)
+             → class (a .π₁ * b .π₁ + a .π₂ * b .π₂, a .π₁ * b .π₂ + a .π₂ * b .π₁)
+               ≡ class (a .π₁ * b' .π₁ + a .π₂ * b' .π₂, a .π₁ * b' .π₂ + a .π₂ * b' .π₁)
+               ∈ ℕ × ℕ / (z w. z .π₁ + w .π₂ ≡ z .π₂ + w .π₁)
+             = λb b' h. intMulWD (a .π₁) (a .π₂) _ _ _ _ h
+           quot-elim (b. class (a .π₁ * b .π₁ + a .π₂ * b .π₂, a .π₁ * b .π₂ + a .π₂ * b .π₁)) y
     x
 
 -- 2 · 3 = 6 and (−2) · 3 = −6
