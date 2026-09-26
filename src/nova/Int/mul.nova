@@ -52,7 +52,7 @@ swap4b =
 -- are judgemental, so each is one ⋆ (and unlike a rewrite step, a
 -- lemma application is unconstrained by the position it lands in)
 plusCongL : {x y z : ℕ} → (x ≡ y) → x + z ≡ y + z
-plusCongL = λx y z h. let claim34 = h in ⋆
+plusCongL = λx y z h. h
 
 plusCongR : {x y z : ℕ} → (y ≡ z) → x + y ≡ x + z
 plusCongR = λx y z h. ⋆
@@ -172,7 +172,7 @@ intMulWDOuter : (a a' : ℕ × ℕ)
   (zy : Int)
   → intMulL a zy ≡ intMulL a' zy
   using (Int.Int.unfold, Int.mul.intMulL.eq)
-intMulWDOuter = λa a' h zy. quot-elim (c. let claim = intMulWDRep _ _ _ _ (c .π₁) (c .π₂) h in ⋆) zy
+intMulWDOuter = λa a' h zy. quot-elim (c. intMulWDRep _ _ _ _ (c .π₁) (c .π₂) h) zy
 
 -- ===== multiplication =====
 infixl 7 *
@@ -199,7 +199,7 @@ oneMult = λm. S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m 
 -- reflection makes the components judgemental, so this is one ⋆
 classCong2 : {u1 u2 v1 v2 : ℕ} → (u1 ≡ v1) → (u2 ≡ v2) → class (u1, u2) ≡ class (v1, v2) ∈ Int
   using (Int.Int.unfold)
-classCong2 = λu1 u2 v1 v2 h1 h2. let claim31 = h2 in let claim32 = h1 in ⋆
+classCong2 = λu1 u2 v1 v2 h1 h2. ⋆
 
 -- multiplication by 1 on the LEFT does not compute (Natural.nova's * is
 -- recursive in its SECOND argument), so oneMult/zeroMult have to fire
@@ -307,10 +307,10 @@ intMulDistribL =
 -- congruence in both arguments, for building chains: reflection makes
 -- the hypotheses judgemental, so each is one ⋆
 intAddCong2 : (x y u v : Int) → (x ≡ u) → (y ≡ v) → x + y ≡ u + v using (Int.Int.unfold)
-intAddCong2 = λx y u v h1 h2. let claim9 = h2 in let claim10 = h1 in ⋆
+intAddCong2 = λx y u v h1 h2. ⋆
 
 intMulCong2 : (x y u v : Int) → (x ≡ u) → (y ≡ v) → x * y ≡ u * v using (Int.Int.unfold)
-intMulCong2 = λx y u v h1 h2. let claim7 = h2 in let claim8 = h1 in ⋆
+intMulCong2 = λx y u v h1 h2. ⋆
 
 -- distributivity on the right, from the left law by commuting thrice
 intMulDistribR : (x y z : Int) → (x + y) * z ≡ x * z + y * z

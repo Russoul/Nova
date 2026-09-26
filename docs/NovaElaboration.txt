@@ -1739,6 +1739,27 @@ whnf(C) = (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ R[id, a, b] ⇝ ê
 # term elaboration. Note the direction of failure: never an error —
 # the residual equation is assumed and reported.
 
+Γ ⊢ t ⇒ B ⇝ t̂        B, C propositions, C evident (an ≡, a ∥𝟙∥)
+Γ ▷ f:B ⊢ ⋆ ⇐ C[↑] ⇝ ⋆              # (the ⋆ rule, f among the facts)
+--------------------------------------- (e-switch-fact)
+Γ ⊢ t ⇐ C ⇝ ⋆
+# BY THE FACT, when the types do not convert: a proof of one
+# proposition proves another when the second closes by the facts in
+# scope with the first's statement among them (el-prf-prop and
+# reflection) — a proof of the relation at a class equation, a
+# lemma's instance at the equation it rewrites to. The element is ⋆
+# (the proposition's one element), the derivation the ⋆'s with t̂'s
+# derivation at f's place. This is the witness rule of e-quotelim at
+# every checking position: `intAddWD … h` where the class equation
+# is expected, `rAddWDOuterCls {x} {x'} {c} h` as a case at an
+# ≡-motive — never `let claim = p in ⋆`. A C the fact does not close
+# is the residual obligation, reported as before. A LET whose body
+# is the proof (`let c = q in p`: several facts at one site) meets a
+# checking position by e-let-check, its claims in scope for the
+# body's switch; at an implicit spine's hole-bearing domain, where
+# the argument was inferred for the sources it supplies, the let is
+# elaborated again at its final domain by that rule.
+
 # Mode inventory. Checking-only forms: λ, pairs, inj₁, inj₂, class,
 # ⋆, ⋆ e,
 # squash-elim, 𝟘-elim (their types are not determined by their syntax

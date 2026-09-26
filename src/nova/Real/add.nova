@@ -185,7 +185,7 @@ rAddL = λx v. quot-elim (q. class (rAdd x q)) (q q' h. rAddWDInnerCls x _ _ h) 
 -- agree on every element of the quotient
 rAddWDOuter : (x x' : RSeq) (h : REq x x') (v : Real) → rAddL x v ≡ rAddL x' v
   using (Real.Real.unfold, Real.add.rAddL.eq)
-rAddWDOuter = λx x' h v. quot-elim (c. let claim = rAddWDOuterCls {x} {x'} {c} h in ⋆) v
+rAddWDOuter = λx x' h v. quot-elim (c. rAddWDOuterCls {x} {x'} {c} h) v
 
 infixl 6 +
 + : Real → Real → Real using (Real.Real.unfold)

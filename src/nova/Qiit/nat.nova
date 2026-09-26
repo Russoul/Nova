@@ -32,4 +32,4 @@ plusQzr : (a : N) → plusQ a z ≡ a
     Qiit.nat.plusQ.eq,
     Qiit.nat.s.eq,
     Qiit.nat.z.eq)
-plusQzr = λa. NElimP (λn. plusQ n z ≡ n) ⋆ (λn ih. let claim1 = ih in ⋆) a
+plusQzr = λa. NElimP (λn. plusQ n z ≡ n) ⋆ (λn ih. ih) a

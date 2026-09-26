@@ -124,14 +124,14 @@ dmAuxEq : {f a b : ℕ} → a ≤ f → a ≡ dmAux f a b .π₁ * S b + dmAux f
   using (Core.id.Id.unfold, Natural.div.dmAux.eq, Natural.div.natCase.eq, Natural.order.≤.unfold)
 dmAuxEq =
   λf. ℕ-elim
-    λa b le. let claim3 = zeroMult (S b) in let claim4 = zeroPlusId a in ⋆
+    λa b le. let claim3 = zeroMult (S b) in zeroPlusId a
     f' ih. λa b le. natCaseElimEq
       ℕ × ℕ
       λp. a ≡ p .π₁ * S b + p .π₂
       Z, a
       λm. S (dmAux f' (a ∸ S b) b .π₁), dmAux f' (a ∸ S b) b .π₂
       a ∸ b
-      λh0. let claim1 = zeroMult (S b) in let claim2 = zeroPlusId a in ⋆
+      λh0. let claim1 = zeroMult (S b) in zeroPlusId a
       λm hm. trans
         _
         _

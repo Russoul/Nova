@@ -25,7 +25,7 @@ neg' =
   λq. quot-elim
     x. class (x .π₂, x .π₁)
     x x' h. class (x .π₂, x .π₁)
-              ≡⟨ (let c = swapWD x x' h in (⋆ : class (x .π₂, x .π₁) ≡ class (x' .π₂, x' .π₁) ∈ Q)) ⟩ class (x' .π₂, x' .π₁)
+              ≡⟨ (swapWD x x' h : class (x .π₂, x .π₁) ≡ class (x' .π₂, x' .π₁) ∈ Q) ⟩ class (x' .π₂, x' .π₁)
     q
 
 -- a witness that does not close the case equation (doubling needs

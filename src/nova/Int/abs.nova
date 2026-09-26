@@ -254,7 +254,7 @@ magPairWDRep =
     cong (λu. ℕ) (λw. r' .π₁ ∸ r' .π₂ + w) (monusEqOfSum (sym _ _ h))
 
 intMag : Int → ℕ using (Int.Int.unfold)
-intMag = λz. let claim10 = magPairWDRep in quot-elim (r. magPair r) z
+intMag = λz. quot-elim (r. magPair r) (r r' h. magPairWDRep _ _ h) z
 
 intMagZero : intMag intZero ≡ Z
   using (Int.abs.intMag.eq, Int.abs.magPair.eq, Int.intZero.eq, Natural.+.eq, Natural.more.∸.eq)
@@ -262,8 +262,7 @@ intMagZero = ⋆
 
 intMagOfNat : (n : ℕ) → intMag (intOfNat n) ≡ n
   using (Int.abs.intMag.eq, Int.abs.magPair.eq, Int.order.intOfNat.eq)
-intMagOfNat =
-  λn. let claim7 = zeroMonus n in let claim8 = monusZeroR {n} in let claim9 = plusZeroId n in ⋆
+intMagOfNat = λn. let claim7 = zeroMonus n in let claim8 = monusZeroR {n} in plusZeroId n
 
 intMagNz : (f : NZ) → intMag (nzToInt f) ≡ S (nzMag f)
   using (Int.abs.intMag.eq,

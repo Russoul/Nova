@@ -268,7 +268,7 @@ sgnQ : Q → Sign
     Rat.order.Sign.unfold,
     Rat.Q.unfold,
     Rat.RatR.unfold)
-sgnQ = λu. let claim1 = ratSgnWD in quot-elim (p. ratSgn p) u
+sgnQ = λu. quot-elim (p. ratSgn p) (p p' h. ratSgnWD _ _ h) u
 
 sgnQCls : (p : Rat) → sgnQ (qcls p) ≡ ratSgn p
   using (Int.Int.unfold,

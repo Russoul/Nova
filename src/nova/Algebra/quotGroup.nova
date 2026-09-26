@@ -241,7 +241,7 @@ qInv : (G : 𝕌)
   (N : G → Ω)
   → IsSubgroup g N → IsNormal g N → QGroup _ g N → QGroup _ g N
   using (QGroup.unfold)
-qInv = λG g N s nn u. let claim9 = qInvWDCls _ _ _ s nn in quot-elim (a. qcls _ _ (ginv g a)) u
+qInv = λG g N s nn u. quot-elim (a. qcls _ _ (ginv g a)) (a a' h. qInvWDCls _ _ _ s nn _ _ h) u
 
 qInvCls : (G : 𝕌)
   (g : IsGroup G)
@@ -297,7 +297,7 @@ qAssoc =
           _
           _
           _
-          let claim7 = qMulCls _ _ _ nn a b in let claim8 = qMulCls _ _ _ nn (gop {G} g a b) c in ⋆
+          let claim7 = qMulCls _ _ _ nn a b in qMulCls _ _ _ nn (gop {G} g a b) c
           trans
             _
             _
@@ -358,7 +358,7 @@ qInvLaw =
       _
       _
       _
-      let claim3 = qInvCls _ _ _ s nn a in let claim4 = qMulCls _ _ _ nn (ginv {G} g a) a in ⋆
+      let claim3 = qInvCls _ _ _ s nn a in qMulCls _ _ _ nn (ginv {G} g a) a
       cong (λw. QGroup _ g N) (λw. class w) (gInvL g a)
     u
 
@@ -376,7 +376,7 @@ qInvLawR =
       _
       _
       _
-      let claim1 = qInvCls _ _ _ s nn a in let claim2 = qMulCls _ _ _ nn a (ginv {G} g a) in ⋆
+      let claim1 = qInvCls _ _ _ s nn a in qMulCls _ _ _ nn a (ginv {G} g a)
       cong (λw. QGroup _ g N) (λw. class w) (gInvR g a)
     u
 

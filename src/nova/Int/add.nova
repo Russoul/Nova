@@ -69,7 +69,7 @@ intAddWDOuter : (a a' : ℕ × ℕ)
   (zy : Int)
   → intAddL a zy ≡ intAddL a' zy
   using (Int.Int.unfold, Int.add.intAddL.eq)
-intAddWDOuter = λa a' h zy. quot-elim (c. let claim = intAddCross _ _ _ _ (c .π₁) (c .π₂) h in ⋆) zy
+intAddWDOuter = λa a' h zy. quot-elim (c. intAddCross _ _ _ _ (c .π₁) (c .π₂) h) zy
 
 infixl 6 +
 + : Int → Int → Int using (Int.Int.unfold)
@@ -92,10 +92,7 @@ crossComm =
 -- commutativity: two quotient eliminations at ≡-motives reduce to the
 -- representative-level cross-sum permutation
 intAddComm : (x y : Int) → x + y ≡ y + x using (Int.Int.unfold, Int.add.+.eq, Int.add.intAddL.eq)
-intAddComm =
-  λx y. quot-elim
-    a. quot-elim (b. let claim3 = crossComm (a .π₁) (b .π₁) (b .π₂) (a .π₂) in ⋆) y
-    x
+intAddComm = λx y. quot-elim (a. quot-elim (b. crossComm (a .π₁) (b .π₁) (b .π₂) (a .π₂)) y) x
 
 -- associativity: three eliminations; the representatives reassociate
 -- by plusAssoc and close by commutativity of the cross sum

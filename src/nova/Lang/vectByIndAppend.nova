@@ -74,7 +74,7 @@ vappendAssoc =
                           → (let claim = plusAssoc p m k in vappend (p + m) k (vappend _ _ q v) w)
                             ≡ vappend _ _ q (vappend _ _ v w)
                             ∈ vect (p + (m + k)) A
-                        λq. let claim1 = zeroPlusId m in let claim2 = zeroPlusId (m + k) in ⋆
+                        λq. let claim1 = zeroPlusId m in zeroPlusId (m + k)
                         p ih. λq. vappendAssocS (ih (q .π₂))
                         n
                         u

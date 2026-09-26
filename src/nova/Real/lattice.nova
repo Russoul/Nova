@@ -112,7 +112,7 @@ rMaxL = λx v. quot-elim (q. class (rMax x q)) (q q' h. rMaxWDInnerCls x _ _ h) 
 -- agree on every element of the quotient
 rMaxWDOuter : (x x' : RSeq) (h : REq x x') (v : Real) → rMaxL x v ≡ rMaxL x' v
   using (Real.Real.unfold, Real.lattice.rMaxL.eq)
-rMaxWDOuter = λx x' h v. quot-elim (c. let claim = rMaxWDOuterCls {x} {x'} {c} h in ⋆) v
+rMaxWDOuter = λx x' h v. quot-elim (c. rMaxWDOuterCls {x} {x'} {c} h) v
 
 realMax : Real → Real → Real using (Real.Real.unfold)
 realMax = λu v. quot-elim (p. rMaxL p v) (p p' h. rMaxWDOuter _ _ h v) u
@@ -219,7 +219,7 @@ rMinL = λx v. quot-elim (q. class (rMin x q)) (q q' h. rMinWDInnerCls x _ _ h) 
 -- agree on every element of the quotient
 rMinWDOuter : (x x' : RSeq) (h : REq x x') (v : Real) → rMinL x v ≡ rMinL x' v
   using (Real.Real.unfold, Real.lattice.rMinL.eq)
-rMinWDOuter = λx x' h v. quot-elim (c. let claim = rMinWDOuterCls {x} {x'} {c} h in ⋆) v
+rMinWDOuter = λx x' h v. quot-elim (c. rMinWDOuterCls {x} {x'} {c} h) v
 
 realMin : Real → Real → Real using (Real.Real.unfold)
 realMin = λu v. quot-elim (p. rMinL p v) (p p' h. rMinWDOuter _ _ h v) u

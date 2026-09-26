@@ -123,7 +123,7 @@ qFloor : Q → ℕ
     Rat.RatR.eq,
     Rat.RatR.unfold,
     Rat.dInt.eq)
-qFloor = λu. let claim4 = qFloorRepWD in quot-elim (p. divN (intMag (p .π₁)) (nzMag (p .π₂))) u
+qFloor = λu. quot-elim (p. divN (intMag (p .π₁)) (nzMag (p .π₂))) (p p' h. qFloorRepWD _ _ h) u
 
 qNatBound : Q → ℕ
 qNatBound = λu. S (qFloor u)

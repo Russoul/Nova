@@ -22,7 +22,7 @@ normPairSucSuc = λn m. ⋆
 normSound : (a b : ℕ) → normPair a b .π₁ + b ≡ normPair a b .π₂ + a
 normSound =
   λa. ℕ-elim
-    λb. let claim9 = normPairZero b in let claim10 = zeroPlusId b in let claim11 = plusZeroId b in ⋆
+    λb. let claim9 = normPairZero b in let claim10 = zeroPlusId b in plusZeroId b
     n ih. λb. ℕ-elim
       let claim6 = normPairSucZero n
           claim7 = plusZeroId (S n)
@@ -38,7 +38,7 @@ normSound =
 
 -- at the quotient, normalization is invisible
 normClass : (a b : ℕ) → class (normPair a b) ≡ class (a, b) ∈ Int using (Int.Int.unfold)
-normClass = λa b. let claim1 = normSound a b in ⋆
+normClass = λa b. normSound a b
 
 intNormalize : Int → Int using (Int.Int.unfold, Int.IntR.unfold)
 intNormalize =

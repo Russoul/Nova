@@ -54,16 +54,16 @@ nzMulOneL : {y : NZ} → nzMul nzOne y ≡ y
   using (nzMul.eq, nzNeg.eq, nzOne.eq, nzPos.eq, Rat.frac.NZ.unfold)
 nzMulOneL =
   λy. ⊎-elim
-    k. let claim29 = zeroMult k in let claim30 = zeroPlusId Z in let claim31 = zeroPlusId k in ⋆
-    k. let claim26 = zeroMult k in let claim27 = zeroPlusId Z in let claim28 = zeroPlusId k in ⋆
+    k. let claim29 = zeroMult k in let claim30 = zeroPlusId Z in zeroPlusId k
+    k. let claim26 = zeroMult k in let claim27 = zeroPlusId Z in zeroPlusId k
     y
 
 nzMulOneR : {x : NZ} → nzMul x nzOne ≡ x
   using (nzMul.eq, nzNeg.eq, nzOne.eq, nzPos.eq, Rat.frac.NZ.unfold)
 nzMulOneR =
   λx. ⊎-elim
-    m. let claim23 = multZeroId m in let claim24 = zeroPlusId m in let claim25 = plusZeroId m in ⋆
-    m. let claim20 = multZeroId m in let claim21 = zeroPlusId m in let claim22 = plusZeroId m in ⋆
+    m. let claim23 = multZeroId m in let claim24 = zeroPlusId m in plusZeroId m
+    m. let claim20 = multZeroId m in let claim21 = zeroPlusId m in plusZeroId m
     x
 
 -- ===== nat lemmas, in the orientation the engine can use =====
@@ -139,17 +139,14 @@ intScaleNOne =
 -- representatives agrees with the recursive one
 intScaleNSuc : (n : ℕ) (z : Int) → intScaleN (S n) z ≡ z + intScaleN n z
   using (intScaleN.eq, Int.Int.eq, Int.Int.unfold, Int.add.+.eq, Int.add.intAddL.eq)
-intScaleNSuc =
-  λn z. quot-elim
-    p. let claim9 = sucMultBack n (p .π₁) in let claim10 = sucMultBack n (p .π₂) in ⋆
-    z
+intScaleNSuc = λn z. quot-elim (p. let claim9 = sucMultBack n (p .π₁) in sucMultBack n (p .π₂)) z
 
 intScale : NZ → Int → Int using (Int.Int.unfold, Rat.frac.NZ.unfold)
 intScale = λd z. ⊎-elim (n. intScaleN (S n) z) (n. intNeg (intScaleN (S n) z)) d
 
 intScaleOne : {z : Int} → intScale nzOne z ≡ z
   using (intScale.eq, Int.Int.unfold, nzOne.eq, nzPos.eq)
-intScaleOne = λz. let claim8 = intScaleNOne z in ⋆
+intScaleOne = λz. intScaleNOne z
 
 intScaleZero : (d : NZ) → intScale d intZero ≡ intZero
   using (Int.Int.unfold,

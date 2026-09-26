@@ -78,7 +78,7 @@ rAbsWDCls = λx y h. realEqOfREq _ _ (rAbsWD h)
 
 realAbs : Real → Real
   using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
-realAbs = λu. let claim2 = rAbsWDCls in quot-elim (p. class (rAbs p)) u
+realAbs = λu. quot-elim (p. class (rAbs p)) (p p' h. rAbsWDCls _ _ h) u
 
 realAbsCls : {x : RSeq} → realAbs (class x) ≡ class (rAbs x)
   using (Real.RSeq.unfold,
@@ -160,11 +160,7 @@ realAbsZero : realAbs realZero ≡ realZero
     Real.abs.realAbs.eq,
     Real.neg.regOf.eq,
     Real.neg.seqOf.eq)
-realAbsZero =
-  realEqOfSeqEq
-    rAbs ((λn. qZero), constReg)
-    (λn. qZero), constReg
-    λn. let claim1 = qAbsZero in ⋆
+realAbsZero = realEqOfSeqEq (rAbs ((λn. qZero), constReg)) ((λn. qZero), constReg) (λn. qAbsZero)
 
 -- ===== nonnegativity and the triangle inequality =====
 -- 0 ≤ |x| : pointwise, since 0 − |x_n| ≤ 0 ≤ 2/(n+1)

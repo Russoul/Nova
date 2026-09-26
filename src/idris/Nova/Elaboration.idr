@@ -5640,13 +5640,25 @@ mutual
     ||| hypothesis)
     linkCand : SElem -> ElabM (List Cand)
     linkCand j = do
-      (j', jTy, _) <- inferElem ctx env site j
+      (j', jTy, jSk) <- inferElem ctx env site j
       st <- getSt
+      -- the link reflected from its DERIVATION (ascribed with its
+      -- type when it only checks): a justification whose element is
+      -- ⋆ — an ascribed ⋆, a proof accepted by the fact — has no
+      -- inferable element to reflect from
+      let jD = if dSynth jSk then jSk else DAscribe jSk (Just (reTy st ctx jTy)) Nothing
+      let lic : Nat -> Licence
+          lic wk = \sig, c => do
+            (_, pt) <- rdExpose sig c (weakenTyN wk jTy)
+            let d = weakenD wk jD
+            pure (DRefl (case pt of
+                           DReflx => d
+                           _ => DConv d Nothing pt))
       case exposeCode st jTy of
         Elem.EqTy u v _ =>
           pure (sucClosure st (mkCandD st ctx "chain link" 0 []
                   (engNfE st u) (engNfE st v)
-                  (\wk, _ => Just (reflectElem (weakenElemN wk j'))) DReflx DReflx))
+                  (\wk, _ => Just (lic wk)) DReflx DReflx))
         _ => throwAt site.srange "\{site}: a chain justification must prove an equation"
 
     ||| discharge each adjacency against ITS link only; a failure is
@@ -5834,18 +5846,15 @@ mutual
     case overloadOf st sapp of
       Just (x0, mrng, items, cands) => do
         (t', inferred, tSk) <- resolveOverload ctx env site (Just ty) x0 mrng items cands
-        c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
-        pure (t', switchD st ctx c inferred ty tSk)
+        switchAt ctx env (sub site "\{site}: inferred vs expected type") t' inferred tSk ty
       Nothing => case impSpineOf st ctx sapp of
         Just (noIns, hd, x0, mrng, items) => do
           (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) (not noIns) noIns hd x0 mrng items
-          c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
-          pure (t', switchD st ctx c inferred ty tSk)
+          switchAt ctx env (sub site "\{site}: inferred vs expected type") t' inferred tSk ty
         Nothing => do
           -- the SAME node: `inferElemAt` keeps the span the site holds
           (t', inferred, tSk) <- inferElemAt ctx env site sapp
-          c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
-          pure (t', switchD st ctx c inferred ty tSk)
+          switchAt ctx env (sub site "\{site}: inferred vs expected type") t' inferred tSk ty
   -- a BARE reference of an implicit-binder def in checking position
   -- inserts its leading implicit run, solved from the expected type
   checkElemAt ctx env site sref@(SSig mrng x0) ty = do
@@ -5853,23 +5862,19 @@ mutual
     if x0 `elem` st.dupNames
       then do
         (t', inferred, tSk) <- resolveOverload ctx env site (Just ty) x0 mrng [] (resolveSigAll st x0)
-        c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
-        pure (t', switchD st ctx c inferred ty tSk)
+        switchAt ctx env (sub site "\{site}: inferred vs expected type") t' inferred tSk ty
       else case impSpineOf st ctx (SApp sref SUnitI) of   -- reuse the head test
       Just (_, SigHead q, _, _, _) =>
         if maybe False (\ps => 0 `elem` ps) (lookup q st.impls)
           then do
             (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) True False (SigHead q) x0 mrng []
-            c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
-            pure (t', switchD st ctx c inferred ty tSk)
+            switchAt ctx env (sub site "\{site}: inferred vs expected type") t' inferred tSk ty
           else do
             (t', inferred, tSk) <- inferElemAt ctx env site sref
-            c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
-            pure (t', switchD st ctx c inferred ty tSk)
+            switchAt ctx env (sub site "\{site}: inferred vs expected type") t' inferred tSk ty
       _ => do
         (t', inferred, tSk) <- inferElemAt ctx env site sref
-        c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
-        pure (t', switchD st ctx c inferred ty tSk)
+        switchAt ctx env (sub site "\{site}: inferred vs expected type") t' inferred tSk ty
   -- {} — the NO-INSERT marker: elaborate the wrapped reference/spine
   -- without trailing insertion (implicit positions BETWEEN written
   -- arguments still recover as usual)
@@ -5878,12 +5883,10 @@ mutual
     case impSpineOf st ctx e of
       Just (_, hd, x0, mrng, items) => do
         (t', inferred, tSk) <- elabImpSpine ctx env site (Just ty) False False hd x0 mrng items
-        c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
-        pure (t', switchD st ctx c inferred ty tSk)
+        switchAt ctx env (sub site "\{site}: inferred vs expected type") t' inferred tSk ty
       Nothing => do
         (t', inferred, tSk) <- inferElem ctx env site e
-        c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
-        pure (t', switchD st ctx c inferred ty tSk)
+        switchAt ctx env (sub site "\{site}: inferred vs expected type") t' inferred tSk ty
   -- ELIDED-MOTIVE eliminators (docs/NovaPerfectSurface.txt, Phase
   -- 4): checking-only — the motive is recovered by ABSTRACTING the
   -- scrutinee in the expected type (absT), so instantiating it back
@@ -5966,9 +5969,51 @@ mutual
   checkElemAt ctx env site t ty = do
     (t', inferred, tSk) <- inferElemAt ctx env site t
     motiveTrial ctx env site t t' tSk ty
-    c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing inferred ty
+    switchAt ctx env (sub site "\{site}: inferred vs expected type") t' inferred tSk ty
+
+  ||| The mode switch (e-switch): the inferred type converted to the
+  ||| expected one, the derivation switched. Where the types do not
+  ||| convert and both are propositions with the expected one evident
+  ||| (an ≡, a ∥𝟙∥): BY THE FACT (e-switch-fact, el-prf-prop and
+  ||| reflection) — the expected proposition proved by ⋆ with the
+  ||| term's statement among the facts in scope; the element is ⋆,
+  ||| its derivation the ⋆'s with the term's derivation at the fact's
+  ||| place. The witness rule of e-quotelim at every checking
+  ||| position (a proof of the relation at a class equation, a
+  ||| lemma's instance at the equation it rewrites to). Otherwise the
+  ||| residual equation is assumed and reported, as ever.
+  switchAt : Ctx -> NameEnv -> Site -> Elem -> Ty -> Drv -> Ty -> ElabM (Elem, Drv)
+  switchAt ctx env site t' inferred tSk ty = do
     st <- getSt
-    pure (t', switchD st ctx c inferred ty tSk)
+    r <- attemptT ctx env site inferred ty
+    case r of
+      Right c => pure (t', switchD st ctx (Just c) inferred ty tSk)
+      Left _ =>
+        -- (a hole stays a hole at the expected type — a written ?hole
+        -- as much as a solver's: the fact route is for a proof the
+        -- author wrote)
+        if hasHolesE t' || any (isInfixOf "?") (toList (refsE t' [<])) then assumed else
+        let ctx' = ctx :< inferred
+            ty' = substTy ty Wk in
+        case (preferPrf st ctx' ty', preferPrf st ctx inferred) of
+          (Just pr, Just _) =>
+            let (pUse, exp) = exposePropLog st ctx' pr in
+            case pUse of
+              Elem.EqTy l r tE => do
+                r2 <- attemptE ctx' (env :< "fact") site l r tE
+                case r2 of
+                  Right prf => do
+                    let pD = if dSynth tSk then tSk else DAscribe tSk (Just (reTy st ctx inferred)) Nothing
+                    pure (Star, substD (exposeD st ctx' exp ty' (DStar Nothing prf)) (MkDSb 0 [pD]))
+                  Left _ => assumed
+              _ => assumed
+          _ => assumed
+   where
+    assumed : ElabM (Elem, Drv)
+    assumed = do
+      c <- convTy ctx env site Nothing inferred ty
+      st <- getSt
+      pure (t', switchD st ctx c inferred ty tSk)
 
   ||| Record the sugar trial's verdict at a ranged site (Phase 4).
   sugarTrial : Maybe Range -> ElabM Bool -> ElabM ()
@@ -6390,7 +6435,8 @@ mutual
             _ => pure ()
         _ => pure ()) slots
     -- pending switch conversions, at the FINAL instantiations
-    sks0 <- patchPending doms finalArgs (reverse revSks) pending
+    (finalArgs', sks0) <- patchPending slots doms finalArgs (reverse revSks) pending
+    let finalArgs = finalArgs'
     let sks1 = foldl (\ss, (dpos, dsk) => mapAt dpos (const (Just dsk)) ss) sks0 dPatches
     -- a SOLVED position (a hole the sources fixed) carries a value the
     -- elaborator never elaborated: it is RE-DERIVED at its domain; an
@@ -7001,7 +7047,7 @@ mutual
         let b' = foldl (step dps flip) b cands in
         if length b' == length b then b else iter dps flip fuel b'
 
-    mapAt : Nat -> (Maybe Drv -> Maybe Drv) -> List (Maybe Drv) -> List (Maybe Drv)
+    mapAt : {0 a : Type} -> Nat -> (a -> a) -> List a -> List a
     mapAt _ _ [] = []
     mapAt Z f (x :: xs) = f x :: xs
     mapAt (S n) f (x :: xs) = x :: mapAt n f xs
@@ -7009,23 +7055,39 @@ mutual
     ||| Emit the deferred domain conversions (the ordinary ↓ of
     ||| e-switch, certificate in the argument's skeleton payload), at
     ||| domains instantiated with the FINAL argument list.
-    patchPending : List Ty -> List Elem -> List (Maybe Drv) -> List (Nat, Ty) -> ElabM (List (Maybe Drv))
-    patchPending doms finalArgs sks [] = pure sks
-    patchPending doms finalArgs sks ((pos, eTy) :: more) = do
+    patchPending : List (Nat, Maybe SElem) -> List Ty -> List Elem -> List (Maybe Drv) -> List (Nat, Ty) -> ElabM (List Elem, List (Maybe Drv))
+    patchPending slots doms finalArgs sks [] = pure (finalArgs, sks)
+    patchPending slots doms finalArgs sks ((pos, eTy) :: more) = do
       dFinal <- case getAt pos doms of
                   Just d => pure (substTy d (preSub (take pos finalArgs)))
                   Nothing => throwAt site.srange "\{site}: internal — pending position out of range"
       when (hasHolesT dFinal) $ throwAt site.srange "\{site}: INTERNAL imp-leak dFinal pos=\{show pos} q=\{qName}"
       when (hasHolesT eTy) $ throwAt site.srange "\{site}: INTERNAL imp-leak eTy pos=\{show pos} q=\{qName}"
-      -- INFERRED ≐ EXPECTED, the e-switch orientation: the kernel
-      -- reads the switch proof in that direction, and a licensed
-      -- (leaf-carrying) proof is direction-sensitive
-      -- (α/comp-closed ones are symmetric, which is why the deferred
-      -- route could pass reversed arguments unnoticed until a blank
-      -- first deferred a hyp.rw-needing conversion)
-      c <- convTy ctx env (sub site "\{site}: implicit-spine argument type") Nothing eTy dFinal
-      st <- getSt
-      patchPending doms finalArgs (mapAt pos (map (switchD st ctx c eTy dFinal)) sks) more
+      -- INFERRED ≐ EXPECTED, the e-switch orientation (the kernel
+      -- reads the switch proof in that direction); by the fact where
+      -- the types do not convert and the domain is an evident
+      -- proposition (switchAt) — the argument then IS ⋆
+      -- a LET argument was inferred for the sources it supplies; at
+      -- its final domain it is elaborated by its checking rule
+      -- (e-let-check: the body checked under the claims), which is
+      -- the rule of a checking position — its inference was for the
+      -- joint solve alone
+      let surfLet = case lookup pos slots of
+                      Just (Just se) => case unPos se of
+                                          SLet _ _ _ => Just se
+                                          _ => Nothing
+                      _ => Nothing
+      case (surfLet, getAt pos finalArgs, getAt pos sks) of
+        (Just se, _, _) => do
+          (e', sk') <- checkElem ctx env (sub site "\{site}: implicit-spine argument") se dFinal
+          patchPending slots doms (mapAt pos (const e') finalArgs) (mapAt pos (const (Just sk')) sks) more
+        (Nothing, Just e, Just (Just sk)) => do
+          (e', sk') <- switchAt ctx env (sub site "\{site}: implicit-spine argument type") e eTy sk dFinal
+          patchPending slots doms (mapAt pos (const e') finalArgs) (mapAt pos (const (Just sk')) sks) more
+        _ => do
+          c <- convTy ctx env (sub site "\{site}: implicit-spine argument type") Nothing eTy dFinal
+          st <- getSt
+          patchPending slots doms finalArgs (mapAt pos (map (switchD st ctx c eTy dFinal)) sks) more
 
 
     ||| Apply leftover items past the syntactic telescope through the

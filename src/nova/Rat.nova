@@ -844,7 +844,7 @@ ratNegWDCls = λp p' h. clsEqOfRel _ _ (ratNegWD h)
 
 qNeg : Q → Q
   using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold, Rat.Q.unfold, Rat.RatR.unfold)
-qNeg = λu. let claim3 = ratNegWDCls in quot-elim (p. class (ratNeg p)) u
+qNeg = λu. quot-elim (p. class (ratNeg p)) (p p' h. ratNegWDCls _ _ h) u
 
 qNegCls : (p : Rat) → qNeg (qcls p) ≡ qcls (ratNeg p)
   using (Int.Int.unfold,

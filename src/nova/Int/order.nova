@@ -227,7 +227,7 @@ sumSwapZL : (a b k : ℕ) → (b + k ≡ a) → k + b ≡ Z + a
 sumSwapZL = λa b k h. k + b ≡⟨ plusComm b k ⟩ b + k ≡⟨ h ⟩ a ≡⟨ zeroPlusId a ⟩ Z + a
 
 clsOfRelGe : (a b k : ℕ) → (b + k ≡ a) → class (k, Z) ≡ class (a, b) ∈ Int using (Int.Int.unfold)
-clsOfRelGe = λa b k h. let claim6 = sumSwapZL _ _ _ h in ⋆
+clsOfRelGe = λa b k h. sumSwapZL _ _ _ h
 
 clsOfRelLe : (a b k : ℕ) → (a + k ≡ b) → class (k, Z) ≡ class (b, a) ∈ Int using (Int.Int.unfold)
 clsOfRelLe = λa b k h. clsOfRelGe _ _ _ h

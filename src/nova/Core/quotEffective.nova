@@ -103,8 +103,7 @@ natEq = λx y. x ≡ y
 
 natEqEffective : {a b : ℕ} → (class a ≡ class b ∈ ℕ / (u v. natEq u v)) → a ≡ b
   using (Core.quotEffective.natEq.eq, Core.quotEffective.natEq.unfold)
-natEqEffective =
-  effectiveAtEquiv natEq (λx. ⋆) (λx y z h1 h2. let claim1 = h1 in let claim2 = h2 in ⋆) (λx y h. ⋆)
+natEqEffective = effectiveAtEquiv natEq (λx. ⋆) (λx y z h1 h2. ⋆) (λx y h. ⋆)
 
 -- and the refutation, kept as evidence: at the successor graph — not an
 -- equivalence — the one-hop equation holds by el-quot-eq, the two-hop

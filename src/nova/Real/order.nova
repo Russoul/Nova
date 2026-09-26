@@ -185,7 +185,7 @@ rleL = λx v. quot-elim (q. RLeP x q) (q q' h. rleWDInner x _ _ h) v
 -- agree on every element of the quotient
 rleWDOuter : (x x' : RSeq) (h : REq x x') (v : Real) → rleL x v ≡ rleL x' v
   using (Real.Real.unfold, Real.order.rleL.eq)
-rleWDOuter = λx x' h v. quot-elim (c. let claim = rleWDOuterCls {x} {x'} {c} h in ⋆) v
+rleWDOuter = λx x' h v. quot-elim (c. rleWDOuterCls {x} {x'} {c} h) v
 
 infixl 4 ≤
 ≤ : Real → Real → Ω using (Real.Real.unfold)

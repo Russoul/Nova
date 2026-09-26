@@ -36,4 +36,4 @@ swapInvolutive = λp. sigma-elim (a b. ⋆) p
 -- elimination refines it too — inside, h is an equation between the
 -- components, and rewriting by it closes the goal
 sumOfSecondZero : (p : ℕ × ℕ) (h : p .π₂ ≡ Z) → p .π₁ + p .π₂ ≡ p .π₁
-sumOfSecondZero = λp h. sigma-elim (a b. let claim1 = h in let claim2 = plusZeroId a in ⋆) p
+sumOfSecondZero = λp h. sigma-elim (a b. let claim2 = plusZeroId a in ⋆) p

@@ -642,7 +642,7 @@ rMulL = λx v. quot-elim (q. class (rMul x q)) (q q' h. rMulWDInnerCls x _ _ h) 
 -- agree on every element of the quotient
 rMulWDOuter : (x x' : RSeq) (h : REq x x') (v : Real) → rMulL x v ≡ rMulL x' v
   using (Real.Real.unfold, Real.mul.rMulL.eq)
-rMulWDOuter = λx x' h v. quot-elim (c. let claim = rMulWDOuterCls {x} {x'} {c} h in ⋆) v
+rMulWDOuter = λx x' h v. quot-elim (c. rMulWDOuterCls {x} {x'} {c} h) v
 
 -- ===== multiplication on ℝ =====
 infixl 7 *

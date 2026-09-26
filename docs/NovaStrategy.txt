@@ -446,6 +446,15 @@ that with statements in the text, measured site by site.
          binders, the relation and the sides (the 25 restated
          telescopes of the `let wd` form are gone; the printer prints
          the surface AST, so the derivation-borne witness round-trips).
+         The same day, the same rule at EVERY checking position
+         (e-switch-fact): a proof written where a proposition is
+         expected proves it when the proposition closes by the facts in
+         scope with the proof's statement among them — so `let claim =
+         p in ⋆` is simply `p` (45 sites), a chain link is reflected
+         from its derivation (an ascribed ⋆ links), and a claim that
+         merely renames a hypothesis is gone. What remains of `let
+         claim` states SEVERAL facts at one site, or a fact used
+         under an eliminator's binders it cannot reach.
   [x] 3. MIGRATE BY THE COUNT, item by item, until the strict run
          accepts the corpus. tools/migrate-stated.py writes the
          mechanical part from the measure's audit (a root instance

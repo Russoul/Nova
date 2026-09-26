@@ -169,11 +169,7 @@ ltRZeroOne : realZero < realOne
     Real.lt.<.eq,
     Real.lt.<.unfold)
 ltRZeroOne =
-  ltROfQ
-    ltQOfSgn
-      qZero
-      qOne
-      let claim1 = qNegZeroQ in let claim2 = qAddZeroR qOne in let claim3 = sgnQOnePos in ⋆
+  ltROfQ (ltQOfSgn qZero qOne (let claim1 = qNegZeroQ in let claim2 = qAddZeroR qOne in sgnQOnePos))
 
 -- ===== compatibility with addition =====
 ltRAddMono : (u v t : Real) → u < v → u + t < v + t using (Real.lt.<.unfold)

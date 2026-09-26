@@ -207,7 +207,7 @@ qrMulAssoc =
           _
           _
           _
-          let claim8 = qrMulCls _ _ _ id a b in let claim9 = qrMulCls _ _ _ id (rmul _ r a b) c in ⋆
+          let claim8 = qrMulCls _ _ _ id a b in qrMulCls _ _ _ id (rmul _ r a b) c
           trans
             _
             _

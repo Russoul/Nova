@@ -180,7 +180,7 @@ rNegWDCls = λx y h. realEqOfREq _ _ (rNegWD h)
 
 realNeg : Real → Real
   using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
-realNeg = λu. let claim1 = rNegWDCls in quot-elim (p. class (rNeg p)) u
+realNeg = λu. quot-elim (p. class (rNeg p)) (p p' h. rNegWDCls _ _ h) u
 
 realNegCls : {x : RSeq} → realNeg (class x) ≡ class (rNeg x)
   using (Real.RSeq.unfold,

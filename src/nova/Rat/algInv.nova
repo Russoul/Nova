@@ -154,7 +154,7 @@ invRepWDCls = λp p' h. clsEqOfRel _ _ (invRepWD h)
 
 qInv : Q → Q
   using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold, Rat.Q.unfold, Rat.RatR.unfold)
-qInv = λu. let claim1 = invRepWDCls in quot-elim (p. class (invRep p)) u
+qInv = λu. quot-elim (p. class (invRep p)) (p p' h. invRepWDCls _ _ h) u
 
 qInvCls : (p : Rat) → qInv (qcls p) ≡ qcls (invRep p)
   using (Int.Int.unfold,
