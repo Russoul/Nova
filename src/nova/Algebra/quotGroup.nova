@@ -249,7 +249,7 @@ qInv : (G : 𝕌)
   (g : IsGroup G)
   (N : G → Ω)
   → IsSubgroup g N → IsNormal g N → QGroup _ g N → QGroup _ g N
-  using (QGroup.unfold, qInvWDCls)
+  using (QGroup.unfold)
 qInv = λG g N s nn u. let claim9 = qInvWDCls _ _ _ s nn in quot-elim (a. qcls _ _ (ginv g a)) u
 
 qInvCls : (G : 𝕌)

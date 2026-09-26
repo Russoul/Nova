@@ -15,7 +15,7 @@ data [a : 𝕌]
 
 -- 2. elimination INTO a QIIT: bag append — the motive is the Bag code
 --    itself, and the coherence is exactly the swap lemma
-bapp : {a : 𝕌} → Bag a → Bag a → Bag a using (bswp, Qiit.cross.Bag.unfold, Qiit.cross.bins.eq)
+bapp : {a : 𝕌} → Bag a → Bag a → Bag a using (Qiit.cross.Bag.unfold, Qiit.cross.bins.eq)
 bapp = λa m n. BagElim a (λw. Bag a) n (λx r ih. bins a x ih) (λx y r ih. bswp a x y ih) m
 
 -- 3. a map BETWEEN QIITs: the order-forgetting quotient map L → Bag ℕ
@@ -26,8 +26,7 @@ toBag = λt. LElim (λw. Bag ℕ) (bnil ℕ) (λx r ih. bins ℕ x ih) t
 -- toBag coequalizes adjacent transpositions (the universal property's
 -- defining triangle, at the generators): by β + the swap lemma
 toBagSwap : (x y : ℕ) (t : L) → toBag (lcons x (lcons y t)) ≡ toBag (lcons y (lcons x t))
-  using (bswp,
-    Qiit.cross.Bag.unfold,
+  using (Qiit.cross.Bag.unfold,
     Qiit.cross.L.eq,
     Qiit.cross.L.unfold,
     Qiit.cross.LElim.eq,

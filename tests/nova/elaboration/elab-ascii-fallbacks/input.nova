@@ -32,7 +32,7 @@ plusZ = \n. \star
 four : Nat
 four = 2 + 2
 
-chain : (n : Nat) -> Z + n == n \in Nat using (+.eq, plusZ)
+chain : (n : Nat) -> Z + n == n \in Nat using (+.eq)
 chain =
   \n. Nat-elim \star (k ih. \star) n
 

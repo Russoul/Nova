@@ -179,18 +179,23 @@ nothing the engine built enters the kernel's Σ unread.
 
 ////////// Where today digresses, and what closes each gap //////////
 
-The engine today is two things fused: the translator above, and an
+The engine WAS two things fused: the translator above, and an
 AUTHOR-SUBSTITUTE — the candidate search, speculative rewriting to
 depth, hop chaining, the choice of what to unfold and where. Those
-are choices the source does not record, so the engine re-invents
-them every run. This is the origin of every reconstruction the
-measure above counts, and of the blurred line between engine and
-kernel (a component that invents choices feels like a prover). The
-gap closes from the source side, not the kernel side: local claims
-(`have`), stated middles, induction and case statements with their
-motives (`view`), and the choice-free tier in place of search —
-docs/NovaSketch.txt. Then the engine stops being an author, and
-re-derivation disappears as a concept rather than as a set of bugs.
+were choices the source did not record, so the engine re-invented
+them every run — the origin of every reconstruction the measure
+counted, and of the blurred line between engine and kernel (a
+component that invents choices feels like a prover). The gap closed
+from the source side (the engine programme below, 2026-09-25/26):
+every choice is now a statement in the text — a local claim, a chain
+step, an explicit trans/sym/cong, a named left operation with its
+well-definedness claim — and the engine's discharge is the stated
+tier alone: computation, the licensed unfoldings, the type-directed
+closings, the congruence descent and the closure over the facts in
+scope. No Σ-lemma is placed by matching; there is no candidate store,
+no depth, no rewrite licence, no search mode (check E3). What remains
+of the sketch design (docs/NovaSketch.txt) is surface: `have`/`view`
+forms over today's `let` claims and eliminator motives.
 
 Smaller digressions, recorded so the audit can see them:
 
@@ -472,7 +477,7 @@ that with statements in the text, measured site by site.
          three children (irrelevance leaves cannot be chain links).
          The stated run is now the engine's FIRST route in every mode;
          the search is the fallback the measure counts.
-  [~] 3′. DELETE THE SEARCH. Done 2026-09-26, as behaviour: the
+  [x] 3′. DELETE THE SEARCH. Done 2026-09-26, as behaviour: the
          stated run IS the engine (withStated has no fallback), the
          `.rw` licences are refused (`hyp.rw` too — hypotheses are
          facts in scope, licence-free), the Σ-lemma hops are gone from
@@ -486,11 +491,16 @@ that with statements in the text, measured site by site.
          the search; a witness clause whose equation holds only by a
          lemma's instance has no form to state it yet (an open surface
          decision, docs/NovaElaboration.txt, Defining equations —
-         SCOPES). Still to delete, as code: the `statedOnly` flag and
-         its dead branches, the Σ-lemma candidate store (`lemmas`,
-         `candCs`…, `sigCandParts` at admission), the `scope` of a `⋆
-         using` (licences only, now), the depth override, the `rw:`
-         markers. Known engine bug met on the way: a local claim of a
+         SCOPES). And as code, the same day: the `statedOnly` flag and
+         its branches, the Σ-lemma candidate store (`lemmas`, `candCs`…,
+         addLemma at admission, the module archive of lemmas), the
+         discharge `scope` of a `⋆ using` (a using clause is licences
+         only: `.eq`, `.unfold`, `pi.eta`, `sigma.eta` — a bare lemma
+         name is an error), the `rw:` markers, the global-store mode.
+         The candidate machinery that remains serves the facts in scope
+         (hypotheses, local claims, chain links) and the chain's depth
+         budget. check-roles E3 keeps it deleted. Known engine bug met
+         on the way: a local claim of a
          Σ-lemma whose statement is an equation BETWEEN PROOFS (Core.id's
          idToEqBetaEq) is rejected by the kernel at the let (the
          claim's type normalized by irrelevance) — not yet fixed, not

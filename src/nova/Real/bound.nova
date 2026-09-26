@@ -109,8 +109,7 @@ bndSeqBound =
 -- the bound is a successor, and in fact at least 2 — which is what
 -- lets the product's sampling index be written without a predecessor
 seqBoundPos : {p : RSeq} → qZero ≤ qOfNat (seqBound p)
-  using (Rat.nat.qOfNatZero,
-    Rat.order.≤.unfold,
+  using (Rat.order.≤.unfold,
     Rat.order.NonNegS.unfold,
     Rat.Q.unfold,
     Real.RSeq.unfold,

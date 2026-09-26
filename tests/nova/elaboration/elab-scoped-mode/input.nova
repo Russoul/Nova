@@ -1,4 +1,4 @@
--- NOVA_SCOPED=1: an item WITHOUT a using clause discharges with
+-- NOVA_SCOPED=1: an item WITHOUT a discharges with
 -- hypotheses and computation only — store use must be named
 infixl 6 +
 + : ℕ → ℕ → ℕ
@@ -7,7 +7,7 @@ plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq)
 plusZeroId = λn. ⋆
 plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ using (+.eq)
 plusSucId = λn. λm. ⋆
-zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ using (+.eq, plusZeroId)
+zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ using (+.eq)
 zeroPlusId = λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
 sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ using (+.eq)
 sucPlus =
@@ -30,5 +30,5 @@ byHypothesis =
 needsStore : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ
 needsStore = λa. λb. ⋆
 -- the same site, named: silent
-named : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ using (plusComm)
+named : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ
 named = λa. λb. ⋆

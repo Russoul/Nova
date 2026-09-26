@@ -44,8 +44,7 @@ natCaseElimEq : (C : 𝕌)
 natCaseElimEq = λC P z s n. ℕ-elim (λh0 h1. h0 ⋆) (k' rec. λh0 h1. h1 k' ⋆) n
 
 -- ===== comparison, read off monus =====
-leOfMonusZero : {a b : ℕ} → (a ∸ b ≡ Z) → a ≤ b
-  using (Natural.more.monusZeroR, Natural.order.≤.unfold)
+leOfMonusZero : {a b : ℕ} → (a ∸ b ≡ Z) → a ≤ b using (Natural.order.≤.unfold)
 leOfMonusZero =
   λa. ℕ-elim
     λb h. leZero _
@@ -122,12 +121,7 @@ modN = λa b. dmAux a a b .π₂
 
 -- ===== the specification =====
 dmAuxEq : {f a b : ℕ} → a ≤ f → a ≡ dmAux f a b .π₁ * S b + dmAux f a b .π₂
-  using (Core.id.Id.unfold,
-    Natural.div.dmAux.eq,
-    Natural.div.natCase.eq,
-    Natural.order.≤.unfold,
-    zeroMult,
-    zeroPlusId)
+  using (Core.id.Id.unfold, Natural.div.dmAux.eq, Natural.div.natCase.eq, Natural.order.≤.unfold)
 dmAuxEq =
   λf. ℕ-elim
     λa b le. let claim3 = zeroMult (S b) in let claim4 = zeroPlusId a in ⋆
@@ -208,8 +202,7 @@ modTest = ⋆
 
 -- ===== uniqueness of the quotient =====
 -- no natural is below its own successor's floor
-leSucNotSelf : (a : ℕ) → S a ≤ a → 𝟘
-  using (Core.id.Id.unfold, Natural.plusSucId, Natural.order.≤.unfold)
+leSucNotSelf : (a : ℕ) → S a ≤ a → 𝟘 using (Core.id.Id.unfold, Natural.order.≤.unfold)
 leSucNotSelf =
   λa le. zNotS
     sym
@@ -232,7 +225,7 @@ leSucNotSelf =
           sym _ _ (plusZeroId a)
 
 -- d·(d'+1) is strictly below (d+1)·(d'+1)
-ltProdSuc : (d d' : ℕ) → S (d * S d') ≤ S d * S d' using (Natural.plusSucId, Natural.order.≤.unfold)
+ltProdSuc : (d d' : ℕ) → S (d * S d') ≤ S d * S d' using (Natural.order.≤.unfold)
 ltProdSuc =
   λd d'. (,)
     d'

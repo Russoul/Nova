@@ -1009,7 +1009,7 @@ expandClausal nrng fname ty uses etaName etaRng witness clauses = do
   let lemUses = map (\c => Just ([fname ++ ".eq"] ++ itemU ++ fromMaybe [] c.cuses)) clauses
   -- (the clause equations and the hypotheses are facts in scope: the
   -- stated tier reads them; no rewrite licence is cited)
-  let etaUses = Just (lemNames ++ [fname ++ ".eq"] ++ itemU)
+  let etaUses = Just ([fname ++ ".eq"] ++ itemU)
   case witness of
     Just w =>
       -- WITNESS TIER: existence is the user's; the clause lemmas pay

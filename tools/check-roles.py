@@ -262,6 +262,27 @@ def check_e1():
         ok("E1", "engine Σ sites: " + ", ".join(f"{n} × {k}" for k, n in sorted(kinds.items())))
 
 
+# ----- E3 ------------------------------------------------------------------
+
+SEARCH_REMNANTS = ['"rw:"', "statedOnly", "addLemma", "candCs", "NOVA_NOSEARCH", "SEARCH-NEEDED", "resolveRwName", "scopedMode", "NOVA_GLOBAL_STORE"]
+
+
+def check_e3():
+    """The engine places no lemma: the search is deleted (the engine
+    programme, 3′) and stays deleted — no rewrite-licence marker, no
+    stated-only flag, no Σ-lemma candidate store, no measure mode."""
+    bad = []
+    for path in engine_files():
+        for i, l in code_lines(path):
+            for w in SEARCH_REMNANTS:
+                if w in l:
+                    bad.append(f"{path.relative_to(ROOT)}:{i}: {w}")
+    for b in bad:
+        fail("E3", f"a remnant of the search in the engine — {b}")
+    if not any(f.startswith("E3") for f in failures):
+        ok("E3", "no Σ-lemma store, rewrite licence or search mode in the engine")
+
+
 def main():
     print("check-roles: the mechanical half of the roles audit (docs/NovaStrategy.txt)")
     check_k1()
@@ -270,6 +291,7 @@ def main():
     check_k4()
     check_s1()
     check_e1()
+    check_e3()
     if failures:
         print(f"\ncheck-roles: FAILED ({len(failures)})")
         for f in failures:

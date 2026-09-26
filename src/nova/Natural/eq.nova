@@ -18,7 +18,7 @@ eqNRefl = λn. ℕ-elim ⋆ (k ih. ih) n
 -- an equation), the matching cases fall out of the inductive
 -- hypothesis by congruence on S
 eqNSound : {n m : ℕ} → EqN n m → n ≡ m
-  using (Natural.eq.EqN.eq, Natural.eq.EqN.unfold, Core.prop.propext, Core.prop.⊥.unfold)
+  using (Natural.eq.EqN.eq, Natural.eq.EqN.unfold, Core.prop.⊥.unfold)
 eqNSound =
   λn. ℕ-elim
     λm. ℕ-elim (constP ⋆) (j ih2. λh. reflectSquash (squash-elim h (x. 𝟘-elim x))) m

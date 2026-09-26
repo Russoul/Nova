@@ -61,8 +61,8 @@ let
 
 in
 {
-  # Every src/nova module elaborates with zero obligations, under both
-  # the searchless discipline and NOVA_GLOBAL_STORE=1.
+  # Every src/nova module elaborates with zero obligations under the
+  # stated engine.
   elaborations = mkCheck "elaborations" {
     script = ''
       NOVA_BIN=${novaPkgs.nova}/bin/nova ./check-elaborations.sh

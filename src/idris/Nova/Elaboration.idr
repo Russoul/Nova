@@ -250,22 +250,6 @@ record ElabSt where
   ||| and is never read; admission reads the admitted entries alone
   ||| (docs/NovaStrategy.txt, kernel programme item 1)
   sig : Sig
-  lemmas : List Cand
-  ||| the Σ-level candidate partition, derived from `lemmas` and
-  ||| recomputed only when a lemma is added: all (degenerates dropped),
-  ||| the two `ordered` blocks, and the hop-only set
-  candCs : List Cand
-  candShrink : List Cand
-  candRest : List Cand
-  candHops : List Cand
-  ||| candShrink ++ candRest, precomputed: the whole rewrite list when
-  ||| Γ contributes nothing
-  candRw : List Cand
-  ||| the CURRENT module's own lemmas, newest first (archived under its
-  ||| name when the module finishes)
-  ownLemmas : List Cand
-  ||| finished modules' own lemmas, newest MODULE first
-  modLemmas : List (String, List Cand)
   ||| finished modules' direct imports, for the transitive closure
   modImports : List (String, List String)
   ||| the module being elaborated, and its direct imports
@@ -304,12 +288,6 @@ record ElabSt where
   ||| opened names of its imports (last entry wins; locals were already
   ||| resolved by the parser and never reach this table)
   vis : SnocList (String, String)
-  ||| when Just, the Σ-level candidate SCOPE of the current discharge
-  ||| site: only the lemmas named here participate in matching and
-  ||| rewriting (hypotheses of Γ always do). Set transiently around a
-  ||| `⋆ using (…)` site (docs/SearchlessElaboration.md §5.3); Nothing
-  ||| = the full store, the historical behavior.
-  scope : Maybe (List String)
   ||| Σ-names of definitions whose UNFOLDING the current item/site has
   ||| licensed for equation joins, by citing `<name>.eq` in its using
   ||| clause — the explicit, named form of δ for equational reasoning
@@ -325,17 +303,12 @@ record ElabSt where
   transp : List String
   ||| SITE-LOCAL candidates, merged into every candidate set while
   ||| set: the reflected link justifications of a calc chain (§5.2).
-  ||| Ground, at the site's own context — set transiently, like scope.
+  ||| Ground, at the site's own context — set transiently.
   localCands : List Cand
   ||| transient override of the engine's match/hop depth budget: a
   ||| chain needs one hop per link, so its composite discharge runs at
   ||| depth links + spDepth instead of the fixed spDepth
   depthOv : Maybe Nat
-  ||| the engine on the STATED forms alone (NOVA_NOSEARCH, the engine
-  ||| programme's measure): candidates the text states at the site —
-  ||| hypotheses, chain links, the ≡-elim hypothesis — never a lemma
-  ||| instantiated by matching nor a licensed rewrite loop
-  statedOnly : Bool
   ||| Σ-name → the IMPLICIT positions of its leading Π-telescope
   ||| (docs/NovaPerfectSurface.txt, Phase 3): the {x : A} binders of
   ||| the def's surface type, recorded at acceptance, consulted at
@@ -438,7 +411,7 @@ record ElabSt where
   tyDrvs : List (Ctx, Ty, Drv)
 
 initSt : ElabSt
-initSt = MkElabSt [<] [] [] [] [] [] [] [] [] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] Nothing [] [] [] Nothing False [] False [<] False [<] [<] [<] False False [] [] [<] [] 0 False Nothing []
+initSt = MkElabSt [<] [] [] [] [] [<] [<] [<] [<] "" "" [] "" [<] [] [] [] Nothing [] False [<] False [<] [<] [<] False False [] [] [<] [] 0 False Nothing []
 
 ||| Is the surface term an INFERENCE form — its type known without an
 ||| expected type? Mirrors the mode inventory
@@ -597,20 +570,6 @@ addVis (a, q) = do
               then a :: st.dupNames else st.dupNames
   modifySt $ { vis $= (:< (a, q)), dupNames := ds' }
 
-||| Run an action with the discharge scope set (docs/
-||| SearchlessElaboration.md §5.3), restoring the previous scope after.
-||| An error aborts the run outright (the state is discarded on Left),
-||| so no restore is needed on that path.
-withScope : Maybe (List String) -> ElabM a -> ElabM a
-withScope Nothing act = act
-withScope sc act = do
-  st <- getSt
-  let old = st.scope
-  modifySt { scope := sc }
-  r <- act
-  modifySt { scope := old }
-  pure r
-
 ||| Run an action with the eq-unfold scope set (the `<name>.eq`
 ||| citations of a using clause), restoring after — the equation-side
 ||| twin of withScope.
@@ -646,19 +605,6 @@ resolveFlex st n = pick (n :: strips n)
     case sigLookup q st.sig of
       Just _ => q
       Nothing => pick ms
-
-||| `<lemma>.rw` cites a store lemma as a REWRITE rule for the site's
-||| discharges — the named form of the removed store rewriting, one
-||| rule at a time.
-resolveRwName : ElabSt -> String -> Maybe String
-resolveRwName st n = do
-  let True = isSuffixOf ".rw" n
-    | False => Nothing
-  let base = substr 0 (minus (length n) 3) n
-  let q = resolveFlex st base
-  if any (\c => c.candName == q) st.lemmas
-    then Just q
-    else Nothing
 
 ||| `<def>.unfold` licenses HEAD EXPOSURE of the named definition
 ||| (term or type) at this site — the type-exposure whitelist. An
@@ -707,27 +653,24 @@ resolveUsingNames site ns = do
               Nothing => (the (List String) [], [n])) ns
   let eqNs = concatMap fst sorted
   let lemNs = concatMap snd sorted
-  let rs = map (resolveFlex st) lemNs
-  traverse_ (\x =>
-    case sigLookup x st.sig of
+  -- a bare name licenses nothing: the engine places no lemma, so a
+  -- lemma is used by stating its instance where it is used
+  traverse_ (\x => the (ElabM ()) $
+    case sigLookup (resolveFlex st x) st.sig of
       Nothing => throwAt site.srange "\{site}: using: unknown name '\{x}'"
-      Just _ =>
-        if any (\c => c.candName == x) st.lemmas
-          then pure ()
-          else throwAt site.srange "\{site}: using: '\{x}' is not an equation lemma in the visible store") rs
-  pure (rs, eqNs)
+      Just _ => throwAt site.srange "\{site}: using: '\{x}' names no licence (a licence is <def>.eq, <def>.unfold, pi.eta or sigma.eta); a lemma is used by stating its instance where it is used") lemNs
+  pure ([], eqNs)
 
-||| Run an action with site-local candidates, an EMPTY Σ-scope (a
-||| chain never consults the global store) and a depth budget sized to
-||| the chain — restoring all three after. Used by the calc-chain rule
-||| (docs/SearchlessElaboration.md §5.2).
+||| Run an action with site-local candidates (a chain's links) and a
+||| depth budget sized to the chain — restoring both after. Used by
+||| the calc-chain rule (docs/SearchlessElaboration.md §5.2).
 withLocal : List Cand -> Nat -> ElabM a -> ElabM a
 withLocal cs d act = do
   st <- getSt
-  let (oldC, oldD, oldS) = (st.localCands, st.depthOv, st.scope)
-  modifySt { localCands := cs, depthOv := Just d, scope := Just [] }
+  let (oldC, oldD) = (st.localCands, st.depthOv)
+  modifySt { localCands := cs, depthOv := Just d }
   r <- act
-  modifySt { localCands := oldC, depthOv := oldD, scope := oldS }
+  modifySt { localCands := oldC, depthOv := oldD }
   pure r
 
 ||| Run an action with EXTRA site-local candidates in front of the
@@ -1815,29 +1758,24 @@ unfLogTy : Sig -> Ctx -> List String -> Ty -> (Ty, Drv)
 unfLogTy sig ctx = unfLogElem sig (Just (ctx, Just TopTy))
 
 ||| The join normal form of a side — β plus the site's licensed
-||| unfoldings — extended, under a cited `hyp.rw` / `<lemma>.rw`
-||| license, by the rewrite loop RESTRICTED to the licensed rules
-||| (hypotheses, chain links, named Σ-lemmas; never the whole store);
-||| with the PROOF of e ≐ e′ (each rewrite's leaf inside the congruence
+||| unfoldings — extended by the rewrite loop over the FACTS IN SCOPE
+||| (hypotheses, local claims, chain links, the ≡-elim hypothesis;
+||| never a Σ-lemma); with the PROOF of e ≐ e′ (each rewrite's leaf inside the congruence
 ||| skeleton of its position, at the root type mty — Nothing:
 ||| undetermined), or Nothing when a rewrite's proof cannot be written
 ||| (the term is still fully rewritten: the normal form is what the
 ||| engine compares, the proof what the kernel checks).
 rwNfElemP : ElabSt -> Ctx -> Maybe Ty -> (unfs : List String) -> List Cand -> Elem -> (Elem, Maybe Drv)
 rwNfElemP st ctx mty unfs cands e =
-  -- the STATED tier rewrites by the facts in scope always (closure
-  -- over hypotheses, local claims and chain links, to normal form:
-  -- choice-free); the full engine only under a `.rw` licence
-  if st.statedOnly || elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
-    -- the RAW side rewritten first (its positions are arguments of
-    -- definitions with declared types: every leaf lands at a typed
-    -- position), then unfolded, then the loop
-    then goS rwFuel [] (compElem e) (Just []) False
-    else let (start, uP) = unfLogElem st.sig (Just (ctx, mty)) unfs e in (start, Just uP)
+  -- the closure over the facts in scope (hypotheses, local claims,
+  -- chain links, the ≡-elim hypothesis), to normal form: the RAW side
+  -- rewritten first (its positions are arguments of definitions with
+  -- declared types: every leaf lands at a typed position), then
+  -- unfolded, then the loop
+  goS rwFuel [] (compElem e) (Just []) False
  where
   hypCs : List Cand
-  hypCs = filter (\c => ((st.statedOnly || elem "hyp.rw" unfs) && (c.candName == "hypothesis" || c.candName == "chain link" || c.candName == "eq-elim"))
-                      || (not st.statedOnly && elem ("rw:" ++ c.candName) unfs)) cands
+  hypCs = filter (\c => c.candName == "hypothesis" || c.candName == "chain link" || c.candName == "eq-elim") cands
   done : Elem -> Maybe (List Drv) -> (Elem, Maybe Drv)
   done t acc = (t, map (chainP . reverse) acc)
   goS : Nat -> List Elem -> Elem -> Maybe (List Drv) -> (unfolded : Bool) -> (Elem, Maybe Drv)
@@ -1860,13 +1798,10 @@ rwNfElemP st ctx mty unfs cands e =
 ||| rwNfElemP for a type (at 𝕍; type positions descend as rewriteTyS).
 rwNfTyP : ElabSt -> Ctx -> (unfs : List String) -> List Cand -> Ty -> (Ty, Maybe Drv)
 rwNfTyP st ctx unfs cands ty =
-  if st.statedOnly || elem "hyp.rw" unfs || any (isPrefixOf "rw:") unfs
-    then goS rwFuel [] (compTy ty) (Just []) False
-    else let (start, uP) = unfLogTy st.sig ctx unfs ty in (start, Just uP)
+  goS rwFuel [] (compTy ty) (Just []) False
  where
   hypCs : List Cand
-  hypCs = filter (\c => ((st.statedOnly || elem "hyp.rw" unfs) && (c.candName == "hypothesis" || c.candName == "chain link" || c.candName == "eq-elim"))
-                      || (not st.statedOnly && elem ("rw:" ++ c.candName) unfs)) cands
+  hypCs = filter (\c => c.candName == "hypothesis" || c.candName == "chain link" || c.candName == "eq-elim") cands
   done : Ty -> Maybe (List Drv) -> (Ty, Maybe Drv)
   done t acc = (t, map (chainP . reverse) acc)
   goS : Nat -> List Ty -> Ty -> Maybe (List Drv) -> (unfolded : Bool) -> (Ty, Maybe Drv)
@@ -2265,41 +2200,20 @@ mkCandSetAt st ctx skip locals =
   -- Γ-level hypotheses are computed here, and at a top-level item
   -- there are none.
   --
-  -- A SCOPE (a `⋆ using` site) restricts the Σ-level part to the named
-  -- lemmas — the partition is recomputed over the filtered store, and
-  -- the hypotheses normalize against the scoped rules. Candidate SIDES
-  -- were normalized against the store as of their acceptance (a global
-  -- property of the stored form, unchanged by scoping); scoping
-  -- controls which equations PARTICIPATE.
-  let (sCs, sShrink, sRest, sHops) =
-        the (List Cand, List Cand, List Cand, List Cand) $
-        case st.scope of
-          Nothing => (st.candCs, st.candShrink, st.candRest, st.candHops)
-          Just names => sigCandParts (filter (\c => elem c.candName names) st.lemmas)
-      sRw = case st.scope of
-              Nothing => st.candRw
-              Just _ => sShrink ++ sRest
-  -- LOCALS (a chain adjacency's link) come FIRST — both their rule
-  -- blocks, ahead of every hypothesis and store rule: a link's rule
-  -- must act before a sibling hypothesis's can corrupt the sides away
-  -- from the link's shape (a hypothesis k ≡ Z rewriting inside
-  -- a + k ≐ b leaves the link a + k ≡ b nothing to match, and a
-  -- SHRINK hypothesis outranks a size-preserving link in the merged
-  -- blocks, so the blocks must not be merged).
-      -- hops for chain links always; for hypotheses under
-      -- a hyp.rw license; for Σ-lemmas under their <lemma>.rw license
-      -- (none in the stated run: a Σ-lemma hop is the search's)
-      sHopsStrict = if st.statedOnly then [] else filter (\c => elem ("rw:" ++ c.candName) st.eqScope) sHops
-      -- (the stated tier chains through the facts in scope always)
-      hypLicensed = st.statedOnly || elem "hyp.rw" st.eqScope
-  in case (locals, hypCands st sRw ctx skip) of
-       ([], []) => MkCandSet sCs sRw sHopsStrict locals skip
+  -- (no Σ-level part: the engine places no lemma; the candidates are
+  -- the facts in scope — a chain adjacency's link FIRST, both its
+  -- rule blocks, ahead of every hypothesis: a link's rule must act
+  -- before a sibling hypothesis's can corrupt the sides away from the
+  -- link's shape, and a SHRINK hypothesis outranks a size-preserving
+  -- link in the merged blocks, so the blocks are not merged)
+  case (locals, hypCands st [] ctx skip) of
+       ([], []) => MkCandSet [] [] [] locals skip
        (ls, hs) =>
          let (lcs, lsh, lre, lhp) = sigCandParts ls
              (hcs, hsh, hre, hhp) = sigCandParts hs
-         in MkCandSet (lcs ++ sCs ++ hcs)
-                      (lsh ++ lre ++ sShrink ++ hsh ++ sRest ++ hre)
-                      (lhp ++ sHopsStrict ++ (if hypLicensed then hhp else []))
+         in MkCandSet (lcs ++ hcs)
+                      (lsh ++ lre ++ hsh ++ hre)
+                      (lhp ++ hhp)
                       locals skip
 
 mkCandSet : ElabSt -> Ctx -> CandSet
@@ -2708,7 +2622,7 @@ mutual
     -- hops: only CHAIN LINKS hop (mkCandSet filters) —
     -- walking the operator's own listed adjacencies is the chain's
     -- explicit trans semantics, not search
-    firstJ (map direct (if st.statedOnly then filter stated cs.all else cs.all))
+    firstJ (map direct (filter stated cs.all))
       <|> firstJ (map hop cs.hops)
    where
     -- a candidate the text STATES at the site: a hypothesis in
@@ -3630,7 +3544,7 @@ assume stmt site comp = do
 ||| the author's obligation (docs/NovaStrategy.txt, the engine
 ||| programme).
 withStated : (ElabSt -> Maybe Drv) -> ElabSt -> Maybe Drv
-withStated run st = run ({ statedOnly := True } st)
+withStated run st = run st
 
 mutual
   ||| One discharge attempt: engine + eager kernel check. Right = the
@@ -5306,7 +5220,7 @@ mutual
     mintRefl g0 env0 aEq0 t0 n0 i j siteArgs wTy = do
       st <- getSt
       let reflTy = Elem.EqTy t0 t0 aEq0
-      (rp, rsk) <- withScope (Just []) (checkElem g0 env0 (sub site "\{site}: ≡-elim, reflexivity")
+      (rp, rsk) <- (checkElem g0 env0 (sub site "\{site}: ≡-elim, reflexivity")
                                           (SStar Nothing) reflTy)
       qr <- emitInlineDef site "r" g0 reflTy rp rsk
       let inst = \base => foldl PiApp (SigVar qr [<]) (map CtxVar (idxDesc n0 base))
@@ -5326,7 +5240,7 @@ mutual
       -- the annotation moves first
       let instTy = substTy (Elem.EqTy t0 t0 aEq0) (wkN (S i))
       let irrTy = Elem.EqTy (CtxVar j) atSite instTy
-      (pp, psk) <- withScope (Just []) (checkElem ctx env (sub site "\{site}: ≡-elim, irrelevance")
+      (pp, psk) <- (checkElem ctx env (sub site "\{site}: ≡-elim, irrelevance")
                                           (SStar Nothing) irrTy)
       -- the irrelevance lemma's TYPE is the one thing here the site
       -- SYNTHESISED: it puts the reference where w stood, and the
@@ -5400,7 +5314,7 @@ mutual
       let etaTy = Elem.EqTy (SigmaIntro (SigmaElim1 wv) (SigmaElim2 wv)) wv pairTy
       -- the discharge needs el-sigma-eta and NOTHING else: no store,
       -- so the site pays a fixed cost whatever the module holds
-      (prf, prfSk) <- withScope (Just []) (withEqScope ["sigma.eta"]
+      (prf, prfSk) <- (withEqScope ["sigma.eta"]
                         (checkElem ctx env site (SStar Nothing) etaTy))
       st <- getSt
       q <- emitInlineDef site "η" ctx etaTy prf prfSk
@@ -5657,7 +5571,7 @@ mutual
   -- site to nothing.
   checkElemAt ctx env site (SStarUsing mrng ns) ty = do
     (rs, eqs) <- resolveUsingNames site ns
-    withScope (Just rs) (withEqScope eqs (checkElem ctx env site (SStar mrng) ty))
+    withEqScope eqs (checkElem ctx env site (SStar mrng) ty)
   -- e-chain (docs/SearchlessElaboration.md §5.2): x ≡⟨ e ⟩ y … at
   -- Prf (l ≡ r ∈ A). Midpoints check at A; each justification INFERS
   -- and must prove an equation, which becomes a site-local ground
@@ -7094,53 +7008,6 @@ mutual
 
 -- ===== Items =====
 
-||| Register a just-accepted definition's equation (if its type peels
-||| to an equality prop) as a rewrite candidate: the WHOLE context
-||| (telescope + peeled Πs) is parametric, so the lemma applies in
-||| any context.
-addLemma : String -> Ctx -> Ty -> ElabM ()
-addLemma name delta ty = withEqScope ["exp:*"] $ do
-  st <- getSt
-  let (delta', peeled) = peelPis delta (peelNf st ty)
-  -- equality is Ω-valued: a lemma registers when its peeled type IS
-  -- an equality prop (squashed spellings converge here by
-  -- code-squash-idem)
-  let meq : Maybe (Elem, Elem, Ty) =
-        case exposeCode st peeled of
-          Elem.EqTy l r t => Just (l, r, t)
-          _ => Nothing
-  case meq of
-    Just (l, r, t) =>
-      -- Sides normalized against the store as of this point (recording
-      -- the normalization so the kernel can bridge from the raw
-      -- reflected equation); closed under component decomposition.
-      let lemmaRw = st.candRw
-          k = length delta'
-          teleLen = length delta
-          peeledN = minus k teleLen
-          mk : Nat -> Bindings -> Maybe Licence
-          mk = \wk, bs => do
-            teleArgs <- traverse (\p => lookup p bs)
-                          (the (List Nat) (if teleLen == 0 then [] else reverse [peeledN .. minus k 1]))
-            peeledArgs <- traverse (\p => lookup p bs)
-                            (the (List Nat) (if peeledN == 0 then [] else reverse [0 .. minus peeledN 1]))
-            pure (reflectElem (foldl PiApp (SigVar name (cast teleArgs)) peeledArgs))
-          -- (no site licences here: the sides β-join, no δ, no rewrite —
-          -- the normalization proofs are reflexivity; a lemma is used
-          -- from its raw equation)
-          lRes = rwNfElemP st delta' (Just t) [] lemmaRw (engNfE st l)
-          rRes = rwNfElemP st delta' (Just t) [] lemmaRw (engNfE st r)
-          pL = fromMaybe DReflx (snd lRes)
-          pR = fromMaybe DReflx (snd rRes)
-      in modifySt $ \st' =>
-           let new = sucClosure st' (mkCandD st' [<] name k (toList delta') (fst lRes) (fst rRes) mk pL pR)
-               ls = new ++ st'.lemmas
-               (cs, sh, re, hp) = sigCandParts ls
-           in { lemmas := ls, ownLemmas := new ++ st'.ownLemmas
-              , candCs := cs, candShrink := sh
-              , candRest := re, candHops := hp, candRw := sh ++ re } st'
-    _ => pure ()
-
 liftQE : Site -> Either QErr a -> ElabM a
 liftQE site (Left e) = throwAt site.srange "\{site}: \{e}"
 liftQE site (Right x) = pure x
@@ -7159,7 +7026,6 @@ emitCoreDef site x ty tySk body bodySk = do
     [("TYPE", tySk), ("BODY", bodySk)]
   modifySt $ \s => { sig $= (:< fromMaybe (assumeDefK s q body ty bodySk tySk) me) } s
   addVis (x, q)
-  addLemma q [<] ty
 
 emitCoreTyDef : Site -> String -> Ty -> Drv -> ElabM ()
 emitCoreTyDef site x ty tySk = do
@@ -7269,7 +7135,7 @@ elabItemGo : (irng : Maybe Range) -> SItem -> ElabM String
 ||| NOVA_GLOBAL_STORE=1 restores the historical whole-store search.
 export
 elabItem : (irng : Maybe Range) -> SItem -> ElabM String
-elabItem irng item = withScope (if scopedMode then Just [] else Nothing) $ do
+elabItem irng item = do
   base <- oblCount
   modifySt { curItem := clearBlocked (itemName item), curImps := []
            , itemOblBase := base, itemAssumed := False, itemBlocked := Nothing
@@ -7294,11 +7160,11 @@ elabItemGo irng (SDef nrng x ty body muses) = do
           Just ns => do
             (rs, eqs) <- resolveUsingNames (MkSite "def \{x}" irng) ns
             pure (Just rs, eqs)
-          Nothing => pure (if scopedMode then Just [] else Nothing, [])
+          Nothing => pure (Nothing, [])
   let (sc, eqs) = scEqs
   -- items live in the EMPTY context: parameters are Π-binders in the
   -- item's type, references are bare names
-  (ty', tySk) <- withScope sc (withEqScope eqs (elabTy [<] [<] (MkSite "def \{x}" irng) ty))
+  (ty', tySk) <- withEqScope eqs (elabTy [<] [<] (MkSite "def \{x}" irng) ty)
   -- the DEFINITION SITE hovers like a reference: the name ascribed
   -- its elaborated type (references record at e-sig, see SSig)
   recordBinder nrng [<] [<] x ty'
@@ -7306,13 +7172,12 @@ elabItemGo irng (SDef nrng x ty body muses) = do
   -- under the item's own binders: the implicit depths are installed
   -- here and stay for everything the body mints
   modifySt { curImps := impDepths ty body }
-  (body', bodySk) <- withScope sc (withEqScope eqs (checkElem [<] [<] (MkSite "def \{x}" irng) body ty'))
+  (body', bodySk) <- withEqScope eqs (checkElem [<] [<] (MkSite "def \{x}" irng) body ty')
   me <- kernelAccept "def \{x}"
     (\ksig => kCheckDefDrv ksig kernelFuel q [] tySk bodySk)
     [("TYPE", tySk), ("BODY", bodySk)]
   modifySt $ \s => { sig $= (:< fromMaybe (assumeDefK s q body' ty' bodySk tySk) me) } s
   addVis (x, q)
-  addLemma q [<] ty'
   registerImps q ty
   suffix <- opensSuffix census
   pure "defined \{x}\{suffix}"
@@ -7336,7 +7201,6 @@ elabItemGo irng (SDeclDef nrng x ty) = do
   -- reference is a proof element (el-sig-decl), so el-reflect makes
   -- the equation judgementally available — that is what an abstract
   -- interface's equational axioms are FOR
-  addLemma q [<] ty'
   registerImps q ty
   suffix <- opensSuffix census
   pure "declared \{x}\{suffix}"
@@ -8007,19 +7871,10 @@ modClosure imps = go (S (length imps)) []
 enterModule : (name : String) -> (file : String) -> (fix : FixTable) -> List String -> ElabM ()
 enterModule name file fix imps = do
   st <- getSt
-  let archived = if st.modPrefix == "" && isNil st.ownLemmas
-                   then st.modLemmas
-                   else (st.modPrefix, st.ownLemmas) :: st.modLemmas
   let archivedI = (st.modPrefix, st.curImports) :: st.modImports
-  let closure = modClosure archivedI imps
-  let visible = concatMap (\(_, ls) => ls) (filter (\(m, _) => m `elem` closure) archived)
-  let (cs, sh, re, hp) = sigCandParts visible
   putSt $ { modPrefix := name, modFile := file, modFix := fix, vis := [<], dupNames := []
-          , lemmas := visible, ownLemmas := []
-          , modLemmas := archived, modImports := archivedI
-          , curImports := imps
-          , candCs := cs, candShrink := sh, candRest := re
-          , candHops := hp, candRw := sh ++ re } st
+          , modImports := archivedI
+          , curImports := imps } st
 
 installImports : List SImport -> ElabM ()
 installImports [] = pure ()

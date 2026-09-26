@@ -5,4 +5,4 @@ plusZeroId : (n : ℕ) → plus n Z ≡ n using (plus.eq)
 plusZeroId = λn. ⋆
 
 sZero : plus (S Z) Z ≡ S Z
-sZero = ⋆ using (plusZeroId, plus.eq)
+sZero = ⋆ using (plus.eq)

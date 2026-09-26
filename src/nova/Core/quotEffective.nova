@@ -51,7 +51,7 @@ clsRelWd =
 
 -- the descent itself: quot-elim at the CONSTANT MOTIVE Ω. clsRelWd
 -- above discharges its well-definedness obligation
-clsRel : {A : 𝕌} (r : A → A → Ω) (a : A) → (A / (u v. r u v)) → Ω using (clsRelWd)
+clsRel : {A : 𝕌} (r : A → A → Ω) (a : A) → (A / (u v. r u v)) → Ω
 clsRel = λA r a q. let claim3 = clsRelWd {A} r a in quot-elim (x. rClosure r a x) q
 
 -- ⟹ : EFFECTIVITY. clsRel a (class a) ≜ r⁺ a a holds by reflexivity of
@@ -122,8 +122,8 @@ sgHop1 = ⋆
 sgMid : class (S Z) ≡ class 2 ∈ SG using (Core.quotEffective.SG.unfold)
 sgMid = ⋆
 
-sgHop2 : class Z ≡ class 2 ∈ SG using (Core.quotEffective.SG.unfold, sgHop1, sgMid)
+sgHop2 : class Z ≡ class 2 ∈ SG using (Core.quotEffective.SG.unfold)
 sgHop2 = trans _ _ _ sgHop1 sgMid
 
-sgBack : class (S Z) ≡ class Z ∈ SG using (Core.quotEffective.SG.unfold, sgHop1)
+sgBack : class (S Z) ≡ class Z ∈ SG using (Core.quotEffective.SG.unfold)
 sgBack = sgHop1

@@ -48,7 +48,6 @@ sucMulIdx =
 -- single nested term at this depth is unreadable and easy to
 -- mis-parenthesise.
 qMulIdxNum : {c m : ℕ} → intOfNat (S c) * intOne * nzToInt (nzPos m) ≡ intOfNat (S c * S m)
-  using (Rat.half.nzPosInt)
 qMulIdxNum =
   λc m. trans
     _
@@ -63,7 +62,6 @@ qMulIdxNum =
     intOfNatMul (S c) (S m)
 
 qMulIdxDen : (c m : ℕ) → intOne * nzToInt (nzMul nzOne (nzPos (mulIdx c m))) ≡ intOfNat (S c * S m)
-  using (Rat.half.nzPosInt)
 qMulIdxDen =
   λc m. trans
     _
@@ -637,7 +635,7 @@ rMulWDOuterCls = wdOuterOfComm rMul (rMulComm {}) rMulWDInnerCls
 -- the descended operation, one argument at a time: its
 -- well-definedness in the right argument stated once, here, as the
 -- local claim the eliminator reads
-rMulL : RSeq → Real → Real using (rMulWDInnerCls, Real.Real.unfold)
+rMulL : RSeq → Real → Real using (Real.Real.unfold)
 rMulL =
   λx v. let wd : (q q' : RSeq) (h : REq q q') → class (rMul x q) ≡ class (rMul x q') ∈ Real
               = λq q' h. rMulWDInnerCls _ _ _ h
@@ -651,7 +649,7 @@ rMulWDOuter = λx x' h v. quot-elim (c. let claim = rMulWDOuterCls {x} {x'} {c} 
 
 -- ===== multiplication on ℝ =====
 infixl 7 *
-* : Real → Real → Real using (rMulWDOuter, Real.Real.unfold)
+* : Real → Real → Real using (Real.Real.unfold)
 (*) =
   λu v. let wd : (p p' : RSeq) (h : REq p p') → rMulL p v ≡ rMulL p' v
               = λp p' h. rMulWDOuter _ _ h _

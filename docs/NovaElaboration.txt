@@ -1940,14 +1940,18 @@ whnf(C) = (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ R[id, a, b] ⇝ ê
 ε ⊢ t ⇐ A ⇝ t̂
 ------------------------------------------------------------- (e-def)
 x : T ⏎ x = t          extends Σ with (ε ⊦ x ≔ t̂ : A)
-# Both premises run under the item's DISCHARGE SCOPE (THE SCOPE,
-# Elaboration state): `x : T using (n₁, …)` resolves the
-# names like any signature reference (aliases first) and scopes every
-# ↓ of the item to them + hypotheses; without the clause the item
-# scopes to hypotheses alone. Name-resolution failures are structural
-# errors at the item. On a signature with DEFINING EQUATIONS the
-# clause scopes every item of the expansion (Defining equations —
-# SCOPES); declarations discharge nothing and take none.
+# Both premises run under the item's LICENCES: `x : T using (n₁, …)`
+# cites `<def>.eq` (the definition unfolds anywhere in a join),
+# `<def>.unfold` (its head is exposed where a shape is needed),
+# `pi.eta`/`sigma.eta`; the names resolve like any signature reference
+# (aliases first), and a name that is no licence — a lemma's bare
+# name — is a structural error at the item: the engine places no
+# lemma, a lemma is used by stating its instance where it is used
+# (docs/NovaStrategy.txt). Every ↓ of the item closes by computation,
+# the licensed unfoldings and the FACTS IN SCOPE — hypotheses, local
+# claims, chain links — and nothing else. On a signature with DEFINING
+# EQUATIONS the clause licenses every item of the expansion (Defining
+# equations — SCOPES); declarations discharge nothing and take none.
 
 ε ⊢ T ⇝ A type
 ------------------------------------------------------------- (e-decl)
@@ -1956,10 +1960,10 @@ x : T                  extends Σ with (ε ⊦ x : A)
 # ε). A declaration enters Σ as a sig-decl, is reported as an OPEN
 # DECLARATION, and blocks acceptance; references type by
 # el-sig-decl and are stuck. One addition: a declared
-# EQUATION (an ≡-prop type, possibly under Π-binders) registers in
-# the lemma store like any accepted lemma — its stuck reference is a
-# proof element, so el-reflect makes the equation judgementally
-# available. That is the abstract-interface idiom: declare the
+# EQUATION (an ≡-prop type, possibly under Π-binders) is usable like
+# any accepted lemma — its stuck reference is a proof element, so
+# el-reflect makes the equation judgementally available wherever its
+# instance is stated. That is the abstract-interface idiom: declare the
 # carrier and its laws, program against them, and everything checks
 # relative to the interface (and is ACCEPTED only once the
 # declarations are given definientia).

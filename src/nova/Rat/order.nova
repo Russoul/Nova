@@ -263,7 +263,6 @@ ratSgnWD =
 -- the sign of a rational: quot-elim, well-defined by ratSgnWD
 sgnQ : Q → Sign
   using (Int.Int.unfold,
-    ratSgnWD,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.order.Sign.unfold,
@@ -301,14 +300,7 @@ sgnQZero =
 -- ===== negation and the sign flip =====
 -- (−z)·w ≡ −(z·w): both sides compute on classes to plusComm-related
 -- pairs
-intMulNegL : {z w : Int} → intNeg z * w ≡ intNeg (z * w)
-  using (Int.effective.intRRefl,
-    Int.Int.unfold,
-    Int.mul.distribBackR,
-    Int.mul.intMulNegL,
-    Int.mul.sum4Distrib,
-    plusAssoc,
-    Rat.frac.plusSwapRight)
+intMulNegL : {z w : Int} → intNeg z * w ≡ intNeg (z * w) using (Int.Int.unfold)
 intMulNegL = λz w. quot-elim (u. quot-elim (v. intMulNegL _ _) w) z
 
 -- negating flips the decided sign, shape by shape
@@ -1111,11 +1103,7 @@ ratSgnMulIs = λp q. ⋆
 -- positive fractions multiply to a positive fraction: interchange
 -- num·num · den·den into (num·den)·(num·den)
 ratMulPos : {p q : Rat} → (ratSgn p ≡ sPos) → (ratSgn q ≡ sPos) → ratSgn (ratMul p q) ≡ sPos
-  using (Int.Int.unfold,
-    ratSgnMulIs,
-    Rat.frac.NZ.unfold,
-    Rat.frac.Rat.unfold,
-    Rat.order.Sign.unfold)
+  using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold, Rat.order.Sign.unfold)
 ratMulPos =
   λp q hp hq. trans
     _

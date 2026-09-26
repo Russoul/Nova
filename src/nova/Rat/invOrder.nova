@@ -24,7 +24,7 @@ import Real (qInvNat, qInvNatPos)
 import Core.equality (trans, sym, cong, transport, transportP)
 import Core.id (Id, idToEq, eqToId)
 
-sgnQZeroEq : sgnQ qZero ≡ sZero using (Rat.order.sgnQZero)
+sgnQZeroEq : sgnQ qZero ≡ sZero
 sgnQZeroEq = sgnQZero
 
 -- qOne IS qInvNat Z, so its sign comes from Real.qInvNatPos

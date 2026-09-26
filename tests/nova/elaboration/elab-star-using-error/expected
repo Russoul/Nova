@@ -1,5 +1,5 @@
 defined notEq
-input.nova:6:9: error: def refl0: using: 'notEq' is not an equation lemma in the visible store
+input.nova:6:9: error: def refl0: using: 'notEq' names no licence (a licence is <def>.eq, <def>.unfold, pi.eta or sigma.eta); a lemma is used by stating its instance where it is used
 6 | refl0 = ⋆ using notEq
   |         ^^^^^^^^^^^^^
 declared refl0 [+1 declaration]

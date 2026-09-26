@@ -35,5 +35,5 @@ swapInvolutive = λp. sigma-elim (a b. ⋆) p
 -- what the let idiom cannot do: h stands AFTER the variable, so the
 -- elimination refines it too — inside, h is an equation between the
 -- components, and rewriting by it closes the goal
-sumOfSecondZero : (p : ℕ × ℕ) (h : p .π₂ ≡ Z) → p .π₁ + p .π₂ ≡ p .π₁ using (Natural.plusZeroId)
+sumOfSecondZero : (p : ℕ × ℕ) (h : p .π₂ ≡ Z) → p .π₁ + p .π₂ ≡ p .π₁
 sumOfSecondZero = λp h. sigma-elim (a b. let claim1 = h in let claim2 = plusZeroId a in ⋆) p

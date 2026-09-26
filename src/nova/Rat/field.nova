@@ -56,8 +56,6 @@ qOneNotZeroD : Id _ qOne qZero → 𝟘
     Int.mul.intMulL.eq,
     Natural.*.eq,
     Natural.+.eq,
-    Natural.plusZeroId,
-    Natural.zeroPlusId,
     Rat.frac.den.eq,
     Rat.frac.mkRat.eq,
     Rat.frac.num.eq,

@@ -15,7 +15,7 @@ plusZeroId = λn. ⋆
 plusSucId : (n m : ℕ) → n + S m ≡ S (n + m) using (+.eq)
 plusSucId = λn m. ⋆
 
-zeroPlusId : (n : ℕ) → Z + n ≡ n using (+.eq, plusZeroId)
+zeroPlusId : (n : ℕ) → Z + n ≡ n using (+.eq)
 zeroPlusId = λn. ℕ-elim ⋆ (k ih. ⋆) n
 
 sucPlus : (n m : ℕ) → S n + m ≡ S (n + m) using (+.eq)
@@ -28,7 +28,7 @@ plusComm =
     k ih. S k + n ≡⟨ sucPlus k n ⟩ S (k + n) ≡⟨ ih ⟩ S (n + k) ≡⟨ plusSucId n k ⟩ n + S k
     m
 
-swapLeft : (a b c : ℕ) → a + (b + c) ≡ b + (a + c) using (plusComm)
+swapLeft : (a b c : ℕ) → a + (b + c) ≡ b + (a + c)
 swapLeft =
   λa b c. ℕ-elim
     a + (b + Z) ≡⟨ plusZeroId b ⟩ a + b ≡⟨ plusComm b a ⟩ b + a ≡⟨ plusZeroId a ⟩ b + (a + Z)
@@ -41,7 +41,7 @@ double n = n + n
 infixl 6 ⊞
 ⊞ : ℕ → ℕ → ℕ [oplusEta]
 Z ⊞ n = n [oplusZ]
-S m ⊞ n using (plusZeroId) = S (m ⊞ n) [oplusS]
+S m ⊞ n = S (m ⊞ n) [oplusS]
 
 data
   Bag : U

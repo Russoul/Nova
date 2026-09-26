@@ -178,7 +178,7 @@ rleWDOuterCls = λx x' c h. propExt (λp. rleCongL _ h p) (λp. rleCongL _ (reqS
 -- the descended operation, one argument at a time: its
 -- well-definedness in the right argument stated once, here, as the
 -- local claim the eliminator reads
-rleL : RSeq → Real → Ω using (rleWDInner, Real.Real.unfold)
+rleL : RSeq → Real → Ω using (Real.Real.unfold)
 rleL =
   λx v. let wd : (q q' : RSeq) (h : REq q q') → RLeP x q ≡ RLeP x q' = λq q' h. rleWDInner _ _ _ h
             quot-elim (q. RLeP x q) v
@@ -190,7 +190,7 @@ rleWDOuter : (x x' : RSeq) (h : REq x x') (v : Real) → rleL x v ≡ rleL x' v
 rleWDOuter = λx x' h v. quot-elim (c. let claim = rleWDOuterCls {x} {x'} {c} h in ⋆) v
 
 infixl 4 ≤
-≤ : Real → Real → Ω using (rleWDOuter, Real.Real.unfold)
+≤ : Real → Real → Ω using (Real.Real.unfold)
 (≤) =
   λu v. let wd : (p p' : RSeq) (h : REq p p') → rleL p v ≡ rleL p' v = λp p' h. rleWDOuter _ _ h _
             quot-elim (p. rleL p v) u
@@ -211,8 +211,7 @@ leRRefl : {u : Real} → u ≤ u
     Real.Real.unfold,
     Real.Regular.unfold,
     Real.order.≤.unfold,
-    Real.order.rleL.unfold,
-    Real.order.leRCls)
+    Real.order.rleL.unfold)
 leRRefl = λu. quot-elim (x. rleRefl x) u
 
 leRTrans : (u v w : Real) → u ≤ v → v ≤ w → u ≤ w
@@ -223,7 +222,6 @@ leRTrans : (u v w : Real) → u ≤ v → v ≤ w → u ≤ w
     Real.order.≤.unfold,
     Real.order.rleL.unfold,
     Real.order.RLeP.unfold,
-    Real.order.leRCls,
     Real.order.rleTrans.eq)
 leRTrans = λu v w. quot-elim (x. quot-elim (y. quot-elim (z. λp q. rleTrans x y z p q) w) v) u
 
@@ -243,7 +241,6 @@ leRAntisym : {u v : Real} → u ≤ v → v ≤ u → u ≡ v
     Real.order.≤.unfold,
     Real.order.rleL.unfold,
     Real.order.RLeP.unfold,
-    Real.order.leRCls,
     Real.order.rleAntisym.eq)
 leRAntisym = λu v. quot-elim (x. quot-elim (y. λp q. realEqOfREq _ _ (rleAntisym x y p q)) v) u
 
@@ -299,7 +296,6 @@ leRAddMono : {u v w : Real} → u ≤ v → u + w ≤ v + w
     Real.order.rleL.unfold,
     Real.order.RLeP.eq,
     Real.order.RLeP.unfold,
-    Real.order.leRCls,
     Real.order.rleAddMono.eq)
 leRAddMono = λu v w. quot-elim (x. quot-elim (y. quot-elim (z. λp. rleAddMono p) w) v) u
 
@@ -503,6 +499,5 @@ leRNeg : (u v : Real) → u ≤ v → realNeg v ≤ realNeg u
     Real.order.rleL.unfold,
     Real.order.RLeP.eq,
     Real.order.RLeP.unfold,
-    Real.order.leRCls,
     Real.order.rleNeg.eq)
 leRNeg = λu v. quot-elim (x. quot-elim (y. λp. rleNeg p) v) u

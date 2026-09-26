@@ -89,11 +89,10 @@ intPlusNegDiff =
     ≡⟨ intAddZeroL x ⟩ x
 
 -- ===== the order =====
-leZRefl : (x : Int) → x ≤ x using (Int.order.≤.unfold, Int.order.intOfNatZero, Int.Int.unfold)
+leZRefl : (x : Int) → x ≤ x using (Int.order.≤.unfold, Int.Int.unfold)
 leZRefl = λx. Z, eqToId _ _ (let claim = intOfNatZero in intAddZeroR x)
 
-leZOfEq : {x y : Int} → (x ≡ y) → x ≤ y
-  using (Int.order.≤.unfold, Int.order.intOfNatZero, Int.Int.unfold)
+leZOfEq : {x y : Int} → (x ≡ y) → x ≤ y using (Int.order.≤.unfold, Int.Int.unfold)
 leZOfEq =
   λx y h. Z, eqToId _ _ (let claim = intOfNatZero in trans (x + intOfNat Z) _ _ (intAddZeroR x) h)
 
@@ -227,12 +226,10 @@ leZOfNat =
 sumSwapZL : (a b k : ℕ) → (b + k ≡ a) → k + b ≡ Z + a
 sumSwapZL = λa b k h. k + b ≡⟨ plusComm b k ⟩ b + k ≡⟨ h ⟩ a ≡⟨ zeroPlusId a ⟩ Z + a
 
-clsOfRelGe : (a b k : ℕ) → (b + k ≡ a) → class (k, Z) ≡ class (a, b) ∈ Int
-  using (Int.Int.unfold, plusComm, sumSwapZL, zeroPlusId)
+clsOfRelGe : (a b k : ℕ) → (b + k ≡ a) → class (k, Z) ≡ class (a, b) ∈ Int using (Int.Int.unfold)
 clsOfRelGe = λa b k h. let claim6 = sumSwapZL _ _ _ h in ⋆
 
-clsOfRelLe : (a b k : ℕ) → (a + k ≡ b) → class (k, Z) ≡ class (b, a) ∈ Int
-  using (Int.order.clsOfRelGe, Int.Int.unfold, plusComm, zeroPlusId)
+clsOfRelLe : (a b k : ℕ) → (a + k ≡ b) → class (k, Z) ≡ class (b, a) ∈ Int using (Int.Int.unfold)
 clsOfRelLe = λa b k h. clsOfRelGe _ _ _ h
 
 intNegClass : (p : ℕ × ℕ) → intNeg (class p) ≡ class (p .π₂, p .π₁)
@@ -244,7 +241,6 @@ leZTotal : (x y : Int) → x ≤ y ⊎ y ≤ x
     Int.order.≤.unfold,
     Int.order.intOfNat.eq,
     Int.Int.unfold,
-    Int.mul.intAddCong2,
     Natural.order.≤.unfold)
 leZTotal =
   λx y. let d = y + intNeg x
@@ -292,14 +288,7 @@ leZTotal =
 -- ===== multiplicative order =====
 -- intOfNat is multiplicative (Z·b needs one zeroMult rewrite)
 intOfNatMul : (a b : ℕ) → intOfNat a * intOfNat b ≡ intOfNat (a * b)
-  using (Int.order.intOfNat.eq,
-    Int.mul.*.eq,
-    Int.mul.intMulL.eq,
-    Int.Int.eq,
-    zeroMult,
-    Natural.multZeroId,
-    Natural.plusZeroId,
-    zeroPlusId)
+  using (Int.order.intOfNat.eq, Int.mul.*.eq, Int.mul.intMulL.eq, Int.Int.eq)
 intOfNatMul =
   λa b. let claim1 = zeroMult Z
             claim2 = zeroMult b

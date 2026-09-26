@@ -15,7 +15,7 @@ vappendZ : (A : 𝕌)
   (v : vect Z A)
   (w : vect n A)
   → (let claim6 = zeroPlusId n in vappend _ _ v w) ≡ w ∈ vect n A
-  using (vappend.eq, vect.eq, Lang.vectByInd.vect.unfold, zeroPlusId)
+  using (vappend.eq, vect.eq, Lang.vectByInd.vect.unfold)
 vappendZ = λA n v w. ⋆
 
 --  ^^^^^^^^^ FIXME: Can't be synthesised
@@ -26,7 +26,7 @@ vappendS : (n : ℕ)
   (w : vect m A)
   → vappend _ _ v w
     ≡ (let claim5 = sucPlus n m in (v .π₁, vappend _ _ (v .π₂) w : A × vect (n + m) A))
-  using (sucPlus, vappend.eq, vect.eq, Lang.vectByInd.vect.unfold)
+  using (vappend.eq, vect.eq, Lang.vectByInd.vect.unfold)
 vappendS = λn A m v w. ⋆
 
 -- the associativity step case, packaged: with the tail instance of
@@ -66,7 +66,7 @@ vappendAssoc : (n : ℕ)
   (u : vect n A)
   → vappend _ _ (vappend _ _ u v) w
     ≡ (let claim1 = plusAssoc n m k in vappend n (m + k) u (vappend _ _ v w))
-  using (plusAssoc, sucPlus, vappend.eq, vect.eq, Lang.vectByInd.vect.unfold, zeroPlusId)
+  using (vappend.eq, vect.eq, Lang.vectByInd.vect.unfold)
 vappendAssoc =
   λn A m k v w u. let claim = plusAssoc n m k
                       ℕ-elim

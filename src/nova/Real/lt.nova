@@ -167,8 +167,7 @@ ltRZeroOne : realZero < realOne
     Real.realOne.eq,
     Real.realZero.eq,
     Real.lt.<.eq,
-    Real.lt.<.unfold,
-    Real.order.sgnQOnePos)
+    Real.lt.<.unfold)
 ltRZeroOne =
   ltROfQ
     ltQOfSgn

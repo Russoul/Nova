@@ -77,7 +77,7 @@ rAbsWDCls : (x y : RSeq) (h : REq x y) → class (rAbs x) ≡ class (rAbs y) ∈
 rAbsWDCls = λx y h. realEqOfREq _ _ (rAbsWD h)
 
 realAbs : Real → Real
-  using (rAbsWDCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
+  using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
 realAbs = λu. let claim2 = rAbsWDCls in quot-elim (p. class (rAbs p)) u
 
 realAbsCls : {x : RSeq} → realAbs (class x) ≡ class (rAbs x)
@@ -102,7 +102,6 @@ realAbsNeg : (u : Real) → realAbs (realNeg u) ≡ realAbs u
     Real.abs.absSeq.eq,
     Real.abs.rAbs.eq,
     Real.abs.realAbs.eq,
-    Real.abs.realAbsCls,
     Real.neg.negSeq.eq,
     Real.neg.rNeg.eq,
     Real.neg.realNeg.eq,
@@ -142,7 +141,6 @@ realAbsOfQ = λq. realEqOfSeqEq (rAbs ((λn. q), constReg)) ((λn. qAbs q), cons
 realAbsZero : realAbs realZero ≡ realZero
   using (Core.equality.sym.eq,
     Core.equality.transport.eq,
-    qAbsZero,
     Rat.order.≤.eq,
     Rat.Q.eq,
     Rat.+.eq,

@@ -29,7 +29,7 @@ multZeroInv = λj k h. sumZeroL _ _ (trans _ _ _ (sym _ _ (multSucId j k)) h)
 -- cancellation by S k, under the assumption that the smaller side is
 -- known: the surplus times S k is zero, hence zero
 multCancelLe : {n m : ℕ} (k : ℕ) → n ≤ m → (n * S k ≡ m * S k) → n ≡ m
-  using (Core.id.Id.unfold, Natural.plusZeroId, Natural.order.≤.unfold)
+  using (Core.id.Id.unfold, Natural.order.≤.unfold)
 multCancelLe =
   λn m k le h. let e : n + le .π₁ ≡ m = idToEq _ _ _ (le .π₂)
                    split : n * S k ≡ n * S k + le .π₁ * S k
@@ -80,8 +80,7 @@ monusZeroR = λa. ⋆
 monusSucR : (a b : ℕ) → a ∸ S b ≡ pred (a ∸ b) using (Natural.more.pred.eq, Natural.more.∸.eq)
 monusSucR = λa b. ⋆
 
-zeroMonus : (b : ℕ) → Z ∸ b ≡ Z
-  using (Natural.more.monusZeroR, Natural.more.monusSucR, Natural.more.pred.eq)
+zeroMonus : (b : ℕ) → Z ∸ b ≡ Z using (Natural.more.pred.eq)
 zeroMonus =
   λb. ℕ-elim (monusZeroR {Z}) (k ih. let claim24 = monusSucR Z k in let claim25 = ih in ⋆) b
 
@@ -90,7 +89,6 @@ sucMonusSuc = λa b. ℕ-elim ⋆ (k ih. ⋆) b
 
 -- (a + b) − b is a, on the nose
 plusMonus : (a b : ℕ) → a + b ∸ b ≡ a
-  using (plusZeroId, plusSucId, Natural.more.monusZeroR, sucMonusSuc)
 plusMonus =
   λa b. ℕ-elim
     trans _ _ _ (monusZeroR {a + Z}) (plusZeroId a)
@@ -104,7 +102,7 @@ plusMonus =
 monusPlus : (a b c : ℕ) → a ∸ (b + c) ≡ a ∸ b ∸ c using (Natural.+.eq, Natural.more.∸.eq)
 monusPlus = λa b c. ℕ-elim ⋆ (k ih. ⋆) c
 
-monusSelf : {a : ℕ} → a ∸ a ≡ Z using (Natural.more.zeroMonus, sucMonusSuc)
+monusSelf : {a : ℕ} → a ∸ a ≡ Z
 monusSelf =
   λa. ℕ-elim (zeroMonus _) (k ih. let claim17 = sucMonusSuc k k in let claim18 = ih in ⋆) a
 
@@ -182,7 +180,6 @@ expSuc : (a n : ℕ) → a ^ S n ≡ a * a ^ n using (Natural.*.eq, Natural.more
 expSuc = λa n. ⋆
 
 oneExp : (n : ℕ) → S Z ^ n ≡ S Z
-  using (Natural.more.expZero, Natural.more.expSuc, multSucId, multZeroId, plusZeroId)
 oneExp =
   λn. ℕ-elim
     expZero _
@@ -204,7 +201,6 @@ multLeftComm =
     ≡⟨ multAssoc y x z ⟩ y * (x * z)
 
 expPlus : (a m n : ℕ) → a ^ (m + n) ≡ a ^ m * a ^ n
-  using (plusZeroId, Natural.more.expZero, multSucId, multZeroId)
 expPlus =
   λa m n. ℕ-elim
     let claim7 = plusZeroId m
@@ -222,7 +218,7 @@ expPlus =
     n
 
 -- ===== monus and a common summand =====
-monusPlusR : (a b k : ℕ) → a + k ∸ (b + k) ≡ a ∸ b using (plusZeroId, plusSucId, sucMonusSuc)
+monusPlusR : (a b k : ℕ) → a + k ∸ (b + k) ≡ a ∸ b
 monusPlusR =
   λa b k. ℕ-elim
     let claim5 = plusZeroId a in let claim6 = plusZeroId b in ⋆

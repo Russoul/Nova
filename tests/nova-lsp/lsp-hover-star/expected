@@ -2,7 +2,7 @@ LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (0):
 ELABTIME: reported
-TOKENS (77):
+TOKENS (75):
   L1:1+4 variable
   L1:6+1 keyword
   L1:8+1 keyword
@@ -74,16 +74,14 @@ TOKENS (77):
   L8:9+1 keyword
   L8:11+5 keyword
   L8:17+1 keyword
-  L8:18+10 variable
-  L8:28+1 keyword
-  L8:30+4 variable
-  L8:34+1 keyword
-  L8:35+2 variable
-  L8:37+1 keyword
+  L8:18+4 variable
+  L8:22+1 keyword
+  L8:23+2 variable
+  L8:25+1 keyword
 SYMBOLS (3):
   plus (kind 12) [L1:1-L2:46]
   plusZeroId (kind 12) [L4:1-L5:19]
-  sZero (kind 12) [L7:1-L8:38]
+  sZero (kind 12) [L7:1-L8:26]
 DEFINITION(⋆): null
 HOVER(⋆): [L5:18-L5:19] ```nova ⏎ ⋆ : plus n Z ≡ n ∈ ℕ ⏎ ```
 CODE ACTIONS(⋆) (0):
@@ -95,7 +93,7 @@ LEGEND: ["keyword", "variable", "operator", "number", "comment"]
 CAPS: hover=true definition=true documentSymbol=true codeAction={"codeActionKinds":["refactor.rewrite"],"resolveProvider":true}
 DIAGNOSTICS (0):
 ELABTIME: reported
-TOKENS (77):
+TOKENS (75):
   L1:1+4 variable
   L1:6+1 keyword
   L1:8+1 keyword
@@ -167,16 +165,14 @@ TOKENS (77):
   L8:9+1 keyword
   L8:11+5 keyword
   L8:17+1 keyword
-  L8:18+10 variable
-  L8:28+1 keyword
-  L8:30+4 variable
-  L8:34+1 keyword
-  L8:35+2 variable
-  L8:37+1 keyword
+  L8:18+4 variable
+  L8:22+1 keyword
+  L8:23+2 variable
+  L8:25+1 keyword
 SYMBOLS (3):
   plus (kind 12) [L1:1-L2:46]
   plusZeroId (kind 12) [L4:1-L5:19]
-  sZero (kind 12) [L7:1-L8:38]
+  sZero (kind 12) [L7:1-L8:26]
 DEFINITION(⋆ using): null
 HOVER(⋆ using): [L8:9-L8:10] ```nova ⏎ ⋆ : plus (S Z) Z ≡ S Z ∈ ℕ ⏎ ```
 CODE ACTIONS(⋆ using) (0):

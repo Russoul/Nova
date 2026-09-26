@@ -115,7 +115,6 @@ qFloorRepWD = λp p' h. qFloorWD h
 
 qFloor : Q → ℕ
   using (Int.Int.unfold,
-    qFloorRepWD,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -273,10 +272,8 @@ sgnQFracPos = λN b. intSgnMulPos
 intOfNatMagNonNeg : {z : Int} → NonNegS (intSgn z) → intOfNat (intMag z) ≡ z
   using (Int.abs.nzMag.eq,
     Int.order.intOfNat.eq,
-    Int.order.intOfNatZero,
     Int.Int.unfold,
     Int.intZero.eq,
-    Rat.half.nzPosInt,
     Rat.frac.NZ.unfold,
     Rat.frac.nzNeg.eq,
     Rat.frac.nzPos.eq,
@@ -337,7 +334,6 @@ qDiffNatFrac : {m b K : ℕ}
     Int.intNeg.eq,
     Int.add.+.eq,
     Int.add.intAddL.eq,
-    plusComm,
     Rat.nat.qOfNat.eq,
     Rat.frac.den.eq,
     Rat.frac.intScale.eq,
@@ -408,7 +404,7 @@ leQFracOfNat =
 
 -- ===== the bound really bounds =====
 leQZeroNat : (K : ℕ) → qZero ≤ qOfNat K
-  using (Rat.nat.qOfNatZero, Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold)
+  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold)
 leQZeroNat = λK. transport (λw. w ≤ qOfNat K) {qOfNat Z} {qZero} qOfNatZero (leQOfNat (leZero K))
 
 -- at a positive denominator: nonnegative numerators land on the
@@ -585,7 +581,6 @@ qNatBoundNeg : {u : Q} → qNatBound (qNeg u) ≡ qNatBound u
     Natural.div.divN.eq,
     Natural.div.dmAux.eq,
     Natural.div.natCase.eq,
-    Core.prop.irrel,
     Rat.ceil.qFloor.eq,
     Rat.ceil.qNatBound.eq,
     Rat.frac.NZ.unfold,

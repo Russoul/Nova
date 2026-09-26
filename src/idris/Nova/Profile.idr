@@ -43,19 +43,6 @@ bump label d x = unsafePerformIO $ do
   modifyIORef slots (add label d)
   pure x
 
-||| THE SEARCHLESS DEFAULT (SearchlessElaboration.md §5.3, now the
-||| semantics of docs/NovaElaboration.txt): an item without a `using`
-||| clause elaborates with an EMPTY Σ-scope — its discharges see
-||| hypotheses and computation only, and store use must be named.
-||| NOVA_GLOBAL_STORE=1 restores the historical prior-free search over
-||| the whole store, as a migration escape hatch. Read once per
-||| process; a mode, not a trusted-path concern (scoping only ever
-||| removes candidates, and every discharge is kernel-replayed either
-||| way).
-export
-scopedMode : Bool
-scopedMode = unsafePerformIO (map isNothing (getEnv "NOVA_GLOBAL_STORE"))
-
 ||| NOVA_NOSEARCH: the discharge engine on the STATED forms alone
 ||| (docs/NovaStrategy.txt, the engine programme): 0 = off (the full
 ||| engine); 1 = MEASURE (`NOVA_NOSEARCH=measure`: the stated run

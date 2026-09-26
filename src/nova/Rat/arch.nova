@@ -48,11 +48,7 @@ qFracOne = λb. ⋆
 
 -- the sign of a natural is never negative
 intSgnOfNatNonNeg : {k : ℕ} → NonNegS (intSgn (intOfNat k))
-  using (Int.order.intOfNatZero,
-    Int.Int.unfold,
-    Rat.half.nzPosInt,
-    Rat.order.NonNegS.unfold,
-    Rat.order.Sign.unfold)
+  using (Int.Int.unfold, Rat.order.NonNegS.unfold, Rat.order.Sign.unfold)
 intSgnOfNatNonNeg =
   λk. ℕ-elim
     inj₁ (eqToId _ _ (trans _ _ _ (cong (λu. Sign) (λu. intSgn u) intOfNatZero) intSgnZero))

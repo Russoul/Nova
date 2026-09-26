@@ -25,12 +25,11 @@ import Rat.frac (NZ, nzPos, nzNeg, nzToInt, Rat, mkRat, num, den, ratEta, ratZer
 import Rat (Q, qcls, qZero, qOne, *, qMulInv, NZQ, qOfNzq, nzqInv, clsEqOfRel, dInt)
 import Core.equality (trans, sym, cong)
 
-normProdZero : {a b : ℕ} → normPair a b .π₁ * normPair a b .π₂ ≡ Z
-  using (Int.normalize.normPair.eq, Natural.multZeroId, zeroMult)
+normProdZero : {a b : ℕ} → normPair a b .π₁ * normPair a b .π₂ ≡ Z using (Int.normalize.normPair.eq)
 normProdZero = λa. ℕ-elim (λb. zeroMult b) (k ih. λb. ℕ-elim (multZeroId (S k)) (j ihb. ih j) b) a
 
 intCanonProdZero : (z : Int) → intCanon z .π₁ * intCanon z .π₂ ≡ Z
-  using (Int.eq.intCanon.eq, Int.Int.unfold, Int.normalize.normPair.eq, normProdZero)
+  using (Int.eq.intCanon.eq, Int.Int.unfold, Int.normalize.normPair.eq)
 intCanonProdZero = λz. quot-elim (p. normProdZero) z
 
 -- ===== a non-zero integer is the image of an NZ =====
@@ -51,9 +50,7 @@ nzOfPair : (a b : ℕ)
     Core.prop.⊥.eq,
     Rat.frac.nzNeg.eq,
     Rat.frac.nzPos.eq,
-    Rat.frac.nzToInt.eq,
-    sucPlus,
-    zeroMult)
+    Rat.frac.nzToInt.eq)
 nzOfPair =
   λa. ℕ-elim
     λb. ℕ-elim (λhab hnz. absurdP _ (impApply hnz ⋆)) (j ihb. λhab hnz. ⋆ (nzNeg j, ⋆)) b
@@ -88,7 +85,7 @@ intNZViewAt : {z : Int}
   (hab : p .π₁ * p .π₂ ≡ Z)
   (hnz : ¬ (z ≡ intZero))
   → ∥(e : NZ) × nzToInt e ≡ z∥
-  using (classPairEta, Int.Int.unfold)
+  using (Int.Int.unfold)
 intNZViewAt =
   λz p hz hab hnz. squash-elim
     nzOfPair
@@ -100,16 +97,14 @@ intNZViewAt =
         λe. notApply _ hnz (trans _ _ _ (sym _ _ (trans _ _ _ (classPairEta p) hz)) e)
     w. ⋆ (w .π₁, trans _ _ _ (w .π₂) (trans _ _ _ (classPairEta p) hz))
 
-intNZView : (z : Int) (hnz : ¬ (z ≡ intZero)) → ∥(e : NZ) × nzToInt e ≡ z∥ using (intCanonProdZero)
+intNZView : (z : Int) (hnz : ¬ (z ≡ intZero)) → ∥(e : NZ) × nzToInt e ≡ z∥
 intNZView = λz hnz. intNZViewAt _ (intCanonClass z) (intCanonProdZero z) hnz
 
 -- ===== transferring non-zeroness to the numerator =====
 -- the easy direction of effectivity (el-quot-eq): a zero numerator
 -- makes the class zero
 ratZeroOfNumZero : (p : Rat) (h : num p ≡ intZero) → class p ≡ qZero
-  using (intMulOneR,
-    intMulZeroL,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.Int.unfold,
     Int.intOne.eq,
     Int.intZero.eq,

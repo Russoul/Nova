@@ -24,16 +24,15 @@ import Rat.inv (notIntro, notApply, numNonZero, ratZeroOfNumZero, qNonZeroIsNzq,
 import Core.quotEffective (effectiveAtEquiv)
 import Core.equality (trans, sym, cong)
 
-addCongL : {x y z : Int} → (x ≡ y) → x + z ≡ y + z using (Int.Int.unfold, Int.mul.intAddCong2)
+addCongL : {x y z : Int} → (x ≡ y) → x + z ≡ y + z using (Int.Int.unfold)
 addCongL = λx y z h. intAddCong2 _ _ _ _ h ⋆
 
-addCongR : {x y z : Int} → (y ≡ z) → x + y ≡ x + z using (Int.Int.unfold, Int.mul.intAddCong2)
+addCongR : {x y z : Int} → (y ≡ z) → x + y ≡ x + z using (Int.Int.unfold)
 addCongR = λx y z h. ⋆
 
 -- x·d ≡ y·d with d ≠ 0 gives x ≡ y: the difference times d is zero,
 -- so the difference is zero
 intMulCancel : (x y d : Int) (h : x * d ≡ y * d) (hd : ¬ (d ≡ intZero)) → x ≡ y
-  using (intAddNegL, intMulNegL, intAddZeroL, intAddZeroR)
 intMulCancel =
   λx y d h hd. sym
     _
@@ -100,8 +99,7 @@ ratRSymm = λp q h. sym {Int} (num p * dInt q) (num q * dInt p) h
 -- the two hypotheses, and cancel — the middle denominator is non-zero
 -- because it is the image of an NZ
 ratRTrans : (p q r : Rat) → RatR p q → RatR q r → RatR p r
-  using (intMulAssoc,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
     Int.mul.intMulL.eq,
@@ -149,9 +147,7 @@ qEffective = effectiveAtEquiv RatR ratRRefl ratRTrans ratRSymm
 -- the converse of Rat/inv.nova's ratZeroOfNumZero, which needed
 -- effectivity and so could not be stated until now
 numZeroOfRatZero : (p : Rat) (h : class p ≡ qZero) → num p ≡ intZero
-  using (intMulOneR,
-    intMulZeroL,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.Int.unfold,
     Int.intOne.eq,
     Int.intZero.eq,

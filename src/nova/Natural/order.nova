@@ -47,7 +47,7 @@ leTrans =
             ≡⟨ h2 ⟩ c
 
 -- a summand of zero is zero (both sides)
-sumZeroR : (x y : ℕ) → (x + y ≡ Z) → y ≡ Z using (Natural.plusSucId)
+sumZeroR : (x y : ℕ) → (x + y ≡ Z) → y ≡ Z
 sumZeroR =
   λx y. ℕ-elim
     λh. ⋆

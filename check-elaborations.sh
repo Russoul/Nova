@@ -78,14 +78,3 @@ else
   exit 1
 fi
 
-# ... and again under NOVA_GLOBAL_STORE=1, the migration escape hatch
-# (the default is the SEARCHLESS discipline — SearchlessElaboration.md
-# §5.3, docs/NovaElaboration.txt): the corpus must accept identically
-# whether store use is scoped to the using-clauses or searched
-if output="$(NOVA_GLOBAL_STORE=1 "$APP" elab "$ALL" 2>&1)"; then
-  echo "$count/$count elaborations passed (global store)"
-else
-  echo "FAIL (global store): $ALL"
-  echo "$output" | sed 's/^/  /'
-  exit 1
-fi

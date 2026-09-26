@@ -15,12 +15,12 @@ import Int (Int, intZero, intOne, intNeg)
 import Int.add (+, intAddComm, intAddAssoc)
 import Core.equality (trans, cong, sym, paireta)
 
-distribBack : {n m k : ℕ} → n * m + n * k ≡ n * (m + k) using (multDistrib)
+distribBack : {n m k : ℕ} → n * m + n * k ≡ n * (m + k)
 distribBack = λn m k. multDistrib n m k
 
 -- right distributivity: Natural.nova has only the left law, so this is
 -- multComm on each factor, distribBack in the middle, multComm back
-distribBackR : (m k n : ℕ) → m * n + k * n ≡ (m + k) * n using (distribBack)
+distribBackR : (m k n : ℕ) → m * n + k * n ≡ (m + k) * n
 distribBackR =
   λm k n. trans
     _
@@ -36,7 +36,6 @@ distribBackR =
 
 -- the two exchanges of a four-term sum
 swap4 : (p q r s : ℕ) → p + q + (r + s) ≡ p + r + (q + s)
-  using (Natural.swapMid, plusAssoc, swapLeft)
 swap4 =
   λp q r s. let claim35 = plusAssoc p q (r + s)
                 claim36 = swapLeft p q (r + s)
@@ -46,7 +45,6 @@ swap4 =
                 ⋆
 
 swap4b : {p q r s : ℕ} → p + q + (r + s) ≡ p + s + (q + r)
-  using (Int.add.intAddCross, swap4, plusAssoc)
 swap4b =
   λp q r s. p + q + (r + s) ≡⟨ plusComm s r ⟩ p + q + (s + r) ≡⟨ swap4 p q s r ⟩ p + s + (q + r)
 
@@ -62,7 +60,6 @@ plusCongR = λx y z h. ⋆
 -- x*y*z + x*u*v ≡ x*(y*z + u*v): reassociate both products, then
 -- collect the common left factor
 collectL : (x y z u v : ℕ) → x * y * z + x * u * v ≡ x * (y * z + u * v)
-  using (distribBack, multAssoc)
 collectL =
   λx y z u v. trans
     _
@@ -103,7 +100,6 @@ assocRep =
 -- hypothesis makes the two sides judgementally equal
 sum4Distrib : (a1 a2 b1 b2 c1 c2 : ℕ)
   → a1 * b1 + a2 * b2 + (a1 * c2 + a2 * c1) ≡ a1 * (b1 + c2) + a2 * (b2 + c1)
-  using (distribBack, plusAssoc)
 sum4Distrib =
   λa1 a2 b1 b2 c1 c2. trans
     _
@@ -120,7 +116,6 @@ sum4Distrib =
 -- and by the RIGHT factor: the shape of the OUTER well-definedness goal
 sum4DistribR : (x1 x2 y1 y2 c1 c2 : ℕ)
   → x1 * c1 + x2 * c2 + (y1 * c2 + y2 * c1) ≡ (x1 + y2) * c1 + (x2 + y1) * c2
-  using (distribBackR, plusAssoc)
 sum4DistribR =
   λx1 x2 y1 y2 c1 c2. trans
     _
@@ -140,7 +135,6 @@ sum4DistribR =
 intMulWD : (a1 a2 b1 b2 c1 c2 : ℕ)
   (h : b1 + c2 ≡ b2 + c1)
   → a1 * b1 + a2 * b2 + (a1 * c2 + a2 * c1) ≡ a1 * b2 + a2 * b1 + (a1 * c1 + a2 * c2)
-  using (distribBack, distribBackR, plusAssoc, sum4Distrib)
 intMulWD =
   λa1 a2 b1 b2 c1 c2 h. trans
     _
@@ -153,7 +147,6 @@ intMulWD =
 intMulWDRep : (a1 a2 b1 b2 c1 c2 : ℕ)
   (h : a1 + b2 ≡ a2 + b1)
   → a1 * c1 + a2 * c2 + (b1 * c2 + b2 * c1) ≡ a1 * c2 + a2 * c1 + (b1 * c1 + b2 * c2)
-  using (distribBack, plusAssoc, plusComm, sum4DistribR)
 intMulWDRep =
   λa1 a2 b1 b2 c1 c2 h. let claim = plusComm ((a2 + b1) * c1) ((a2 + b1) * c2)
                             trans
@@ -164,7 +157,7 @@ intMulWDRep =
                               sym _ _ (sum4DistribR a1 a2 b1 b2 c2 c1)
 
 -- ===== the descended operation, one argument at a time =====
-intMulL : ℕ × ℕ → Int → Int using (Int.mul.intMulWD, Int.Int.unfold)
+intMulL : ℕ × ℕ → Int → Int using (Int.Int.unfold)
 intMulL =
   λa zy. let wd : (x x' : ℕ × ℕ)
                (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
@@ -181,21 +174,12 @@ intMulWDOuter : (a a' : ℕ × ℕ)
   (h : a .π₁ + a' .π₂ ≡ a .π₂ + a' .π₁)
   (zy : Int)
   → intMulL a zy ≡ intMulL a' zy
-  using (distribBack,
-    distribBackR,
-    Int.Int.unfold,
-    Int.mul.intMulL.eq,
-    Int.mul.intMulWDRep,
-    multDistrib,
-    plusAssoc,
-    plusComm,
-    sum4Distrib,
-    sum4DistribR)
+  using (Int.Int.unfold, Int.mul.intMulL.eq)
 intMulWDOuter = λa a' h zy. quot-elim (c. let claim = intMulWDRep _ _ _ _ (c .π₁) (c .π₂) h in ⋆) zy
 
 -- ===== multiplication =====
 infixl 7 *
-* : Int → Int → Int using (intMulWDOuter, Int.Int.unfold)
+* : Int → Int → Int using (Int.Int.unfold)
 (*) =
   λx y. let wd : (a a' : ℕ × ℕ) (h : a .π₁ + a' .π₂ ≡ a .π₂ + a' .π₁) → intMulL a y ≡ intMulL a' y
               = λa a' h. intMulWDOuter _ _ h _
@@ -214,7 +198,7 @@ intMulTest2 = ⋆
 classPairEta : (p : ℕ × ℕ) → class (p .π₁, p .π₂) ≡ class p ∈ Int using (Int.Int.unfold)
 classPairEta = λp. cong (λu. Int) (λr. class r) (paireta p)
 
-oneMult : (m : ℕ) → S Z * m ≡ m using (multComm)
+oneMult : (m : ℕ) → S Z * m ≡ m
 oneMult = λm. S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m + Z ≡⟨ plusZeroId m ⟩ m
 
 -- class (u₁,u₂) ≡ class (v₁,v₂) from the two component equations:
@@ -227,14 +211,7 @@ classCong2 = λu1 u2 v1 v2 h1 h2. let claim31 = h2 in let claim32 = h1 in ⋆
 -- recursive in its SECOND argument), so oneMult/zeroMult have to fire
 -- before Σ-η can close it; on the right it is all β (intMulOneR)
 intMulOneL : (z : Int) → intOne * z ≡ z
-  using (classPairEta,
-    Int.Int.unfold,
-    Int.intOne.eq,
-    Int.mul.*.eq,
-    Int.mul.intMulL.eq,
-    oneMult,
-    plusZeroId,
-    zeroMult)
+  using (Int.Int.unfold, Int.intOne.eq, Int.mul.*.eq, Int.mul.intMulL.eq)
 intMulOneL =
   λz. quot-elim
     p. let claim25 = oneMult (p .π₁)
@@ -247,15 +224,7 @@ intMulOneL =
     z
 
 intMulOneR : (z : Int) → z * intOne ≡ z
-  using (classPairEta,
-    Int.Int.unfold,
-    Int.intOne.eq,
-    Int.mul.*.eq,
-    Int.mul.intMulL.eq,
-    multSucId,
-    multZeroId,
-    plusZeroId,
-    zeroPlusId)
+  using (Int.Int.unfold, Int.intOne.eq, Int.mul.*.eq, Int.mul.intMulL.eq)
 intMulOneR =
   λz. quot-elim
     p. let claim17 = multZeroId (p .π₂)
@@ -270,13 +239,7 @@ intMulOneR =
     z
 
 intMulZeroL : (z : Int) → intZero * z ≡ intZero
-  using (distribBack,
-    Int.mul.*.eq,
-    Int.mul.intMulL.eq,
-    Int.Int.eq,
-    Int.Int.unfold,
-    Int.intZero.eq,
-    zeroMult)
+  using (Int.mul.*.eq, Int.mul.intMulL.eq, Int.Int.eq, Int.Int.unfold, Int.intZero.eq)
 intMulZeroL =
   λz. quot-elim
     p. let claim13 = distribBack {Z} {p .π₁} {p .π₂}
@@ -301,8 +264,7 @@ mulComm2 =
     cong (λw. ℕ) (λw. w + u2 * v2) (multComm v1 u1)
     cong (λw. ℕ) (λw. v1 * u1 + w) (multComm v2 u2)
 
-intMulComm : (x y : Int) → x * y ≡ y * x
-  using (Int.Int.unfold, Int.mul.*.eq, Int.mul.intMulL.eq, plusAssoc)
+intMulComm : (x y : Int) → x * y ≡ y * x using (Int.Int.unfold, Int.mul.*.eq, Int.mul.intMulL.eq)
 intMulComm =
   λx y. quot-elim
     a. quot-elim
@@ -318,7 +280,7 @@ intMulComm =
     x
 
 intMulAssoc : (x y z : Int) → x * y * z ≡ x * (y * z)
-  using (assocRep, Int.Int.unfold, Int.mul.*.eq, Int.mul.intMulL.eq)
+  using (Int.Int.unfold, Int.mul.*.eq, Int.mul.intMulL.eq)
 intMulAssoc =
   λx y z. quot-elim
     a. quot-elim
@@ -336,9 +298,7 @@ intMulDistribL : (x y z : Int) → x * (y + z) ≡ x * y + x * z
     Int.Int.eq,
     Int.Int.unfold,
     Int.add.+.eq,
-    Int.add.intAddL.eq,
-    plusAssoc,
-    sum4Distrib)
+    Int.add.intAddL.eq)
 intMulDistribL =
   λx y z. quot-elim
     a. quot-elim
@@ -369,19 +329,12 @@ intMulDistribR =
     intAddCong2 _ _ _ _ (intMulComm z x) (intMulComm z y)
 
 -- ===== negation =====
-intNegNeg : (z : Int) → intNeg (intNeg z) ≡ z using (classPairEta, Int.Int.unfold, Int.intNeg.eq)
+intNegNeg : (z : Int) → intNeg (intNeg z) ≡ z using (Int.Int.unfold, Int.intNeg.eq)
 intNegNeg = λz. quot-elim (p. classPairEta p) z
 
 -- z + (−z) = 0: on representatives the relation is p₁+p₂ ≡ p₂+p₁
 intAddNegR : (z : Int) → z + intNeg z ≡ intZero
-  using (Int.Int.unfold,
-    Int.intNeg.eq,
-    Int.intZero.eq,
-    Int.zeroEq,
-    Int.add.+.eq,
-    Int.add.intAddL.eq,
-    plusComm,
-    plusZeroId)
+  using (Int.Int.unfold, Int.intNeg.eq, Int.intZero.eq, Int.add.+.eq, Int.add.intAddL.eq)
 intAddNegR =
   λz. quot-elim
     p. let claim4 = plusZeroId (p .π₁ + p .π₂)
@@ -391,14 +344,7 @@ intAddNegR =
     z
 
 intAddNegL : (z : Int) → intNeg z + z ≡ intZero
-  using (Int.Int.unfold,
-    Int.intNeg.eq,
-    Int.intZero.eq,
-    Int.zeroEq,
-    Int.add.+.eq,
-    Int.add.intAddL.eq,
-    plusComm,
-    plusZeroId)
+  using (Int.Int.unfold, Int.intNeg.eq, Int.intZero.eq, Int.add.+.eq, Int.add.intAddL.eq)
 intAddNegL =
   λz. quot-elim
     p. let claim1 = plusZeroId (p .π₂ + p .π₁)
@@ -420,7 +366,7 @@ intMulNegL =
       y
     x
 
-intMulNegR : (x y : Int) → x * intNeg y ≡ intNeg (x * y) using (intMulNegL)
+intMulNegR : (x y : Int) → x * intNeg y ≡ intNeg (x * y)
 intMulNegR =
   λx y. trans
     _

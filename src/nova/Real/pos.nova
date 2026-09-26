@@ -51,7 +51,7 @@ reqCongR : (p y y' : RSeq) → REq y y' → REq p y ≡ REq p y'
 reqCongR = λp y y' h. propExt (λa. reqTrans _ a h) (λa. reqTrans _ a (reqSym h))
 
 reqAt : RSeq → Real → Ω
-  using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold, reqCongR)
+  using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
 reqAt = λp z. let claim1 = reqCongR p in quot-elim (y. REq p y) z
 
 reqOfClassEq : {p p' : RSeq} → (class p ≡ class p' ∈ Real) → REq p p'

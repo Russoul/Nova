@@ -18,7 +18,7 @@ plusZeroId = λn. ⋆
 plusSucId : (n m : ℕ) → n + S m ≡ S (n + m) using (Natural.+.eq)
 plusSucId = λn m. ⋆
 
-zeroPlusId : (n : ℕ) → Z + n ≡ n using (+.eq, Natural.plusZeroId)
+zeroPlusId : (n : ℕ) → Z + n ≡ n using (+.eq)
 zeroPlusId = λn. ℕ-elim ⋆ (k ih. ⋆) n
 
 sucPlus : (n m : ℕ) → S n + m ≡ S (n + m) using (Natural.+.eq)
@@ -35,7 +35,7 @@ plusAssoc : (n m k : ℕ) → n + m + k ≡ n + (m + k) using (Natural.+.eq)
 plusAssoc = λn m k. ℕ-elim ⋆ (j ih. ⋆) k
 
 -- a + (b + c) ≡ b + (a + c) — permutative, used by whole-equation match
-swapLeft : (a b c : ℕ) → a + (b + c) ≡ b + (a + c) using (plusComm)
+swapLeft : (a b c : ℕ) → a + (b + c) ≡ b + (a + c)
 swapLeft =
   λa b c. ℕ-elim
     a + (b + Z) ≡⟨ plusZeroId b ⟩ a + b ≡⟨ plusComm b a ⟩ b + a ≡⟨ plusZeroId a ⟩ b + (a + Z)
@@ -73,7 +73,7 @@ sucInj = λn m h. cong (λ_. ℕ) pred h
 -- CANCELLATION: (· + k) is injective, i.e. a common right summand
 -- cancels. Induction on the cancelled summand — each step peels one
 -- successor off both sides (n + S j ≜ S (n + j)) and hands it to sucInj
-plusCancel : (n m k : ℕ) → (n + k ≡ m + k) → n ≡ m using (+.eq, Natural.plusSucId)
+plusCancel : (n m k : ℕ) → (n + k ≡ m + k) → n ≡ m using (+.eq)
 plusCancel = λn m k. ℕ-elim (λh. ⋆) (j ih. λh. ih (sucInj _ _ h)) k
 
 multZeroId : (n : ℕ) → n * Z ≡ Z using (Natural.*.eq)
