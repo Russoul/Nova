@@ -2447,7 +2447,19 @@ mutual
       then do pT <- snd bridge
               tX <- mtyX
               conv mtyX pT <$> runPA "irrelevance" (irrelAt st.sig ctx tX)
-      else do
+      else
+        -- TIER 1½ (↓ step 1): the LICENSED δ-JOIN — the sides unfolded
+        -- under the site's licences alone, no fact in scope applied.
+        -- Its own tier, before the closure over the facts in scope:
+        -- a hypothesis rewrites a side by orientation (class a ↦
+        -- class b, say) and can carry it PAST the join an unfolding
+        -- alone reaches (clsRel r a (class a) ≜ rClosure r a a) —
+        -- the join by computation and citation is tried first, whole,
+        -- and is as choice-free as tier 1
+        let (a1, pA1) = unfLogElem st.sig (Just (ctx, mtyX)) (unfsOf st) a
+            (b1, pB1) = unfLogElem st.sig (Just (ctx, mtyX)) (unfsOf st) b in
+        if deltaJoinTier && a1 == b1 then (do pT <- snd bridge
+                                              pure (conv mtyX pT (around pA1 pB1 DReflx))) else do
         pT <- snd bridge
         pA <- mpA
         pB <- mpB
@@ -2808,6 +2820,10 @@ mutual
     if tyA == tyB then Just DReflx else
     -- TIER 1, as at spEqElemC
     if timed "tier1" (\_ => compTy tyA == compTy tyB) then Just DReflx else
+    -- TIER 1½, as at spEqElemM: the licensed δ-join alone
+    let (a1, pA1) = unfLogTy st.sig ctx (unfsOf st) tyA
+        (b1, pB1) = unfLogTy st.sig ctx (unfsOf st) tyB in
+    if deltaJoinTier && a1 == b1 then Just (dTrans pA1 (dSym pB1)) else
     let t0 = nowNs ()
         (a0, mpA0) = rwNfTyP st ctx (unfsOf st) cs.rw tyA
         (b0, mpB0) = rwNfTyP st ctx (unfsOf st) cs.rw tyB
