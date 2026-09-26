@@ -238,7 +238,8 @@ realLimClose : (x : ℕ → RSeq)
     Real.complete.realLim.eq,
     Real.complete.rLim.eq,
     Real.neg.seqOf.eq,
-    Real.order.≤.eq)
+    Real.order.≤.eq,
+    Real.order.rleL.eq)
 realLimClose =
   λx h n. transportP
     {Real}
@@ -269,6 +270,7 @@ regSeqRSound : (x : ℕ → RSeq)
     Real.Regular.unfold,
     Real.realOfQ.eq,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.complete.RegSeqR.unfold)
 regSeqRSound =
   λx h m n. transportP

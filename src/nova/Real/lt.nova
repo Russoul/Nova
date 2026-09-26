@@ -61,12 +61,15 @@ leRZeroInv : (k : ℕ) → realZero ≤ realOfQ (qInvNat k)
     Real.realZero.eq,
     Real.realZero.unfold,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.≤.unfold,
+    Real.order.rleL.unfold,
     Real.order.RLeP.unfold)
 leRZeroInv = λk. leROfQ _ _ (leQZeroInvNat k)
 
 -- u ≤ u + 1/(k+1)
-leRSelfInv : (u : Real) (k : ℕ) → u ≤ u + realOfQ (qInvNat k) using (Real.order.≤.unfold)
+leRSelfInv : (u : Real) (k : ℕ) → u ≤ u + realOfQ (qInvNat k)
+  using (Real.order.≤.unfold, Real.order.rleL.unfold)
 leRSelfInv =
   λu k. transportP
     λw. w ≤ u + realOfQ (qInvNat k)
@@ -79,7 +82,8 @@ leRSelfInv =
       leRAddMono (leRZeroInv k)
 
 -- ===== the order laws =====
-leROfLtR : (u v : Real) → u < v → u ≤ v using (Real.lt.<.unfold, Real.order.≤.unfold)
+leROfLtR : (u v : Real) → u < v → u ≤ v
+  using (Real.lt.<.unfold, Real.order.≤.unfold, Real.order.rleL.unfold)
 leROfLtR = λu v h. squash-elim h (w. leRTrans _ _ _ (leRSelfInv u (w .π₁)) (w .π₂))
 
 ltRTrans : (u v t : Real) → u < v → v < t → u < t using (Real.lt.<.unfold)
@@ -111,8 +115,10 @@ ltRIrrefl : (u : Real) → u < u → ⊥
     Real.realOfQ.eq,
     Real.realZero.eq,
     Real.add.+.unfold,
+    Real.add.rAddL.unfold,
     Real.lt.<.unfold,
-    Real.order.≤.unfold)
+    Real.order.≤.unfold,
+    Real.order.rleL.unfold)
 ltRIrrefl =
   λu h. squash-elim
     h

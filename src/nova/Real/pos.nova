@@ -186,6 +186,7 @@ posSampleNN : (p : RSeq)
     Real.realOfQ.eq,
     Real.constReg.eq,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.RLeP.eq,
     Real.neg.seqOf.eq)
 posSampleNN =
@@ -279,6 +280,7 @@ clampREq : {p : RSeq} → realZero ≤ class p → REq (clampRSeq p) p
     Real.realOfQ.eq,
     Real.constReg.eq,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.RLeP.eq,
     Real.neg.seqOf.eq,
     clampRSeq.eq,

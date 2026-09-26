@@ -50,7 +50,9 @@ leRAbsSelf : {u : Real} → u ≤ realAbs u
     Real.abs.realAbs.eq,
     Real.neg.seqOf.eq,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.≤.unfold,
+    Real.order.rleL.unfold,
     Real.order.RLeP.eq)
 leRAbsSelf =
   λu. quot-elim
@@ -98,7 +100,9 @@ leRNegAbsSelf : {u : Real} → realNeg (realAbs u) ≤ u
     Real.neg.realNeg.unfold,
     Real.neg.seqOf.eq,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.≤.unfold,
+    Real.order.rleL.unfold,
     Real.order.RLeP.eq)
 leRNegAbsSelf =
   λu. quot-elim
@@ -203,12 +207,15 @@ leRZeroDist : (u v : Real) → realZero ≤ realDist u v
     Real.abs.realAbs.eq,
     Real.abs.realAbs.unfold,
     Real.add.+.unfold,
+    Real.add.rAddL.unfold,
     Real.group.-.eq,
     Real.group.-.unfold,
     Real.metric.realDist.eq,
     Real.metric.realDist.unfold,
     Real.order.≤.eq,
-    Real.order.≤.unfold)
+    Real.order.rleL.eq,
+    Real.order.≤.unfold,
+    Real.order.rleL.unfold)
 leRZeroDist = λu v. leRZeroAbs (u - v)
 
 -- identity of indiscernibles, via realAbsZeroInv and the group law
@@ -222,12 +229,15 @@ realDistTriangle : (u v w : Real) → realDist u w ≤ realDist u v + realDist v
     Real.abs.realAbs.eq,
     Real.abs.realAbs.unfold,
     Real.add.+.eq,
+    Real.add.rAddL.eq,
     Real.add.+.unfold,
+    Real.add.rAddL.unfold,
     Real.group.-.eq,
     Real.group.-.unfold,
     Real.metric.realDist.eq,
     Real.metric.realDist.unfold,
-    Real.order.≤.unfold)
+    Real.order.≤.unfold,
+    Real.order.rleL.unfold)
 realDistTriangle =
   λu v w. transportP
     λt. t ≤ realAbs (u - v) + realAbs (v - w)

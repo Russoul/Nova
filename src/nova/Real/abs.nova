@@ -241,7 +241,9 @@ leRZeroAbs : (u : Real) → realZero ≤ realAbs u
     Real.neg.regOf.eq,
     Real.neg.seqOf.eq,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.≤.unfold,
+    Real.order.rleL.unfold,
     Real.order.RLeP.eq)
 leRZeroAbs = λu. quot-elim (x. rleZeroAbs) u
 
@@ -296,8 +298,12 @@ leRAbsTriangle : {u v : Real} → realAbs (u + v) ≤ realAbs u + realAbs v
     Real.abs.realAbs.unfold,
     Real.add.rAdd.eq,
     Real.add.+.eq,
+    Real.add.rAddL.eq,
     Real.add.+.unfold,
+    Real.add.rAddL.unfold,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.≤.unfold,
+    Real.order.rleL.unfold,
     Real.order.RLeP.eq)
 leRAbsTriangle = λu v. quot-elim (x. quot-elim (y. rleAbsTriangle) v) u

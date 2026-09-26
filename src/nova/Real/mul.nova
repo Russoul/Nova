@@ -623,36 +623,45 @@ rMulWDOuterCls : {x x' c : RSeq} (h : REq x x') → class (rMul x c) ≡ class (
   using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold)
 rMulWDOuterCls = wdOuterOfComm rMul (rMulComm {}) rMulWDInnerCls
 
-rMulWDOuter : (x x' : RSeq)
-  (h : REq x x')
-  (v : Real)
-  → quot-elim (w. Real) (q. class (rMul x q)) v
-    ≡ (let claim2 = rMulWDInnerCls x' in quot-elim (q. class (rMul x' q)) v)
-  using (rMulWDInnerCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
-rMulWDOuter =
-  λx x' h v. quot-elim
-    w. quot-elim (z. Real) (q. class (rMul x q)) w
-      ≡ (let claim1 = rMulWDInnerCls x' in quot-elim (q. class (rMul x' q)) w)
-    c. rMulWDOuterCls h
-    v
+-- the descended operation, one argument at a time: its
+-- well-definedness in the right argument stated once, here, as the
+-- local claim the eliminator reads
+rMulL : RSeq → Real → Real using (rMulWDInnerCls, Real.Real.unfold)
+rMulL =
+  λx v. let wd : (q q' : RSeq) (h : REq q q') → class (rMul x q) ≡ class (rMul x q') ∈ Real
+              = λq q' h. rMulWDInnerCls _ _ _ h
+            quot-elim (q. class (rMul x q)) v
+
+-- the outer half as the descent asks for it: the two left operations
+-- agree on every element of the quotient
+rMulWDOuter : (x x' : RSeq) (h : REq x x') (v : Real) → rMulL x v ≡ rMulL x' v
+  using (Real.Real.unfold, Real.mul.rMulL.eq)
+rMulWDOuter = λx x' h v. quot-elim (c. let claim = rMulWDOuterCls {x} {x'} {c} h in ⋆) v
 
 -- ===== multiplication on ℝ =====
 infixl 7 *
-* : Real → Real → Real
-  using (rMulWDInnerCls,
-    rMulWDOuter,
-    Real.REq.unfold,
-    Real.RSeq.unfold,
-    Real.Real.unfold,
-    Real.Regular.unfold)
-(*) = λu v. quot-elim (p. quot-elim (q. class (rMul p q)) v) u
+* : Real → Real → Real using (rMulWDOuter, Real.Real.unfold)
+(*) =
+  λu v. let wd : (p p' : RSeq) (h : REq p p') → rMulL p v ≡ rMulL p' v
+              = λp p' h. rMulWDOuter _ _ h _
+            quot-elim (p. rMulL p v) u
 
 realMulCls : {x : RSeq} (y : RSeq) → class x * class y ≡ class (rMul x y)
-  using (Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold, Real.mul.rMul.eq, Real.mul.*.eq)
+  using (Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.mul.rMul.eq,
+    Real.mul.*.eq,
+    Real.mul.rMulL.eq)
 realMulCls = λx y. ⋆
 
 realMulComm : (u v : Real) → u * v ≡ v * u
-  using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold, Real.mul.*.eq)
+  using (Real.REq.unfold,
+    Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.mul.*.eq,
+    Real.mul.rMulL.eq)
 realMulComm =
   λu v. quot-elim
     p. quot-elim (q. cong (λw. Real) (λw. class w) {rMul p q} {rMul q p} rMulComm) v
@@ -669,6 +678,7 @@ realMulOfQ : (a b : Q) → realOfQ a * realOfQ b ≡ realOfQ (a * b)
     Real.mul.mulSeq.eq,
     Real.mul.rMul.eq,
     Real.mul.*.eq,
+    Real.mul.rMulL.eq,
     Real.neg.seqOf.eq)
 realMulOfQ =
   λa b. realEqOfSeqEq (rMul ((λn. a), constReg) ((λn. b), constReg)) ((λn. a * b), constReg) (λn. ⋆)

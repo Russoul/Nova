@@ -175,32 +175,35 @@ rAddWDOuterCls : {x x' c : RSeq} (h : REq x x') → class (rAdd x c) ≡ class (
   using (Real.Real.unfold)
 rAddWDOuterCls = wdOuterOfComm rAdd (rAddComm {}) rAddWDInnerCls
 
--- ...in the quot-elim shape the elaborator asks for
-rAddWDOuter : (x x' : RSeq)
-  (h : REq x x')
-  (v : Real)
-  → quot-elim (w. Real) (q. class (rAdd x q)) v
-    ≡ (let claim4 = rAddWDInnerCls x' in quot-elim (q. class (rAdd x' q)) v)
-  using (rAddWDInnerCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
-rAddWDOuter =
-  λx x' h v. quot-elim
-    w. quot-elim (z. Real) (q. class (rAdd x q)) w
-      ≡ (let claim3 = rAddWDInnerCls x' in quot-elim (q. class (rAdd x' q)) w)
-    c. rAddWDOuterCls h
-    v
+-- the descended operation, one argument at a time: its
+-- well-definedness in the right argument stated once, here, as the
+-- local claim the eliminator reads
+rAddL : RSeq → Real → Real using (rAddWDInnerCls, Real.Real.unfold)
+rAddL =
+  λx v. let wd : (q q' : RSeq) (h : REq q q') → class (rAdd x q) ≡ class (rAdd x q') ∈ Real
+              = λq q' h. rAddWDInnerCls _ _ _ h
+            quot-elim (q. class (rAdd x q)) v
+
+-- the outer half as the descent asks for it: the two left operations
+-- agree on every element of the quotient
+rAddWDOuter : (x x' : RSeq) (h : REq x x') (v : Real) → rAddL x v ≡ rAddL x' v
+  using (Real.Real.unfold, Real.add.rAddL.eq)
+rAddWDOuter = λx x' h v. quot-elim (c. let claim = rAddWDOuterCls {x} {x'} {c} h in ⋆) v
 
 infixl 6 +
-+ : Real → Real → Real
-  using (rAddWDInnerCls,
-    rAddWDOuter,
-    Real.REq.unfold,
-    Real.RSeq.unfold,
-    Real.Real.unfold,
-    Real.Regular.unfold)
-(+) = λu v. quot-elim (p. quot-elim (q. class (rAdd p q)) v) u
++ : Real → Real → Real using (rAddWDOuter, Real.Real.unfold)
+(+) =
+  λu v. let wd : (p p' : RSeq) (h : REq p p') → rAddL p v ≡ rAddL p' v
+              = λp p' h. rAddWDOuter _ _ h _
+            quot-elim (p. rAddL p v) u
 
 realAddCls : (x y : RSeq) → class x + class y ≡ class (rAdd x y)
-  using (Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold, Real.add.rAdd.eq, Real.add.+.eq)
+  using (Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.add.rAdd.eq,
+    Real.add.+.eq,
+    Real.add.rAddL.eq)
 realAddCls = λx y. ⋆
 
 -- ===== the laws that hold pointwise =====
@@ -231,6 +234,7 @@ realAddOfQ : (p q : Q) → realOfQ p + realOfQ q ≡ realOfQ (p + q)
     Real.add.addSeq.eq,
     Real.add.rAdd.eq,
     Real.add.+.eq,
+    Real.add.rAddL.eq,
     Real.neg.seqOf.eq)
 realAddOfQ =
   λp q. realEqOfSeqEq (rAdd ((λn. p), constReg) ((λn. q), constReg)) ((λn. p + q), constReg) (λn. ⋆)
@@ -264,6 +268,7 @@ realAddNegR : (u : Real) → u + realNeg u ≡ realZero
     Real.add.addSeq.eq,
     Real.add.rAdd.eq,
     Real.add.+.eq,
+    Real.add.rAddL.eq,
     Real.neg.negSeq.eq,
     Real.neg.rNeg.eq,
     Real.neg.realNeg.eq,
@@ -344,6 +349,7 @@ realAddAssoc : (u v w : Real) → u + v + w ≡ u + (v + w)
     Real.add.addSeq.eq,
     Real.add.rAdd.eq,
     Real.add.+.eq,
+    Real.add.rAddL.eq,
     Real.neg.seqOf.eq)
 realAddAssoc =
   λu v w. quot-elim
