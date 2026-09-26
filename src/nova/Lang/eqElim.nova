@@ -16,7 +16,7 @@
 import Natural (+, plusZeroId)
 
 pinned : (x : ℕ) (w : x ≡ Z) → x + x ≡ x using (Natural.plusZeroId)
-pinned = λx w. let claim4 = w in ≡-elim (plusZeroId _) x w
+pinned = λx w. ≡-elim (plusZeroId _) x w
 
 -- the orientation is read off w's type: either side may be the
 -- variable, and the rule is the same
@@ -26,11 +26,11 @@ pinnedFlipped = λx w. ≡-elim (plusZeroId _) x w
 -- a hypothesis standing BETWEEN the variable and the equation is
 -- specialised with it, so inside, h is already the fact the goal wants
 between : (x : ℕ) (h : x + x ≡ x) (w : x ≡ Z) → Z + Z ≡ Z
-between = λx h w. let claim3 = w in ≡-elim h x w
+between = λx h w. ≡-elim h x w
 
 -- and one standing AFTER the equation, likewise
 after : (x : ℕ) (w : x ≡ Z) (h : x + x ≡ x) → Z + Z ≡ Z
-after = λx w h. let claim2 = w in ≡-elim h x w
+after = λx w h. ≡-elim h x w
 
 -- the eliminated variable's type need not be 𝕌-SMALL: the reflexivity
 -- proof standing in for w is minted at the site, at whatever type the
@@ -47,7 +47,7 @@ proofNamed = λx w. ≡-elim ⋆ x w
 -- t is any term standing outside the variable's own entry, not just a
 -- constant: here it names an earlier hypothesis
 atTerm : (n x : ℕ) (h : x + x ≡ x) (w : x ≡ n + n) → n + n + (n + n) ≡ n + n
-atTerm = λn x h w. let claim1 = w in ≡-elim h x w
+atTerm = λn x h w. ≡-elim h x w
 
 -- THE SLIDE: the equation's other side may name entries standing
 -- AFTER the eliminated variable. A context is a telescope, so the

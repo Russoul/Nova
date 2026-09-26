@@ -2665,12 +2665,22 @@ mutual
       -- code-eq-cong (sides only; a type-component mismatch routes
       -- through propext instead — a proof cannot enter a type child
       -- here)
+      -- ONE node, its three children at once (never a chain of
+      -- single-child congruences): the sides' proofs at a PROP ∈-type
+      -- are irrelevance leaves, which read against both parts of a
+      -- node and cannot run from one side — as links of a chain they
+      -- would leave the kernel no middle. The node reads the sides'
+      -- children at the LEFT side's ∈-type, the ∈-types' at 𝕍
       if engNfT st t == engNfT st t'
         then do
           q2 <- spEqElemC dep st cs ctx l l' t'
           q3 <- spEqElemC dep st cs ctx r r' t'
-          children (Elem.EqTy l' r t) q2 q3
-        else Nothing
+          Just (if isReflx q2 && isReflx q3 then DReflx else DEq q2 q3 DReflx)
+        else do
+          qT <- spEqTyC dep st cs ctx t t'
+          q2 <- spEqElemC dep st cs ctx l l' t
+          q3 <- spEqElemC dep st cs ctx r r' t
+          Just (DEq q2 q3 qT)
     _ => Nothing
    where
     -- the child's proof in the congruence node of child i of a
