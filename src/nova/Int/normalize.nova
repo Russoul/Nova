@@ -2,6 +2,7 @@
 
 import Natural (+, plusZeroId, plusSucId, zeroPlusId)
 import Int (Int)
+import Core.equality (sym)
 
 normPair : ℕ → ℕ → ℕ × ℕ
 normPair = λa. ℕ-elim (λb. Z, b) (n ih. λb. ℕ-elim (S n, Z) (m ihb. ih m) b) a
@@ -52,8 +53,17 @@ normSound =
 normClass : (a b : ℕ) → class (normPair a b) ≡ class (a, b) ∈ Int using (Int.Int.unfold, normSound)
 normClass = λa b. let claim1 = normSound a b in ⋆
 
-intNormalize : Int → Int using (hyp.rw, Int.Int.unfold, normClass, normClass.rw)
-intNormalize = λz. quot-elim (rep. class (normPair (rep .π₁) (rep .π₂))) z
+intNormalize : Int → Int using (Int.Int.unfold, Int.IntR.unfold)
+intNormalize =
+  λz. let wd : (rep rep' : ℕ × ℕ)
+            (h : rep .π₁ + rep' .π₂ ≡ rep .π₂ + rep' .π₁)
+            → class (normPair (rep .π₁) (rep .π₂)) ≡ class (normPair (rep' .π₁) (rep' .π₂)) ∈ Int
+            = λrep rep' h. class (normPair (rep .π₁) (rep .π₂))
+              ≡⟨ normClass (rep .π₁) (rep .π₂) ⟩ class (rep .π₁, rep .π₂)
+              ≡⟨ (⋆ : class (rep .π₁, rep .π₂) ≡ class (rep' .π₁, rep' .π₂) ∈ Int) ⟩
+                class (rep' .π₁, rep' .π₂)
+              ≡⟨ sym _ _ (normClass (rep' .π₁) (rep' .π₂)) ⟩ class (normPair (rep' .π₁) (rep' .π₂))
+          quot-elim (rep. class (normPair (rep .π₁) (rep .π₂))) z
 
 intNormalizeTest1 : intNormalize (class (S Z, Z)) ≡ class (S Z, Z)
   using (Int.Int.unfold, Int.normalize.intNormalize.eq, Int.normalize.normPair.eq)

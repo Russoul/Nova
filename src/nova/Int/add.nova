@@ -6,107 +6,47 @@
 
 import Natural (+, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc, swapLeft)
 import Int (Int)
-import Core.equality (cong)
+import Core.equality (cong, sym)
 
 intAddWD : (a1 a2 b1 b2 c1 c2 : ℕ)
   (h : b1 + c2 ≡ b2 + c1)
   → a1 + b1 + (a2 + c2) ≡ a2 + b2 + (a1 + c1)
-  using (hyp.rw,
-    plusAssoc,
-    plusAssoc.rw,
-    plusSucId,
-    plusSucId.rw,
-    sucPlus,
-    sucPlus.rw,
-    swapLeft,
-    swapLeft.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
 intAddWD =
   λa1 a2 b1 b2 c1 c2 h. ℕ-elim
-    let claim19 = zeroPlusId c2
-        claim20 = plusAssoc a1 b1 c2
-        claim21 = h
-        claim22 = swapLeft a1 b2 c1
-        claim23 = zeroPlusId b2
-        ⋆
-    k ih. let claim10 = plusAssoc a1 b1 (S k + c2)
-              claim11 = sucPlus k c2
-              claim12 = plusSucId b1 (k + c2)
-              claim13 = plusSucId a1 (b1 + (k + c2))
-              claim14 = plusAssoc a1 b1 (k + c2)
-              claim15 = ih
-              claim16 = plusAssoc k b2 (a1 + c1)
-              claim17 = plusAssoc (S k) b2 (a1 + c1)
-              claim18 = sucPlus k (b2 + (a1 + c1))
-              claim3 = plusAssoc a1 b1 (S k + c2)
-              claim4 = sucPlus k c2
-              claim5 = plusSucId b1 (k + c2)
-              claim6 = plusSucId a1 (b1 + (k + c2))
-              claim7 = plusAssoc a1 b1 (k + c2)
-              claim8 = claim15
-              claim9 = plusAssoc k b2 (a1 + c1)
-              claim10 = plusAssoc (S k) b2 (a1 + c1)
-              claim11 = sucPlus k (b2 + (a1 + c1))
-              claim1 = plusAssoc a1 b1 (S k + c2)
-              claim2 = sucPlus k c2
-              claim3 = plusSucId b1 (k + c2)
-              claim4 = plusSucId a1 (b1 + (k + c2))
-              claim5 = plusAssoc a1 b1 (k + c2)
-              claim6 = claim8
-              claim7 = plusAssoc k b2 (a1 + c1)
-              claim8 = plusAssoc (S k) b2 (a1 + c1)
-              claim9 = sucPlus k (b2 + (a1 + c1))
-              claim1 = plusAssoc a1 b1 (S k + c2)
-              claim2 = sucPlus k c2
-              claim3 = plusSucId b1 (k + c2)
-              claim4 = plusSucId a1 (b1 + (k + c2))
-              claim5 = plusAssoc a1 b1 (k + c2)
-              claim6 = claim6
-              claim7 = plusAssoc k b2 (a1 + c1)
-              claim8 = plusAssoc (S k) b2 (a1 + c1)
-              claim9 = sucPlus k (b2 + (a1 + c1))
-              claim3 = plusAssoc a1 b1 (S k + c2)
-              claim4 = sucPlus k c2
-              claim5 = plusSucId b1 (k + c2)
-              claim6 = plusSucId a1 (b1 + (k + c2))
-              claim7 = plusAssoc a1 b1 (k + c2)
-              claim8 = claim6
-              claim9 = plusAssoc k b2 (a1 + c1)
-              claim10 = plusAssoc (S k) b2 (a1 + c1)
-              claim11 = sucPlus k (b2 + (a1 + c1))
-              ⋆
+    a1 + b1 + (Z + c2)
+      ≡⟨ cong (λu. ℕ) (λu. a1 + b1 + u) (zeroPlusId c2) ⟩ a1 + b1 + c2
+      ≡⟨ plusAssoc a1 b1 c2 ⟩ a1 + (b1 + c2)
+      ≡⟨ cong (λu. ℕ) (λu. a1 + u) h ⟩ a1 + (b2 + c1)
+      ≡⟨ swapLeft a1 b2 c1 ⟩ b2 + (a1 + c1)
+      ≡⟨ cong (λu. ℕ) (λu. u + (a1 + c1)) (sym _ _ (zeroPlusId b2)) ⟩ Z + b2 + (a1 + c1)
+    k ih. a1 + b1 + (S k + c2)
+      ≡⟨ cong (λu. ℕ) (λu. a1 + b1 + u) (sucPlus k c2) ⟩ a1 + b1 + S (k + c2)
+      ≡⟨ plusSucId (a1 + b1) (k + c2) ⟩ S (a1 + b1 + (k + c2))
+      ≡⟨ cong (λu. ℕ) (λu. S u) ih ⟩ S (k + b2 + (a1 + c1))
+      ≡⟨ sym _ _ (sucPlus (k + b2) (a1 + c1)) ⟩ S (k + b2) + (a1 + c1)
+      ≡⟨ cong (λu. ℕ) (λu. u + (a1 + c1)) (sym _ _ (sucPlus k b2)) ⟩ S k + b2 + (a1 + c1)
     a2
 
 -- cross-sum well-definedness in the OUTER argument, conditional on h
 intAddCross : (a1 a2 b1 b2 c1 c2 : ℕ)
   (h : a1 + b2 ≡ a2 + b1)
   → a1 + c1 + (b2 + c2) ≡ a2 + c2 + (b1 + c1)
-  using (hyp.rw,
-    plusAssoc,
-    plusComm,
-    plusSucId,
-    plusSucId.rw,
-    plusZeroId,
-    sucPlus,
-    sucPlus.rw,
-    swapLeft)
 intAddCross =
   λa1 a2 b1 b2 c1 c2 h. ℕ-elim
     a1 + c1 + (b2 + Z)
-      ≡⟨ plusZeroId b2 ⟩ a1 + c1 + b2
+      ≡⟨ cong (λu. ℕ) (λu. a1 + c1 + u) (plusZeroId b2) ⟩ a1 + c1 + b2
       ≡⟨ plusAssoc a1 c1 b2 ⟩ a1 + (c1 + b2)
       ≡⟨ swapLeft a1 c1 b2 ⟩ c1 + (a1 + b2)
       ≡⟨ h ⟩ c1 + (a2 + b1)
       ≡⟨ swapLeft c1 a2 b1 ⟩ a2 + (c1 + b1)
       ≡⟨ plusComm b1 c1 ⟩ a2 + (b1 + c1)
-      ≡⟨ plusZeroId a2 ⟩ a2 + Z + (b1 + c1)
-    k ih. let claim5 = plusSucId b2 k
-              claim6 = plusSucId (a1 + c1) (b2 + k)
-              claim7 = ih
-              claim8 = plusSucId a2 k
-              claim9 = sucPlus (a2 + k) (b1 + c1)
-              ⋆
+      ≡⟨ cong (λu. ℕ) (λu. u + (b1 + c1)) (sym _ _ (plusZeroId a2)) ⟩ a2 + Z + (b1 + c1)
+    k ih. a1 + c1 + (b2 + S k)
+      ≡⟨ cong (λu. ℕ) (λu. a1 + c1 + u) (plusSucId b2 k) ⟩ a1 + c1 + S (b2 + k)
+      ≡⟨ plusSucId (a1 + c1) (b2 + k) ⟩ S (a1 + c1 + (b2 + k))
+      ≡⟨ cong (λu. ℕ) (λu. S u) ih ⟩ S (a2 + k + (b1 + c1))
+      ≡⟨ sym _ _ (sucPlus (a2 + k) (b1 + c1)) ⟩ S (a2 + k) + (b1 + c1)
+      ≡⟨ cong (λu. ℕ) (λu. u + (b1 + c1)) (sym _ _ (plusSucId a2 k)) ⟩ a2 + S k + (b1 + c1)
     c2
 
 -- ===== the descended operation, one argument at a time =====
@@ -119,7 +59,7 @@ intAddL =
   λa zy. let wd : (x x' : ℕ × ℕ)
                (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
                → class (a .π₁ + x .π₁, a .π₂ + x .π₂) ≡ class (a .π₁ + x' .π₁, a .π₂ + x' .π₂) ∈ Int
-               = λx x' h. intAddWD (a .π₁) (a .π₂) _ _ _ _ h
+               = λx x' h. let claim = intAddWD (a .π₁) (a .π₂) _ _ _ _ h in ⋆
              quot-elim (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)) zy
 
 -- the outer half as the descent asks for it: the two left additions

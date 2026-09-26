@@ -34,27 +34,10 @@ intOfNatPlus : (a b : ℕ) → intOfNat a + intOfNat b ≡ intOfNat (a + b)
 intOfNatPlus = λa b. ⋆
 
 intOfNatInjZ : {k : ℕ} → (intOfNat k ≡ intZero) → k ≡ Z
-  using (hyp.rw,
-    Int.order.intOfNat.eq,
-    Int.IntR.unfold,
-    Int.intZero.eq,
-    Natural.plusZeroId,
-    Natural.plusZeroId.rw)
+  using (Int.order.intOfNat.eq, Int.IntR.unfold, Int.intZero.eq)
 intOfNatInjZ =
   λk h. let r = intEffective h
-            claim2 = plusZeroId k
-            claim3 = r
-            claim4 = plusZeroId Z
-            claim2 = plusZeroId k
-            claim3 = claim3
-            claim4 = plusZeroId Z
-            claim1 = plusZeroId k
-            claim2 = claim3
-            claim3 = plusZeroId Z
-            claim1 = plusZeroId k
-            claim2 = claim2
-            claim3 = plusZeroId Z
-            ⋆
+            k ≡⟨ sym _ _ (plusZeroId k) ⟩ k + Z ≡⟨ r ⟩ Z + Z ≡⟨ plusZeroId Z ⟩ Z
 
 -- x + ofNat (a + b) ≡ (x + ofNat a) + ofNat b, hypothesis-free
 intOfNatSplit : {x : Int} {a b : ℕ} → x + intOfNat (a + b) ≡ x + intOfNat a + intOfNat b
@@ -107,21 +90,12 @@ intPlusNegDiff =
 
 -- ===== the order =====
 leZRefl : (x : Int) → x ≤ x using (Int.order.≤.unfold, Int.order.intOfNatZero, Int.Int.unfold)
-leZRefl =
-  λx. (,)
-    Z
-    eqToId
-      _
-      _
-      (let claim1 = intOfNatZero
-           claim1 = intOfNatZero
-           claim7 = intOfNatZero
-           intAddZeroR)
-        x
+leZRefl = λx. Z, eqToId _ _ (let claim = intOfNatZero in intAddZeroR x)
 
 leZOfEq : {x y : Int} → (x ≡ y) → x ≤ y
   using (Int.order.≤.unfold, Int.order.intOfNatZero, Int.Int.unfold)
-leZOfEq = λx y h. Z, eqToId _ _ (trans (x + intOfNat Z) _ _ (intAddZeroR x) h)
+leZOfEq =
+  λx y h. Z, eqToId _ _ (let claim = intOfNatZero in trans (x + intOfNat Z) _ _ (intAddZeroR x) h)
 
 leZTrans : {x : Int} (y : Int) {z : Int} → x ≤ y → y ≤ z → x ≤ z using (Int.order.≤.unfold)
 leZTrans =

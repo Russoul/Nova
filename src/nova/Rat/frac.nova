@@ -20,7 +20,7 @@
 import Natural (+, *, plusZeroId, zeroPlusId, plusComm, plusAssoc, swapLeft, multZeroId, zeroMult, sucMult, multComm, multDistrib)
 import Int (Int, intZero, intOne, intNeg)
 import Int.add (+, intAddComm)
-import Core.equality (trans, cong)
+import Core.equality (trans, cong, sym)
 
 NZ : 𝕌
 NZ = ℕ ⊎ ℕ
@@ -147,8 +147,19 @@ intAddZeroR =
            ⋆
     z
 
-intScaleN : ℕ → Int → Int using (distribBack, distribBack.rw, hyp.rw, Int.Int.unfold)
-intScaleN = λn z. quot-elim (p. class (n * p .π₁, n * p .π₂)) z
+intScaleN : ℕ → Int → Int using (Int.Int.unfold)
+intScaleN =
+  λn z. let wd : (p p' : ℕ × ℕ)
+              (h : p .π₁ + p' .π₂ ≡ p .π₂ + p' .π₁)
+              → class (n * p .π₁, n * p .π₂) ≡ class (n * p' .π₁, n * p' .π₂) ∈ Int
+              = λp p' h. let w : n * p .π₁ + n * p' .π₂ ≡ n * p .π₂ + n * p' .π₁
+                               = n * p .π₁ + n * p' .π₂
+                                 ≡⟨ distribBack n (p .π₁) (p' .π₂) ⟩ n * (p .π₁ + p' .π₂)
+                                 ≡⟨ cong (λu. ℕ) (λu. n * u) h ⟩ n * (p .π₂ + p' .π₁)
+                                 ≡⟨ sym _ _ (distribBack n (p .π₂) (p' .π₁)) ⟩
+                                   n * p .π₂ + n * p' .π₁
+                             ⋆
+            quot-elim (p. class (n * p .π₁, n * p .π₂)) z
 
 intScaleNZero : (n : ℕ) → intScaleN n intZero ≡ intZero
   using (Int.Int.unfold, Int.intZero.eq, Rat.frac.intScaleN.eq)

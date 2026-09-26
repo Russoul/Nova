@@ -544,25 +544,32 @@ magAssoc : {m k l : ℕ}
   → (m * k + m + k) * l + (m * k + m + k) + l ≡ m * (k * l + k + l) + m + (k * l + k + l)
   using (plusAssoc, Natural.sucPlus, zeroPlusId)
 magAssoc =
-  λm k l. predEq
-    {Z + ((m * k + m + k) * l + (m * k + m + k) + l)}
-    {Z + (m * (k * l + k + l) + m + (k * l + k + l))}
-    trans
-      S ((m * k + m + k) * l + (m * k + m + k) + l)
-      _
-      S (m * (k * l + k + l) + m + (k * l + k + l))
-      sym _ _ (sucMulSuc (m * k + m + k) l)
-      trans
-        _
-        _
-        _
-        trans
-          _
-          _
-          _
-          cong (λu. ℕ) (λw. w * S l) (sym _ _ (sucMulSuc m k))
-          multAssoc (S m) (S k) (S l)
-        trans _ _ _ (cong (λu. ℕ) (λw. S m * w) (sucMulSuc k l)) (sucMulSuc m (k * l + k + l))
+  λm k l. let claim1 = zeroPlusId ((m * k + m + k) * l + (m * k + m + k) + l)
+              claim2 = zeroPlusId (m * (k * l + k + l) + m + (k * l + k + l))
+              predEq
+                {Z + ((m * k + m + k) * l + (m * k + m + k) + l)}
+                {Z + (m * (k * l + k + l) + m + (k * l + k + l))}
+                trans
+                  S ((m * k + m + k) * l + (m * k + m + k) + l)
+                  _
+                  S (m * (k * l + k + l) + m + (k * l + k + l))
+                  sym _ _ (sucMulSuc (m * k + m + k) l)
+                  trans
+                    _
+                    _
+                    _
+                    trans
+                      _
+                      _
+                      _
+                      cong (λu. ℕ) (λw. w * S l) (sym _ _ (sucMulSuc m k))
+                      multAssoc (S m) (S k) (S l)
+                    trans
+                      _
+                      _
+                      _
+                      cong (λu. ℕ) (λw. S m * w) (sucMulSuc k l)
+                      sucMulSuc m (k * l + k + l)
 
 -- eight sign cases, one magnitude law
 nzMulAssoc : (x y z : NZ) → nzMul (nzMul x y) z ≡ nzMul x (nzMul y z)
@@ -749,22 +756,24 @@ ratAddAssocDen = λp q r. nzMulAssoc (den p) (den q) (den r)
 ratAddAssoc : {p q r : Rat} → ratAdd (ratAdd p q) r ≡ ratAdd p (ratAdd q r)
   using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold, Rat.frac.ratEta)
 ratAddAssoc =
-  λp q r. trans
-    _
-    mkRat (num (ratAdd p (ratAdd q r))) (den (ratAdd (ratAdd p q) r))
-    _
-    cong
-      λu. Rat
-      λx. mkRat x (den (ratAdd (ratAdd p q) r))
-      {num (ratAdd (ratAdd p q) r)}
-      {num (ratAdd p (ratAdd q r))}
-      ratAddAssocNum
-    cong
-      λu. Rat
-      λd. mkRat (num (ratAdd p (ratAdd q r))) d
-      {den (ratAdd (ratAdd p q) r)}
-      {den (ratAdd p (ratAdd q r))}
-      ratAddAssocDen
+  λp q r. let claim1 = ratEta {ratAdd (ratAdd p q) r}
+              claim2 = ratEta {ratAdd p (ratAdd q r)}
+              trans
+                _
+                mkRat (num (ratAdd p (ratAdd q r))) (den (ratAdd (ratAdd p q) r))
+                _
+                cong
+                  λu. Rat
+                  λx. mkRat x (den (ratAdd (ratAdd p q) r))
+                  {num (ratAdd (ratAdd p q) r)}
+                  {num (ratAdd p (ratAdd q r))}
+                  ratAddAssocNum
+                cong
+                  λu. Rat
+                  λd. mkRat (num (ratAdd p (ratAdd q r))) d
+                  {den (ratAdd (ratAdd p q) r)}
+                  {den (ratAdd p (ratAdd q r))}
+                  ratAddAssocDen
 
 qAddAssoc : (u v w : Q) → u + v + w ≡ u + (v + w)
   using (Int.Int.unfold,

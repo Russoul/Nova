@@ -57,12 +57,16 @@ clsRel = λA r a q. let claim3 = clsRelWd {A} r a in quot-elim (x. rClosure r a 
 -- ⟹ : EFFECTIVITY. clsRel a (class a) ≜ r⁺ a a holds by reflexivity of
 -- the closure, and the class equation transports it to b — el-quot-beta
 -- on both ends, congruence in between
+clsRelRefl : {A : 𝕌} (r : A → A → Ω) (a : A) → clsRel r a (class a)
+  using (Core.quotEffective.clsRel.eq)
+clsRelRefl = λA r a. rClosureRefl r a
+
 effective : {A : 𝕌}
   (r : A → A → Ω)
   (a b : A)
   → (class a ≡ class b ∈ A / (u v. r u v)) → rClosure r a b
-  using (Core.prop.rClosure.eq, Core.prop.rClosure.unfold, Core.quotEffective.clsRel.eq)
-effective = λA r a b h. transportP (clsRel r a) h (rClosureRefl r a)
+  using (Core.quotEffective.clsRel.eq)
+effective = λA r a b h. transportP (clsRel r a) h (clsRelRefl r a)
 
 -- the characterization: quotient equality is exactly r⁺
 classEqIff : {A : 𝕌}

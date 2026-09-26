@@ -205,7 +205,15 @@ isQuotTy _ = False
 ||| states or inverts to).
 export
 exposedChild : Sig -> Ctx -> Maybe Ty -> (Ty -> Bool) -> Drv -> KM Drv
-exposedChild sig ctx Nothing want q = pure q
+-- the position's declared type unknown to the writer (a stuck
+-- eliminator's scrutinee, say): the type the CHILD ITSELF states is
+-- what the reader will see there, so that is what gets exposed (a
+-- rule stated at a definition's name — Int — rewriting a scrutinee
+-- whose node needs the quotient the name hides)
+exposedChild sig ctx Nothing want q =
+  kOrElse (do (_, _, t) <- dInfer sig ctx q
+              exposedChild sig ctx (Just t) want q)
+          (pure q)
 exposedChild sig ctx (Just t) want q = do
   t' <- kWhnfT sig t
   if want t' then pure q else do

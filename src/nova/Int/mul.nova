@@ -162,12 +162,13 @@ intMulWDRep : (a1 a2 b1 b2 c1 c2 : ℕ)
   → a1 * c1 + a2 * c2 + (b1 * c2 + b2 * c1) ≡ a1 * c2 + a2 * c1 + (b1 * c1 + b2 * c2)
   using (distribBack, hyp.rw, plusAssoc, plusComm, sum4DistribR)
 intMulWDRep =
-  λa1 a2 b1 b2 c1 c2 h. trans
-    _
-    _
-    _
-    sum4DistribR a1 a2 b1 b2 c1 c2
-    sym _ _ (sum4DistribR a1 a2 b1 b2 c2 c1)
+  λa1 a2 b1 b2 c1 c2 h. let claim = plusComm ((a2 + b1) * c1) ((a2 + b1) * c2)
+                            trans
+                              _
+                              _
+                              _
+                              sum4DistribR a1 a2 b1 b2 c1 c2
+                              sym _ _ (sum4DistribR a1 a2 b1 b2 c2 c1)
 
 -- ===== the descended operation, one argument at a time =====
 intMulL : ℕ × ℕ → Int → Int using (Int.mul.intMulWD, Int.Int.unfold)
@@ -177,7 +178,7 @@ intMulL =
                → class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁)
                  ≡ class (a .π₁ * x' .π₁ + a .π₂ * x' .π₂, a .π₁ * x' .π₂ + a .π₂ * x' .π₁)
                  ∈ Int
-               = λx x' h. intMulWD (a .π₁) (a .π₂) _ _ _ _ h
+               = λx x' h. let claim = intMulWD (a .π₁) (a .π₂) _ _ _ _ h in ⋆
              quot-elim (x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁)) zy
 
 -- the outer well-definedness: the two left multiplications agree on

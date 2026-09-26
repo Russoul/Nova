@@ -228,13 +228,7 @@ eqZSound =
       cong _ toInt (pairext (eqNSound (andFst h)) (eqNSound (andSnd h)))
       intCanonToInt z2
 
-eqZComplete : {z1 z2 : Int} → (z1 ≡ z2) → EqZ z1 z2
-  using (Int.eq.EqZ.eq,
-    Int.eq.EqZ.unfold,
-    Int.eq.intCanon.eq,
-    Natural.eq.EqN.eq,
-    Int.Int.unfold,
-    Core.prop.∧.unfold)
+eqZComplete : {z1 z2 : Int} → (z1 ≡ z2) → EqZ z1 z2 using (Int.eq.EqZ.eq)
 eqZComplete =
   λz1 z2 h. andIntro
     eqNComplete (cong (λu. ℕ) (λz. intCanon z .π₁) h)
