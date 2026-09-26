@@ -23,7 +23,7 @@ plusComm =
 -- licensed computation + hypotheses still silent: no store needed
 byComputation : (n : ℕ) → n + Z ≡ n ∈ ℕ using (+.eq)
 byComputation = λn. ⋆
-byHypothesis : (a : ℕ) (b : ℕ) (c : ℕ) → (a ≡ b ∈ ℕ) → a + c ≡ b + c ∈ ℕ using (hyp.rw)
+byHypothesis : (a : ℕ) (b : ℕ) (c : ℕ) → (a ≡ b ∈ ℕ) → a + c ≡ b + c ∈ ℕ
 byHypothesis =
   λa. λb. λc. λh. ⋆
 -- store use unnamed: an obligation, with the hint naming the remedy

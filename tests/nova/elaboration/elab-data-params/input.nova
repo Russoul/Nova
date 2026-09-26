@@ -11,8 +11,8 @@ swapN : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil �
 swapN =
   swp ℕ Z (S Z) (nil ℕ)
 
-swapN' : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ (Bag ℕ) using (Bag.eq, swapN)
-swapN' = ⋆
+swapN' : ins ℕ Z (ins ℕ (S Z) (nil ℕ)) ≡ ins ℕ (S Z) (ins ℕ Z (nil ℕ)) ∈ (Bag ℕ) using (Bag.eq)
+swapN' = swapN
 
 -- polymorphic size, defined once for every a
 sizeP : (a : 𝕌) → (Bag a) → ℕ using (Bag.eq)

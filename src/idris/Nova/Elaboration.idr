@@ -691,14 +691,17 @@ resolveUsingNames site ns = do
   -- unfold licenses go to the eq-scope; `<lemma>.rw` cites a store
   -- lemma as a rewrite rule — it enters BOTH the eq-scope (as an
   -- rw: marker) and the ordinary lemma scope
+  -- (a `.rw` citation — a lemma the engine was to place by matching —
+  -- is refused: the engine no longer searches; the instance is stated
+  -- at the site, as a local claim or a chain step)
+  case find (\n => n == "hyp.rw" || isSuffixOf ".rw" n) ns of
+    Just n => throwAt site.srange "\{site}: using: '\{n}' — the .rw licence is gone: the engine does not place lemmas by matching; state the instance at the site (a local claim, a chain step)"
+    Nothing => pure ()
   let sorted = map (\n =>
-        if n == "pi.eta" || n == "sigma.eta" || n == "hyp.rw" then ([n], the (List String) []) else
+        if n == "pi.eta" || n == "sigma.eta" then ([n], the (List String) []) else
         case resolveExpName st n of
           Just q => (["exp:" ++ q], the (List String) [])
           Nothing =>
-           case resolveRwName st n of
-            Just q => (["rw:" ++ q], [q])
-            Nothing =>
              case resolveEqName st n of
               Just q => ([q], the (List String) [])
               Nothing => (the (List String) [], [n])) ns
@@ -2285,7 +2288,8 @@ mkCandSetAt st ctx skip locals =
   -- blocks, so the blocks must not be merged).
       -- hops for chain links always; for hypotheses under
       -- a hyp.rw license; for Σ-lemmas under their <lemma>.rw license
-      sHopsStrict = filter (\c => elem ("rw:" ++ c.candName) st.eqScope) sHops
+      -- (none in the stated run: a Σ-lemma hop is the search's)
+      sHopsStrict = if st.statedOnly then [] else filter (\c => elem ("rw:" ++ c.candName) st.eqScope) sHops
       -- (the stated tier chains through the facts in scope always)
       hypLicensed = st.statedOnly || elem "hyp.rw" st.eqScope
   in case (locals, hypCands st sRw ctx skip) of
@@ -2458,8 +2462,8 @@ mutual
         -- and is as choice-free as tier 1
         let (a1, pA1) = unfLogElem st.sig (Just (ctx, mtyX)) (unfsOf st) a
             (b1, pB1) = unfLogElem st.sig (Just (ctx, mtyX)) (unfsOf st) b in
-        if deltaJoinTier && a1 == b1 then (do pT <- snd bridge
-                                              pure (conv mtyX pT (around pA1 pB1 DReflx))) else do
+        if a1 == b1 then (do pT <- snd bridge
+                             pure (conv mtyX pT (around pA1 pB1 DReflx))) else do
         pT <- snd bridge
         pA <- mpA
         pB <- mpB
@@ -2833,7 +2837,7 @@ mutual
     -- TIER 1½, as at spEqElemM: the licensed δ-join alone
     let (a1, pA1) = unfLogTy st.sig ctx (unfsOf st) tyA
         (b1, pB1) = unfLogTy st.sig ctx (unfsOf st) tyB in
-    if deltaJoinTier && a1 == b1 then Just (dTrans pA1 (dSym pB1)) else
+    if a1 == b1 then Just (dTrans pA1 (dSym pB1)) else
     let t0 = nowNs ()
         (a0, mpA0) = rwNfTyP st ctx (unfsOf st) cs.rw tyA
         (b0, mpB0) = rwNfTyP st ctx (unfsOf st) cs.rw tyB
@@ -3504,23 +3508,8 @@ reInf st ctx e = case kReDeriveInf st.sig kernelFuel ctx e of
 ||| mode a second stream reports the `<def>.eq` citations that would
 ||| close the equation.
 hintE : ElabSt -> Ctx -> Elem -> Elem -> Ty -> Maybe String
-hintE st ctx a b ty = lemmaHint <|> eqHint
+hintE st ctx a b ty = eqHint
  where
-  lemmaHint : Maybe String
-  lemmaHint =
-    case st.scope of
-      Nothing => Nothing
-      Just _ =>
-        let stG = { scope := Nothing } st in
-        case spEqElemC spDepth stG (mkCandSet stG ctx) ctx a b ty of
-          Nothing => Nothing
-          Just prf =>
-            case checkEqK stG ctx prf a b ty of
-              Left _ => Nothing
-              Right _ =>
-                case nub (hintNamesP prf) of
-                  [] => Nothing
-                  ns => Just "closes with \{joinBy ", " ns}"
   eqHint : Maybe String
   eqHint =
     go 5 (defNamesOf st (refsE b (refsE a [<])))
@@ -3538,23 +3527,8 @@ hintE st ctx a b ty = lemmaHint <|> eqHint
           if length ns' == length ns then Nothing else go k ns'
 
 hintT : ElabSt -> Ctx -> Ty -> Ty -> Maybe String
-hintT st ctx x y = lemmaHint <|> eqHint
+hintT st ctx x y = eqHint
  where
-  lemmaHint : Maybe String
-  lemmaHint =
-    case st.scope of
-      Nothing => Nothing
-      Just _ =>
-        let stG = { scope := Nothing } st in
-        case spEqTyC spDepth stG (mkCandSet stG ctx) ctx x y of
-          Nothing => Nothing
-          Just prf =>
-            case checkEqK stG ctx prf x y TopTy of
-              Left _ => Nothing
-              Right _ =>
-                case nub (hintNamesP prf) of
-                  [] => Nothing
-                  ns => Just "closes with \{joinBy ", " ns}"
   eqHint : Maybe String
   eqHint =
     go 5 (defNamesOf st (refsT y (refsT x [<])))
@@ -3648,72 +3622,15 @@ assume stmt site comp = do
 ||| leaves state, rendered in the site's surface names (each ⟨e⟩ leaf
 ||| as the element e), with whether the proof is one such instance at
 ||| the root (then the ⋆ is simply that instance) or places them.
-searchLine : ElabSt -> Ctx -> NameEnv -> Site -> String -> Drv -> Elem -> Elem -> Ty -> String
-searchLine st ctx env site kind p a b ty =
-  let leaves = collect p
-      insts = map (\e => prettyElemN st.impls st.modFix env (displayElemIn st (unfsOf st) e)) leaves
-      shape = if rootOnly p && length leaves == 1 then "root" else "placed"
-      span = case site.srange of
-               Just (MkRange (MkPosition l c) (MkPosition l' c')) => "\{show l}:\{show c}-\{show l'}:\{show c'}"
-               Nothing => "?"
-  in "SEARCH-NEEDED \{kind} | \{st.modPrefix}:\{st.curItem} | \{site} | \{showDrv p} | at \{st.modFile}:\{span} | \{shape} | " ++ joinBy " ;; " insts
-     ++ " | env: " ++ joinBy " " (toList env)
-     ++ " | claim: " ++ claimTy
- where
-  -- the statement of the site as a local claim's TYPE, in surface
-  -- syntax: the well-definedness case's binders (x x′ h) quantified
-  -- in front, so the claim can be stated OUTSIDE the eliminator as a
-  -- λ over them; any other site's statement as it stands
-  pr : NameEnv -> Ty -> String
-  pr e t = prettyTyN st.impls st.modFix e (displayTyIn st (unfsOf st) t)
-  prE : NameEnv -> Elem -> String
-  prE e t = prettyElemN st.impls st.modFix e (displayElemIn st (unfsOf st) t)
-  stmt : NameEnv -> String
-  stmt e = case ty of
-    TopTy => "\{pr e a} ≡ \{pr e b}"
-    _ => "\{prE e a} ≡ \{prE e b} ∈ (\{pr e ty})"
-  -- (marked "wd" only at the case itself — its context ends in the
-  -- carrier twice and the relation; a sub-site under it, an η under a
-  -- binder, keeps the name but not the shape)
-  claimTy : String
-  claimTy = case (ctx, env) of
-    (c0 :< tA :< tA' :< tR, e0 :< x :< x' :< h) =>
-      if isSuffixOf "well-definedness of quot-elim case" site.sname && tA' == substTy tA Wk
-        then "wd (\{x} : \{pr e0 tA}) → (\{x'} : \{pr (e0 :< x) tA'}) → (\{h} : \{pr (e0 :< x :< x') tR}) → \{stmt env}"
-        else stmt env
-    _ => stmt env
- where
-  -- the elements the reflection leaves ⟨e⟩ reflect
-  collect : Drv -> List Elem
-  collect (DRefl d) = maybe [] (\e => [e]) (erase d)
-  collect d = concatMap collect (drvChildren d)
-  -- one reflection at the root: through chains, symmetry, wrappers
-  -- and unfolding leaves only, never under a congruence node
-  rootOnly : Drv -> Bool
-  rootOnly (DRefl _) = True
-  rootOnly (DTrans p q) = rootOnly p && rootOnly q
-  rootOnly (DSym q) = rootOnly q
-  rootOnly (DConv q _ _) = rootOnly q
-  rootOnly (DAscribe q _ _) = rootOnly q
-  rootOnly (DAt q _ _) = rootOnly q
-  rootOnly (DDeltaAll _) = True
-  rootOnly DReflx = True
-  rootOnly (DApp (DDelta _ _) _) = True
-  rootOnly (DApp f DReflx) = rootOnly f
-  rootOnly (DDelta _ _) = True
-  rootOnly _ = False
-
-withStated : (ElabSt -> Maybe Drv) -> (Drv -> String) -> ElabSt -> Maybe Drv
-withStated run line st =
-  -- the STATED run first, always: it is the engine; the search is
-  -- the fallback the measure counts (NOVA_NOSEARCH=measure audits
-  -- each fall-back, =1 forbids it), until it is deleted
-  case run ({ statedOnly := True } st) of
-    Just p => Just p
-    Nothing => if noSearchMode == 2 then Nothing
-               else case run st of
-                      Just p => if noSearchMode == 1 then audit (line p) (Just p) else Just p
-                      Nothing => Nothing
+||| The STATED run is the engine: tiers 0/1, the licensed δ-join, the
+||| type-directed closings, the congruence descent, and the closure
+||| over the facts the text states at the site (hypotheses, local
+||| claims, chain links, the ≡-elim hypothesis). No Σ-lemma is ever
+||| instantiated by matching — a site the statements do not close is
+||| the author's obligation (docs/NovaStrategy.txt, the engine
+||| programme).
+withStated : (ElabSt -> Maybe Drv) -> ElabSt -> Maybe Drv
+withStated run st = run ({ statedOnly := True } st)
 
 mutual
   ||| One discharge attempt: engine + eager kernel check. Right = the
@@ -3754,8 +3671,7 @@ mutual
             -- normalizes the hypotheses in scope by the facts in scope
             -- alone — a claim normalized by the licensed Σ rules would
             -- vanish into triviality before it could state anything)
-            let mprf = withStated (\stX => spEqElemC (fromMaybe spDepth st.depthOv) stX (if stX.statedOnly then mkCandSet stX ctx else cs) ctx a b tyM2)
-                         (\p => searchLine st ctx env site "elem" p a b ty) st
+            let mprf = withStated (\stX => spEqElemC (fromMaybe spDepth st.depthOv) stX (mkCandSet stX ctx) ctx a b tyM2) st
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mprf of
               Nothing => pure (Left site)
@@ -3794,8 +3710,7 @@ mutual
             let t0 = nowNs ()
             let cs = mkCandSet st ctx
             let t1 = bump "cands" (nowNs () - t0) (nowNs ())
-            let mprf = withStated (\stX => spEqTyC (fromMaybe spDepth st.depthOv) stX (if stX.statedOnly then mkCandSet stX ctx else cs) ctx tyA tyB)
-                         (\p => searchLine st ctx env site "ty" p tyA tyB TopTy) st
+            let mprf = withStated (\stX => spEqTyC (fromMaybe spDepth st.depthOv) stX (mkCandSet stX ctx) ctx tyA tyB) st
             let t2 = bump "engine" (nowNs () - t1) (nowNs ())
             case mprf of
               Nothing => pure (Left site)

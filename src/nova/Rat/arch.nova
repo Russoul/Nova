@@ -104,11 +104,7 @@ nonNegSgnFrac = λa b. transport NonNegS (sym _ _ (sgnQFrac a b)) intSgnOfNatNon
 -- equal (nzMul computes), so only the numerators have to be matched
 fracNumEq : {a b : ℕ}
   → intScale (nzPos b) (intOfNat (S a)) + intScale (nzPos b) (intNeg intOne) ≡ intOfNat (S b * a)
-  using (multZeroId.rw,
-    zeroPlusId.rw,
-    plusZeroId.rw,
-    multSucId.rw,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.IntR.eq,
     Int.intNeg.eq,
     Int.intOne.eq,
@@ -440,7 +436,6 @@ qInvNatNotZero =
 archContra : (a b : Q) → ((k : ℕ) → a ≤ b + qInvNat k) → Id _ (sgnQ (b + qNeg a)) sNeg → ⊥
   using (Core.equality.cong.eq,
     Core.equality.trans.eq,
-    hyp.rw,
     Core.id.Id.eq,
     Core.id.Id.unfold,
     Core.id.idToEq.eq,

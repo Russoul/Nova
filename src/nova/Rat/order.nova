@@ -754,11 +754,7 @@ ratSgnIs = λp. ⋆
 ratCrossPosL : {p : Rat}
   (q : Rat)
   → (ratSgn p ≡ sPos) → intSgn (intScale (den q) (num p) * nzToInt (nzMul (den p) (den q))) ≡ sPos
-  using (Int.Int.unfold,
-    ratSgnIs.rw,
-    Rat.frac.NZ.unfold,
-    Rat.frac.Rat.unfold,
-    Rat.order.Sign.unfold)
+  using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold, Rat.order.Sign.unfold)
 ratCrossPosL =
   λp q hp. trans
     _
@@ -794,11 +790,7 @@ ratCrossPosL =
 ratCrossPosR : (p : Rat)
   {q : Rat}
   → (ratSgn q ≡ sPos) → intSgn (intScale (den p) (num q) * nzToInt (nzMul (den p) (den q))) ≡ sPos
-  using (Int.Int.unfold,
-    ratSgnIs.rw,
-    Rat.frac.NZ.unfold,
-    Rat.frac.Rat.unfold,
-    Rat.order.Sign.unfold)
+  using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold, Rat.order.Sign.unfold)
 ratCrossPosR =
   λp q hq. trans
     _
@@ -1120,7 +1112,6 @@ ratSgnMulIs = λp q. ⋆
 -- num·num · den·den into (num·den)·(num·den)
 ratMulPos : {p q : Rat} → (ratSgn p ≡ sPos) → (ratSgn q ≡ sPos) → ratSgn (ratMul p q) ≡ sPos
   using (Int.Int.unfold,
-    ratSgnIs.rw,
     ratSgnMulIs,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,

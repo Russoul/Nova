@@ -3,5 +3,5 @@ pred = λn. ℕ-elim (x. ℕ) Z (k ih. k) n
 pred Z = Z
 pred (S m) = m
 
-usePredS : (m : ℕ) → pred (S m) ≡ m ∈ ℕ using (predS)
-usePredS = λm. ⋆
+usePredS : (m : ℕ) → pred (S m) ≡ m ∈ ℕ
+usePredS = λm. predS m

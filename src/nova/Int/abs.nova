@@ -274,11 +274,8 @@ intMagOfNat : (n : ℕ) → intMag (intOfNat n) ≡ n
     Int.abs.magPair.eq,
     Int.order.intOfNat.eq,
     Natural.more.monusZeroR,
-    Natural.more.monusZeroR.rw,
     zeroMonus,
-    zeroMonus.rw,
-    plusZeroId,
-    plusZeroId.rw)
+    plusZeroId)
 intMagOfNat =
   λn. let claim7 = zeroMonus n in let claim8 = monusZeroR {n} in let claim9 = plusZeroId n in ⋆
 
@@ -287,15 +284,11 @@ intMagNz : (f : NZ) → intMag (nzToInt f) ≡ S (nzMag f)
     Int.abs.magPair.eq,
     Int.abs.nzMag.eq,
     Natural.more.monusZeroR,
-    Natural.more.monusZeroR.rw,
     plusZeroId,
-    plusZeroId.rw,
     Rat.frac.NZ.unfold,
     Rat.frac.nzToInt.eq,
     zeroMonus,
-    zeroMonus.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
+    zeroPlusId)
 intMagNz =
   λf. ⊎-elim
     n. let claim4 = zeroMonus (S n)

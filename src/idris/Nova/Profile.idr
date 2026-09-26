@@ -63,26 +63,6 @@ scopedMode = unsafePerformIO (map isNothing (getEnv "NOVA_GLOBAL_STORE"))
 ||| the SEARCH-NEEDED audit line — the migration debt); 2 = STRICT
 ||| (`NOVA_NOSEARCH=1`: the stated run is the whole engine, a site it
 ||| cannot close is an obligation).
-||| NOVA_DJOIN=0 switches the licensed δ-join tier (the sides joined
-||| by computation and citation alone, before the closure over the
-||| facts in scope) OFF — an A/B switch for the measure.
-export
-deltaJoinTier : Bool
-deltaJoinTier = unsafePerformIO $ do
-  v <- getEnv "NOVA_DJOIN"
-  pure (case v of
-          Just "0" => False
-          _ => True)
-
-export
-noSearchMode : Nat
-noSearchMode = unsafePerformIO $ do
-  v <- getEnv "NOVA_NOSEARCH"
-  pure (case v of
-          Nothing => 0
-          Just "measure" => 1
-          Just _ => 2)
-
 ||| NOVA_SURVEY=1: migration-survey mode. Elaboration (a) does not
 ||| enforce the type-exposure whitelist — it only LOGS what each
 ||| item's whitelist would need (`unf <module>:<item>|<name>` labels) —

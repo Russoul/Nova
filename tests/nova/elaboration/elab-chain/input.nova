@@ -36,9 +36,9 @@ multZeroId : (n : ℕ) → n * Z ≡ Z ∈ ℕ using (*.eq)
 multZeroId = λn. ⋆
 multSucId : (n : ℕ) (m : ℕ) → n * S m ≡ n + n * m ∈ ℕ using (*.eq, +.eq)
 multSucId = λn. λm. ⋆
-zeroMult : (n : ℕ) → Z * n ≡ Z ∈ ℕ using (multZeroId)
+zeroMult : (n : ℕ) → Z * n ≡ Z ∈ ℕ
 zeroMult =
-  λn. ℕ-elim (k. Z * k ≡ Z ∈ ℕ) ⋆
+  λn. ℕ-elim (k. Z * k ≡ Z ∈ ℕ) (multZeroId Z)
     (k ih. (Z * S k ≡⟨ multSucId Z k ⟩ Z + Z * k ≡⟨ ih ⟩ Z + Z ≡⟨ zeroPlusId Z ⟩ Z))
     n
 sucMult : (n : ℕ) (m : ℕ) → S n * m ≡ m + n * m ∈ ℕ

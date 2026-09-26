@@ -11,8 +11,8 @@ swap12 : ins Z (ins (S Z) nil) ≡ ins (S Z) (ins Z nil) ∈ Bag using (Bag.eq, 
 swap12 =
   swp Z (S Z) nil
 
-swap12' : ins Z (ins (S Z) nil) ≡ ins (S Z) (ins Z nil) ∈ Bag using (Bag.eq, swap12)
-swap12' = ⋆
+swap12' : ins Z (ins (S Z) nil) ≡ ins (S Z) (ins Z nil) ∈ Bag using (Bag.eq)
+swap12' = swap12
 
 -- eliminate: the size of a bag — the method is order-insensitive, so
 -- the COHERENCE argument is ⋆ (β makes both sides S (S ih))

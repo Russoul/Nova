@@ -2,7 +2,7 @@ plus : ℕ → ℕ → ℕ
 plus Z n = n
 plus (S m) n = S (plus m n)
 
-plusZr : (n : ℕ) → plus n Z ≡ n ∈ ℕ using (hyp.rw, plus.eq, plusZ)
+plusZr : (n : ℕ) → plus n Z ≡ n ∈ ℕ using (plus.eq, plusZ)
 plusZr = λn. ℕ-elim (x. plus x Z ≡ x ∈ ℕ) ⋆ (k ih. ⋆) n
 
 plusByHand : ℕ → ℕ → ℕ

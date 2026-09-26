@@ -52,38 +52,35 @@ stays blocked until the definiens is supplied.
 
 ## How discharge works (the key mental model)
 
-Every accepted item whose type is an equation (possibly under Π-binders)
-enters the lemma store E and becomes a discharge candidate for
-EVERYTHING BELOW it. The engine applies candidates in three ways:
+The engine places NO lemma by matching (docs/NovaStrategy.txt: the
+engine is a deterministic translator, never an author-substitute). A
+site — a ⋆, a chain step, a conversion between an inferred and an
+expected type — closes by the STATED tier alone:
 
-- WHOLE-EQUATION MATCH: the goal (or its flip) matches a candidate's
-  sides under one consistent first-order instantiation; unbound
-  parameters must carry ≡ (or 𝟙 / Prf) types whose instances discharge
-  as side conditions. This is how PERMUTATIVE lemmas (commutativity,
-  exchange) and hypothesis-conditional lemmas fire. **A parameter that
-  occurs in NEITHER side can never be bound** — a candidate carries no
-  type slot, so a lemma whose parameter appears only in the equation's
-  type is unusable and its goal comes back verbatim, unhinted (B-21).
-- CONGRUENCE DESCENT: one deterministic descent through the two sides'
-  common structure, each child discharged by the above. Together with
-  whole-equation match this covers most goals, which is why the
-  group/ring modules cite no rewrite at all.
-- REWRITING, only if licensed: oriented, size-decreasing/non-permutative
-  candidates are used as left-to-right rules at any subterm — but ONLY
-  when the site cites `hyp.rw` or `<lemma>.rw`. A plain citation does
-  NOT make a lemma a rewrite rule (B-22). Reach for `.rw` when the redex
-  sits under a different head, where congruence cannot descend.
-- TRANSITIVITY HOPS: a candidate may rewrite one side wholesale, with a
-  small depth budget.
+- tier 0: the sides are α-identical; tier 1: they join under
+  computation (β, the eliminators' ι, let) with no unfolding.
+- the LICENSED δ-JOIN: the sides unfolded under the site's `using`
+  licences alone (`<def>.eq` anywhere, `<def>.unfold` at type heads,
+  `pi.eta`/`sigma.eta`) and compared.
+- the TYPE-DIRECTED closings: proof irrelevance at a proposition,
+  quotient witnesses at a class equation, η at Π/Σ under its licence.
+- the CONGRUENCE DESCENT through the two sides' common structure,
+  each child closed by the above.
+- the CLOSURE OVER THE FACTS IN SCOPE: hypotheses, local claims
+  (`let h = lemma x y in …`), chain links and the ≡-elim hypothesis
+  rewrite the sides to normal form, in either direction, and are
+  matched whole (a quantified hypothesis at its instances).
 
-Matching is first-order and up to El-decoding (`El ℕc ≜ ℕ`), so a
-GENERIC lemma discharges its instantiated goals: prove `swapG : (a : 𝕌)
-… ∈ El (Bag a)` once and every `Bag ℕ` instance follows.
+A lemma in Σ is NOT a fact in scope: naming it in `using` licenses
+nothing (`.rw` is gone). To use a lemma, STATE ITS INSTANCE where it is
+used — as the proof itself (`zeroPlusId n` in place of a ⋆), as a chain
+step (`≡⟨ plusComm b a ⟩`), as a local claim (`let claim = plusSucId x j
+in ⋆`), or through `trans`/`sym`/`cong` explicitly. A site the
+statements do not close is reported as an obligation, with a `hint:`
+naming the `.eq` citations that would close it by unfolding alone.
 
 Consequences:
-- ORDER MATTERS. A lemma helps only items after it. Discharge an
-  obligation by adding a def ABOVE the failing item.
-- Candidates are stored normalized as of their acceptance point.
+- ORDER MATTERS only for names: a lemma helps once it is defined above.
 - An obligation assumed once is not re-reported, but it is NOT proven —
   check the final count, not the noise.
 
@@ -91,9 +88,9 @@ Consequences:
 
 1. Read obligation [1]. State it verbatim as a def: binders become
    Π-arguments, the equation becomes the ≡-type.
-2. Try `x = λx. … ⋆` first — β + already-stored lemmas may close it
-   (⋆ is the proof of EVERY proposition, equations included; there is
-   no Refl).
+2. Try `x = λx. … ⋆` first — computation, the cited unfoldings and the
+   hypotheses in scope may close it (⋆ is the proof of EVERY
+   proposition, equations included; there is no Refl).
 3. Otherwise prove by induction with an eliminator and an ≡-typed
    motive (PARENTHESIZE the motive: `(k. Z + k ≡ k ∈ ℕ)` — equality
    types don't parse bare in binder-body positions):

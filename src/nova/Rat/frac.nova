@@ -51,16 +51,7 @@ nzMul =
     x
 
 nzMulOneL : {y : NZ} → nzMul nzOne y ≡ y
-  using (nzMul.eq,
-    nzNeg.eq,
-    nzOne.eq,
-    nzPos.eq,
-    plusZeroId.rw,
-    Rat.frac.NZ.unfold,
-    zeroMult,
-    zeroMult.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
+  using (nzMul.eq, nzNeg.eq, nzOne.eq, nzPos.eq, Rat.frac.NZ.unfold, zeroMult, zeroPlusId)
 nzMulOneL =
   λy. ⊎-elim
     k. let claim29 = zeroMult k in let claim30 = zeroPlusId Z in let claim31 = zeroPlusId k in ⋆
@@ -68,15 +59,7 @@ nzMulOneL =
     y
 
 nzMulOneR : {x : NZ} → nzMul x nzOne ≡ x
-  using (multZeroId.rw,
-    nzMul.eq,
-    nzNeg.eq,
-    nzOne.eq,
-    nzPos.eq,
-    plusZeroId.rw,
-    Rat.frac.NZ.unfold,
-    zeroPlusId,
-    zeroPlusId.rw)
+  using (nzMul.eq, nzNeg.eq, nzOne.eq, nzPos.eq, Rat.frac.NZ.unfold, zeroPlusId)
 nzMulOneR =
   λx. ⊎-elim
     m. let claim23 = multZeroId m in let claim24 = zeroPlusId m in let claim25 = plusZeroId m in ⋆
@@ -108,16 +91,13 @@ oneMult = λm. S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m 
 -- to scale by a nat and negate: n · (a, b) = (n*a, n*b), whose
 -- well-definedness is one application of distributivity.
 intAddZeroL : (z : Int) → intZero + z ≡ z
-  using (hyp.rw,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.Int.unfold,
     Int.intZero.eq,
     Int.add.+.eq,
     Int.add.intAddL.eq,
     plusComm,
-    plusComm.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
+    zeroPlusId)
 intAddZeroL =
   λz. quot-elim
     p. let claim17 = zeroPlusId (p .π₁)
@@ -127,18 +107,14 @@ intAddZeroL =
     z
 
 intAddZeroR : (z : Int) → z + intZero ≡ z
-  using (hyp.rw,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.Int.unfold,
     Int.intZero.eq,
     Int.add.+.eq,
     Int.add.intAddL.eq,
     plusComm,
-    plusComm.rw,
     plusZeroId,
-    plusZeroId.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
+    zeroPlusId)
 intAddZeroR =
   λz. quot-elim
     p. let claim14 = plusZeroId (p .π₁)
@@ -166,14 +142,7 @@ intScaleNZero : (n : ℕ) → intScaleN n intZero ≡ intZero
 intScaleNZero = λn. ⋆
 
 intScaleNOne : (z : Int) → intScaleN (S Z) z ≡ z
-  using (hyp.rw,
-    intScaleN.eq,
-    Int.Int.eq,
-    Int.Int.unfold,
-    oneMult,
-    oneMult.rw,
-    plusComm,
-    plusComm.rw)
+  using (intScaleN.eq, Int.Int.eq, Int.Int.unfold, oneMult, plusComm)
 intScaleNOne =
   λz. quot-elim
     p. let claim11 = oneMult (p .π₁)
@@ -185,14 +154,7 @@ intScaleNOne =
 -- scaling by n+1 really is n+1 iterated additions — the definition by
 -- representatives agrees with the recursive one
 intScaleNSuc : (n : ℕ) (z : Int) → intScaleN (S n) z ≡ z + intScaleN n z
-  using (hyp.rw,
-    intScaleN.eq,
-    Int.Int.eq,
-    Int.Int.unfold,
-    Int.add.+.eq,
-    Int.add.intAddL.eq,
-    sucMultBack,
-    sucMultBack.rw)
+  using (intScaleN.eq, Int.Int.eq, Int.Int.unfold, Int.add.+.eq, Int.add.intAddL.eq, sucMultBack)
 intScaleNSuc =
   λn z. quot-elim
     p. let claim9 = sucMultBack n (p .π₁) in let claim10 = sucMultBack n (p .π₂) in ⋆
@@ -458,8 +420,7 @@ ratAddZeroR =
 
 -- ===== commutativity =====
 -- (x + m) + k ≡ (x + k) + m: the addends the cross-sum needs swapped
-plusSwapRight : {x m k : ℕ} → x + m + k ≡ x + k + m
-  using (hyp.rw, plusAssoc, plusAssoc.rw, plusComm, plusComm.rw, swapLeft, swapLeft.rw)
+plusSwapRight : {x m k : ℕ} → x + m + k ≡ x + k + m using (plusAssoc, plusComm, swapLeft)
 plusSwapRight =
   λx m k. let claim1 = plusAssoc x m k
               claim2 = swapLeft x m k

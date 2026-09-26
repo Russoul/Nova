@@ -843,23 +843,32 @@ etaType fname ty cols imps b lemNames lemTys cds =
   colName : Nat -> String
   colName i = maybe "_" fst (nth (minus i 1) cols)
 
+||| The clause lemmas STATED at a case of the uniqueness proof: each
+||| one a local claim (its Σ reference — the hypothesis of the same
+||| name, about g, shadows the bare name) in scope of the ⋆, which
+||| closes by the facts in scope and nothing else.
+clauseClaims : List String -> SElem -> SElem
+clauseClaims lemNames body =
+  foldr (\(i, n), acc => SLet ("cl" ++ show i, Nothing) (SSig Nothing n) acc) body
+        (zip [0 .. minus (length lemNames) 1] lemNames)
+
 ||| The uniqueness PROOF for a fragment-shaped item: the eliminator at
 ||| the pointwise equality motive, both cases ⋆ — discharged from the
 ||| g-clause hypotheses, the induction hypothesis, and the clause
 ||| lemmas (docs/NovaKernel.txt caveat A5: no η finals exist or are
 ||| needed). For the no-split shape (and as the unshaped fallback) the
 ||| body is the bare λ…. ⋆.
-etaBodyStar : (m, k : Nat) -> (lemNames : List String) ->
+etaBodyStar : (m, k : Nat) -> (lemNames : List String) -> (claims : List String) ->
               (cols : List (String, STy)) -> SElem
-etaBodyStar m k lemNames cols =
+etaBodyStar m k lemNames claims cols =
   SLam ("g", Nothing)
     (wrapSLams (map (\n => (n, Nothing)) lemNames)
-      (wrapSLams (map (\(x, _) => (x, Nothing)) cols) (SStar Nothing)))
+      (wrapSLams (map (\(x, _) => (x, Nothing)) cols) (clauseClaims claims (SStar Nothing))))
 
 etaBodyElim : (fname : String) -> (cols : List (String, STy)) -> (imps : List Bool) -> (b : STy) ->
-              (j, k, m : Nat) -> (lemNames : List String) ->
+              (j, k, m : Nat) -> (lemNames : List String) -> (claims : List String) ->
               (isNat : Bool) -> (v1, v2 : SName) -> SElem
-etaBodyElim fname cols imps b j k m lemNames isNat v1 v2 =
+etaBodyElim fname cols imps b j k m lemNames claims isNat v1 v2 =
   let kj = minus k j
       trailing = drop j cols
       -- context at the motive's equation: [g, h's, x₁…x_j, x, trailing]
@@ -871,7 +880,7 @@ etaBodyElim fname cols imps b j k m lemNames isNat v1 v2 =
                     (spine (SSig Nothing fname) (impWrap imps args))
                     (Just (shiftTy (S kj) 1 b))
       mot = motChain trailing concl
-      trailLams = wrapSLams (map (\(x, _) => (x, Nothing)) trailing) (SStar Nothing)
+      trailLams = wrapSLams (map (\(x, _) => (x, Nothing)) trailing) (clauseClaims claims (SStar Nothing))
       xname = colBinder cols (minus j 1)
       scrut = SVar Nothing (fst xname) 0
       elim = if isNat
@@ -981,8 +990,14 @@ expandClausal nrng fname ty uses etaName etaRng witness clauses = do
   let m = length clauses
   let eTy = etaType fname ty cols imps b lemNames lemTys cds
   let shape = analyzeShape cols clauses
-  let eBodySynth = map (shapedEtaBody cols imps b k m lemNames) shape
-  let eBodyStar = etaBodyStar m k lemNames cols
+  let eBodySynth = map (shapedEtaBody cols imps b k m lemNames []) shape
+  let eBodyStar = etaBodyStar m k lemNames [] cols
+  -- (the witness tier states the clause lemmas at the uniqueness
+  -- proof's cases: a clause's own licence reaches its lemma alone,
+  -- and the proof closes through the lemmas as facts in scope; in the
+  -- fragment the defining equation's computation is the proof)
+  let eBodySynthW = map (shapedEtaBody cols imps b k m lemNames lemNames) shape
+  let eBodyStarW = etaBodyStar m k lemNames lemNames cols
   let names = fname :: lemNames ++ [etaN]
   -- where each generated lemma's NAME lives, for hover: the written
   -- [name] override when there is one, else the clause it is about
@@ -992,7 +1007,9 @@ expandClausal nrng fname ty uses etaName etaRng witness clauses = do
   let etaR = etaRng <|> nrng
   let itemU = fromMaybe [] uses
   let lemUses = map (\c => Just ([fname ++ ".eq"] ++ itemU ++ fromMaybe [] c.cuses)) clauses
-  let etaUses = Just (lemNames ++ map (++ ".rw") lemNames ++ [fname ++ ".eq", "hyp.rw"] ++ itemU)
+  -- (the clause equations and the hypotheses are facts in scope: the
+  -- stated tier reads them; no rewrite licence is cited)
+  let etaUses = Just (lemNames ++ [fname ++ ".eq"] ++ itemU)
   case witness of
     Just w =>
       -- WITNESS TIER: existence is the user's; the clause lemmas pay
@@ -1008,7 +1025,7 @@ expandClausal nrng fname ty uses etaName etaRng witness clauses = do
                   -- it otherwise), and the uniqueness proof cites the
                   -- clause lemmas it rewrites by
                   :: atClauses (zipWith4 (\r, n, t, (b, u) => SDef r n t b u) lemRngs lemNames lemTys (zip lemBodies lemUses))
-                  ++ [(nrng, SDef etaR etaN eTy (fromMaybe eBodyStar eBodySynth) etaUses)])
+                  ++ [(nrng, SDef etaR etaN eTy (fromMaybe eBodyStarW eBodySynthW) etaUses)])
                "defined \{fname} by clauses via witness (\{joinBy ", " names})")
     Nothing =>
       case (shape, shape >>= shapedRho cols imps b k) of
@@ -1061,9 +1078,9 @@ expandClausal nrng fname ty uses etaName etaRng witness clauses = do
   shapedRho cols imps b k (ShNat j zc sc mvar) = rhoNat fname cols imps b j k zc sc mvar
   shapedRho cols imps b k (ShSum j lc avar rc bvar) = rhoSum fname cols b j k lc avar rc bvar
 
-  shapedEtaBody : List (String, STy) -> List Bool -> STy -> Nat -> Nat -> List String -> Shape -> SElem
-  shapedEtaBody cols imps b k m lemNames (ShNone _) = etaBodyStar m k lemNames cols
-  shapedEtaBody cols imps b k m lemNames (ShNat j _ sc mvar) =
-    etaBodyElim fname cols imps b j k m lemNames True mvar ("ih", Nothing)
-  shapedEtaBody cols imps b k m lemNames (ShSum j _ avar _ bvar) =
-    etaBodyElim fname cols imps b j k m lemNames False avar bvar
+  shapedEtaBody : List (String, STy) -> List Bool -> STy -> Nat -> Nat -> List String -> List String -> Shape -> SElem
+  shapedEtaBody cols imps b k m lemNames claims (ShNone _) = etaBodyStar m k lemNames claims cols
+  shapedEtaBody cols imps b k m lemNames claims (ShNat j _ sc mvar) =
+    etaBodyElim fname cols imps b j k m lemNames claims True mvar ("ih", Nothing)
+  shapedEtaBody cols imps b k m lemNames claims (ShSum j _ avar _ bvar) =
+    etaBodyElim fname cols imps b j k m lemNames claims False avar bvar

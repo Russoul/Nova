@@ -42,7 +42,7 @@ nzPosInt : (k : ℕ) → nzToInt (nzPos k) ≡ intOfNat (S k)
 nzPosInt = λk. ⋆
 
 -- S (dbl n) is 2·(n+1) — one successor moved across a sum
-sucDbl : (n : ℕ) → S (dbl n) ≡ S n + S n using (sucPlus.rw, plusSucId.rw, Rat.half.dbl.eq)
+sucDbl : (n : ℕ) → S (dbl n) ≡ S n + S n using (Rat.half.dbl.eq)
 sucDbl = λn. let claim1 = sucPlus n (S n) in let claim2 = plusSucId n n in ⋆
 
 -- the doubled denominator IS the original one, doubled in Int

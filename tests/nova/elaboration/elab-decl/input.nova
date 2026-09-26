@@ -6,5 +6,5 @@ vect : ℕ → 𝕌 → 𝕌
 vectS : (n : ℕ) (A : 𝕌) → vect (S n) A ≡ (A × vect n A) ∈ 𝕌
 two : 𝕌
 two = vect (S (S Z)) ℕ
-twoIsPair : two ≡ (ℕ × vect (S Z) ℕ) ∈ 𝕌 using (two.eq, vectS)
-twoIsPair = ⋆
+twoIsPair : two ≡ (ℕ × vect (S Z) ℕ) ∈ 𝕌  using (two.eq)
+twoIsPair = vectS (S Z) ℕ

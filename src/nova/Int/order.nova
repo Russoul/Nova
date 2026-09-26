@@ -297,13 +297,9 @@ intOfNatMul : (a b : ℕ) → intOfNat a * intOfNat b ≡ intOfNat (a * b)
     Int.mul.intMulL.eq,
     Int.Int.eq,
     zeroMult,
-    zeroMult.rw,
     Natural.multZeroId,
-    Natural.multZeroId.rw,
     Natural.plusZeroId,
-    Natural.plusZeroId.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
+    zeroPlusId)
 intOfNatMul =
   λa b. let claim1 = zeroMult Z
             claim2 = zeroMult b

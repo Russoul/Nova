@@ -2,5 +2,5 @@ plus : ℕ → ℕ → ℕ
 plus = λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
 plusZeroId : (n : ℕ) → plus n Z ≡ n ∈ ℕ using (plus.eq)
 plusZeroId = λn. ⋆
-zeroPlusId : (n : ℕ) → plus Z n ≡ n ∈ ℕ using (hyp.rw, plus.eq, plusZeroId)
+zeroPlusId : (n : ℕ) → plus Z n ≡ n ∈ ℕ using (plus.eq, plusZeroId)
 zeroPlusId = λn. ℕ-elim (k. plus Z k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n

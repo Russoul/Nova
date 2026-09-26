@@ -26,8 +26,7 @@ plusQsl = λa b. ⋆
 -- (equality is Ω-valued: the prop-flavored eliminator carries Ω-valued
 -- motives and, by proof irrelevance, needs no coherence arguments)
 plusQzr : (a : N) → plusQ a z ≡ a
-  using (hyp.rw,
-    Qiit.nat.N.eq,
+  using (Qiit.nat.N.eq,
     Qiit.nat.N.unfold,
     Qiit.nat.NElim.eq,
     Qiit.nat.plusQ.eq,

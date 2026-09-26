@@ -337,9 +337,7 @@ qDiffNatFrac : {m b K : ℕ}
     Int.intNeg.eq,
     Int.add.+.eq,
     Int.add.intAddL.eq,
-    Natural.multZeroId.rw,
     plusComm,
-    plusZeroId.rw,
     Rat.nat.qOfNat.eq,
     Rat.frac.den.eq,
     Rat.frac.intScale.eq,
@@ -356,8 +354,7 @@ qDiffNatFrac : {m b K : ℕ}
     Rat.+.eq,
     Rat.qAddL.eq,
     Rat.qNeg.eq,
-    Rat.qcls.eq,
-    zeroPlusId.rw)
+    Rat.qcls.eq)
 qDiffNatFrac =
   λm b K. trans
     _

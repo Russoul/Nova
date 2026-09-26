@@ -6,5 +6,8 @@ defined sucPlus
 defined plusComm
 defined scopedGood
 defined scopedList
+defined scopedBad [+1 obligation]
 defined scopedHyp
-Accepted.
+open obligations (1):
+  [1] (a : ℕ) (b : ℕ) ⊢ a + b ≐ b + a : ℕ
+      at: input.nova:32:21: def scopedBad: checking ⋆

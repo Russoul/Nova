@@ -7,7 +7,7 @@ cong2 : (A : 𝕌)
   (B : A → 𝕌)
   (f : (x : A) → (B x))
   (a b : A) → (a ≡ b) → f a ≡ f b ∈ (B b)
-  using (hyp.rw)
+
 cong2 = λA. λB. λf. λa. λb. λh. ⋆
 
 double : ℕ → ℕ

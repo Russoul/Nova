@@ -114,13 +114,7 @@ intAddComm =
 -- associativity: three eliminations; the representatives reassociate
 -- by plusAssoc and close by commutativity of the cross sum
 intAddAssoc : (x y z : Int) → x + y + z ≡ x + (y + z)
-  using (hyp.rw,
-    Int.add.+.eq,
-    Int.add.intAddL.eq,
-    Int.Int.eq,
-    Int.Int.unfold,
-    plusAssoc,
-    plusAssoc.rw)
+  using (Int.add.+.eq, Int.add.intAddL.eq, Int.Int.eq, Int.Int.unfold, plusAssoc)
 intAddAssoc =
   λx y z. quot-elim
     a. quot-elim

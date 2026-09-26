@@ -206,7 +206,7 @@ qrMulAssoc : (R : 𝕌)
   (id : IsIdeal _ r I)
   (u v w : QRing _ r I)
   → qrMul _ _ _ id (qrMul _ _ _ id u v) w ≡ qrMul _ _ _ id u (qrMul _ _ _ id v w)
-  using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrMulCls.rw)
+  using (QRing.eq, Algebra.quotGroup.QGroup.unfold)
 qrMulAssoc =
   λR r I id u v w. quot-elim
     a. quot-elim
@@ -239,7 +239,7 @@ qrMulComm : (R : 𝕌)
   (id : IsIdeal _ r I)
   (u v : QRing _ r I)
   → qrMul _ _ _ id u v ≡ qrMul _ _ _ id v u
-  using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrMulCls.rw)
+  using (QRing.eq, Algebra.quotGroup.QGroup.unfold)
 qrMulComm =
   λR r I id u v. quot-elim
     a. quot-elim
@@ -263,7 +263,7 @@ qrMulOne : (R : 𝕌)
   (id : IsIdeal _ r I)
   (u : QRing _ r I)
   → qrMul _ _ _ id u qrOne ≡ u
-  using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrOne.eq, qrMulCls.rw)
+  using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrOne.eq)
 qrMulOne =
   λR r I id u. quot-elim
     a. trans
@@ -280,7 +280,7 @@ qrAddComm : {R : 𝕌}
   {id : IsIdeal _ r I}
   {u v : QRing _ r I}
   → qrAdd id u v ≡ qrAdd id v u
-  using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrAddCls.rw)
+  using (QRing.eq, Algebra.quotGroup.QGroup.unfold)
 qrAddComm =
   λR r I id u v. quot-elim
     a. quot-elim
@@ -304,7 +304,7 @@ qrDistribL : {R : 𝕌}
   {id : IsIdeal _ r I}
   {u v w : QRing _ r I}
   → qrMul _ _ _ id u (qrAdd id v w) ≡ qrAdd id (qrMul _ _ _ id u v) (qrMul _ _ _ id u w)
-  using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrMulCls.rw, qrAddCls.rw)
+  using (QRing.eq, Algebra.quotGroup.QGroup.unfold)
 qrDistribL =
   λR r I id u v w. quot-elim
     a. quot-elim

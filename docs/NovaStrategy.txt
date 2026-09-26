@@ -472,11 +472,29 @@ that with statements in the text, measured site by site.
          three children (irrelevance leaves cannot be chain links).
          The stated run is now the engine's FIRST route in every mode;
          the search is the fallback the measure counts.
-  [ ] 3′. DELETE THE SEARCH: the fallback in withStated, the
-         Σ-lemma candidates (direct and hop) and their `.rw` licences,
-         the depth, the `NOVA_NOSEARCH` modes; then the `.rw` names
-         from the corpus's `using` clauses. What remains is the stated
-         tier alone, and the measure is its acceptance.
+  [~] 3′. DELETE THE SEARCH. Done 2026-09-26, as behaviour: the
+         stated run IS the engine (withStated has no fallback), the
+         `.rw` licences are refused (`hyp.rw` too — hypotheses are
+         facts in scope, licence-free), the Σ-lemma hops are gone from
+         the stated run, the lemma-placing hint (`closes with X`) is
+         gone (the `.eq`-citation hint stays: choice-free), the
+         `NOVA_NOSEARCH`/`NOVA_DJOIN` switches and the migration tool's
+         audit line are gone, the corpus and the golden tests cite no
+         `.rw`. The witness tier of the clausal expansion states its
+         clause lemmas at the uniqueness proof's cases (local claims of
+         the Σ references) — the one place the emitter had relied on
+         the search; a witness clause whose equation holds only by a
+         lemma's instance has no form to state it yet (an open surface
+         decision, docs/NovaElaboration.txt, Defining equations —
+         SCOPES). Still to delete, as code: the `statedOnly` flag and
+         its dead branches, the Σ-lemma candidate store (`lemmas`,
+         `candCs`…, `sigCandParts` at admission), the `scope` of a `⋆
+         using` (licences only, now), the depth override, the `rw:`
+         markers. Known engine bug met on the way: a local claim of a
+         Σ-lemma whose statement is an equation BETWEEN PROOFS (Core.id's
+         idToEqBetaEq) is rejected by the kernel at the let (the
+         claim's type normalized by irrelevance) — not yet fixed, not
+         hit by the corpus.
   [x] 4. Well-definedness as a claim (the 80 sites), by the same form:
          the named left operation's local claim, the outer half a
          lemma over it (3 above).

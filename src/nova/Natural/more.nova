@@ -81,12 +81,7 @@ monusSucR : (a b : ℕ) → a ∸ S b ≡ pred (a ∸ b) using (Natural.more.pre
 monusSucR = λa b. ⋆
 
 zeroMonus : (b : ℕ) → Z ∸ b ≡ Z
-  using (hyp.rw,
-    Natural.more.monusZeroR,
-    Natural.more.monusZeroR.rw,
-    Natural.more.monusSucR,
-    Natural.more.monusSucR.rw,
-    Natural.more.pred.eq)
+  using (Natural.more.monusZeroR, Natural.more.monusSucR, Natural.more.pred.eq)
 zeroMonus =
   λb. ℕ-elim (monusZeroR {Z}) (k ih. let claim24 = monusSucR Z k in let claim25 = ih in ⋆) b
 
@@ -95,15 +90,7 @@ sucMonusSuc = λa b. ℕ-elim ⋆ (k ih. ⋆) b
 
 -- (a + b) − b is a, on the nose
 plusMonus : (a b : ℕ) → a + b ∸ b ≡ a
-  using (hyp.rw,
-    plusZeroId,
-    plusZeroId.rw,
-    plusSucId,
-    plusSucId.rw,
-    Natural.more.monusZeroR,
-    Natural.more.monusZeroR.rw,
-    sucMonusSuc,
-    sucMonusSuc.rw)
+  using (plusZeroId, plusSucId, Natural.more.monusZeroR, sucMonusSuc)
 plusMonus =
   λa b. ℕ-elim
     trans _ _ _ (monusZeroR {a + Z}) (plusZeroId a)
@@ -117,8 +104,7 @@ plusMonus =
 monusPlus : (a b c : ℕ) → a ∸ (b + c) ≡ a ∸ b ∸ c using (Natural.+.eq, Natural.more.∸.eq)
 monusPlus = λa b c. ℕ-elim ⋆ (k ih. ⋆) c
 
-monusSelf : {a : ℕ} → a ∸ a ≡ Z
-  using (hyp.rw, Natural.more.zeroMonus, Natural.more.zeroMonus.rw, sucMonusSuc, sucMonusSuc.rw)
+monusSelf : {a : ℕ} → a ∸ a ≡ Z using (Natural.more.zeroMonus, sucMonusSuc)
 monusSelf =
   λa. ℕ-elim (zeroMonus _) (k ih. let claim17 = sucMonusSuc k k in let claim18 = ih in ⋆) a
 
@@ -196,17 +182,7 @@ expSuc : (a n : ℕ) → a ^ S n ≡ a * a ^ n using (Natural.*.eq, Natural.more
 expSuc = λa n. ⋆
 
 oneExp : (n : ℕ) → S Z ^ n ≡ S Z
-  using (hyp.rw,
-    Natural.more.expZero,
-    Natural.more.expZero.rw,
-    Natural.more.expSuc,
-    Natural.more.expSuc.rw,
-    multSucId,
-    multSucId.rw,
-    multZeroId,
-    multZeroId.rw,
-    plusZeroId,
-    plusZeroId.rw)
+  using (Natural.more.expZero, Natural.more.expSuc, multSucId, multZeroId, plusZeroId)
 oneExp =
   λn. ℕ-elim
     expZero _
@@ -228,15 +204,7 @@ multLeftComm =
     ≡⟨ multAssoc y x z ⟩ y * (x * z)
 
 expPlus : (a m n : ℕ) → a ^ (m + n) ≡ a ^ m * a ^ n
-  using (hyp.rw,
-    plusZeroId,
-    plusZeroId.rw,
-    Natural.more.expZero,
-    Natural.more.expZero.rw,
-    multSucId,
-    multSucId.rw,
-    multZeroId,
-    multZeroId.rw)
+  using (plusZeroId, Natural.more.expZero, multSucId, multZeroId)
 expPlus =
   λa m n. ℕ-elim
     let claim7 = plusZeroId m
@@ -254,8 +222,7 @@ expPlus =
     n
 
 -- ===== monus and a common summand =====
-monusPlusR : (a b k : ℕ) → a + k ∸ (b + k) ≡ a ∸ b
-  using (hyp.rw, plusZeroId, plusZeroId.rw, plusSucId, plusSucId.rw, sucMonusSuc, sucMonusSuc.rw)
+monusPlusR : (a b k : ℕ) → a + k ∸ (b + k) ≡ a ∸ b using (plusZeroId, plusSucId, sucMonusSuc)
 monusPlusR =
   λa b k. ℕ-elim
     let claim5 = plusZeroId a in let claim6 = plusZeroId b in ⋆

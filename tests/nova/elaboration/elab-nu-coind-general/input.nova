@@ -6,7 +6,7 @@ cinf = corec (s : 𝟙. inj₂ s) ()
 csucc : conat → conat using (conat.unfold)
 csucc =
   λn. corec (p : 𝟙 ⊎ conat. inj₂ (⊎-elim (w. 𝟙 ⊎ conat) (u. inj₁ u) (m. out m) p)) (out n)
-infSucc : cinf ≡ csucc cinf ∈ conat using (hyp.rw, conat.unfold, conat.eq, cinf.eq, csucc.eq)
+infSucc : cinf ≡ csucc cinf ∈ conat using (conat.unfold, conat.eq, cinf.eq, csucc.eq)
 infSucc =
   coind (x y. ∥(x ≡ cinf ∈ conat) × (y ≡ csucc cinf ∈ conat)∥)
         (⋆ ((⋆ , ⋆)))
@@ -19,7 +19,7 @@ m1 : moore using (moore.unfold)
 m1 = corec (s : 𝟙. (Z , λi. s)) ()
 m2 : moore using (moore.unfold)
 m2 = corec (s : ℕ. (Z , λi. s)) Z
-mEq : m1 ≡ m2 ∈ moore using (hyp.rw, moore.unfold, moore.eq, m1.eq, m2.eq)
+mEq : m1 ≡ m2 ∈ moore using (moore.unfold, moore.eq, m1.eq, m2.eq)
 mEq =
   coind (x y. ∥(x ≡ m1 ∈ moore) × (y ≡ m2 ∈ moore)∥)
         (⋆ ((⋆ , ⋆)))
@@ -32,7 +32,7 @@ d1 : dep using (dep.unfold)
 d1 = corec (s : 𝟙. (Z , s)) ()
 d2 : dep using (dep.unfold)
 d2 = corec (s : ℕ. (Z , s)) Z
-dEq : d1 ≡ d2 ∈ dep using (hyp.rw, dep.unfold, dep.eq, d1.eq, d2.eq)
+dEq : d1 ≡ d2 ∈ dep using (dep.unfold, dep.eq, d1.eq, d2.eq)
 dEq =
   coind (x y. ∥(x ≡ d1 ∈ dep) × (y ≡ d2 ∈ dep)∥)
         (⋆ ((⋆ , ⋆)))

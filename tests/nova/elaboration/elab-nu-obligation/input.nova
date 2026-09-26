@@ -7,7 +7,7 @@ zeros : (stream ℕ) using (stream.unfold)
 zeros = corec (s : 𝟙. (Z , s)) ()
 ones : (stream ℕ) using (stream.unfold)
 ones = corec (s : 𝟙. (S Z , s)) ()
-bad : zeros ≡ ones ∈ (stream ℕ) using (hyp.rw, stream.unfold, zeros.eq, ones.eq, stream.eq)
+bad : zeros ≡ ones ∈ (stream ℕ) using (stream.unfold, zeros.eq, ones.eq, stream.eq)
 bad =
   coind (x y. ∥(x ≡ zeros ∈ (stream ℕ)) × (y ≡ ones ∈ (stream ℕ))∥)
         (⋆ ((⋆ , ⋆)))

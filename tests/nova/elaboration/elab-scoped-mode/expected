@@ -11,4 +11,3 @@ defined named
 open obligations (1):
   [1] (a : ℕ) (b : ℕ) ⊢ a + b ≐ b + a : ℕ
       at: input.nova:31:22: def needsStore: checking ⋆
-      hint: closes with plusComm

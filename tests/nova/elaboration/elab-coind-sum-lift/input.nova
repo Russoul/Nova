@@ -19,16 +19,16 @@ csucc =
   λn. corec (p : 𝟙 ⊎ conat. inj₂ (⊎-elim (u. inj₁ u) (m. out m) p)) (out n)
 
 outInf : out cinf ≡ inj₂ cinf ∈ 𝟙 ⊎ conat
-  using (cinf.eq, conat.eq, hyp.rw, conat.unfold)
+  using (cinf.eq, conat.eq, conat.unfold)
 outInf = ⋆
 
 outSuccInf : out (csucc cinf) ≡ inj₂ (csucc cinf) ∈ 𝟙 ⊎ conat
-  using (cinf.eq, conat.eq, csucc.eq, hyp.rw, conat.unfold)
+  using (cinf.eq, conat.eq, csucc.eq, conat.unfold)
 outSuccInf = ⋆
 
 -- the closure eliminates the invariant's two equations, so the ≡-elim
 -- lifts a definition whose type is the relator itself
-infSucc : cinf ≡ csucc cinf using (cinf.eq, csucc.eq, hyp.rw, conat.unfold)
+infSucc : cinf ≡ csucc cinf using (cinf.eq, csucc.eq, conat.unfold)
 infSucc =
   coind (u v. ∥(u ≡ cinf ∈ conat) × (v ≡ csucc cinf ∈ conat)∥)
         (⋆ (⋆, ⋆))

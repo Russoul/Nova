@@ -395,7 +395,7 @@ invPairCong : {u a a' : Q}
   {b' : u * a' ≡ qOne}
   (h : a ≡ a')
   → (a, b) ≡ (a', b') ∈ (v : Q) × u * v ≡ qOne
-  using (hyp.rw, Rat.Q.unfold, sigma.eta)
+  using (Rat.Q.unfold, sigma.eta)
 invPairCong = λu a a' b b' h. ⋆
 
 -- so any two inverse-witnesses are equal, given as pairs

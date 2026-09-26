@@ -21,11 +21,12 @@ plusComm =
       (S k + n ≡⟨ sucPlus k n ⟩ S (k + n) ≡⟨ ih ⟩ S (n + k) ≡⟨ plusSucId n k ⟩ n + S k))
     m
 
--- the whole item discharges against plusComm + hypotheses only
-scopedItem : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ using (plusComm)
+-- the instance is stated: the item names no lemma
+scopedItem : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ
 scopedItem =
-  λa. λb. ⋆
--- restriction: plusComm exists but is not named
-scopedItemBad : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ using (plusZeroId)
+  λa. λb. plusComm b a
+-- a ⋆ states nothing: plusComm exists, but naming it in `using` places
+-- no instance — the site is the author's obligation
+scopedItemBad : (a : ℕ) (b : ℕ) → a + b ≡ b + a ∈ ℕ  using (plusComm)
 scopedItemBad =
   λa. λb. ⋆

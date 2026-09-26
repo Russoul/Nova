@@ -102,7 +102,7 @@ natEq : ℕ → ℕ → Ω
 natEq = λx y. x ≡ y
 
 natEqEffective : {a b : ℕ} → (class a ≡ class b ∈ ℕ / (u v. natEq u v)) → a ≡ b
-  using (hyp.rw, Core.quotEffective.natEq.eq, Core.quotEffective.natEq.unfold)
+  using (Core.quotEffective.natEq.eq, Core.quotEffective.natEq.unfold)
 natEqEffective =
   effectiveAtEquiv natEq (λx. ⋆) (λx y z h1 h2. let claim1 = h1 in let claim2 = h2 in ⋆) (λx y h. ⋆)
 

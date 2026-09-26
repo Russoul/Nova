@@ -2288,7 +2288,7 @@ pointwise, exhibit that g satisfies the clauses.
 # fails there: the remedy is to write the brace. The printer keeps a
 # written brace and prints nothing for an auto-bound column.
 
-# SCOPES. The signature's `using` is the ITEM's discharge scope and
+# SCOPES. The signature's `using` is the ITEM's licence scope and
 # reaches every item of the expansion: the definition (in the witness
 # tier, the user's witness elaborates under it), each equation lemma,
 # and the uniqueness lemma. A pattern clause may carry a `using` of
@@ -2297,20 +2297,21 @@ pointwise, exhibit that g satisfies the clauses.
 #
 #   dbl : ℕ → ℕ
 #   dbl = λn. plus n n
-#   dbl Z using (plusZ) = Z
-#   dbl (S m) using (plusS.rw, sucPlusR.rw) = S (S (dbl m))
+#   dbl Z using (plus.eq) = Z
+#   dbl (S m) using (plus.eq) = S (plus m (S m))
 #
-# — which ADDS its lemmas to that clause's equation lemma's scope and
-# nowhere else: in the witness tier a clause's equation may need
-# lemmas its siblings do not (here two rewrites carry plus (S m) (S m)
-# to S (S (plus m m))), and naming them at the clause keeps the
-# item's scope small. Named at the signature instead, the same lemmas
-# reach the uniqueness proof too, whose step case needs them for the
-# same rewrite. Each generated lemma also cites what its own
-# synthesized proof needs, silently: a clause lemma the defining
-# equation `f.eq`, the uniqueness lemma the clause lemmas and
-# `hyp.rw`. In the declaration tier nothing is discharged, and the
-# scopes are moot.
+# — which ADDS its licences to that clause's equation lemma's scope
+# and nowhere else: in the witness tier a clause's equation is the
+# witness's computation under the licences, and a clause may need an
+# unfolding its siblings do not. Each generated lemma also cites what
+# its own proof needs, silently: a clause lemma the defining equation
+# `f.eq`, the uniqueness lemma the clause lemmas, facts in scope. A
+# clause whose equation holds only by a FACT — a lemma's instance, as
+# plus (S m) (S m) ≡ S (S (plus m m)) by sucPlusR m m — has no place
+# to state it yet: the clause form for a stated fact is an open
+# surface decision (the engine places no lemma by matching,
+# docs/NovaStrategy.txt). In the declaration tier nothing is
+# discharged, and the scopes are moot.
 
 # NAMES. The expansion mints Σ names; the reproducibility invariant
 # demands they be a pure function of the source. For an

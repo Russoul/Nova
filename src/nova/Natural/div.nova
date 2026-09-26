@@ -122,15 +122,12 @@ modN = λa b. dmAux a a b .π₂
 
 -- ===== the specification =====
 dmAuxEq : {f a b : ℕ} → a ≤ f → a ≡ dmAux f a b .π₁ * S b + dmAux f a b .π₂
-  using (hyp.rw,
-    Core.id.Id.unfold,
+  using (Core.id.Id.unfold,
     Natural.div.dmAux.eq,
     Natural.div.natCase.eq,
     Natural.order.≤.unfold,
     zeroMult,
-    zeroMult.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
+    zeroPlusId)
 dmAuxEq =
   λf. ℕ-elim
     λa b le. let claim3 = zeroMult (S b) in let claim4 = zeroPlusId a in ⋆

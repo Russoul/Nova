@@ -297,7 +297,7 @@ qAssoc : (G : 𝕌)
   (nn : IsNormal g N)
   (u v w : QGroup _ g N)
   → qMul _ _ _ nn (qMul _ _ _ nn u v) w ≡ qMul _ _ _ nn u (qMul _ _ _ nn v w)
-  using (QGroup.unfold, qMulCls.rw)
+  using (QGroup.unfold)
 qAssoc =
   λG g N nn u v w. quot-elim
     a. quot-elim
@@ -325,7 +325,7 @@ qUnitL : (G : 𝕌)
   (nn : IsNormal g N)
   (u : QGroup _ g N)
   → qMul _ _ _ nn (qUnit _ g N) u ≡ u
-  using (QGroup.unfold, qUnit.eq, qMulCls.rw)
+  using (QGroup.unfold, qUnit.eq)
 qUnitL =
   λG g N nn u. quot-elim
     a. trans
@@ -342,7 +342,7 @@ qUnitR : (G : 𝕌)
   (nn : IsNormal g N)
   (u : QGroup _ g N)
   → qMul _ _ _ nn u (qUnit _ g N) ≡ u
-  using (QGroup.unfold, qUnit.eq, qMulCls.rw)
+  using (QGroup.unfold, qUnit.eq)
 qUnitR =
   λG g N nn u. quot-elim
     a. trans
@@ -360,7 +360,7 @@ qInvLaw : (G : 𝕌)
   (nn : IsNormal g N)
   (u : QGroup _ g N)
   → qMul _ _ _ nn (qInv _ _ _ s nn u) u ≡ qUnit _ _ _
-  using (QGroup.unfold, qUnit.eq, qInvCls.rw, qMulCls.rw)
+  using (QGroup.unfold, qUnit.eq)
 qInvLaw =
   λG g N s nn u. quot-elim
     a. trans
@@ -378,7 +378,7 @@ qInvLawR : (G : 𝕌)
   (nn : IsNormal g N)
   (u : QGroup _ g N)
   → qMul _ _ _ nn u (qInv _ _ _ s nn u) ≡ qUnit _ _ _
-  using (QGroup.unfold, qUnit.eq, qInvCls.rw, qMulCls.rw)
+  using (QGroup.unfold, qUnit.eq)
 qInvLawR =
   λG g N s nn u. quot-elim
     a. trans

@@ -22,15 +22,12 @@ intScaleIsMul : (d : NZ) (z : Int) → intScale d z ≡ nzToInt d * z
     Int.intNeg.eq,
     Int.mul.*.eq,
     Int.mul.intMulL.eq,
-    plusZeroId.rw,
     Rat.frac.NZ.unfold,
     Rat.frac.intScale.eq,
     Rat.frac.intScaleN.eq,
     Rat.frac.nzNeg.eq,
     Rat.frac.nzPos.eq,
-    Rat.frac.nzToInt.eq,
-    zeroMult.rw,
-    zeroPlusId.rw)
+    Rat.frac.nzToInt.eq)
 intScaleIsMul =
   λd z. ⊎-elim
     n. quot-elim
@@ -70,10 +67,8 @@ nzToIntMul : (d e : NZ) → nzToInt (nzMul d e) ≡ nzToInt d * nzToInt e
   using (Int.Int.eq,
     Int.mul.*.eq,
     Int.mul.intMulL.eq,
-    multZeroId.rw,
     Natural.sucPlus,
     plusAssoc,
-    plusZeroId.rw,
     Rat.frac.NZ.unfold,
     Rat.frac.nzMul.eq,
     Rat.frac.nzNeg.eq,
@@ -81,9 +76,7 @@ nzToIntMul : (d e : NZ) → nzToInt (nzMul d e) ≡ nzToInt d * nzToInt e
     Rat.frac.nzToInt.eq,
     sucMulSuc,
     zeroMult,
-    zeroMult.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
+    zeroPlusId)
 nzToIntMul =
   λd e. ⊎-elim
     m. ⊎-elim

@@ -9,22 +9,22 @@ plus (S m) n = S (plus m n)
 sucPlusR : (n m : ℕ) → plus n (S m) ≡ S (plus n m) using (plus.eq)
 sucPlusR = λn. λm. ℕ-elim ⋆ (k ih. ⋆) n
 
--- the WITNESS tier: each clause's equation is a rewrite or two away
--- from the witness's computation. Named at the signature, the lemmas
--- reach the clause lemmas AND the uniqueness proof: accepted outright
-dbl : ℕ → ℕ using (plusZ, plusS.rw, sucPlusR.rw)
+-- the WITNESS tier: each clause's equation is the witness's
+-- computation under the licences. Named at the signature, the licence
+-- reaches the clause lemmas AND the uniqueness proof: accepted outright
+dbl : ℕ → ℕ using (plus.eq)
 dbl = λn. plus n n
 dbl Z = Z
-dbl (S m) = S (S (dbl m))
+dbl (S m) = S (plus m (S m))
 
-useDblS : (m : ℕ) → dbl (S m) ≡ S (S (dbl m)) using (dblS)
-useDblS = λm. ⋆
+useDblS : (m : ℕ) → dbl (S m) ≡ S (plus m (S m))
+useDblS = λm. dblS m
 
--- named at the CLAUSES, the lemmas close each clause lemma and reach
--- nothing else: the uniqueness proof never sees plusZ or sucPlusR —
--- it closes through the clause lemmas dbl'Z and dbl'S themselves,
--- which are in the store once accepted
+-- named at the CLAUSES, the licence reaches each clause lemma and
+-- nothing else: the uniqueness proof never unfolds plus — it closes
+-- through the clause lemmas dbl'Z and dbl'S themselves, facts in
+-- scope once accepted
 dbl' : ℕ → ℕ
 dbl' = λn. plus n n
-dbl' Z using (plusZ) = Z
-dbl' (S m) using (plusS.rw, sucPlusR.rw) = S (S (dbl' m))
+dbl' Z  using (plus.eq) = Z
+dbl' (S m)  using (plus.eq) = S (plus m (S m))

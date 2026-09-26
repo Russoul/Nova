@@ -8,4 +8,3 @@ defined scopedBad [+1 obligation]
 open obligations (1):
   [1] (a : ℕ) (b : ℕ) ⊢ a + b ≐ b + a : ℕ
       at: input.nova:24:21: def scopedBad: checking ⋆
-      hint: closes with plusComm

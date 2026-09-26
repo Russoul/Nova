@@ -162,9 +162,7 @@ ltROfQ =
             transport (λt. qInvNat (w .π₁) + p ≤ t) (qPlusNegCancelR q p) (leQPlusMono p (w .π₂))
 
 ltRZeroOne : realZero < realOne
-  using (Rat.bound.qNegZeroQ.rw,
-    Rat.order.Sign.unfold,
-    Rat.qAddZeroR.rw,
+  using (Rat.order.Sign.unfold,
     Real.realOfQ.eq,
     Real.realOne.eq,
     Real.realZero.eq,

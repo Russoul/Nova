@@ -45,8 +45,7 @@ natAlgHomUnique : (A : 𝕌)
   (f g : NatAlgHom _ _ natAlg a)
   (n : ℕ)
   → f .π₁ n ≡ g .π₁ n
-  using (hyp.rw,
-    Core.id.Id.eq,
+  using (Core.id.Id.eq,
     Core.id.Id.unfold,
     Natural.algebra.IsNatAlgebra.unfold,
     Natural.algebra.NatAlgHom.unfold,

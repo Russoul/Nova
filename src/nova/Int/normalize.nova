@@ -20,19 +20,7 @@ normPairSucSuc = λn m. ⋆
 
 -- normPair a b is R-related to (a, b)
 normSound : (a b : ℕ) → normPair a b .π₁ + b ≡ normPair a b .π₂ + a
-  using (hyp.rw,
-    normPairZero,
-    normPairZero.rw,
-    normPairSucZero,
-    normPairSucZero.rw,
-    normPairSucSuc,
-    normPairSucSuc.rw,
-    plusSucId,
-    plusSucId.rw,
-    plusZeroId,
-    plusZeroId.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
+  using (normPairZero, normPairSucZero, normPairSucSuc, plusSucId, plusZeroId, zeroPlusId)
 normSound =
   λa. ℕ-elim
     λb. let claim9 = normPairZero b in let claim10 = zeroPlusId b in let claim11 = plusZeroId b in ⋆

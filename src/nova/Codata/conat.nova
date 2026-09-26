@@ -17,12 +17,10 @@ cinf : conat using (Codata.conat.unfold)
 cinf = corec (s : 𝟙. inj₂ s) ()
 
 -- observation shapes, by computation (el-nu-beta + el-sum-beta)
-outZero : out czero ≡ inj₁ () ∈ 𝟙 ⊎ conat
-  using (Codata.conat.eq, czero.eq, hyp.rw, Codata.conat.unfold)
+outZero : out czero ≡ inj₁ () ∈ 𝟙 ⊎ conat using (Codata.conat.eq, czero.eq, Codata.conat.unfold)
 outZero = ⋆
 
-outInf : out cinf ≡ inj₂ cinf ∈ 𝟙 ⊎ conat
-  using (cinf.eq, Codata.conat.eq, hyp.rw, Codata.conat.unfold)
+outInf : out cinf ≡ inj₂ cinf ∈ 𝟙 ⊎ conat using (cinf.eq, Codata.conat.eq, Codata.conat.unfold)
 outInf = ⋆
 
 -- csucc: emit inj₂ of the stored conat, continuing by observation
@@ -33,7 +31,7 @@ csucc = λn. corec (p : 𝟙 ⊎ conat. inj₂ (⊎-elim (u. inj₁ u) (m. out m
 -- irrelevant to the shape (⊎-elim at an equality motive would refute
 -- inj₁; here the equation is between the injections themselves)
 outSuccInf : out (csucc cinf) ≡ inj₂ (csucc cinf) ∈ 𝟙 ⊎ conat
-  using (cinf.eq, Codata.conat.eq, csucc.eq, hyp.rw, Codata.conat.unfold)
+  using (cinf.eq, Codata.conat.eq, csucc.eq, Codata.conat.unfold)
 outSuccInf = ⋆
 
 -- conat's classic coinductive theorem: ∞ is its own successor. The
@@ -41,7 +39,7 @@ outSuccInf = ⋆
 -- is stuck at the generic observations, un-stuck by the invariant's
 -- variable-definition equations, and collapses definitionally on the
 -- inj₂/inj₂ diagonal.
-infSucc : cinf ≡ csucc cinf using (cinf.eq, csucc.eq, hyp.rw, Codata.conat.unfold)
+infSucc : cinf ≡ csucc cinf using (cinf.eq, csucc.eq, Codata.conat.unfold)
 infSucc =
   coind
     x y. ∥(x ≡ cinf ∈ conat) × (y ≡ csucc cinf ∈ conat)∥
