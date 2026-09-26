@@ -1187,12 +1187,26 @@ mutual
       <|> (do kw "quot-elim"
               (l1, z, mot) <- slotAbs1 tbl env tyBody lay0
               (l2, a, f) <- slotAbs1 tbl env elBody l1
+              (l3, x, x', h, w) <- slotAbs3 tbl env elBody l2
+              (l4, q) <- slotAtom tbl env l3
+              pure (l4, SQuotElim (Just (z, mot)) a f (Just ((x, x', h), w)) q))
+      <|> (do kw "quot-elim"
+              (l1, z, mot) <- slotAbs1 tbl env tyBody lay0
+              (l2, a, f) <- slotAbs1 tbl env elBody l1
               (l3, q) <- slotAtom tbl env l2
-              pure (l3, SQuotElim (Just (z, mot)) a f q))
+              pure (l3, SQuotElim (Just (z, mot)) a f Nothing q))
+          -- the WITNESS (x x' h. p) sits between the case and the
+          -- scrutinee: three binders, so it cannot be mistaken for
+          -- either; with it the case's well-definedness is stated
+      <|> (do kw "quot-elim"
+              (l1, a, f) <- slotAbs1 tbl env elBody lay0
+              (l2, x, x', h, w) <- slotAbs3 tbl env elBody l1
+              (l3, q) <- slotAtom tbl env l2
+              pure (l3, SQuotElim Nothing a f (Just ((x, x', h), w)) q))
       <|> (do kw "quot-elim"
               (l1, a, f) <- slotAbs1 tbl env elBody lay0
               (l2, q) <- slotAtom tbl env l1
-              pure (l2, SQuotElim Nothing a f q))
+              pure (l2, SQuotElim Nothing a f Nothing q))
           -- ≡-elim p x w — the EQUALITY variable elimination. Methods
           -- first, scrutinees last, as everywhere in the family; the
           -- proof sits at atom level, like ℕ-elim's binder-less z. The

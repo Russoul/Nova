@@ -179,10 +179,7 @@ rAddWDOuterCls = wdOuterOfComm rAdd (rAddComm {}) rAddWDInnerCls
 -- well-definedness in the right argument stated once, here, as the
 -- local claim the eliminator reads
 rAddL : RSeq → Real → Real using (Real.Real.unfold)
-rAddL =
-  λx v. let wd : (q q' : RSeq) (h : REq q q') → class (rAdd x q) ≡ class (rAdd x q') ∈ Real
-              = λq q' h. rAddWDInnerCls _ _ _ h
-            quot-elim (q. class (rAdd x q)) v
+rAddL = λx v. quot-elim (q. class (rAdd x q)) (q q' h. rAddWDInnerCls x _ _ h) v
 
 -- the outer half as the descent asks for it: the two left operations
 -- agree on every element of the quotient
@@ -192,10 +189,7 @@ rAddWDOuter = λx x' h v. quot-elim (c. let claim = rAddWDOuterCls {x} {x'} {c} 
 
 infixl 6 +
 + : Real → Real → Real using (Real.Real.unfold)
-(+) =
-  λu v. let wd : (p p' : RSeq) (h : REq p p') → rAddL p v ≡ rAddL p' v
-              = λp p' h. rAddWDOuter _ _ h _
-            quot-elim (p. rAddL p v) u
+(+) = λu v. quot-elim (p. rAddL p v) (p p' h. rAddWDOuter _ _ h v) u
 
 realAddCls : (x y : RSeq) → class x + class y ≡ class (rAdd x y)
   using (Real.RSeq.unfold,

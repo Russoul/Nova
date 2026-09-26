@@ -56,11 +56,10 @@ intAddCross =
 -- here, as the local claim the eliminator reads.
 intAddL : ℕ × ℕ → Int → Int using (Int.Int.unfold)
 intAddL =
-  λa zy. let wd : (x x' : ℕ × ℕ)
-               (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
-               → class (a .π₁ + x .π₁, a .π₂ + x .π₂) ≡ class (a .π₁ + x' .π₁, a .π₂ + x' .π₂) ∈ Int
-               = λx x' h. let claim = intAddWD (a .π₁) (a .π₂) _ _ _ _ h in ⋆
-             quot-elim (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)) zy
+  λa zy. quot-elim
+    x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)
+    x x' h. intAddWD (a .π₁) (a .π₂) _ _ _ _ h
+    zy
 
 -- the outer half as the descent asks for it: the two left additions
 -- agree on every element of the quotient — a quot-elim at an
@@ -74,12 +73,7 @@ intAddWDOuter = λa a' h zy. quot-elim (c. let claim = intAddCross _ _ _ _ (c .�
 
 infixl 6 +
 + : Int → Int → Int using (Int.Int.unfold)
-(+) =
-  λzx zy. let wd : (a a' : ℕ × ℕ)
-                (h : a .π₁ + a' .π₂ ≡ a .π₂ + a' .π₁)
-                → intAddL a zy ≡ intAddL a' zy
-                = λa a' h. intAddWDOuter _ _ h _
-              quot-elim (a. intAddL a zy) zx
+(+) = λzx zy. quot-elim (a. intAddL a zy) (a a' h. intAddWDOuter _ _ h zy) zx
 
 intAddTest : class (Z, Z) + class (S Z, S Z) ≡ class (S Z, S Z)
   using (Int.Int.unfold, Int.add.+.eq, Int.add.intAddL.eq)

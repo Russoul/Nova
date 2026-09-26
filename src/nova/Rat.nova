@@ -360,10 +360,7 @@ qAddWDOuterCls =
 -- well-definedness (the inner half, at class level) stated once, here,
 -- as the local claim the eliminator reads.
 qAddL : Rat → Q → Q using (Rat.Q.unfold, Rat.RatR.unfold)
-qAddL =
-  λp v. let wd : (x x' : Rat) (h : RatR x x') → class (ratAdd p x) ≡ class (ratAdd p x') ∈ Q
-              = λx x' h. qAddWDInnerCls {p} {x} {x'} h
-            quot-elim (x. class (ratAdd p x)) v
+qAddL = λp v. quot-elim (x. class (ratAdd p x)) (x x' h. qAddWDInnerCls {p} {x} {x'} h) v
 
 -- the outer half as the descent asks for it: the two left additions
 -- agree on every element of the quotient
@@ -373,10 +370,7 @@ qAddWDOuter = λp p' h v. quot-elim (c. qAddWDOuterCls h) v
 
 infixl 6 +
 + : Q → Q → Q using (Rat.Q.unfold, Rat.RatR.unfold)
-(+) =
-  λu v. let wd : (p p' : Rat) (h : RatR p p') → qAddL p v ≡ qAddL p' v
-              = λp p' h. qAddWDOuter _ _ h _
-            quot-elim (p. qAddL p v) u
+(+) = λu v. quot-elim (p. qAddL p v) (p p' h. qAddWDOuter _ _ h v) u
 
 -- ===== ℚ, at last =====
 qZero : Q using (Rat.Q.unfold)
@@ -1178,10 +1172,7 @@ qMulWDOuterCls =
 -- multiplication by a fixed p on the left, descended; well-definedness
 -- stated once
 qMulL : Rat → Q → Q using (Rat.Q.unfold, Rat.RatR.unfold)
-qMulL =
-  λp v. let wd : (x x' : Rat) (h : RatR x x') → class (ratMul p x) ≡ class (ratMul p x') ∈ Q
-              = λx x' h. qMulWDInnerCls {p} {x} {x'} h
-            quot-elim (x. class (ratMul p x)) v
+qMulL = λp v. quot-elim (x. class (ratMul p x)) (x x' h. qMulWDInnerCls {p} {x} {x'} h) v
 
 qMulWDOuter : (p p' : Rat) (h : RatR p p') (v : Q) → qMulL p v ≡ qMulL p' v
   using (Rat.Q.unfold, Rat.RatR.unfold, Rat.qMulL.eq)
@@ -1189,10 +1180,7 @@ qMulWDOuter = λp p' h v. quot-elim (c. qMulWDOuterCls h) v
 
 infixl 7 *
 * : Q → Q → Q using (Rat.Q.unfold, Rat.RatR.unfold)
-(*) =
-  λu v. let wd : (p p' : Rat) (h : RatR p p') → qMulL p v ≡ qMulL p' v
-              = λp p' h. qMulWDOuter _ _ h _
-            quot-elim (p. qMulL p v) u
+(*) = λu v. quot-elim (p. qMulL p v) (p p' h. qMulWDOuter _ _ h v) u
 
 qMulCls : (p q : Rat) → qcls p * qcls q ≡ qcls (ratMul p q)
   using (Int.Int.unfold,

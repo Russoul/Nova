@@ -405,7 +405,8 @@ t{2½} ::= 𝟘-elim t{≥4}
         | ⊎-elim (z. t{≥1}) (a. t{≥0}) (b. t{≥0}) t{≥4}        # motive, left case,
                                                                #   right case, scrutinee
         | class t{≥4}
-        | quot-elim (z. t{≥1}) (a. t{≥0}) t{≥4}                # motive, case fn, scrutinee
+        | quot-elim (z. t{≥1}) (a. t{≥0}) (x x' h. t{≥0})? t{≥4}  # motive, case fn,
+                                                               #   WITNESS?, scrutinee
         | sigma-elim (x y. t{≥0}) t{≥4}                        # components, SCRUTINEE —
                                                                #   a VARIABLE of a × type;
                                                                #   no motive (see e-sigmaelim)
@@ -690,7 +691,8 @@ F{0} ::= F{≥1}
 #                                            #   ( t{≥0} ) case is a t{5})
 #   t{2½} ::= ℕ-elim ⟪n. t⟫? a ⟪n ih. t⟫ a   # a ::= t{≥4} | ⟪t{≥0}⟫
 #           | ⊎-elim ⟪z. t⟫? ⟪a. t⟫ ⟪b. t⟫ a
-#           | quot-elim ⟪z. t⟫? ⟪a. t⟫ a
+#           | quot-elim ⟪z. t⟫? ⟪a. t⟫ ⟪x x' h. t⟫? a   # the three-binder group is
+#                                                 #   the well-definedness WITNESS
 #           | sigma-elim ⟪x y. t⟫ a
 #           | sum-elim ⟪a. t⟫ ⟪b. t⟫ a
 #           | unsquash ⟪x. t⟫ a
@@ -1107,12 +1109,34 @@ componentwise at F × G and F ⊎ G                  (e-poly-prod, e-poly-sum)
 # discharge f⁼. An Ω-VALUED motive closes f⁼ OUTRIGHT (el-prf-prop —
 # the sides inhabit a prop instance; tested on the MOTIVE, whose
 # spine shape survives where a stuck instance's prop-ness is
-# unreadable), and the kernel takes the same shortcut
+# unreadable), and the kernel takes the same shortcut.
 # The well-definedness premise f⁼ is a ↓-judgement: if the case function
-# respects R by computation or by an accepted lemma, elaboration is
+# respects R by computation or by the facts in scope, elaboration is
 # silent; otherwise "f respects R" is surfaced as an ordinary equational
 # obligation. This is the intended shape for all content-bearing side
 # conditions: they become obligations, not errors and not annotations.
+
+# THE WITNESS. The case's well-definedness is STATED at the eliminator
+# by the optional three-binder group between the case and the
+# scrutinee:
+#
+#   quot-elim (a. f) (x x' h. p) q
+#
+# Under x x' : A and h : r[x, x'] the witness p is elaborated —
+# INFERRED when it is an inference form (a lemma applied: its
+# statement is the fact), CHECKED at the case equation
+# f[x] ≡ f[x'] ∈ B[class x] otherwise (a chain, a ⋆) — and f⁼ is
+# the ↓ above with p among the facts in scope, so a witness proving
+# the relation the class equation follows from closes it by the
+# quotient witness. The derivation carries p's derivation at the
+# fact's place (the kernel's quot-elim node has the slot; the core
+# term quot-elim f̂ q̂ is unchanged, and the witness prints back as
+# written). This is the natural form: the eliminator already fixes
+# the binders, the relation and both sides, so the author writes the
+# witness alone — never a restated telescope. A witness the ↓ does
+# not close is the author's obligation, as without one; at an
+# Ω-valued motive a witness is elaborated for its own errors and
+# not needed.
 
 Γ = Γ₀ ▷ w:(A × B) ▷ Γ₁    # the scrutinee is the VARIABLE ☐ᵢ, i = |Γ₁|
 Γ′ ⊢ t ⇐ C[ρ] ⇝ t̂

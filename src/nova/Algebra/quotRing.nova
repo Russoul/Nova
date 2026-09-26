@@ -119,11 +119,7 @@ qrMulWDOuterCls =
 qrMulL : (R : 𝕌) (r : IsCommRing R) (I : R → Ω) → IsIdeal _ r I → R → QRing _ r I → QRing _ r I
   using (QRing.eq, Algebra.quotGroup.QGroup.unfold, qrCls.eq, Algebra.quotGroup.qcls.eq)
 qrMulL =
-  λR r I id x v. let wd : (q q' : R)
-                       (h : cosetRel (raddGroup r) I q q')
-                       → class (rmul _ r x q) ≡ class (rmul _ r x q') ∈ QRing _ r I
-                       = λq q' h. qrMulWDInnerCls _ _ _ id x _ _ h
-                     quot-elim (q. qrCls (rmul _ r x q)) v
+  λR r I id x v. quot-elim (q. qrCls (rmul _ r x q)) (q q' h. qrMulWDInnerCls _ _ _ id x _ _ h) v
 
 -- the outer half as the descent asks for it: the two left
 -- multiplications agree on every element of the quotient
@@ -142,11 +138,7 @@ qrMul : (R : 𝕌)
   → IsIdeal _ r I → QRing _ r I → QRing _ r I → QRing _ r I
   using (QRing.eq, Algebra.quotGroup.QGroup.unfold)
 qrMul =
-  λR r I id u v. let wd : (p p' : R)
-                       (h : cosetRel (raddGroup r) I p p')
-                       → qrMulL _ _ _ id p v ≡ qrMulL _ _ _ id p' v
-                       = λp p' h. qrMulWDOuterElim _ _ _ _ _ _ h _
-                     quot-elim (p. qrMulL _ _ _ id p v) u
+  λR r I id u v. quot-elim (p. qrMulL _ _ _ id p v) (p p' h. qrMulWDOuterElim _ _ _ id _ _ h v) u
 
 qrMulCls : (R : 𝕌)
   (r : IsCommRing R)

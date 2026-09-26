@@ -1,0 +1,12 @@
+defined +
+defined symN
+defined Q
+defined swapWD
+defined neg
+defined neg'
+defined bad [+1 obligation]
+defined triv
+open obligations (1):
+  [1] (q : (ℕ × ℕ) / (x y. x .π₁ + y .π₂ ≡ x .π₂ + y .π₁ ∈ ℕ)) (x : ℕ × ℕ) (x' : ℕ × ℕ) (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁ ∈ ℕ) (wit : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁ ∈ ℕ) ⊢ x .π₁ + x .π₁ + (x' .π₂ + x' .π₂) ≐ x .π₂ + x .π₂ + (x' .π₁ + x' .π₁) : ℕ
+      at: input.nova:35:11: def bad: well-definedness of quot-elim case
+      from composite: (q : (ℕ × ℕ) / (x y. x .π₁ + y .π₂ ≡ x .π₂ + y .π₁ ∈ ℕ)) (x : ℕ × ℕ) (x' : ℕ × ℕ) (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁ ∈ ℕ) (wit : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁ ∈ ℕ) ⊢ class (x .π₁ + x .π₁, x .π₂ + x .π₂) ≐ class (x' .π₁ + x' .π₁, x' .π₂ + x' .π₂) : (ℕ × ℕ) / (y z. y .π₁ + z .π₂ ≡ y .π₂ + z .π₁ ∈ ℕ)

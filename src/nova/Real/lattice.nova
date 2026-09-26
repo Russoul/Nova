@@ -106,10 +106,7 @@ rMaxWDOuterCls = wdOuterOfComm rMax rMaxComm rMaxWDInnerCls
 -- well-definedness in the right argument stated once, here, as the
 -- local claim the eliminator reads
 rMaxL : RSeq → Real → Real using (Real.Real.unfold)
-rMaxL =
-  λx v. let wd : (q q' : RSeq) (h : REq q q') → class (rMax x q) ≡ class (rMax x q') ∈ Real
-              = λq q' h. rMaxWDInnerCls _ _ _ h
-            quot-elim (q. class (rMax x q)) v
+rMaxL = λx v. quot-elim (q. class (rMax x q)) (q q' h. rMaxWDInnerCls x _ _ h) v
 
 -- the outer half as the descent asks for it: the two left operations
 -- agree on every element of the quotient
@@ -118,10 +115,7 @@ rMaxWDOuter : (x x' : RSeq) (h : REq x x') (v : Real) → rMaxL x v ≡ rMaxL x'
 rMaxWDOuter = λx x' h v. quot-elim (c. let claim = rMaxWDOuterCls {x} {x'} {c} h in ⋆) v
 
 realMax : Real → Real → Real using (Real.Real.unfold)
-realMax =
-  λu v. let wd : (p p' : RSeq) (h : REq p p') → rMaxL p v ≡ rMaxL p' v
-              = λp p' h. rMaxWDOuter _ _ h _
-            quot-elim (p. rMaxL p v) u
+realMax = λu v. quot-elim (p. rMaxL p v) (p p' h. rMaxWDOuter _ _ h v) u
 
 realMaxCls : (x y : RSeq) → realMax (class x) (class y) ≡ class (rMax x y)
   using (Real.RSeq.unfold,
@@ -219,10 +213,7 @@ rMinWDOuterCls = wdOuterOfComm rMin rMinComm rMinWDInnerCls
 -- well-definedness in the right argument stated once, here, as the
 -- local claim the eliminator reads
 rMinL : RSeq → Real → Real using (Real.Real.unfold)
-rMinL =
-  λx v. let wd : (q q' : RSeq) (h : REq q q') → class (rMin x q) ≡ class (rMin x q') ∈ Real
-              = λq q' h. rMinWDInnerCls _ _ _ h
-            quot-elim (q. class (rMin x q)) v
+rMinL = λx v. quot-elim (q. class (rMin x q)) (q q' h. rMinWDInnerCls x _ _ h) v
 
 -- the outer half as the descent asks for it: the two left operations
 -- agree on every element of the quotient
@@ -231,10 +222,7 @@ rMinWDOuter : (x x' : RSeq) (h : REq x x') (v : Real) → rMinL x v ≡ rMinL x'
 rMinWDOuter = λx x' h v. quot-elim (c. let claim = rMinWDOuterCls {x} {x'} {c} h in ⋆) v
 
 realMin : Real → Real → Real using (Real.Real.unfold)
-realMin =
-  λu v. let wd : (p p' : RSeq) (h : REq p p') → rMinL p v ≡ rMinL p' v
-              = λp p' h. rMinWDOuter _ _ h _
-            quot-elim (p. rMinL p v) u
+realMin = λu v. quot-elim (p. rMinL p v) (p p' h. rMinWDOuter _ _ h v) u
 
 realMinCls : (x y : RSeq) → realMin (class x) (class y) ≡ class (rMin x y)
   using (Real.RSeq.unfold,

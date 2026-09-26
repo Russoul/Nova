@@ -159,13 +159,10 @@ intMulWDRep =
 -- ===== the descended operation, one argument at a time =====
 intMulL : ℕ × ℕ → Int → Int using (Int.Int.unfold)
 intMulL =
-  λa zy. let wd : (x x' : ℕ × ℕ)
-               (h : x .π₁ + x' .π₂ ≡ x .π₂ + x' .π₁)
-               → class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁)
-                 ≡ class (a .π₁ * x' .π₁ + a .π₂ * x' .π₂, a .π₁ * x' .π₂ + a .π₂ * x' .π₁)
-                 ∈ Int
-               = λx x' h. let claim = intMulWD (a .π₁) (a .π₂) _ _ _ _ h in ⋆
-             quot-elim (x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁)) zy
+  λa zy. quot-elim
+    x. class (a .π₁ * x .π₁ + a .π₂ * x .π₂, a .π₁ * x .π₂ + a .π₂ * x .π₁)
+    x x' h. intMulWD (a .π₁) (a .π₂) _ _ _ _ h
+    zy
 
 -- the outer well-definedness: the two left multiplications agree on
 -- every element of the quotient; the case is the representative
@@ -180,10 +177,7 @@ intMulWDOuter = λa a' h zy. quot-elim (c. let claim = intMulWDRep _ _ _ _ (c .�
 -- ===== multiplication =====
 infixl 7 *
 * : Int → Int → Int using (Int.Int.unfold)
-(*) =
-  λx y. let wd : (a a' : ℕ × ℕ) (h : a .π₁ + a' .π₂ ≡ a .π₂ + a' .π₁) → intMulL a y ≡ intMulL a' y
-              = λa a' h. intMulWDOuter _ _ h _
-            quot-elim (a. intMulL a y) x
+(*) = λx y. quot-elim (a. intMulL a y) (a a' h. intMulWDOuter _ _ h y) x
 
 -- 2 · 3 = 6 and (−2) · 3 = −6
 intMulTest1 : class (2, Z) * class (3, Z) ≡ class (6, Z)

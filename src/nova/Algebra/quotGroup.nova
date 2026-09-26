@@ -163,11 +163,7 @@ qMulWDOuterCls =
 qMulL : (G : 𝕌) (g : IsGroup G) (N : G → Ω) → IsNormal g N → G → QGroup _ g N → QGroup _ g N
   using (QGroup.unfold, qcls.eq)
 qMulL =
-  λG g N nn x v. let wd : (q q' : G)
-                       (h : cosetRel g N q q')
-                       → class (gop g x q) ≡ class (gop g x q') ∈ QGroup _ g N
-                       = λq q' h. qMulWDInnerCls _ _ _ nn x _ _ h
-                     quot-elim (q. qcls _ _ (gop g x q)) v
+  λG g N nn x v. quot-elim (q. qcls _ _ (gop g x q)) (q q' h. qMulWDInnerCls _ _ _ nn x _ _ h) v
 
 -- the outer half as the descent asks for it: the two left
 -- multiplications agree on every element of the quotient — a
@@ -187,12 +183,7 @@ qMul : (G : 𝕌)
   (N : G → Ω)
   → IsNormal g N → QGroup _ g N → QGroup _ g N → QGroup _ g N
   using (QGroup.unfold)
-qMul =
-  λG g N nn u v. let wd : (p p' : G)
-                       (h : cosetRel g N p p')
-                       → qMulL _ _ _ nn p v ≡ qMulL _ _ _ nn p' v
-                       = λp p' h. qMulWDOuterElim _ _ _ _ _ _ h _
-                     quot-elim (p. qMulL _ _ _ nn p v) u
+qMul = λG g N nn u v. quot-elim (p. qMulL _ _ _ nn p v) (p p' h. qMulWDOuterElim _ _ _ nn _ _ h v) u
 
 -- β on classes. Stated with the BARE `class`, not with qcls: a
 -- quot-elim substitutes `class a` for its method binder, so this is

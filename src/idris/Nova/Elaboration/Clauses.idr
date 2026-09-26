@@ -83,8 +83,8 @@ mutual
     SSumElim (map (\(z, m) => (z, mapRefsTy f g (S d) m)) mot) a (mapRefsE f g (S d) l) b
              (mapRefsE f g (S d) r) (mapRefsE f g d t)
   mapRefsE f g d (SClass t) = SClass (mapRefsE f g d t)
-  mapRefsE f g d (SQuotElim mot a h q) =
-    SQuotElim (map (\(z, m) => (z, mapRefsTy f g (S d) m)) mot) a (mapRefsE f g (S d) h) (mapRefsE f g d q)
+  mapRefsE f g d (SQuotElim mot a h w q) =
+    SQuotElim (map (\(z, m) => (z, mapRefsTy f g (S d) m)) mot) a (mapRefsE f g (S d) h) (map (\(ns, p) => (ns, mapRefsE f g (S (S (S d))) p)) w) (mapRefsE f g d q)
   mapRefsE f g d (SUnsquash nx b w) =
     SUnsquash nx (mapRefsE f g (S d) b) (mapRefsE f g d w)
   mapRefsE f g d (SSumSplit na l nb r w) =
@@ -213,7 +213,7 @@ replaceSigTy f gname base imps tele fills ty = goT 0 ty
       SSumElim mot a l b r t =>
         SSumElim (map (\(z, m) => (z, goT (S d) m)) mot) a (goE (S d) l) b (goE (S d) r) (goE d t)
       SClass t => SClass (goE d t)
-      SQuotElim mot a g q => SQuotElim (map (\(z, m) => (z, goT (S d) m)) mot) a (goE (S d) g) (goE d q)
+      SQuotElim mot a g w q => SQuotElim (map (\(z, m) => (z, goT (S d) m)) mot) a (goE (S d) g) (map (\(ns, p) => (ns, goE (S (S (S d))) p)) w) (goE d q)
       SSigmaElim x y b w => SSigmaElim x y (goE (S (S d)) b) (goE d w)
       SSumSplit a l b r w => SSumSplit a (goE (S d) l) b (goE (S d) r) (goE d w)
       SUnsquash x b w => SUnsquash x (goE (S d) b) (goE d w)
@@ -287,7 +287,7 @@ mutual
   occursE f (SSumElim mot _ l _ r t) =
     maybe False (occursTy f . snd) mot || occursE f l || occursE f r || occursE f t
   occursE f (SClass t) = occursE f t
-  occursE f (SQuotElim mot _ g q) = maybe False (occursTy f . snd) mot || occursE f g || occursE f q
+  occursE f (SQuotElim mot _ g w q) = maybe False (occursTy f . snd) mot || occursE f g || maybe False (occursE f . snd) w || occursE f q
   occursE f (SSigmaElim _ _ b w) = occursE f b || occursE f w
   occursE f (SSumSplit _ l _ r w) = occursE f l || occursE f r || occursE f w
   occursE f (SUnsquash _ b w) = occursE f b || occursE f w
@@ -443,11 +443,12 @@ mutual
     t' <- rwE f mk lead trail d t
     pure (SSumElim mot' a l' b r' t')
   rwE f mk lead trail d (SClass t) = SClass <$> rwE f mk lead trail d t
-  rwE f mk lead trail d (SQuotElim mot a g q) = do
+  rwE f mk lead trail d (SQuotElim mot a g w q) = do
     mot' <- traverse (\(z, m) => map (\m' => (z, m')) (rwTy f mk lead trail (S d) m)) mot
     g' <- rwE f mk lead trail (S d) g
+    w' <- traverse (\(ns, p) => map (\p' => (ns, p')) (rwE f mk lead trail (S (S (S d))) p)) w
     q' <- rwE f mk lead trail d q
-    pure (SQuotElim mot' a g' q')
+    pure (SQuotElim mot' a g' w' q')
   rwE f mk lead trail d (SNuC p) = SNuC <$> rwP f mk lead trail d p
   rwE f mk lead trail d (SOut e) = SOut <$> rwE f mk lead trail d e
   rwE f mk lead trail d (SCorec x a g u) =

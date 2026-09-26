@@ -314,7 +314,7 @@ mutual
     SInj2 _ => CKeyword
     SSumElim _ _ _ _ _ _ => CKeyword
     SClass _ => CKeyword
-    SQuotElim _ _ _ _ => CKeyword
+    SQuotElim _ _ _ _ _ => CKeyword
     SSigmaElim _ _ _ _ => CKeyword
     SSumSplit _ _ _ _ _ => CKeyword
     SUnsquash _ _ _ => CKeyword
@@ -415,9 +415,12 @@ mutual
               DNest 2 (DLine <-> absDoc tbl [a] l <->
                        DLine <-> absDoc tbl [b] r <->
                        DLine <-> argDoc tbl t))
-    SQuotElim mot (a, _) f q =>
+    SQuotElim mot (a, _) f w q =>
+      let wDoc = the Doc (case w of
+                   Nothing => DNil
+                   Just (((x, _), (x', _), (h, _)), p) => DLine <-> absDoc tbl [x, x', h] p) in
       DGroup (txt "quot-elim" <-> motDoc tbl mot <->
-              DNest 2 (DLine <-> absDoc tbl [a] f <->
+              DNest 2 (DLine <-> absDoc tbl [a] f <-> wDoc <->
                        DLine <-> argDoc tbl q))
     SEqElim p x w =>
       DGroup (txt "≡-elim" <->
@@ -996,7 +999,7 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
       SSumElim mot a l b r t =>
         SSumElim (esMot mot) a (esE l) b (esE r) (esE t)
       SClass t => SClass (esE t)
-      SQuotElim mot a f q => SQuotElim (esMot mot) a (esE f) (esE q)
+      SQuotElim mot a f w q => SQuotElim (esMot mot) a (esE f) (map (\(ns, p) => (ns, esE p)) w) (esE q)
       SSigmaElim nx ny b w => SSigmaElim nx ny (esE b) (esE w)
       SSumSplit na l nb r w => SSumSplit na (esE l) nb (esE r) (esE w)
       SUnsquash nx b w => SUnsquash nx (esE b) (esE w)
@@ -1046,8 +1049,8 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
         SNatElim (Just (n, esT m)) (esE z) n2 ih (esE st) (esE t)
       SSumElim (Just (z, m)) a lb b rb t =>
         SSumElim (Just (z, esT m)) a (esE lb) b (esE rb) (esE t)
-      SQuotElim (Just (z, m)) a f q =>
-        SQuotElim (Just (z, esT m)) a (esE f) (esE q)
+      SQuotElim (Just (z, m)) a f w q =>
+        SQuotElim (Just (z, esT m)) a (esE f) (map (\(ns, p) => (ns, esE p)) w) (esE q)
       _ => esE e
 
     esMot : Maybe (SName, STy) -> Maybe (SName, STy)

@@ -636,10 +636,7 @@ rMulWDOuterCls = wdOuterOfComm rMul (rMulComm {}) rMulWDInnerCls
 -- well-definedness in the right argument stated once, here, as the
 -- local claim the eliminator reads
 rMulL : RSeq → Real → Real using (Real.Real.unfold)
-rMulL =
-  λx v. let wd : (q q' : RSeq) (h : REq q q') → class (rMul x q) ≡ class (rMul x q') ∈ Real
-              = λq q' h. rMulWDInnerCls _ _ _ h
-            quot-elim (q. class (rMul x q)) v
+rMulL = λx v. quot-elim (q. class (rMul x q)) (q q' h. rMulWDInnerCls x _ _ h) v
 
 -- the outer half as the descent asks for it: the two left operations
 -- agree on every element of the quotient
@@ -650,10 +647,7 @@ rMulWDOuter = λx x' h v. quot-elim (c. let claim = rMulWDOuterCls {x} {x'} {c} 
 -- ===== multiplication on ℝ =====
 infixl 7 *
 * : Real → Real → Real using (Real.Real.unfold)
-(*) =
-  λu v. let wd : (p p' : RSeq) (h : REq p p') → rMulL p v ≡ rMulL p' v
-              = λp p' h. rMulWDOuter _ _ h _
-            quot-elim (p. rMulL p v) u
+(*) = λu v. quot-elim (p. rMulL p v) (p p' h. rMulWDOuter _ _ h v) u
 
 realMulCls : {x : RSeq} (y : RSeq) → class x * class y ≡ class (rMul x y)
   using (Real.RSeq.unfold,

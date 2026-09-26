@@ -439,10 +439,13 @@ that with statements in the text, measured site by site.
          deterministic, like δ-all; never a Σ-lemma instantiated by
          matching. A ⋆ whose proof is one instance at the root is
          simply that instance. Whether `have … by …` sugar is wanted
-         over `let` is a surface decision still open; the
-         well-definedness proof of a quotient elimination wants a slot
-         at the eliminator (the kernel node has one), the let outside
-         it cannot mention the case's binders.
+         over `let` is a surface decision still open. The
+         well-definedness proof of a quotient elimination has its slot
+         at the eliminator since 2026-09-26: `quot-elim (a. f) (x x' h.
+         p) q` states the witness alone, the eliminator fixing the
+         binders, the relation and the sides (the 25 restated
+         telescopes of the `let wd` form are gone; the printer prints
+         the surface AST, so the derivation-borne witness round-trips).
   [x] 3. MIGRATE BY THE COUNT, item by item, until the strict run
          accepts the corpus. tools/migrate-stated.py writes the
          mechanical part from the measure's audit (a root instance

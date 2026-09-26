@@ -109,7 +109,11 @@ mutual
     SClass : SElem -> SElem
     ||| quot-elim (z. T)? (a. f) q — motive-first; motive optional in
     ||| checking position
-    SQuotElim : Maybe (SName, SElem) -> (a : SName) -> SElem -> SElem -> SElem
+    ||| quot-elim (z. T)? (a. f) (x x' h. p)? q — the optional WITNESS
+    ||| (x x' h. p) states the case's well-definedness: under two
+    ||| representatives and the relation instance, p proves the case
+    ||| equation (or the relation the class equation follows from)
+    SQuotElim : Maybe (SName, SElem) -> (a : SName) -> SElem -> Maybe ((SName, SName, SName), SElem) -> SElem -> SElem
     ||| ≡-elim p x w — the EQUALITY variable elimination
     ||| (docs/NovaElaboration.txt, e-eqelim). x is a VARIABLE and w a
     ||| variable of an equation with x on one side and a term t on the
@@ -340,8 +344,8 @@ mutual
   stripPos (SSumElim mot a l b r t) =
     SSumElim (map (\(z, m) => (z, stripPos m)) mot) a (stripPos l) b (stripPos r) (stripPos t)
   stripPos (SClass t) = SClass (stripPos t)
-  stripPos (SQuotElim mot a f q) =
-    SQuotElim (map (\(z, m) => (z, stripPos m)) mot) a (stripPos f) (stripPos q)
+  stripPos (SQuotElim mot a f w q) =
+    SQuotElim (map (\(z, m) => (z, stripPos m)) mot) a (stripPos f) (map (\(ns, p) => (ns, stripPos p)) w) (stripPos q)
   stripPos (SSigmaElim nx ny b w) = SSigmaElim nx ny (stripPos b) (stripPos w)
   stripPos (SUnsquash nx b w) = SUnsquash nx (stripPos b) (stripPos w)
   stripPos (SSumSplit na l nb r w) =
@@ -489,9 +493,11 @@ mutual
     [| SSumElim (traverse (\(z, m) => (z,) <$> mapVarsE (underM f) m) mot) (pure a)
                 (mapVarsE (underM f) l) (pure b) (mapVarsE (underM f) r) (mapVarsE f t) |]
   mapVarsE f (SClass t) = SClass <$> mapVarsE f t
-  mapVarsE f (SQuotElim mot a g q) =
+  mapVarsE f (SQuotElim mot a g w q) =
     [| SQuotElim (traverse (\(z, m) => (z,) <$> mapVarsE (underM f) m) mot) (pure a)
-                 (mapVarsE (underM f) g) (mapVarsE f q) |]
+                 (mapVarsE (underM f) g)
+                 (traverse (\(ns, p) => (ns,) <$> mapVarsE (underM (underM (underM f))) p) w)
+                 (mapVarsE f q) |]
   -- THE VARIABLE-ELIMINATING FORMS do not extend the context, they
   -- REPLACE an entry of it — so a sub-term's environment is not the
   -- ambient one plus binders, and no depth describes it. Each node
@@ -636,8 +642,8 @@ mutual
   headRange (SNatElim Nothing _ _ _ _ t) = headRange t
   headRange (SSumElim (Just ((_, r), _)) _ _ _ _ _) = r
   headRange (SSumElim Nothing _ _ _ _ t) = headRange t
-  headRange (SQuotElim (Just ((_, r), _)) _ _ _) = r
-  headRange (SQuotElim Nothing _ _ q) = headRange q
+  headRange (SQuotElim (Just ((_, r), _)) _ _ _ _) = r
+  headRange (SQuotElim Nothing _ _ _ q) = headRange q
   -- sigma-elim has no motive: the scrutinee's head places it (the
   -- variable it eliminates is what every message here is about)
   headRange (SSigmaElim _ _ _ w) = headRange w
@@ -951,8 +957,11 @@ mutual
     show (SSumElim mot a l b r t) =
       "SumElim \{maybe "_" (fst . fst) mot} (\{maybe "_" (show . snd) mot}) \{fst a} (\{show l}) \{fst b} (\{show r}) (\{show t})"
     show (SClass t) = "Class (\{show t})"
-    show (SQuotElim mot a f q) =
-      "QuotElim \{maybe "_" (fst . fst) mot} (\{maybe "_" (show . snd) mot}) \{fst a} (\{show f}) (\{show q})"
+    show (SQuotElim mot a f w q) =
+      let ws = the String (case w of
+                 Nothing => "_"
+                 Just (((x, _), (x', _), (h, _)), p) => "(" ++ x ++ " " ++ x' ++ " " ++ h ++ ". " ++ show p ++ ")") in
+      "QuotElim \{maybe "_" (fst . fst) mot} (\{maybe "_" (show . snd) mot}) \{fst a} (\{show f}) \{ws} (\{show q})"
     show (SEqElim p x w) = "EqElim (\{show p}) (\{show x}) (\{show w})"
     show (SUnsquash nx b w) = "Unsquash \{fst nx} (\{show b}) (\{show w})"
     show (SSumSplit na l nb r w) =

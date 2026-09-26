@@ -451,7 +451,7 @@ sInferForm e0 = case unPos e0 of
   -- comes from the expected type
   SNatElim Nothing _ _ _ _ _ => False
   SSumElim Nothing _ _ _ _ _ => False
-  SQuotElim Nothing _ _ _ => False
+  SQuotElim Nothing _ _ _ _ => False
   _ => True
 
 ||| Resolve a surface signature reference: aliases first (own module,
@@ -4539,6 +4539,38 @@ mutual
     a <- mintHole ctx env site hrng "\{x}/squashee" TopTy
     pure (Squash a)
 
+  ||| The well-definedness derivation of a quot-elim case from its
+  ||| WITNESS (x x' h. p): p is elaborated under the two representatives
+  ||| and the relation instance — inferred when it is an inference form
+  ||| (a lemma applied: its statement is the fact), checked at the case
+  ||| equation otherwise (a chain, a ⋆) — and the case equation
+  ||| f[x] ≐ f[x'] closes by the facts in scope with p among them; the
+  ||| derivation then carries p's derivation where the fact's binder
+  ||| stood (docs/NovaElaboration.txt, e-quotelim). A site the witness
+  ||| does not close is the author's obligation, as without one.
+  wdOfWitness : Ctx -> NameEnv -> Site -> (a : Ty) -> (r : Ty) -> (wl, wr : Elem) -> (wt : Ty)
+             -> ((SName, SName, SName), SElem) -> ElabM (Maybe Drv)
+  wdOfWitness ctx env site a r wl wr wt (((xn, xr), (x'n, x'r), (hn, hr)), p) = do
+    let wctx = ctx :< a :< substTy a Wk :< r
+    let wenv = env :< xn :< x'n :< hn
+    recordBinder xr ctx env xn a
+    recordBinder x'r (ctx :< a) (env :< xn) x'n (substTy a Wk)
+    recordBinder hr (ctx :< a :< substTy a Wk) (env :< xn :< x'n) hn r
+    let wsite = sub site "\{site}: well-definedness witness"
+    (pTy, pSk) <-
+      if sInferForm p
+        then do (_, pTy, pSk) <- inferElem wctx wenv wsite p
+                pure (pTy, pSk)
+        else do (_, pSk) <- checkElem wctx wenv wsite p (Elem.EqTy wl wr wt)
+                pure (Elem.EqTy wl wr wt, pSk)
+    mc <- convElem (wctx :< pTy) (wenv :< "wit")
+            (sub site "\{site}: well-definedness of quot-elim case") Nothing
+            (substElem wl Wk) (substElem wr Wk) (substTy wt Wk)
+    -- (the fact's reflection reads the witness in inference position:
+    -- a checked witness is ascribed its type)
+    st <- getSt
+    let pD = if dSynth pSk then pSk else DAscribe pSk (Just (reTy st wctx pTy)) Nothing
+    pure (Just (substD (certOr mc) (MkDSb 0 [pD])))
   inferElemAt : Ctx -> NameEnv -> Site -> SElem -> ElabM (Elem, Ty, Drv)
   inferElemAt ctx env site (SVar mrng n i) =
     case ctxLookup ctx i of
@@ -4649,7 +4681,7 @@ mutual
     throwAt site.srange "\{site}: ℕ-elim without a motive infers nothing — write (n. T), or use it in checking position"
   inferElemAt ctx env site (SSumElim Nothing _ _ _ _ _) =
     throwAt site.srange "\{site}: ⊎-elim without a motive infers nothing — write (z. T), or use it in checking position"
-  inferElemAt ctx env site (SQuotElim Nothing _ _ _) =
+  inferElemAt ctx env site (SQuotElim Nothing _ _ _ _) =
     throwAt site.srange "\{site}: quot-elim without a motive infers nothing — write (z. T), or use it in checking position"
   inferElemAt ctx env site (SNatElim (Just ((n, nr), mot)) z (n2, n2r) (ih, ihr) s t) = do
     recordBinder nr ctx env n NatTy
@@ -4678,7 +4710,7 @@ mutual
         pure (SumElim l' r' t', substTy motTy (Ext Id t'),
               DSumElim (Just motSk) lSk rSk (scrutD st ctx exp tTy tSk))
       Nothing => throwShape site env "⊎-elim scrutinee has type" tTy "a ⊎ type"
-  inferElemAt ctx env site (SQuotElim (Just ((zn, zr), mot)) (an, ar) f q) = do
+  inferElemAt ctx env site (SQuotElim (Just ((zn, zr), mot)) (an, ar) f wit q) = do
     (q', qTy, qSk) <- inferShaped ctx env site q (quotShape ctx env site (headRange q))
     st <- getSt
     case preferQuot st ctx qTy of
@@ -4704,9 +4736,11 @@ mutual
         let wt = substTy motTy (Ext wk3 (Class (CtxVar 2)))
         wd <- if isPropTy st2 (ctx :< QuotTy a r) motTy || motiveIsProp motSk
           then pure Nothing
-          else map (\mc => Just (certOr mc)) $
-            convElem wctx (env :< an :< (an ++ "'") :< "h")
-              (sub site "\{site}: well-definedness of quot-elim case") Nothing wl wr wt
+          else case wit of
+            Just w => wdOfWitness ctx env site a r wl wr wt w
+            Nothing => map (\mc => Just (certOr mc)) $
+              convElem wctx (env :< an :< (an ++ "'") :< "h")
+                (sub site "\{site}: well-definedness of quot-elim case") Nothing wl wr wt
         pure (QuotElim f' q', substTy motTy (Ext Id q'),
               DQuotElim (Just motSk) wd fSk (scrutD st ctx exp qTy qSk))
       Nothing => throwShape site env "quot-elim scrutinee has type" qTy "a quotient type"
@@ -5890,7 +5924,7 @@ mutual
               switchD st ctx c (substTy motTy (Ext Id t')) cTy
                 (DSumElim (Just (reTy st (ctx :< SumTy a b) motTy)) lSk rSk (scrutD st ctx exp tTy tSk)))
       Nothing => throwShape site env "⊎-elim scrutinee has type" tTy "a ⊎ type"
-  checkElemAt ctx env site (SQuotElim Nothing (an, ar) f q) cTy = do
+  checkElemAt ctx env site (SQuotElim Nothing (an, ar) f wit q) cTy = do
     (q', qTy, qSk) <- inferShaped ctx env site q (quotShape ctx env site (headRange q))
     st <- getSt
     case preferQuot st ctx qTy of
@@ -5913,9 +5947,11 @@ mutual
         let (motD, motK) = reTyK st2 (ctx :< QuotTy a rel) motTy
         wd <- if isPropTy st2 (ctx :< QuotTy a rel) motTy || motK == Just PropTy
           then pure Nothing
-          else map (\mc => Just (certOr mc)) $
-            convElem wctx (env :< an :< (an ++ "'") :< "h")
-              (sub site "\{site}: well-definedness of quot-elim case") Nothing wl wr wt
+          else case wit of
+            Just w => wdOfWitness ctx env site a rel wl wr wt w
+            Nothing => map (\mc => Just (certOr mc)) $
+              convElem wctx (env :< an :< (an ++ "'") :< "h")
+                (sub site "\{site}: well-definedness of quot-elim case") Nothing wl wr wt
         c <- convTy ctx env (sub site "\{site}: inferred vs expected type") Nothing (substTy motTy (Ext Id q')) cTy
         pure (QuotElim f' q',
               switchD st ctx c (substTy motTy (Ext Id q')) cTy
@@ -5998,7 +6034,7 @@ mutual
     motRangeOf : SElem -> Maybe Range
     motRangeOf (SNatElim (Just ((_, mr), _)) _ _ _ _ _) = mr
     motRangeOf (SSumElim (Just ((_, mr), _)) _ _ _ _ _) = mr
-    motRangeOf (SQuotElim (Just ((_, mr), _)) _ _ _) = mr
+    motRangeOf (SQuotElim (Just ((_, mr), _)) _ _ _ _) = mr
     motRangeOf _ = Nothing
 
     -- the motive annotation of the eliminator node (under its

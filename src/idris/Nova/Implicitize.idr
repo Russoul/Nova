@@ -222,7 +222,7 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
       SInj2 t => SInj2 (xfE t)
       SSumElim mot a l b r t => SSumElim (map (\(z, m) => (z, xfT m)) mot) a (xfE l) b (xfE r) (xfE t)
       SClass t => SClass (xfE t)
-      SQuotElim mot a f qq => SQuotElim (map (\(z, m) => (z, xfT m)) mot) a (xfE f) (xfE qq)
+      SQuotElim mot a f w qq => SQuotElim (map (\(z, m) => (z, xfT m)) mot) a (xfE f) (map (\(ns, p) => (ns, xfE p)) w) (xfE qq)
       SSigmaElim nx ny b w => SSigmaElim nx ny (xfE b) (xfE w)
       SSumSplit na l nb r w => SSumSplit na (xfE l) nb (xfE r) (xfE w)
       SUnsquash nx b w => SUnsquash nx (xfE b) (xfE w)
@@ -527,7 +527,7 @@ sitesOfUnit resolve q u = concatMap (\(_, it) => goItem it) u.mitems
       SInj2 t => goE t
       SSumElim mot _ l _ r t => concatMap (goT . snd) (toList mot) ++ goE l ++ goE r ++ goE t
       SClass t => goE t
-      SQuotElim mot _ f qq => concatMap (goT . snd) (toList mot) ++ goE f ++ goE qq
+      SQuotElim mot _ f w qq => concatMap (goT . snd) (toList mot) ++ goE f ++ concatMap (goE . snd) (toList w) ++ goE qq
       SSigmaElim _ _ b w => goE b ++ goE w
       SSumSplit _ l _ r w => goE l ++ goE r ++ goE w
       SUnsquash _ b w => goE b ++ goE w

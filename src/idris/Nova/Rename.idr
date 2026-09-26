@@ -124,8 +124,8 @@ parameters (rm : RenameMap, resolve : String -> String)
       SSumElim mot a l b r t =>
         SSumElim (map (\(z, m) => (z, rnT m)) mot) a (rnE l) b (rnE r) (rnE t)
       SClass t => SClass (rnE t)
-      SQuotElim mot a f q =>
-        SQuotElim (map (\(z, m) => (z, rnT m)) mot) a (rnE f) (rnE q)
+      SQuotElim mot a f w q =>
+        SQuotElim (map (\(z, m) => (z, rnT m)) mot) a (rnE f) (map (\(ns, p) => (ns, rnE p)) w) (rnE q)
       SSigmaElim nx ny b w => SSigmaElim nx ny (rnE b) (rnE w)
       SSumSplit na l nb r w => SSumSplit na (rnE l) nb (rnE r) (rnE w)
       SUnsquash nx b w => SUnsquash nx (rnE b) (rnE w)

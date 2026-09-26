@@ -42,15 +42,14 @@ normClass = λa b. let claim1 = normSound a b in ⋆
 
 intNormalize : Int → Int using (Int.Int.unfold, Int.IntR.unfold)
 intNormalize =
-  λz. let wd : (rep rep' : ℕ × ℕ)
-            (h : rep .π₁ + rep' .π₂ ≡ rep .π₂ + rep' .π₁)
-            → class (normPair (rep .π₁) (rep .π₂)) ≡ class (normPair (rep' .π₁) (rep' .π₂)) ∈ Int
-            = λrep rep' h. class (normPair (rep .π₁) (rep .π₂))
-              ≡⟨ normClass (rep .π₁) (rep .π₂) ⟩ class (rep .π₁, rep .π₂)
-              ≡⟨ (⋆ : class (rep .π₁, rep .π₂) ≡ class (rep' .π₁, rep' .π₂) ∈ Int) ⟩
-                class (rep' .π₁, rep' .π₂)
-              ≡⟨ sym _ _ (normClass (rep' .π₁) (rep' .π₂)) ⟩ class (normPair (rep' .π₁) (rep' .π₂))
-          quot-elim (rep. class (normPair (rep .π₁) (rep .π₂))) z
+  λz. quot-elim
+    rep. class (normPair (rep .π₁) (rep .π₂))
+    rep rep' h. class (normPair (rep .π₁) (rep .π₂))
+      ≡⟨ normClass (rep .π₁) (rep .π₂) ⟩ class (rep .π₁, rep .π₂)
+      ≡⟨ (⋆ : class (rep .π₁, rep .π₂) ≡ class (rep' .π₁, rep' .π₂) ∈ Int) ⟩
+        class (rep' .π₁, rep' .π₂)
+      ≡⟨ sym _ _ (normClass (rep' .π₁) (rep' .π₂)) ⟩ class (normPair (rep' .π₁) (rep' .π₂))
+    z
 
 intNormalizeTest1 : intNormalize (class (S Z, Z)) ≡ class (S Z, Z)
   using (Int.Int.unfold, Int.normalize.intNormalize.eq, Int.normalize.normPair.eq)
