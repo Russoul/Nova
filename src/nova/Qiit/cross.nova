@@ -34,7 +34,7 @@ toBagSwap : (x y : ℕ) (t : L) → toBag (lcons x (lcons y t)) ≡ toBag (lcons
     Qiit.cross.bins.eq,
     Qiit.cross.lcons.eq,
     Qiit.cross.toBag.eq)
-toBagSwap = λx y t. ⋆
+toBagSwap = λx y t. bswp ℕ x y (toBag t)
 
 -- 4. a QIIT whose signature EMBEDS a previous QIIT's reflection: trees
 --    with bag-of-naturals labels ((Bag ℕ) is an external domain

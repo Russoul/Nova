@@ -7,6 +7,10 @@ mkdir out
 "$1" eliminate input.nova 14:9 x > out/input.nova
 sed -n "14p" out/input.nova
 echo "--- re-elaborated (quot-elim owes its well-definedness):"
+# (at a quotient BY EQUALITY the case owes nothing: the hole's two
+# instances agree by congruence under the relation's hypothesis, which
+# the stated tier reads — a quotient by any other relation would leave
+# the obligation open)
 "$1" elab out/input.nova
 echo "--- and one the trial rejects:"
 "$1" eliminate input.nova 23:11 x

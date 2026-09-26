@@ -19,9 +19,10 @@
 -- rule outright — remove w and no proof of ∥A∥ is left to stand there.
 
 import Natural (+, plusZeroId)
+import Core.equality (trans, sym)
 
 halves : (n : ℕ) (w : ∥(k : ℕ) × n ≡ k + k∥) → ∥(k : ℕ) × n + Z ≡ k + k∥ using (Natural.plusZeroId)
-halves = λn w. unsquash (x. ⋆ x) w
+halves = λn w. unsquash (x. ⋆ (x .π₁, trans _ _ _ (sym _ _ (plusZeroId n)) (x .π₂))) w
 
 -- entries stand on both sides of the variable, and none names it, so
 -- every one of them survives the trade

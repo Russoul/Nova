@@ -28,6 +28,7 @@ import Rat.abs (bndMul, qNegMulR)
 import Rat.nat (qOfNat, qOfNatAdd, leQOfNat)
 import Rat.ceil (qNatBound)
 import Rat.arch (bndOfArch)
+import Rat.half (nzPosInt)
 import Real (qInvNat, rBound, leQZeroBound, Regular, RSeq, REq, Real, constReg, realOfQ)
 import Real.neg (seqOf, regOf, regBnd, bndReg, reqOf, realEqOfREq)
 import Real.seq (rseqEq, wdOuterOfComm, realEqOfSeqEq)
@@ -51,9 +52,14 @@ qMulIdxNum : {c m : ℕ} → intOfNat (S c) * intOne * nzToInt (nzPos m) ≡ int
 qMulIdxNum =
   λc m. trans
     _
-    intOfNat (S c) * intOfNat (S m)
     _
-    cong (λv. Int) (λv. v * nzToInt (nzPos m)) (intMulOneR (intOfNat (S c)))
+    _
+    trans
+      _
+      _
+      _
+      cong (λv. Int) (λv. v * nzToInt (nzPos m)) (intMulOneR (intOfNat (S c)))
+      cong (λv. Int) (λv. intOfNat (S c) * v) (nzPosInt m)
     intOfNatMul (S c) (S m)
 
 qMulIdxDen : (c m : ℕ) → intOne * nzToInt (nzMul nzOne (nzPos (mulIdx c m))) ≡ intOfNat (S c * S m)
@@ -66,14 +72,19 @@ qMulIdxDen =
     trans
       _
       _
-      intOfNat (S (mulIdx c m))
+      _
       intMulOneL (nzToInt (nzMul nzOne (nzPos (mulIdx c m))))
-      cong
-        λv. Int
-        λv. nzToInt v
-        {nzMul nzOne (nzPos (mulIdx c m))}
-        {nzPos (mulIdx c m)}
-        nzMulOneL
+      trans
+        _
+        _
+        _
+        cong
+          λv. Int
+          λv. nzToInt v
+          {nzMul nzOne (nzPos (mulIdx c m))}
+          {nzPos (mulIdx c m)}
+          nzMulOneL
+        nzPosInt (mulIdx c m)
     cong (λu. Int) (λw. intOfNat w) (sucMulIdx c m)
 
 qMulIdxRel : (c m : ℕ)

@@ -2,7 +2,7 @@ import Natural (+, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusAssoc)
 import Lang.vectByInd (vect)
 
 vappend : (n : ℕ) {A : 𝕌} (m : ℕ) → vect n A → vect m A → vect (n + m) A
-  using (Natural.+.unfold, sucPlus.rw, vect.eq, Lang.vectByInd.vect.unfold, zeroPlusId.rw)
+  using (vect.eq, Lang.vectByInd.vect.unfold)
 vappend =
   λn A m. ℕ-elim
     λv w. let claim8 = zeroPlusId m in w
@@ -15,13 +15,7 @@ vappendZ : (A : 𝕌)
   (v : vect Z A)
   (w : vect n A)
   → (let claim6 = zeroPlusId n in vappend _ _ v w) ≡ w ∈ vect n A
-  using (hyp.rw,
-    sucPlus.rw,
-    vappend.eq,
-    vect.eq,
-    Lang.vectByInd.vect.unfold,
-    zeroPlusId,
-    zeroPlusId.rw)
+  using (vappend.eq, vect.eq, Lang.vectByInd.vect.unfold, zeroPlusId)
 vappendZ = λA n v w. ⋆
 
 --  ^^^^^^^^^ FIXME: Can't be synthesised
@@ -32,14 +26,7 @@ vappendS : (n : ℕ)
   (w : vect m A)
   → vappend _ _ v w
     ≡ (let claim5 = sucPlus n m in (v .π₁, vappend _ _ (v .π₂) w : A × vect (n + m) A))
-  using (hyp.rw,
-    Natural.+.unfold,
-    sucPlus,
-    sucPlus.rw,
-    vappend.eq,
-    vect.eq,
-    Lang.vectByInd.vect.unfold,
-    zeroPlusId.rw)
+  using (sucPlus, vappend.eq, vect.eq, Lang.vectByInd.vect.unfold)
 vappendS = λn A m v w. ⋆
 
 -- the associativity step case, packaged: with the tail instance of
@@ -59,15 +46,13 @@ vappendAssocS : {A : 𝕌}
            vappend (S p + m) k (vappend _ _ q v) w)
       ≡ vappend _ _ q (vappend _ _ v w)
       ∈ vect (S p + (m + k)) A
-  using (hyp.rw,
-    Natural.+.unfold,
-    plusAssoc.rw,
-    sucPlus.rw,
-    vappend.eq,
-    vect.eq,
-    Lang.vectByInd.vect.unfold,
-    zeroPlusId.rw)
-vappendAssocS = λA m k p v w q hih. ⋆
+  using (vappend.eq, vect.eq, Lang.vectByInd.vect.unfold)
+vappendAssocS =
+  λA m k p v w q hih. let claim1 = sucPlus p m
+                          claim2 = sucPlus (p + m) k
+                          claim3 = sucPlus p (m + k)
+                          claim4 = plusAssoc p m k
+                          ⋆
 
 -- Associativity: the statement itself only type-checks up to
 -- plus-associativity (the two sides' lengths differ intensionally)
@@ -81,25 +66,15 @@ vappendAssoc : (n : ℕ)
   (u : vect n A)
   → vappend _ _ (vappend _ _ u v) w
     ≡ (let claim1 = plusAssoc n m k in vappend n (m + k) u (vappend _ _ v w))
-  using (hyp.rw,
-    Natural.+.unfold,
-    plusAssoc,
-    plusAssoc.rw,
-    sucPlus,
-    sucPlus.rw,
-    vappendS.rw,
-    vappendZ.rw,
-    vect.eq,
-    Lang.vectByInd.vect.unfold,
-    zeroPlusId,
-    zeroPlusId.rw)
+  using (plusAssoc, sucPlus, vappend.eq, vect.eq, Lang.vectByInd.vect.unfold, zeroPlusId)
 vappendAssoc =
-  λn A m k v w u. ℕ-elim
-    p. (q : vect p A)
-      → vappend (p + m) k (vappend _ _ q v) w
-        ≡ vappend _ _ q (vappend _ _ v w)
-        ∈ vect (p + (m + k)) A
-    λq. ⋆ using (vappend.eq, vect.eq, zeroPlusId.rw, sucPlus.rw, hyp.rw)
-    p ih. λq. vappendAssocS (ih (q .π₂))
-    n
-    u
+  λn A m k v w u. let claim = plusAssoc n m k
+                      ℕ-elim
+                        p. (q : vect p A)
+                          → (let claim = plusAssoc p m k in vappend (p + m) k (vappend _ _ q v) w)
+                            ≡ vappend _ _ q (vappend _ _ v w)
+                            ∈ vect (p + (m + k)) A
+                        λq. let claim1 = zeroPlusId m in let claim2 = zeroPlusId (m + k) in ⋆
+                        p ih. λq. vappendAssocS (ih (q .π₂))
+                        n
+                        u

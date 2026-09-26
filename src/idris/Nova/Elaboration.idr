@@ -3705,12 +3705,14 @@ searchLine st ctx env site kind p a b ty =
 
 withStated : (ElabSt -> Maybe Drv) -> (Drv -> String) -> ElabSt -> Maybe Drv
 withStated run line st =
-  if noSearchMode == 0 then run st else
+  -- the STATED run first, always: it is the engine; the search is
+  -- the fallback the measure counts (NOVA_NOSEARCH=measure audits
+  -- each fall-back, =1 forbids it), until it is deleted
   case run ({ statedOnly := True } st) of
     Just p => Just p
     Nothing => if noSearchMode == 2 then Nothing
                else case run st of
-                      Just p => audit (line p) (Just p)
+                      Just p => if noSearchMode == 1 then audit (line p) (Just p) else Just p
                       Nothing => Nothing
 
 mutual

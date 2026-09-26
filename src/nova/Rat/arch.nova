@@ -55,8 +55,9 @@ intSgnOfNatNonNeg : {k : ℕ} → NonNegS (intSgn (intOfNat k))
     Rat.order.Sign.unfold)
 intSgnOfNatNonNeg =
   λk. ℕ-elim
-    inj₁ (eqToId _ _ (let claim9 = intOfNatZero in intSgnZero))
-    j ih. inj₂ (eqToId _ _ ((let claim1 = nzPosInt j in let claim8 = nzPosInt j in intSgnPos) j))
+    inj₁ (eqToId _ _ (trans _ _ _ (cong (λu. Sign) (λu. intSgn u) intOfNatZero) intSgnZero))
+    j ih. inj₂
+      eqToId _ _ (trans _ _ _ (cong (λu. Sign) (λu. intSgn u) (sym _ _ (nzPosInt j))) (intSgnPos j))
     k
 
 -- ...so a fraction with a natural numerator over a positive

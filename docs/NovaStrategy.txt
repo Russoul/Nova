@@ -438,30 +438,48 @@ that with statements in the text, measured site by site.
          well-definedness proof of a quotient elimination wants a slot
          at the eliminator (the kernel node has one), the let outside
          it cannot mention the case's binders.
-  [~] 3. MIGRATE BY THE COUNT, item by item, until the strict run
-         accepts the corpus; then delete the search — candidate sets,
-         the depth, hop chaining, the `.rw` rewrite loops.
-         tools/migrate-stated.py writes the mechanical part from the
-         measure's audit (a root instance replaces its ⋆; placed or
-         chained instances become local claims at the site's span;
-         every file verified by elaboration). 2026-09-25: 252 → 43
-         (36 ⋆ instances, 139 claim-wrapped sites, 15 quantified
-         well-definedness claims, the stated tier's closure, the
-         stated run's own candidate set, a let inferring when its body
-         does). The mechanical loop is exhausted there; the residue is
-         the AUTHOR'S, and mostly one shape: the quotient-structure
-         items (Int, ℚ, quotient groups and rings) write raw quotient
+  [x] 3. MIGRATE BY THE COUNT, item by item, until the strict run
+         accepts the corpus. tools/migrate-stated.py writes the
+         mechanical part from the measure's audit (a root instance
+         replaces its ⋆; placed or chained instances become local
+         claims at the site's span; every file verified by
+         elaboration). 2026-09-25: 252 → 43 (36 ⋆ instances, 139
+         claim-wrapped sites, 15 quantified well-definedness claims,
+         the stated tier's closure, the stated run's own candidate
+         set, a let inferring when its body does). The residue was the
+         AUTHOR'S, in a few shapes: the quotient-structure items (ℤ,
+         ℚ, ℝ, quotient groups and rings) wrote raw quotient
          eliminations in their TYPES and motives, so a
-         well-definedness proof is owed wherever the type is formed —
-         the natural form names the operation once (`qMulL g x : QGroup
-         → QGroup`, its well-definedness stated at the definition) and
-         states equations between named operations. Also: instances
-         referring to an unnamed binder of the item's type (`→ IsNormal
-         g N →`: name it), a case binder shadowing an outer name (the
-         printer cannot tell them apart), chains of several facts at
-         one site (a calculational chain), and the 4 generated
-         uniqueness lemmas (the clausal emitter's to state).
-  [ ] 4. Well-definedness as a claim (the 80 sites), by the same form.
+         well-definedness proof was owed wherever the type was formed
+         — the natural form names the operation once (`intAddL a :
+         Int → Int`, `rAddL x : Real → Real`, `qMulL g x`, its
+         well-definedness the local claim at the definition) and
+         states equations between named operations; instances used
+         at a hypothesis's type (the explicit `trans _ _ _ (sym _ _
+         (lemma …)) h`, not a claim beside a hypothesis that rewrites
+         the same term the other way); chains of several facts at one
+         site (a calculational chain, or nested trans); a proof stated
+         at a definition's name where the node needs the shape the
+         name hides (a lemma of its own, outside the hypothesis that
+         would rewrite it: clsRelRefl). 2026-09-26: 0 sites —
+         NOVA_NOSEARCH=1 accepts the corpus. Two engine changes were
+         needed on the way, both to the STATED tier's own proofs (a
+         rejection by the kernel is the engine's bug, never the
+         author's): the licensed δ-join is its own tier before the
+         closure over the facts in scope (the closure rewrites by
+         orientation and can carry a side past the join an unfolding
+         alone reaches), and the ≡-congruence is one node with its
+         three children (irrelevance leaves cannot be chain links).
+         The stated run is now the engine's FIRST route in every mode;
+         the search is the fallback the measure counts.
+  [ ] 3′. DELETE THE SEARCH: the fallback in withStated, the
+         Σ-lemma candidates (direct and hop) and their `.rw` licences,
+         the depth, the `NOVA_NOSEARCH` modes; then the `.rw` names
+         from the corpus's `using` clauses. What remains is the stated
+         tier alone, and the measure is its acceptance.
+  [x] 4. Well-definedness as a claim (the 80 sites), by the same form:
+         the named left operation's local claim, the outer half a
+         lemma over it (3 above).
   [ ] 5. Contexts carrying derivations outright, replacing the
          registry, once the engine's shape is settled.
 
