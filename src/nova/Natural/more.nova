@@ -81,7 +81,7 @@ monusSucR : (a b : ℕ) → a ∸ S b ≡ pred (a ∸ b) using (Natural.more.pre
 monusSucR = λa b. ⋆
 
 zeroMonus : (b : ℕ) → Z ∸ b ≡ Z using (Natural.more.pred.eq)
-zeroMonus = λb. ℕ-elim (monusZeroR {Z}) (k ih. let claim24 = monusSucR Z k in ⋆) b
+zeroMonus = λb. ℕ-elim (monusZeroR {Z}) (k ih. monusSucR Z k) b
 
 sucMonusSuc : (a b : ℕ) → S a ∸ S b ≡ a ∸ b using (Natural.more.pred.eq, Natural.more.∸.eq)
 sucMonusSuc = λa b. ℕ-elim ⋆ (k ih. ⋆) b
@@ -102,7 +102,7 @@ monusPlus : (a b c : ℕ) → a ∸ (b + c) ≡ a ∸ b ∸ c using (Natural.+.e
 monusPlus = λa b c. ℕ-elim ⋆ (k ih. ⋆) c
 
 monusSelf : {a : ℕ} → a ∸ a ≡ Z
-monusSelf = λa. ℕ-elim (zeroMonus _) (k ih. let claim17 = sucMonusSuc k k in ⋆) a
+monusSelf = λa. ℕ-elim (zeroMonus _) (k ih. sucMonusSuc k k) a
 
 -- ...so a ≤ b makes a − b vanish
 monusZeroOfLe : (a b : ℕ) → a ≤ b → a ∸ b ≡ Z using (Core.id.Id.unfold, Natural.order.≤.unfold)

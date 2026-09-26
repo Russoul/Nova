@@ -29,7 +29,7 @@ leSucSelf = λa. S Z, eqToId _ _ ⋆
 
 leStep : {a b : ℕ} → a ≤ b → a ≤ S b
   using (+.eq, Natural.order.≤.eq, Core.id.Id.unfold, Core.id.idToEq.eq, Natural.order.≤.unfold)
-leStep = λa b le. S (le .π₁), eqToId _ _ (let h = idToEq _ _ _ (le .π₂) in ⋆)
+leStep = λa b le. S (le .π₁), eqToId (S (a + le .π₁)) _ (idToEq _ (a + le .π₁) b (le .π₂))
 
 -- ===== transitivity, antisymmetry =====
 leTrans : (a b c : ℕ) → a ≤ b → b ≤ c → a ≤ c using (Core.id.Id.unfold, Natural.order.≤.unfold)
