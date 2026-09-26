@@ -81,7 +81,9 @@ nzToIntNonZero : (e : NZ) → ¬ (nzToInt e ≡ intZero)
 nzToIntNonZero =
   λe. ⊎-elim
     n. intNeqOfNotRel
-      λr. zNotS ((let claim3 = plusZeroId (S n) in let claim4 = zeroPlusId Z in sym (S n) Z) r)
+      λr. zNotS
+        (let claim3 = plusZeroId (S n) in let claim4 = zeroPlusId Z in sym (S n) Z)
+          let claim1 = plusZeroId (S n) in let claim2 = zeroPlusId Z in r
     n. intNeqOfNotRel
       λr. zNotS {n} (let claim1 = zeroPlusId Z in let claim2 = plusZeroId (S n) in r)
     e

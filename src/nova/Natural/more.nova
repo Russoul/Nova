@@ -55,7 +55,9 @@ multCancelLe =
                            n * S k
                            Z
                            le .π₁ * S k
-                           let claim26 = plusZeroId (n * S k) in split
+                           let claim26 = plusZeroId (n * S k)
+                               claim3 = plusZeroId (n * S k)
+                               split
                    trans
                      _
                      _
@@ -110,7 +112,11 @@ plusMonus : (a b : ℕ) → a + b ∸ b ≡ a
     sucMonusSuc.rw)
 plusMonus =
   λa b. ℕ-elim
-    let claim22 = monusZeroR {a + Z} in let claim23 = plusZeroId a in ⋆
+    let claim22 = monusZeroR {a + Z}
+        claim23 = plusZeroId a
+        claim1 = monusZeroR {a + Z}
+        claim2 = plusZeroId a
+        ⋆
     k ih. let claim19 = plusSucId a k
               claim20 = sucMonusSuc (a + k) k
               claim21 = ih

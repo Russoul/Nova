@@ -781,7 +781,7 @@ ratCrossPosL =
           num p * nzToInt (den q) * (nzToInt (den p) * nzToInt (den q))
         ≡⟨ mulPairSwap (num p) (nzToInt (den q)) (nzToInt (den p)) (nzToInt (den q)) ⟩
           num p * nzToInt (den p) * (nzToInt (den q) * nzToInt (den q))
-    trans _ _ sPos (intSgnMulSq (num p * nzToInt (den p)) (den q)) hp
+    (let claim4 = ratSgnIs p in trans _ _ sPos (intSgnMulSq (num p * nzToInt (den p)) (den q))) hp
 
 ratCrossPosR : (p : Rat)
   {q : Rat}
@@ -816,7 +816,7 @@ ratCrossPosR =
           num q * nzToInt (den p) * (nzToInt (den p) * nzToInt (den q))
         ≡⟨ mulPairSwapR (num q) (nzToInt (den p)) (nzToInt (den p)) (nzToInt (den q)) ⟩
           num q * nzToInt (den q) * (nzToInt (den p) * nzToInt (den p))
-    trans _ _ sPos (intSgnMulSq (num q * nzToInt (den q)) (den p)) hq
+    (let claim3 = ratSgnIs q in trans _ _ sPos (intSgnMulSq (num q * nzToInt (den q)) (den p))) hq
 
 -- positive fractions add to a positive fraction
 ratAddPos : {p q : Rat} → (ratSgn p ≡ sPos) → (ratSgn q ≡ sPos) → ratSgn (ratAdd p q) ≡ sPos
@@ -1127,7 +1127,7 @@ ratMulPos =
           num p * num q * (nzToInt (den p) * nzToInt (den q))
         ≡⟨ mulPairSwap (num p) (num q) (nzToInt (den p)) (nzToInt (den q)) ⟩
           num p * nzToInt (den p) * (num q * nzToInt (den q))
-    intSgnPosMul hp hq
+    intSgnPosMul (let claim2 = ratSgnIs p in hp) (let claim1 = ratSgnIs q in hq)
 
 sgnQMulPos : {u v : Q} → (sgnQ u ≡ sPos) → (sgnQ v ≡ sPos) → sgnQ (u * v) ≡ sPos
   using (Core.equality.cong.eq,

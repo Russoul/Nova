@@ -56,7 +56,7 @@ intSgnOfNatNonNeg : {k : ℕ} → NonNegS (intSgn (intOfNat k))
 intSgnOfNatNonNeg =
   λk. ℕ-elim
     inj₁ (eqToId _ _ (let claim9 = intOfNatZero in intSgnZero))
-    j ih. inj₂ (eqToId _ _ ((let claim8 = nzPosInt j in intSgnPos) j))
+    j ih. inj₂ (eqToId _ _ ((let claim1 = nzPosInt j in let claim8 = nzPosInt j in intSgnPos) j))
     k
 
 -- ...so a fraction with a natural numerator over a positive
