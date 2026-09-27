@@ -32,19 +32,11 @@ intScaleIsMul =
   λd z. ⊎-elim
     n. quot-elim
       v. intScale (nzPos n) v ≡ nzToInt (nzPos n) * v
-      p. let claim40 = zeroMult (p .π₂)
-             claim41 = zeroMult (p .π₁)
-             claim42 = plusZeroId (S n * p .π₁)
-             claim43 = plusZeroId (S n * p .π₂)
-             ⋆
+      p. zeroMult (p .π₂), zeroMult (p .π₁), plusZeroId (S n * p .π₁), plusZeroId (S n * p .π₂)
       z
     n. quot-elim
       v. intScale (nzNeg n) v ≡ nzToInt (nzNeg n) * v
-      p. let claim36 = zeroMult (p .π₁)
-             claim37 = zeroMult (p .π₂)
-             claim38 = zeroPlusId (S n * p .π₂)
-             claim39 = zeroPlusId (S n * p .π₁)
-             ⋆
+      p. zeroMult (p .π₁), zeroMult (p .π₂), zeroPlusId (S n * p .π₂), zeroPlusId (S n * p .π₁)
       z
     d
 
@@ -76,43 +68,43 @@ nzToIntMul =
   λd e. ⊎-elim
     m. ⊎-elim
       v. nzToInt (nzMul (nzPos m) v) ≡ nzToInt (nzPos m) * nzToInt v
-      k. let claim28 = plusZeroId (S (m * k + m + k))
-             claim29 = sucMulSuc m k
-             claim30 = zeroPlusId (S m * S k)
-             claim31 = zeroMult Z
-             claim32 = zeroMult (S k)
-             claim33 = multZeroId (S m)
-             claim34 = zeroPlusId Z
-             claim35 = plusZeroId (S m * S k)
-             ⋆
-      k. let claim20 = zeroPlusId (S m * S k)
-             claim21 = sucMulSuc m k
-             claim22 = plusZeroId (S (m * k + m + k))
-             claim23 = zeroMult (S k)
-             claim24 = zeroMult Z
-             claim25 = multZeroId (S m)
-             claim26 = zeroPlusId Z
-             claim27 = plusZeroId (S m * S k)
-             ⋆
+      k. (,)
+        plusZeroId (S (m * k + m + k))
+        sucMulSuc m k
+        zeroPlusId (S m * S k)
+        zeroMult Z
+        zeroMult (S k)
+        multZeroId (S m)
+        zeroPlusId Z
+        plusZeroId (S m * S k)
+      k. (,)
+        zeroPlusId (S m * S k)
+        sucMulSuc m k
+        plusZeroId (S (m * k + m + k))
+        zeroMult (S k)
+        zeroMult Z
+        multZeroId (S m)
+        zeroPlusId Z
+        plusZeroId (S m * S k)
       e
     m. ⊎-elim
       v. nzToInt (nzMul (nzNeg m) v) ≡ nzToInt (nzNeg m) * nzToInt v
-      k. let claim13 = zeroPlusId (S m * S k)
-             claim14 = sucMulSuc m k
-             claim15 = plusZeroId (S (m * k + m + k))
-             claim16 = zeroMult (S k)
-             claim17 = zeroMult Z
-             claim18 = multZeroId (S m)
-             claim19 = zeroPlusId Z
-             ⋆
-      k. let claim6 = plusZeroId (S (m * k + m + k))
-             claim7 = sucMulSuc m k
-             claim8 = zeroPlusId (S m * S k)
-             claim9 = zeroMult Z
-             claim10 = zeroMult (S k)
-             claim11 = multZeroId (S m)
-             claim12 = zeroPlusId Z
-             ⋆
+      k. (,)
+        zeroPlusId (S m * S k)
+        sucMulSuc m k
+        plusZeroId (S (m * k + m + k))
+        zeroMult (S k)
+        zeroMult Z
+        multZeroId (S m)
+        zeroPlusId Z
+      k. (,)
+        plusZeroId (S (m * k + m + k))
+        sucMulSuc m k
+        zeroPlusId (S m * S k)
+        zeroMult Z
+        zeroMult (S k)
+        multZeroId (S m)
+        zeroPlusId Z
       e
     d
 
@@ -520,32 +512,28 @@ qAddZeroR = λu. quot-elim (p. cong (λx. Q) (λr. class r) {ratAdd p ratZero} {
 magAssoc : {m k l : ℕ}
   → (m * k + m + k) * l + (m * k + m + k) + l ≡ m * (k * l + k + l) + m + (k * l + k + l)
 magAssoc =
-  λm k l. let claim1 = zeroPlusId ((m * k + m + k) * l + (m * k + m + k) + l)
-              claim2 = zeroPlusId (m * (k * l + k + l) + m + (k * l + k + l))
-              predEq
-                {Z + ((m * k + m + k) * l + (m * k + m + k) + l)}
-                {Z + (m * (k * l + k + l) + m + (k * l + k + l))}
-                trans
-                  S ((m * k + m + k) * l + (m * k + m + k) + l)
-                  _
-                  S (m * (k * l + k + l) + m + (k * l + k + l))
-                  sym _ _ (sucMulSuc (m * k + m + k) l)
-                  trans
-                    _
-                    _
-                    _
-                    trans
-                      _
-                      _
-                      _
-                      cong (λu. ℕ) (λw. w * S l) (sym _ _ (sucMulSuc m k))
-                      multAssoc (S m) (S k) (S l)
-                    trans
-                      _
-                      _
-                      _
-                      cong (λu. ℕ) (λw. S m * w) (sucMulSuc k l)
-                      sucMulSuc m (k * l + k + l)
+  λm k l. (,)
+    zeroPlusId ((m * k + m + k) * l + (m * k + m + k) + l)
+    zeroPlusId (m * (k * l + k + l) + m + (k * l + k + l))
+    predEq
+      {Z + ((m * k + m + k) * l + (m * k + m + k) + l)}
+      {Z + (m * (k * l + k + l) + m + (k * l + k + l))}
+      trans
+        S ((m * k + m + k) * l + (m * k + m + k) + l)
+        _
+        S (m * (k * l + k + l) + m + (k * l + k + l))
+        sym _ _ (sucMulSuc (m * k + m + k) l)
+        trans
+          _
+          _
+          _
+          trans
+            _
+            _
+            _
+            cong (λu. ℕ) (λw. w * S l) (sym _ _ (sucMulSuc m k))
+            multAssoc (S m) (S k) (S l)
+          trans _ _ _ (cong (λu. ℕ) (λw. S m * w) (sucMulSuc k l)) (sucMulSuc m (k * l + k + l))
 
 -- eight sign cases, one magnitude law
 nzMulAssoc : (x y z : NZ) → nzMul (nzMul x y) z ≡ nzMul x (nzMul y z)
@@ -724,24 +712,25 @@ ratAddAssocDen = λp q r. nzMulAssoc (den p) (den q) (den r)
 ratAddAssoc : {p q r : Rat} → ratAdd (ratAdd p q) r ≡ ratAdd p (ratAdd q r)
   using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold)
 ratAddAssoc =
-  λp q r. let claim1 = ratEta {ratAdd (ratAdd p q) r}
-              claim2 = ratEta {ratAdd p (ratAdd q r)}
-              trans
-                _
-                mkRat (num (ratAdd p (ratAdd q r))) (den (ratAdd (ratAdd p q) r))
-                _
-                cong
-                  λu. Rat
-                  λx. mkRat x (den (ratAdd (ratAdd p q) r))
-                  {num (ratAdd (ratAdd p q) r)}
-                  {num (ratAdd p (ratAdd q r))}
-                  ratAddAssocNum
-                cong
-                  λu. Rat
-                  λd. mkRat (num (ratAdd p (ratAdd q r))) d
-                  {den (ratAdd (ratAdd p q) r)}
-                  {den (ratAdd p (ratAdd q r))}
-                  ratAddAssocDen
+  λp q r. (,)
+    ratEta {ratAdd (ratAdd p q) r}
+    ratEta {ratAdd p (ratAdd q r)}
+    trans
+      _
+      mkRat (num (ratAdd p (ratAdd q r))) (den (ratAdd (ratAdd p q) r))
+      _
+      cong
+        λu. Rat
+        λx. mkRat x (den (ratAdd (ratAdd p q) r))
+        {num (ratAdd (ratAdd p q) r)}
+        {num (ratAdd p (ratAdd q r))}
+        ratAddAssocNum
+      cong
+        λu. Rat
+        λd. mkRat (num (ratAdd p (ratAdd q r))) d
+        {den (ratAdd (ratAdd p q) r)}
+        {den (ratAdd p (ratAdd q r))}
+        ratAddAssocDen
 
 qAddAssoc : (u v w : Q) → u + v + w ≡ u + (v + w)
   using (Int.Int.unfold,

@@ -207,7 +207,7 @@ qrMulAssoc =
           _
           _
           _
-          let claim8 = qrMulCls _ _ _ id a b in qrMulCls _ _ _ id (rmul _ r a b) c
+          qrMulCls _ _ _ id a b, qrMulCls _ _ _ id (rmul _ r a b) c
           trans
             _
             _
@@ -218,9 +218,7 @@ qrMulAssoc =
               {rmul _ r (rmul _ r a b) c}
               {rmul _ r a (rmul _ r b c)}
               rMulAssoc
-            let claim6 = qrMulCls _ _ _ id b c
-                claim7 = qrMulCls _ _ _ id a (rmul _ r b c)
-                ⋆
+            qrMulCls _ _ _ id b c, qrMulCls _ _ _ id a (rmul _ r b c)
         w
       v
     u
@@ -305,18 +303,16 @@ qrDistribL =
           _
           _
           _
-          let claim4 = qrAddCls _ _ _ id b c
-              claim5 = qrMulCls _ _ _ id a (gop {R} (raddGroup {R} r) b c)
-              ⋆
+          qrAddCls _ _ _ id b c, qrMulCls _ _ _ id a (gop {R} (raddGroup {R} r) b c)
           trans
             _
             _
             qrAdd id (qrMul _ _ _ id (class a) (class b)) (qrMul _ _ _ id (class a) (class c))
             cong (λz. QRing _ r I) (λz. class z) (rDistribL _ r a b c)
-            let claim1 = qrMulCls _ _ _ id a b
-                claim2 = qrMulCls _ _ _ id a c
-                claim3 = qrAddCls _ _ _ id (rmul _ r a b) (rmul _ r a c)
-                ⋆
+            (,)
+              qrMulCls _ _ _ id a b
+              qrMulCls _ _ _ id a c
+              qrAddCls _ _ _ id (rmul _ r a b) (rmul _ r a c)
         w
       v
     u

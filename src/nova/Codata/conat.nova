@@ -44,8 +44,4 @@ infSucc =
   coind
     x y. ∥(x ≡ cinf ∈ conat) × (y ≡ csucc cinf ∈ conat)∥
     ⋆ (⋆, ⋆)
-    x y h. squash-elim
-      h
-      w. let claim1 = w .π₁
-             claim2 = w .π₂
-             (⋆ (⋆, ⋆) : ∥(cinf ≡ cinf) × (csucc cinf ≡ csucc cinf)∥)
+    x y h. squash-elim h (w. w .π₁, w .π₂, (⋆ (⋆, ⋆) : ∥(cinf ≡ cinf) × (csucc cinf ≡ csucc cinf)∥))

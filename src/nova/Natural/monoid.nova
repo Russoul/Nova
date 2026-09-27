@@ -23,7 +23,7 @@ multOneR : (n : ℕ) → n * S Z ≡ n using (Natural.*.eq, Natural.+.eq)
 multOneR = λn. ⋆
 
 oneMultL : (n : ℕ) → S Z * n ≡ n using (*.eq)
-oneMultL = λn. ℕ-elim ⋆ (k ih. let claim2 = sucPlus Z k in zeroPlusId k) n
+oneMultL = λn. ℕ-elim ⋆ (k ih. sucPlus Z k, zeroPlusId k) n
 
 -- (ℕ, *, 1) is a monoid.
 natMulMonoid : IsMonoid ℕ using (Algebra.monoid.IsMonoid.unfold)

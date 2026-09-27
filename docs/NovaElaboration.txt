@@ -1753,12 +1753,26 @@ whnf(C) = (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ R[id, a, b] ⇝ ê
 # every checking position: `intAddWD … h` where the class equation
 # is expected, `rAddWDOuterCls {x} {x'} {c} h` as a case at an
 # ≡-motive — never `let claim = p in ⋆`. A C the fact does not close
-# is the residual obligation, reported as before. A LET whose body
-# is the proof (`let c = q in p`: several facts at one site) meets a
-# checking position by e-let-check, its claims in scope for the
-# body's switch; at an implicit spine's hole-bearing domain, where
-# the argument was inferred for the sources it supplies, the let is
-# elaborated again at its final domain by that rule.
+# is the residual obligation, reported as before.
+
+Γ ⊢ f ⇒ F ⇝ f̂        F a proposition (or a product of them)
+Γ ▷ x:F ⊢ p ⇐ C[↑] ⇝ p̂
+--------------------------------------- (e-pair-fact)
+Γ ⊢ f , p ⇐ C ⇝ p̂[id, f̂]              # C a proposition, not a ×
+# SEVERAL FACTS at one site: a pair at a proposition is "by f, p" —
+# the first component a fact, inferred (its statement a proposition,
+# or a product of them); the second the proof, checked at the
+# proposition under the fact, so its own switch sees the fact and
+# its own statement alike. Nested right, (f₁, f₂, p) is "by f₁, f₂,
+# p". A let with no name, inlined: the element and the derivation
+# are the proof's with the fact's at the binder. In an implicit
+# spine a pair of inference forms is tried in inference as the
+# product of their statements (a source for the joint solve) and,
+# failing that (data at a × type, a proof whose blanks the position
+# must supply), deferred to this rule at its final domain. The let
+# form `let c = f in p` remains the named form of the same thing
+# (e-let-check), for a fact used several times or under an
+# eliminator's binders it cannot reach.
 
 # Mode inventory. Checking-only forms: λ, pairs, inj₁, inj₂, class,
 # ⋆, ⋆ e,

@@ -297,15 +297,13 @@ qAssoc =
           _
           _
           _
-          let claim7 = qMulCls _ _ _ nn a b in qMulCls _ _ _ nn (gop {G} g a b) c
+          qMulCls _ _ _ nn a b, qMulCls _ _ _ nn (gop {G} g a b) c
           trans
             _
             _
             qMul _ _ _ nn (class a) (qMul _ _ _ nn (class b) (class c))
             cong (λw. QGroup _ g N) (λw. class w) (gAssoc g a b c)
-            let claim5 = qMulCls _ _ _ nn b c
-                claim6 = qMulCls _ _ _ nn a (gop {G} g b c)
-                ⋆
+            qMulCls _ _ _ nn b c, qMulCls _ _ _ nn a (gop {G} g b c)
         w
       v
     u
@@ -358,7 +356,7 @@ qInvLaw =
       _
       _
       _
-      let claim3 = qInvCls _ _ _ s nn a in qMulCls _ _ _ nn (ginv {G} g a) a
+      qInvCls _ _ _ s nn a, qMulCls _ _ _ nn (ginv {G} g a) a
       cong (λw. QGroup _ g N) (λw. class w) (gInvL g a)
     u
 
@@ -376,7 +374,7 @@ qInvLawR =
       _
       _
       _
-      let claim1 = qInvCls _ _ _ s nn a in qMulCls _ _ _ nn a (ginv {G} g a)
+      qInvCls _ _ _ s nn a, qMulCls _ _ _ nn a (ginv {G} g a)
       cong (λw. QGroup _ g N) (λw. class w) (gInvR g a)
     u
 

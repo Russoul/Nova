@@ -432,6 +432,8 @@ sInferForm e0 = case unPos e0 of
   SEqElim _ _ _ => False
   SSumSplit _ _ _ _ _ => False
   SUnsquash _ _ _ => False
+  -- (a pair is no inference form: at a × type it is data; a pair of
+  -- proofs at a proposition is tried by sFactPair — e-pair-fact)
   SPair _ _ => False
   SInj1 _ => False
   SInj2 _ => False
@@ -453,6 +455,16 @@ sInferForm e0 = case unPos e0 of
   SSumElim Nothing _ _ _ _ _ => False
   SQuotElim Nothing _ _ _ _ => False
   _ => True
+
+||| A pair whose components are inference forms (nested pairs
+||| included): tried in inference as the conjunction of facts
+||| (e-pair-fact) where the walk would infer an argument — it infers
+||| when the statements are propositions, and is deferred to its
+||| checking rule (data at a × type) otherwise.
+sFactPair : SElem -> Bool
+sFactPair e = case unPos e of
+  SPair a b => (sInferForm a || sFactPair a) && (sInferForm b || sFactPair b)
+  _ => False
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -4828,8 +4840,22 @@ mutual
     throwAt site.srange "\{site}: cannot infer the type of inj₂ (the other summand is undetermined)\{structuralHint ()}"
   inferElemAt ctx env site (SLam _ _) =
     throwAt site.srange "\{site}: cannot infer the type of a λ\{structuralHint ()}"
-  inferElemAt ctx env site (SPair _ _) =
-    throwAt site.srange "\{site}: cannot infer the type of a pair\{structuralHint ()}"
+  -- e-pair-infer: a pair of INFERENCE forms infers the non-dependent
+  -- product of their types — "by p and q", the conjunction of two
+  -- facts, at a checking position by the fact (switchAt reads a
+  -- product statement component by component)
+  inferElemAt ctx env site (SPair u v) =
+    if (sInferForm u || sFactPair u) && (sInferForm v || sFactPair v)
+      then do
+        (u', uTy, uSk) <- inferElem ctx env site u
+        (v', vTy, vSk) <- inferElem ctx env site v
+        st <- getSt
+        if factLikeTy st ctx uTy && factLikeTy st ctx vTy
+          then do
+            let bTy = substTy vTy Wk
+            pure (SigmaIntro u' v', SigmaTy uTy bTy, DPair (Just (reTy st (ctx :< uTy) bTy)) uSk vSk)
+          else throwAt site.srange "\{site}: cannot infer the type of a pair of data — check it at its × type\{structuralHint ()}"
+      else throwAt site.srange "\{site}: cannot infer the type of a pair\{structuralHint ()}"
   inferElemAt ctx env site (SClass _) =
     throwAt site.srange "\{site}: cannot infer the type of class\{structuralHint ()}"
   inferElemAt ctx env site (SZeroElim _) =
@@ -5489,7 +5515,28 @@ mutual
         (u', uSk) <- checkElem ctx env site u a
         (v', vSk) <- checkElem ctx env site v (substTy b (Ext Id u'))
         pure (SigmaIntro u' v', exposeD st ctx exp ty (DPair Nothing uSk vSk))
-      Nothing => throwShape site env "pair checked against" ty "a × type"
+      -- e-pair-fact: at a proposition, (f, p) is "by f, p" — the
+      -- first component a FACT (inferred: its statement must be a
+      -- proposition, or a product of them), the second the proof,
+      -- CHECKED at the proposition under the fact — a let with no
+      -- name, inlined: the element is the proof's with the fact's
+      -- element at the binder, the derivation likewise. Nested
+      -- right, (f₁, (f₂, p)) is "by f₁, f₂, p"
+      Nothing =>
+        if sInferForm u || sFactPair u
+          then do
+            (u', uTy, uSk) <- inferElem ctx env site u
+            st <- getSt
+            unless (factLikeTy st ctx uTy) $
+              throwShape site env "pair checked against" ty "a × type (its first component is no fact)"
+            -- (the proof was parsed with no binder for the fact: its
+            -- variables step over the one the context now carries)
+            let Just v1 = mapVarsE (Just . S) v
+              | Nothing => throwAt site.srange "\{site}: internal — a pair's proof does not weaken"
+            (v', vSk) <- checkElem (ctx :< uTy) (env :< "fact") site v1 (substTy ty Wk)
+            let uD = if dSynth uSk then uSk else DAscribe uSk (Just (reTy st ctx uTy)) Nothing
+            pure (substElem v' (Ext Id u'), substD vSk (MkDSb 0 [uD]))
+          else throwShape site env "pair checked against" ty "a × type"
   checkElemAt ctx env site (SInj1 a) ty = do
     st <- getSt
     case preferSum st ctx ty of
@@ -5971,6 +6018,14 @@ mutual
     motiveTrial ctx env site t t' tSk ty
     switchAt ctx env (sub site "\{site}: inferred vs expected type") t' inferred tSk ty
 
+  ||| A statement the closure can read as facts: a proposition, or a
+  ||| (nested) product of propositions — the statement of a pair of
+  ||| proofs (e-pair-fact).
+  factLikeTy : ElabSt -> Ctx -> Ty -> Bool
+  factLikeTy st c t = case exposeT st t of
+    SigmaTy a b => factLikeTy st c a && factLikeTy st (c :< a) b
+    t' => isJust (preferPrf st c t')
+
   ||| The mode switch (e-switch): the inferred type converted to the
   ||| expected one, the derivation switched. Where the types do not
   ||| convert and both are propositions with the expected one evident
@@ -5995,8 +6050,8 @@ mutual
         if hasHolesE t' || any (isInfixOf "?") (toList (refsE t' [<])) then assumed else
         let ctx' = ctx :< inferred
             ty' = substTy ty Wk in
-        case (preferPrf st ctx' ty', preferPrf st ctx inferred) of
-          (Just pr, Just _) =>
+        case (preferPrf st ctx' ty', factLikeTy st ctx inferred) of
+          (Just pr, True) =>
             let (pUse, exp) = exposePropLog st ctx' pr in
             case pUse of
               Elem.EqTy l r tE => do
@@ -6688,7 +6743,7 @@ mutual
             if hasHolesT dInst
               then do
                 st2 <- getSt
-                if sInferForm surfE && not (bareImplicitRef st2 surfE)
+                if (sInferForm surfE || sFactPair surfE) && not (bareImplicitRef st2 surfE)
                   then do
                     mres <- attemptM (asArg (inferElem ctx env site surfE))
                     case mres of

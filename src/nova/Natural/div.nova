@@ -49,9 +49,7 @@ leOfMonusZero =
   λa. ℕ-elim
     λb h. leZero _
     a' ih. λb. ℕ-elim
-      λh. 𝟘-elim
-        zNotS
-          (let claim5 = monusZeroR {S a'} in sym (S a') Z) (let claim1 = monusZeroR {S a'} in h)
+      λh. 𝟘-elim (zNotS {a'} (monusZeroR {S a'}, sym (S a') Z h))
       b' rec. λh. leSucMono (ih b' (trans _ _ _ (sym _ _ (sucMonusSuc a' b')) h))
       b
     a
@@ -124,14 +122,14 @@ dmAuxEq : {f a b : ℕ} → a ≤ f → a ≡ dmAux f a b .π₁ * S b + dmAux f
   using (Core.id.Id.unfold, Natural.div.dmAux.eq, Natural.div.natCase.eq, Natural.order.≤.unfold)
 dmAuxEq =
   λf. ℕ-elim
-    λa b le. let claim3 = zeroMult (S b) in zeroPlusId a
+    λa b le. zeroMult (S b), zeroPlusId a
     f' ih. λa b le. natCaseElimEq
       ℕ × ℕ
       λp. a ≡ p .π₁ * S b + p .π₂
       Z, a
       λm. S (dmAux f' (a ∸ S b) b .π₁), dmAux f' (a ∸ S b) b .π₂
       a ∸ b
-      λh0. let claim1 = zeroMult (S b) in zeroPlusId a
+      λh0. zeroMult (S b), zeroPlusId a
       λm hm. trans
         _
         _

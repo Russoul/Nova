@@ -52,7 +52,7 @@ clsRelWd =
 -- the descent itself: quot-elim at the CONSTANT MOTIVE Ω. clsRelWd
 -- above discharges its well-definedness obligation
 clsRel : {A : 𝕌} (r : A → A → Ω) (a : A) → (A / (u v. r u v)) → Ω
-clsRel = λA r a q. let claim3 = clsRelWd {A} r a in quot-elim (x. rClosure r a x) q
+clsRel = λA r a q. quot-elim (x. rClosure r a x) (x x' h. clsRelWd {A} r a h) q
 
 -- ⟹ : EFFECTIVITY. clsRel a (class a) ≜ r⁺ a a holds by reflexivity of
 -- the closure, and the class equation transports it to b — el-quot-beta

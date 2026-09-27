@@ -372,10 +372,7 @@ qDiffNatFrac =
         {nzMul nzOne (nzPos b)}
         {nzPos b}
         nzMulOneL
-      let claim1 = multZeroId (S b)
-          claim2 = zeroPlusId m
-          claim3 = plusZeroId (S b * K)
-          ⋆
+      multZeroId (S b), zeroPlusId m, plusZeroId (S b * K)
 
 leQFracOfNat : {m b K : ℕ} → m ≤ K * S b → qcls (mkRat (intOfNat m) (nzPos b)) ≤ qOfNat K
   using (Core.id.Id.unfold,

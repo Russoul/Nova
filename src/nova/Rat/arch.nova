@@ -111,14 +111,14 @@ fracNumEq : {a b : ℕ}
     Rat.frac.intScaleN.eq,
     Rat.frac.nzPos.eq)
 fracNumEq =
-  λa b. let claim1 = multZeroId (S b)
-            claim2 = zeroPlusId (S b * S Z)
-            claim3 = plusZeroId (S b * S a)
-            claim4 = multSucId (S b) a
-            claim5 = multSucId (S b) Z
-            claim6 = plusZeroId (S b)
-            claim7 = plusZeroId (S b + S b * a)
-            ⋆
+  λa b. (,)
+    multZeroId (S b)
+    zeroPlusId (S b * S Z)
+    plusZeroId (S b * S a)
+    multSucId (S b) a
+    multSucId (S b) Z
+    plusZeroId (S b)
+    plusZeroId (S b + S b * a)
 
 qDiffFracInv : (a b : ℕ) → qFrac (S a) b + qNeg (qInvNat b) ≡ qFrac (S b * a) (b * b + b + b)
   using (Int.order.intOfNat.eq,

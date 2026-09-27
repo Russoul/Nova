@@ -54,16 +54,16 @@ nzMulOneL : {y : NZ} → nzMul nzOne y ≡ y
   using (nzMul.eq, nzNeg.eq, nzOne.eq, nzPos.eq, Rat.frac.NZ.unfold)
 nzMulOneL =
   λy. ⊎-elim
-    k. let claim29 = zeroMult k in let claim30 = zeroPlusId Z in zeroPlusId k
-    k. let claim26 = zeroMult k in let claim27 = zeroPlusId Z in zeroPlusId k
+    k. zeroMult k, zeroPlusId Z, zeroPlusId k
+    k. zeroMult k, zeroPlusId Z, zeroPlusId k
     y
 
 nzMulOneR : {x : NZ} → nzMul x nzOne ≡ x
   using (nzMul.eq, nzNeg.eq, nzOne.eq, nzPos.eq, Rat.frac.NZ.unfold)
 nzMulOneR =
   λx. ⊎-elim
-    m. let claim23 = multZeroId m in let claim24 = zeroPlusId m in plusZeroId m
-    m. let claim20 = multZeroId m in let claim21 = zeroPlusId m in plusZeroId m
+    m. multZeroId m, zeroPlusId m, plusZeroId m
+    m. multZeroId m, zeroPlusId m, plusZeroId m
     x
 
 -- ===== nat lemmas, in the orientation the engine can use =====
@@ -92,23 +92,11 @@ oneMult = λm. S Z * m ≡⟨ sucMult Z m ⟩ m + Z * m ≡⟨ zeroMult m ⟩ m 
 -- well-definedness is one application of distributivity.
 intAddZeroL : (z : Int) → intZero + z ≡ z
   using (Int.Int.eq, Int.Int.unfold, Int.intZero.eq, Int.add.+.eq, Int.add.intAddL.eq)
-intAddZeroL =
-  λz. quot-elim
-    p. let claim17 = zeroPlusId (p .π₁)
-           claim18 = zeroPlusId (p .π₂)
-           claim19 = plusComm (p .π₂) (p .π₁)
-           ⋆
-    z
+intAddZeroL = λz. quot-elim (p. zeroPlusId (p .π₁), zeroPlusId (p .π₂), plusComm (p .π₂) (p .π₁)) z
 
 intAddZeroR : (z : Int) → z + intZero ≡ z
   using (Int.Int.eq, Int.Int.unfold, Int.intZero.eq, Int.add.+.eq, Int.add.intAddL.eq)
-intAddZeroR =
-  λz. quot-elim
-    p. let claim14 = plusZeroId (p .π₁)
-           claim15 = plusZeroId (p .π₂)
-           claim16 = plusComm (p .π₂) (p .π₁)
-           ⋆
-    z
+intAddZeroR = λz. quot-elim (p. plusZeroId (p .π₁), plusZeroId (p .π₂), plusComm (p .π₂) (p .π₁)) z
 
 intScaleN : ℕ → Int → Int using (Int.Int.unfold)
 intScaleN =
@@ -127,19 +115,13 @@ intScaleNZero : (n : ℕ) → intScaleN n intZero ≡ intZero
 intScaleNZero = λn. ⋆
 
 intScaleNOne : (z : Int) → intScaleN (S Z) z ≡ z using (intScaleN.eq, Int.Int.eq, Int.Int.unfold)
-intScaleNOne =
-  λz. quot-elim
-    p. let claim11 = oneMult (p .π₁)
-           claim12 = oneMult (p .π₂)
-           claim13 = plusComm (p .π₂) (p .π₁)
-           ⋆
-    z
+intScaleNOne = λz. quot-elim (p. oneMult (p .π₁), oneMult (p .π₂), plusComm (p .π₂) (p .π₁)) z
 
 -- scaling by n+1 really is n+1 iterated additions — the definition by
 -- representatives agrees with the recursive one
 intScaleNSuc : (n : ℕ) (z : Int) → intScaleN (S n) z ≡ z + intScaleN n z
   using (intScaleN.eq, Int.Int.eq, Int.Int.unfold, Int.add.+.eq, Int.add.intAddL.eq)
-intScaleNSuc = λn z. quot-elim (p. let claim9 = sucMultBack n (p .π₁) in sucMultBack n (p .π₂)) z
+intScaleNSuc = λn z. quot-elim (p. sucMultBack n (p .π₁), sucMultBack n (p .π₂)) z
 
 intScale : NZ → Int → Int using (Int.Int.unfold, Rat.frac.NZ.unfold)
 intScale = λd z. ⊎-elim (n. intScaleN (S n) z) (n. intNeg (intScaleN (S n) z)) d
@@ -183,10 +165,7 @@ intAddScaleZeroL = λd y. ⊎-elim (n. intAddZeroL y) (n. intAddZeroL y) d
 intAddScaleZeroR : {d : NZ} {y : Int} → y + intScale d intZero ≡ y
   using (Int.Int.unfold, Rat.frac.NZ.unfold)
 intAddScaleZeroR =
-  λd y. ⊎-elim
-    n. let claim7 = intScaleZero (inj₁ n) in intAddZeroR y
-    n. let claim6 = intScaleZero (inj₂ n) in intAddZeroR y
-    d
+  λd y. ⊎-elim (n. intScaleZero (inj₁ n), intAddZeroR y) (n. intScaleZero (inj₂ n), intAddZeroR y) d
 
 -- scaling by d agrees with multiplying by d's image in Int
 intScaleToInt : {d : NZ} → intScale d (class (S Z, Z)) ≡ nzToInt d
@@ -395,12 +374,7 @@ ratAddZeroR =
 -- (x + m) + k ≡ (x + k) + m: the addends the cross-sum needs swapped
 plusSwapRight : {x m k : ℕ} → x + m + k ≡ x + k + m
 plusSwapRight =
-  λx m k. let claim1 = plusAssoc x m k
-              claim2 = swapLeft x m k
-              claim3 = swapLeft m x k
-              claim4 = plusComm k m
-              claim5 = plusAssoc x k m
-              ⋆
+  λx m k. plusAssoc x m k, swapLeft x m k, swapLeft m x k, plusComm k m, plusAssoc x k m
 
 -- the magnitude arithmetic of nzMul is symmetric: multComm on the
 -- product, then the swap above on the two summands

@@ -61,12 +61,12 @@ natDiffRel = λa b k h. trans _ _ _ (plusComm a k) h
 
 natDiffClass : {a b k : ℕ} → (a + k ≡ b) → intOfNat k ≡ class (b, a)
   using (Int.order.intOfNat.eq, Int.Int.unfold)
-natDiffClass = λa b k h. let claim5 = natDiffRel _ _ _ h in zeroPlusId b
+natDiffClass = λa b k h. natDiffRel _ _ _ h, zeroPlusId b
 
 -- effectivity of the ℤ quotient reads the two verdicts back as ℕ facts
 natEqOfClassZero : {a b : ℕ} → (class (b, a) ≡ intZero) → b ≡ a
   using (Int.Int.unfold, Int.IntR.eq, Int.intZero.eq)
-natEqOfClassZero = λa b h. let claim3 = plusZeroId b in let claim4 = plusZeroId a in intEffective h
+natEqOfClassZero = λa b h. plusZeroId b, plusZeroId a, intEffective h
 
 natSucOfClassPos : {a b j : ℕ} → (class (S j, Z) ≡ class (b, a) ∈ Int) → a + S j ≡ b
   using (Int.Int.unfold, Int.IntR.eq)
@@ -121,7 +121,7 @@ qOfNatDiffNum =
         {intScale nzOne (intNeg (intOfNat a))}
         {intNeg (intOfNat a)}
         intScaleOne
-    let claim1 = zeroPlusId a in plusZeroId b
+    zeroPlusId a, plusZeroId b
 
 sgnQOfNatDiff : (a b : ℕ) → sgnQ (qOfNat b + qNeg (qOfNat a)) ≡ intSgn (class (b, a))
   using (Int.eq.classNormPairEq.eq,

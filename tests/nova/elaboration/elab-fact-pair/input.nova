@@ -1,0 +1,36 @@
+-- e-pair-fact: several facts at one site are a PAIR at the
+-- proposition — the facts inferred, the proof checked under them
+infixl 6 +
++ : ℕ → ℕ → ℕ
++ = λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
+plusZeroId : (n : ℕ) → n + Z ≡ n ∈ ℕ  using (+.eq)
+plusZeroId = λn. ⋆
+plusSucId : (n : ℕ) (m : ℕ) → n + S m ≡ S (n + m) ∈ ℕ  using (+.eq)
+plusSucId = λn. λm. ⋆
+zeroPlusId : (n : ℕ) → Z + n ≡ n ∈ ℕ  using (+.eq)
+zeroPlusId = λn. ℕ-elim (k. Z + k ≡ k ∈ ℕ) ⋆ (k ih. ⋆) n
+sucPlus : (n : ℕ) (m : ℕ) → S n + m ≡ S (n + m) ∈ ℕ  using (+.eq)
+sucPlus = λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) m
+
+-- two facts and the proof: commutativity's step case by the three
+-- equations it rewrites with
+plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ
+plusComm =
+  λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ)
+    (zeroPlusId n, plusZeroId n)
+    (k ih. (sucPlus k n, ih, plusSucId n k))
+    m
+
+-- a single fact, the proof itself
+plusCommZ : (n : ℕ) → Z + n ≡ n + Z ∈ ℕ
+plusCommZ = λn. (zeroPlusId n, plusZeroId n)
+
+-- a pair whose first component is no fact is data, and checks only
+-- at a × type
+notAFact : (n : ℕ) → n + Z ≡ n ∈ ℕ
+notAFact = λn. (n, plusZeroId n)
+
+-- facts that do not reach the proposition: the obligation stands,
+-- the facts in its context
+short : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ
+short = λn. λm. (plusZeroId n, plusZeroId m)

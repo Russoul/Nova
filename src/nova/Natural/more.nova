@@ -91,10 +91,7 @@ plusMonus : (a b : ℕ) → a + b ∸ b ≡ a
 plusMonus =
   λa b. ℕ-elim
     trans _ _ _ (monusZeroR {a + Z}) (plusZeroId a)
-    k ih. let claim19 = plusSucId a k
-              claim20 = sucMonusSuc (a + k) k
-              claim21 = ih
-              ⋆
+    k ih. plusSucId a k, sucMonusSuc (a + k) k, ih
     b
 
 -- subtracting a sum is subtracting twice
@@ -181,12 +178,7 @@ oneExp : (n : ℕ) → S Z ^ n ≡ S Z
 oneExp =
   λn. ℕ-elim
     expZero _
-    k ih. let claim12 = expSuc (S Z) k
-              claim13 = ih
-              claim14 = multSucId (S Z) Z
-              claim15 = multZeroId (S Z)
-              claim16 = plusZeroId (S Z)
-              ⋆
+    k ih. expSuc (S Z) k, ih, multSucId (S Z) Z, multZeroId (S Z), plusZeroId (S Z)
     n
 
 -- x * (y * z) ≡ y * (x * z): the left-swap under associativity,
@@ -201,12 +193,7 @@ multLeftComm =
 expPlus : (a m n : ℕ) → a ^ (m + n) ≡ a ^ m * a ^ n
 expPlus =
   λa m n. ℕ-elim
-    let claim7 = plusZeroId m
-        claim8 = expZero a
-        claim9 = multSucId (a ^ m) Z
-        claim10 = multZeroId (a ^ m)
-        claim11 = plusZeroId (a ^ m)
-        ⋆
+    plusZeroId m, expZero a, multSucId (a ^ m) Z, multZeroId (a ^ m), plusZeroId (a ^ m)
     k ih. a ^ (m + S k)
       ≡⟨ plusSucId m k ⟩ a ^ S (m + k)
       ≡⟨ expSuc a (m + k) ⟩ a * a ^ (m + k)
@@ -219,12 +206,8 @@ expPlus =
 monusPlusR : (a b k : ℕ) → a + k ∸ (b + k) ≡ a ∸ b
 monusPlusR =
   λa b k. ℕ-elim
-    let claim5 = plusZeroId a in plusZeroId b
-    j ih. let claim1 = plusSucId a j
-              claim2 = plusSucId b j
-              claim3 = sucMonusSuc (a + j) (b + j)
-              claim4 = ih
-              ⋆
+    plusZeroId a, plusZeroId b
+    j ih. plusSucId a j, plusSucId b j, sucMonusSuc (a + j) (b + j), ih
     k
 
 monusPlusL : {k a b : ℕ} → k + a ∸ (k + b) ≡ a ∸ b
