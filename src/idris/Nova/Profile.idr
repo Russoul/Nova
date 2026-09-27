@@ -121,6 +121,12 @@ clearBlocked x = unsafePerformIO $ do
   writeIORef blockedExposures (the (List String) [])
   pure x
 
+||| NOVA_PROFILE=1: the wall-clock profile is on (the label dump, the
+||| distiller's phase timings).
+export
+profileOn : Bool
+profileOn = unsafePerformIO (map isJust (getEnv "NOVA_PROFILE"))
+
 ||| Printed only under NOVA_PROFILE=1, so ordinary runs are unchanged.
 export
 dumpProfile : IO ()

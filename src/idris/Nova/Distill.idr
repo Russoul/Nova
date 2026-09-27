@@ -1247,16 +1247,21 @@ countItems = sum . map (length . mitems)
 ||| elaboration on the emitted modules and apply any newly verdicted
 ||| elisions, until a round adds nothing (fuel-capped; the set is
 ||| monotone, so the cap is a formality).
-blankFix : Nat -> List ModUnit -> Nat -> (List ModUnit, Nat)
-blankFix Z us n = (us, n)
+blankFix : Nat -> List ModUnit -> Nat -> (List ModUnit, Nat, Nat)
+blankFix Z us n = (us, n, 0)
 blankFix (S fuel) us n =
   case elabProgramSugar us of
-    Left _ => (us, n)
+    Left _ => (us, n, 1)
     Right (_, vs, bs, _) =>
-      let fresh = filter (\(_, _, v) => v) vs in
-      if null bs && null fresh
-        then (us, n)
-        else blankFix fuel (map (elideSugar vs bs) us) (n + length bs)
+      -- the fixpoint is reached when applying the round's verdicts
+      -- changes no module: a verdict may name a site the elision
+      -- cannot touch, so a non-empty verdict list alone does not mean
+      -- a round did anything (with the earlier test the loop ran to
+      -- its fuel cap every time)
+      let us' = map (elideSugar vs bs) us in
+      if map (\u => show u.mitems) us' == map (\u => show u.mitems) us
+        then (us, n, 1)
+        else let (us'', n', r) = blankFix fuel us' (n + length bs) in (us'', n', S r)
 
 ||| then verify the round trip — re-parsed ASTs structurally identical,
 ||| re-elaboration output identical (docs/NovaPerfectSurface.txt,
@@ -1264,13 +1269,17 @@ blankFix (S fuel) us n =
 export
 distillPath : (rootPath : String) -> (outDir : String) -> IO (Either String String)
 distillPath rootPath outDir = do
+  t0 <- pure (nowNs ())
   Right units <- loadProgram rootPath
     | Left err => pure (Left (showLoadErr err))
+  t1 <- pure (nowNs ())
   -- the acceptance run doubles as the SUGAR TRIAL: per written
   -- ∈-annotation and motive, would the elided form recover it
   -- α-exactly? (docs/NovaPerfectSurface.txt, Phase 4)
   let Right (sigOrig, verdicts, blanks, _) = elabProgramSugar units
     | Left err => pure (Left ("input is not accepted; distill only transforms accepted programs:\n" ++ err))
+  t2 <- pure (nowNs ())
+  when profileOn $ ignore $ fPutStrLn stderr "distill-timing: load \{show ((t1 - t0) `div` 1000000)}ms, sugar-trial elaboration \{show ((t2 - t1) `div` 1000000)}ms"
   -- the guard is against overwriting SOURCES, and a module's source
   -- sits under the project root — not necessarily beside the entry
   -- file (Nova.Elaboration.Loader.findRoot)
@@ -1287,18 +1296,24 @@ distillPath rootPath outDir = do
   -- checked → inferred — so the iteration converges; each round's
   -- emission is re-verdicted by a full sugar-trial elaboration, and
   -- the final corpus is Σ-gated against the ORIGINAL below.
-  let (elided, nBlanks) = blankFix 16 (map (elideSugar verdicts blanks) units) (length blanks)
+  t3 <- pure (nowNs ())
+  let (elided, nBlanks, rounds) = blankFix 16 (map (elideSugar verdicts blanks) units) (length blanks)
+  t4 <- pure (nowNs ())
   Right () <- writeUnits outDir (baseName rootPath) elided
     | Left err => pure (Left err)
+  t5 <- pure (nowNs ())
   Right units' <- loadProgram (outDir ++ "/" ++ baseName rootPath)
     | Left err => pure (Left ("distilled output failed to load: " ++ showLoadErr err))
   let Nothing = verifyUnits elided units'
     | Just err => pure (Left err)
+  t6 <- pure (nowNs ())
   () <- clearSigEntryIx
   let Right sigNew = elabProgramSig units'
     | Left err => pure (Left ("distilled output failed to elaborate:\n" ++ err))
   let Nothing = sigCompare sigOrig sigNew
     | Just err => pure (Left err)
+  t7 <- pure (nowNs ())
+  when profileOn $ ignore $ fPutStrLn stderr "distill-timing: blank fixpoint \{show ((t4 - t3) `div` 1000000)}ms in \{show rounds} round(s), render+write \{show ((t5 - t4) `div` 1000000)}ms, reload+verify \{show ((t6 - t5) `div` 1000000)}ms, re-elaborate+Σ-compare \{show ((t7 - t6) `div` 1000000)}ms"
   let nElided = length (filter (\(_, _, v) => v) verdicts)
   pure (Right ("distilled \{show (length units)} modules (\{show (countItems units)} items) to \{outDir}\n" ++
                "elided \{show nElided} of \{show (length verdicts)} ∈-annotations and motives, blanked \{show nBlanks} arguments\n" ++
