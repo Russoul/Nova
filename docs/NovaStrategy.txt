@@ -366,6 +366,29 @@ engine (typed unfolding: the engine carries derivations):
          dirable, oneWay, the stated-link fallbacks) retired once the
          engine always writes the middle it computed. Optional; the
          largest simplification of the trusted base available.
+         ATTEMPTED 2026-09-27 and suspended; blocked on engine step
+         5. (a) The middle re-derived by the bridge fails at the
+         first module: a computed middle (the unfolding of plus)
+         contains a motive-less eliminator applied to an argument,
+         which no re-derivation recovers — the lost-motive limit,
+         removed only when the engine carries derivations (step 5).
+         (b) Without stated middles the planners cannot go: a reader
+         that runs every derivation from its left side alone breaks
+         the engine's own licence leaf (pL⁻¹ ; base ; pR states
+         through its second link); keeping both directions and
+         deleting the classifiers re-grew them one corpus site at a
+         time — a type-directed first link needs the far side, a δ
+         skeleton at a chain's end is read backward and decomposes
+         only from the left, a stating far link must supply the
+         middle, "can run from one side alone" is a property of the
+         whole subtree, and the fallbacks' order matters (inferring a
+         conversion link runs its proof one-sided where the two-sided
+         reading succeeds). The reachable residue — no side probing,
+         nodes one-way uniformly, dSynth/dCheckable of a chain
+         through either link — keeps three chain rules and a shape
+         predicate the size of dDirable. Not worth a kernel change.
+         Retake after step 5, when every middle is a derivation by
+         construction.
 
 After the review of 2026-09-25 (is the kernel complete enough to
 proceed to the engine?), two additive items:
