@@ -206,10 +206,8 @@ realAddComm : (u v : Real) → u + v ≡ v + u
 realAddComm =
   λu v. quot-elim
     p. quot-elim
-      q. (,)
-        realAddCls p q
-        realAddCls q p
-        cong (λw. Real) (λw. class w) {rAdd p q} {rAdd q p} rAddComm
+      q. cong (λw. Real) (λw. class w) {rAdd p q} {rAdd q p} rAddComm
+        by realAddCls p q, realAddCls q p
       v
     u
 

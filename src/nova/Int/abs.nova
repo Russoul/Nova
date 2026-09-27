@@ -262,7 +262,7 @@ intMagZero = ⋆
 
 intMagOfNat : (n : ℕ) → intMag (intOfNat n) ≡ n
   using (Int.abs.intMag.eq, Int.abs.magPair.eq, Int.order.intOfNat.eq)
-intMagOfNat = λn. zeroMonus n, monusZeroR {n}, plusZeroId n
+intMagOfNat = λn. plusZeroId n by zeroMonus n, monusZeroR {n}
 
 intMagNz : (f : NZ) → intMag (nzToInt f) ≡ S (nzMag f)
   using (Int.abs.intMag.eq,
@@ -272,8 +272,8 @@ intMagNz : (f : NZ) → intMag (nzToInt f) ≡ S (nzMag f)
     Rat.frac.nzToInt.eq)
 intMagNz =
   λf. ⊎-elim
-    n. zeroMonus (S n), monusZeroR {S n}, plusZeroId (S n)
-    n. zeroMonus (S n), monusZeroR {S n}, zeroPlusId (S n)
+    n. ⋆ by zeroMonus (S n), monusZeroR {S n}, plusZeroId (S n)
+    n. ⋆ by zeroMonus (S n), monusZeroR {S n}, zeroPlusId (S n)
     f
 
 IntMagMulAt : Int → Int → Ω

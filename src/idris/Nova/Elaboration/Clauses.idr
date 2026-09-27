@@ -108,6 +108,7 @@ mutual
   mapRefsE f g d (SStarWit e) = SStarWit (mapRefsE f g d e)
   mapRefsE f g d (SSquashElim e x body) =
     SSquashElim (mapRefsE f g d e) x (mapRefsE f g (S d) body)
+  mapRefsE f g d (SBy p fs) = SBy (mapRefsE f g d p) (map (mapRefsE f g d) fs)
   mapRefsE f g d (SChain x ls) =
     SChain (mapRefsE f g d x)
            (map (\(j, y) => (mapRefsE f g d j, mapRefsE f g d y)) ls)
@@ -225,6 +226,7 @@ replaceSigTy f gname base imps tele fills ty = goT 0 ty
       SStarWit w => SStarWit (goE d w)
       SSquashElim sc x b => SSquashElim (goE d sc) x (goE (S d) b)
       SChain h links => SChain (goE d h) (map (\(j, m) => (goE d j, goE d m)) links)
+      SBy p fs => SBy (goE d p) (map (goE d) fs)
       SAnn t ty => SAnn (goE d t) (goT d ty)
       SImpArg t => SImpArg (goE d t)
       SNoIns t => SNoIns (goE d t)
@@ -301,6 +303,7 @@ mutual
   occursE f (SStarUsing _ _) = False
   occursE f (SStarWit e) = occursE f e
   occursE f (SSquashElim e _ body) = occursE f e || occursE f body
+  occursE f (SBy p fs) = occursE f p || any (occursE f) fs
   occursE f (SChain x ls) =
     occursE f x || any (\(j, y) => occursE f j || occursE f y) ls
   occursE f (SAnn e ty) = occursE f e || occursTy f ty
@@ -474,6 +477,10 @@ mutual
   rwE f mk lead trail d e@(SStar _) = Just e
   rwE f mk lead trail d e@(SStarUsing _ _) = Just e
   rwE f mk lead trail d (SStarWit e) = SStarWit <$> rwE f mk lead trail d e
+  rwE f mk lead trail d (SBy p fs) = do
+    p' <- rwE f mk lead trail d p
+    fs' <- traverse (rwE f mk lead trail d) fs
+    pure (SBy p' fs')
   rwE f mk lead trail d (SChain x ls) =
     do x' <- rwE f mk lead trail d x
        ls' <- traverse (\(j, y) => do j' <- rwE f mk lead trail d j

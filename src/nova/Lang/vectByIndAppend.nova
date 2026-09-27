@@ -5,12 +5,16 @@ vappend : (n : ℕ) {A : 𝕌} (m : ℕ) → vect n A → vect m A → vect (n +
   using (vect.eq, Lang.vectByInd.vect.unfold)
 vappend =
   λn A m. ℕ-elim
-    λv w. zeroPlusId m, w
-    k ih. λv w. sucPlus k m, (v .π₁, ih (v .π₂) w : A × vect (k + m) A)
+    λv w. w by zeroPlusId m
+    k ih. λv w. (v .π₁, ih (v .π₂) w : A × vect (k + m) A) by sucPlus k m
     n
 
 -- This equation holds by direct computation
-vappendZ : (A : 𝕌) (n : ℕ) (v : vect Z A) (w : vect n A) → (zeroPlusId n, vappend _ _ v w) ≡ w
+vappendZ : (A : 𝕌)
+  (n : ℕ)
+  (v : vect Z A)
+  (w : vect n A)
+  → (let claim6 = zeroPlusId n in vappend _ _ v w) ≡ w ∈ vect n A
   using (vappend.eq, vect.eq, Lang.vectByInd.vect.unfold)
 vappendZ = λA n v w. ⋆
 
@@ -20,7 +24,8 @@ vappendS : (n : ℕ)
   (m : ℕ)
   (v : vect (S n) A)
   (w : vect m A)
-  → vappend _ _ v w ≡ (sucPlus n m, (v .π₁, vappend _ _ (v .π₂) w : A × vect (n + m) A))
+  → vappend _ _ v w
+    ≡ (let claim5 = sucPlus n m in (v .π₁, vappend _ _ (v .π₂) w : A × vect (n + m) A))
   using (vappend.eq, vect.eq, Lang.vectByInd.vect.unfold)
 vappendS = λn A m v w. ⋆
 
@@ -33,16 +38,17 @@ vappendAssocS : {A : 𝕌}
   {v : vect m A}
   {w : vect k A}
   {q : vect (S p) A}
-  → ((plusAssoc p m k, vappend (p + m) k (vappend _ _ (q .π₂) v) w)
-    ≡ vappend _ _ (q .π₂) (vappend _ _ v w))
-    → ((,)
-      plusAssoc (S p) m k
-      sucPlus p (ℕ-elim m (n ih. S ih) k)
-      vappend (S p + m) k (vappend _ _ q v) w)
+  → ((let claim4 = plusAssoc p m k in vappend (p + m) k (vappend _ _ (q .π₂) v) w)
+    ≡ vappend _ _ (q .π₂) (vappend _ _ v w)
+    ∈ vect (p + (m + k)) A)
+    → (let claim2 = plusAssoc (S p) m k
+           claim3 = sucPlus p (ℕ-elim m (n ih. S ih) k)
+           vappend (S p + m) k (vappend _ _ q v) w)
       ≡ vappend _ _ q (vappend _ _ v w)
+      ∈ vect (S p + (m + k)) A
   using (vappend.eq, vect.eq, Lang.vectByInd.vect.unfold)
 vappendAssocS =
-  λA m k p v w q hih. sucPlus p m, sucPlus (p + m) k, sucPlus p (m + k), plusAssoc p m k
+  λA m k p v w q hih. ⋆ by sucPlus p m, sucPlus (p + m) k, sucPlus p (m + k), plusAssoc p m k
 
 -- Associativity: the statement itself only type-checks up to
 -- plus-associativity (the two sides' lengths differ intensionally)
@@ -54,7 +60,8 @@ vappendAssoc : (n : ℕ)
   (v : vect m A)
   (w : vect k A)
   (u : vect n A)
-  → vappend _ _ (vappend _ _ u v) w ≡ (plusAssoc n m k, vappend n (m + k) u (vappend _ _ v w))
+  → vappend _ _ (vappend _ _ u v) w
+    ≡ (let claim1 = plusAssoc n m k in vappend n (m + k) u (vappend _ _ v w))
   using (vappend.eq, vect.eq, Lang.vectByInd.vect.unfold)
 vappendAssoc =
   λn A m k v w u. let claim = plusAssoc n m k
@@ -63,7 +70,7 @@ vappendAssoc =
                           → (let claim = plusAssoc p m k in vappend (p + m) k (vappend _ _ q v) w)
                             ≡ vappend _ _ q (vappend _ _ v w)
                             ∈ vect (p + (m + k)) A
-                        λq. zeroPlusId m, zeroPlusId (m + k)
+                        λq. zeroPlusId (m + k) by zeroPlusId m
                         p ih. λq. vappendAssocS (ih (q .π₂))
                         n
                         u

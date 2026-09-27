@@ -101,6 +101,6 @@ intAddAssoc : (x y z : Int) → x + y + z ≡ x + (y + z)
 intAddAssoc =
   λx y z. quot-elim
     a. quot-elim
-      b. quot-elim (c. plusAssoc (a .π₁) (b .π₁) (c .π₁), plusAssoc (a .π₂) (b .π₂) (c .π₂)) z
+      b. quot-elim (c. ⋆ by plusAssoc (a .π₁) (b .π₁) (c .π₁), plusAssoc (a .π₂) (b .π₂) (c .π₂)) z
       y
     x

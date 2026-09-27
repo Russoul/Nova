@@ -432,8 +432,8 @@ sInferForm e0 = case unPos e0 of
   SEqElim _ _ _ => False
   SSumSplit _ _ _ _ _ => False
   SUnsquash _ _ _ => False
-  -- (a pair is no inference form: at a × type it is data; a pair of
-  -- proofs at a proposition is tried by sFactPair — e-pair-fact)
+  -- (a pair is data — checked at its × type; facts stand under a
+  -- proof by `by`, e-by)
   SPair _ _ => False
   SInj1 _ => False
   SInj2 _ => False
@@ -442,6 +442,8 @@ sInferForm e0 = case unPos e0 of
   SStarWit _ => False
   SStarUsing _ _ => False
   SChain _ _ => False
+  -- p by … infers when p does: the facts are in scope, the type is p's
+  SBy p _ => sInferForm p
   SCoind _ _ _ _ _ _ _ _ => False
   SSquashElim _ _ _ => False
   SCorec _ _ _ _ => False
@@ -455,16 +457,6 @@ sInferForm e0 = case unPos e0 of
   SSumElim Nothing _ _ _ _ _ => False
   SQuotElim Nothing _ _ _ _ => False
   _ => True
-
-||| A pair whose components are inference forms (nested pairs
-||| included): tried in inference as the conjunction of facts
-||| (e-pair-fact) where the walk would infer an argument — it infers
-||| when the statements are propositions, and is deferred to its
-||| checking rule (data at a × type) otherwise.
-sFactPair : SElem -> Bool
-sFactPair e = case unPos e of
-  SPair a b => (sInferForm a || sFactPair a) && (sInferForm b || sFactPair b)
-  _ => False
 
 ||| Resolve a surface signature reference: aliases first (own module,
 ||| opened imports), else the name itself (qualified references reach
@@ -4840,22 +4832,19 @@ mutual
     throwAt site.srange "\{site}: cannot infer the type of inj₂ (the other summand is undetermined)\{structuralHint ()}"
   inferElemAt ctx env site (SLam _ _) =
     throwAt site.srange "\{site}: cannot infer the type of a λ\{structuralHint ()}"
-  -- e-pair-infer: a pair of INFERENCE forms infers the non-dependent
-  -- product of their types — "by p and q", the conjunction of two
-  -- facts, at a checking position by the fact (switchAt reads a
-  -- product statement component by component)
-  inferElemAt ctx env site (SPair u v) =
-    if (sInferForm u || sFactPair u) && (sInferForm v || sFactPair v)
-      then do
-        (u', uTy, uSk) <- inferElem ctx env site u
-        (v', vTy, vSk) <- inferElem ctx env site v
-        st <- getSt
-        if factLikeTy st ctx uTy && factLikeTy st ctx vTy
-          then do
-            let bTy = substTy vTy Wk
-            pure (SigmaIntro u' v', SigmaTy uTy bTy, DPair (Just (reTy st (ctx :< uTy) bTy)) uSk vSk)
-          else throwAt site.srange "\{site}: cannot infer the type of a pair of data — check it at its × type\{structuralHint ()}"
-      else throwAt site.srange "\{site}: cannot infer the type of a pair\{structuralHint ()}"
+  inferElemAt ctx env site (SPair _ _) =
+    throwAt site.srange "\{site}: cannot infer the type of a pair\{structuralHint ()}"
+  -- e-by in inference position: the facts, then p inferred under them
+  -- (a chain step by facts, say); the type and the derivation with the
+  -- facts at their binders
+  inferElemAt ctx env site (SBy p fs) = do
+    (ctxF, envF, fEls, fDs) <- byFacts ctx env site fs
+    let n = length fs
+    let Just p1 = mapVarsE (Just . (+ n)) p
+      | Nothing => throwAt site.srange "\{site}: internal — a proof does not weaken over its facts"
+    (p', pTy, pSk) <- inferElem ctxF envF site p1
+    let sigma = foldl Ext Id fEls
+    pure (substElem p' sigma, substTy pTy sigma, substD pSk (MkDSb 0 fDs))
   inferElemAt ctx env site (SClass _) =
     throwAt site.srange "\{site}: cannot infer the type of class\{structuralHint ()}"
   inferElemAt ctx env site (SZeroElim _) =
@@ -5515,28 +5504,20 @@ mutual
         (u', uSk) <- checkElem ctx env site u a
         (v', vSk) <- checkElem ctx env site v (substTy b (Ext Id u'))
         pure (SigmaIntro u' v', exposeD st ctx exp ty (DPair Nothing uSk vSk))
-      -- e-pair-fact: at a proposition, (f, p) is "by f, p" — the
-      -- first component a FACT (inferred: its statement must be a
-      -- proposition, or a product of them), the second the proof,
-      -- CHECKED at the proposition under the fact — a let with no
-      -- name, inlined: the element is the proof's with the fact's
-      -- element at the binder, the derivation likewise. Nested
-      -- right, (f₁, (f₂, p)) is "by f₁, f₂, p"
-      Nothing =>
-        if sInferForm u || sFactPair u
-          then do
-            (u', uTy, uSk) <- inferElem ctx env site u
-            st <- getSt
-            unless (factLikeTy st ctx uTy) $
-              throwShape site env "pair checked against" ty "a × type (its first component is no fact)"
-            -- (the proof was parsed with no binder for the fact: its
-            -- variables step over the one the context now carries)
-            let Just v1 = mapVarsE (Just . S) v
-              | Nothing => throwAt site.srange "\{site}: internal — a pair's proof does not weaken"
-            (v', vSk) <- checkElem (ctx :< uTy) (env :< "fact") site v1 (substTy ty Wk)
-            let uD = if dSynth uSk then uSk else DAscribe uSk (Just (reTy st ctx uTy)) Nothing
-            pure (substElem v' (Ext Id u'), substD vSk (MkDSb 0 [uD]))
-          else throwShape site env "pair checked against" ty "a × type"
+      Nothing => throwShape site env "pair checked against" ty "a × type"
+  -- e-by: p by f₁, …, fₙ at a proposition — the facts inferred (each
+  -- statement a proposition, or a product of them), the proof CHECKED
+  -- under them, so its own switch sees the facts and its own
+  -- statement alike (e-switch-fact); a let with no names, inlined:
+  -- the element and the derivation are the proof's with the facts'
+  -- at their binders
+  checkElemAt ctx env site (SBy p fs) ty = do
+    (ctxF, envF, fEls, fDs) <- byFacts ctx env site fs
+    let n = length fs
+    let Just p1 = mapVarsE (Just . (+ n)) p
+      | Nothing => throwAt site.srange "\{site}: internal — a proof does not weaken over its facts"
+    (p', pSk) <- checkElem ctxF envF site p1 (weakenTyN n ty)
+    pure (substElem p' (foldl Ext Id fEls), substD pSk (MkDSb 0 fDs))
   checkElemAt ctx env site (SInj1 a) ty = do
     st <- getSt
     case preferSum st ctx ty of
@@ -6020,13 +6001,37 @@ mutual
 
   ||| A statement the closure can read as facts: a proposition, or a
   ||| (nested) product of propositions — the statement of a pair of
-  ||| proofs (e-pair-fact).
+  ||| proofs (e-by).
   factLikeTy : ElabSt -> Ctx -> Ty -> Bool
   factLikeTy st c t = case exposeT st t of
     SigmaTy a b => factLikeTy st c a && factLikeTy st (c :< a) b
     t' => isJust (preferPrf st c t')
 
-  ||| The mode switch (e-switch): the inferred type converted to the
+  ||| The FACTS of a by-clause, elaborated in order, each inferred in
+  ||| the context of the ones before it (a fact may use an earlier
+  ||| one), each statement a proposition or a product of them; the
+  ||| extended context and environment, and the facts' elements and
+  ||| derivations (ascribed when they only check) for the substitution
+  ||| that takes the proof back to the site's context.
+  byFacts : Ctx -> NameEnv -> Site -> List SElem -> ElabM (Ctx, NameEnv, List Elem, List Drv)
+  byFacts ctx env site fs = go ctx env 0 fs
+   where
+    go : Ctx -> NameEnv -> Nat -> List SElem -> ElabM (Ctx, NameEnv, List Elem, List Drv)
+    go c e k [] = pure (c, e, [], [])
+    go c e k (f :: rest) = do
+      let Just f1 = mapVarsE (Just . (+ k)) f
+        | Nothing => throwAt site.srange "\{site}: internal — a fact does not weaken"
+      (f', fTy, fSk) <- inferElem c e (sub site "\{site}: a fact of by") f1
+      st <- getSt
+      unless (factLikeTy st c fTy) $
+        throwShape (sub site "\{site}: a fact of by") e "a fact of `by` states" fTy "a proposition"
+      let fD = if dSynth fSk then fSk else DAscribe fSk (Just (reTy st c fTy)) Nothing
+      (c', e', els, ds) <- go (c :< fTy) (e :< "fact") (S k) rest
+      -- (an element or derivation of a later fact lives under the
+      -- earlier facts' binders; the substitution's entries are read
+      -- in the site's context, so each is closed over the facts
+      -- before it by the same substitution, innermost last)
+      pure (c', e', f' :: map (\x => substElem x (Ext Id f')) els, fD :: map (\d => substD d (MkDSb 0 [fD])) ds)
   ||| expected one, the derivation switched. Where the types do not
   ||| convert and both are propositions with the expected one evident
   ||| (an ≡, a ∥𝟙∥): BY THE FACT (e-switch-fact, el-prf-prop and
@@ -6743,7 +6748,7 @@ mutual
             if hasHolesT dInst
               then do
                 st2 <- getSt
-                if (sInferForm surfE || sFactPair surfE) && not (bareImplicitRef st2 surfE)
+                if sInferForm surfE && not (bareImplicitRef st2 surfE)
                   then do
                     mres <- attemptM (asArg (inferElem ctx env site surfE))
                     case mres of
@@ -7130,6 +7135,7 @@ mutual
       let surfLet = case lookup pos slots of
                       Just (Just se) => case unPos se of
                                           SLet _ _ _ => Just se
+                                          SBy _ _ => Just se
                                           _ => Nothing
                       _ => Nothing
       case (surfLet, getAt pos finalArgs, getAt pos sks) of

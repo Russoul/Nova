@@ -168,7 +168,7 @@ ltRZeroOne : realZero < realOne
     Real.realZero.eq,
     Real.lt.<.eq,
     Real.lt.<.unfold)
-ltRZeroOne = ltROfQ (ltQOfSgn qZero qOne (qNegZeroQ, qAddZeroR qOne, sgnQOnePos))
+ltRZeroOne = ltROfQ (ltQOfSgn qZero qOne (sgnQOnePos by qNegZeroQ, qAddZeroR qOne))
 
 -- ===== compatibility with addition =====
 ltRAddMono : (u v t : Real) → u < v → u + t < v + t using (Real.lt.<.unfold)

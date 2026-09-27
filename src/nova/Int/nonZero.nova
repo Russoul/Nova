@@ -72,8 +72,8 @@ nzToIntNonZero : (e : NZ) → ¬ (nzToInt e ≡ intZero)
     Rat.frac.nzToInt.eq)
 nzToIntNonZero =
   λe. ⊎-elim
-    n. intNeqOfNotRel (λr. zNotS {n} (plusZeroId (S n), zeroPlusId Z, sym (S n) Z r))
-    n. intNeqOfNotRel (λr. zNotS {n} (zeroPlusId Z, plusZeroId (S n), r))
+    n. intNeqOfNotRel (λr. zNotS {n} (sym (S n) Z r by plusZeroId (S n), zeroPlusId Z))
+    n. intNeqOfNotRel (λr. zNotS {n} (r by zeroPlusId Z, plusZeroId (S n)))
     e
 
 -- ===== ℤ has no zero divisors =====

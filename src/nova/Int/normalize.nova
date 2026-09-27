@@ -22,14 +22,11 @@ normPairSucSuc = λn m. ⋆
 normSound : (a b : ℕ) → normPair a b .π₁ + b ≡ normPair a b .π₂ + a
 normSound =
   λa. ℕ-elim
-    λb. normPairZero b, zeroPlusId b, plusZeroId b
+    λb. plusZeroId b by normPairZero b, zeroPlusId b
     n ih. λb. ℕ-elim
-      normPairSucZero n, plusZeroId (S n), zeroPlusId (S n)
-      m ihb. (,)
-        normPairSucSuc n m
-        plusSucId (normPair n m .π₁) m
-        ih m
-        plusSucId (normPair n m .π₂) n
+      ⋆ by normPairSucZero n, plusZeroId (S n), zeroPlusId (S n)
+      m ihb. ⋆
+        by normPairSucSuc n m, plusSucId (normPair n m .π₁) m, ih m, plusSucId (normPair n m .π₂) n
       b
     a
 

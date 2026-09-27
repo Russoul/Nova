@@ -90,10 +90,10 @@ intPlusNegDiff =
 
 -- ===== the order =====
 leZRefl : (x : Int) → x ≤ x using (Int.order.≤.unfold, Int.Int.unfold)
-leZRefl = λx. Z, eqToId _ _ (intOfNatZero, intAddZeroR x)
+leZRefl = λx. Z, eqToId _ _ (intAddZeroR x by intOfNatZero)
 
 leZOfEq : {x y : Int} → (x ≡ y) → x ≤ y using (Int.order.≤.unfold, Int.Int.unfold)
-leZOfEq = λx y h. Z, eqToId _ _ (intOfNatZero, trans (x + intOfNat Z) _ _ (intAddZeroR x) h)
+leZOfEq = λx y h. Z, eqToId _ _ (trans (x + intOfNat Z) _ _ (intAddZeroR x) h by intOfNatZero)
 
 leZTrans : {x : Int} (y : Int) {z : Int} → x ≤ y → y ≤ z → x ≤ z using (Int.order.≤.unfold)
 leZTrans =
@@ -288,7 +288,7 @@ leZTotal =
 -- intOfNat is multiplicative (Z·b needs one zeroMult rewrite)
 intOfNatMul : (a b : ℕ) → intOfNat a * intOfNat b ≡ intOfNat (a * b)
   using (Int.order.intOfNat.eq, Int.mul.*.eq, Int.mul.intMulL.eq, Int.Int.eq)
-intOfNatMul = λa b. zeroMult Z, zeroMult b, multZeroId a, zeroPlusId Z, plusZeroId (a * b)
+intOfNatMul = λa b. ⋆ by zeroMult Z, zeroMult b, multZeroId a, zeroPlusId Z, plusZeroId (a * b)
 
 -- right distributivity, from the left one by commutativity
 intMulDistribR : (a b c : Int) → (a + b) * c ≡ a * c + b * c using (Int.Int.unfold)

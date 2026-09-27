@@ -297,13 +297,13 @@ qAssoc =
           _
           _
           _
-          qMulCls _ _ _ nn a b, qMulCls _ _ _ nn (gop {G} g a b) c
+          qMulCls _ _ _ nn (gop {G} g a b) c by qMulCls _ _ _ nn a b
           trans
             _
             _
             qMul _ _ _ nn (class a) (qMul _ _ _ nn (class b) (class c))
             cong (λw. QGroup _ g N) (λw. class w) (gAssoc g a b c)
-            qMulCls _ _ _ nn b c, qMulCls _ _ _ nn a (gop {G} g b c)
+            ⋆ by qMulCls _ _ _ nn b c, qMulCls _ _ _ nn a (gop {G} g b c)
         w
       v
     u
@@ -356,7 +356,7 @@ qInvLaw =
       _
       _
       _
-      qInvCls _ _ _ s nn a, qMulCls _ _ _ nn (ginv {G} g a) a
+      qMulCls _ _ _ nn (ginv {G} g a) a by qInvCls _ _ _ s nn a
       cong (λw. QGroup _ g N) (λw. class w) (gInvL g a)
     u
 
@@ -374,7 +374,7 @@ qInvLawR =
       _
       _
       _
-      qInvCls _ _ _ s nn a, qMulCls _ _ _ nn a (ginv {G} g a)
+      qMulCls _ _ _ nn a (ginv {G} g a) by qInvCls _ _ _ s nn a
       cong (λw. QGroup _ g N) (λw. class w) (gInvR g a)
     u
 

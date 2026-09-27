@@ -44,4 +44,6 @@ infSucc =
   coind
     x y. ∥(x ≡ cinf ∈ conat) × (y ≡ csucc cinf ∈ conat)∥
     ⋆ (⋆, ⋆)
-    x y h. squash-elim h (w. w .π₁, w .π₂, (⋆ (⋆, ⋆) : ∥(cinf ≡ cinf) × (csucc cinf ≡ csucc cinf)∥))
+    x y h. squash-elim
+      h
+      w. (⋆ (⋆, ⋆) : ∥(cinf ≡ cinf) × (csucc cinf ≡ csucc cinf)∥) by w .π₁, w .π₂

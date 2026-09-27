@@ -144,6 +144,19 @@ lineWidth = 100
 dparen : Doc -> Doc
 dparen d = txt "(" <-> d <-> txt ")"
 
+||| The document with every soft break a space: rendered on one line
+||| whatever the width.
+flatDoc : Doc -> Doc
+flatDoc DNil = DNil
+flatDoc (DText t) = DText t
+flatDoc (DCat a b) = DCat (flatDoc a) (flatDoc b)
+flatDoc DLine = DText " "
+flatDoc DHard = DHard
+flatDoc (DGroup a) = flatDoc a
+flatDoc (DNest _ a) = flatDoc a
+flatDoc (DAlt f _) = flatDoc f
+flatDoc (DAlign a) = flatDoc a
+
 ||| A soft break point that indents its continuation.
 brk : Doc -> Doc
 brk d = DGroup (DNest 2 (DLine <-> d))
@@ -187,6 +200,7 @@ data ELvl
 ||| Element node classes, by the production that produces them.
 data ECls
   = CPair
+  | CBy            -- p by …: pair-level, and only trailing (the facts run to the region's end)
   | CNoComma
   | CSumC
   | CProdC
@@ -203,6 +217,7 @@ data ECls
 
 fitsE : ECls -> ELvl -> Bool
 fitsE CPair lvl = case lvl of LPair => True; _ => False
+fitsE CBy lvl = case lvl of LPair => True; _ => False
 fitsE CNoComma lvl = case lvl of LPair => True; LNoComma => True; _ => False
 fitsE CSumC lvl = case lvl of
   LPair => True; LNoComma => True; LSumC => True; _ => False
@@ -299,6 +314,7 @@ mutual
     SQuotC _ _ _ _ => CNoComma
     SEqC _ _ _ _ => CNoComma
     SChain _ _ => CNoComma
+    SBy _ _ => CBy
     SSumC _ _ => CSumC
     SApp f a => case infixView tbl e of
       Just (_, assoc, p, _, _) => COp p assoc
@@ -337,6 +353,7 @@ mutual
   swallows : SElem -> Bool
   swallows (SLam _ _) = True
   swallows (SLet _ _ _) = True
+  swallows (SBy _ _) = True
   swallows _ = False
 
   ||| Render an element into the given context level; `tr` says the
@@ -466,6 +483,15 @@ mutual
     -- when the whole link fits — a broken justification would leave
     -- the midpoint starting deep, its own arguments shallower than
     -- its line (the seam rule)
+    -- p by f₁, …, fₙ: the by-clause on the proof's line when it fits,
+    -- else on its own line under the proof
+    -- (the facts print FLAT: an argument line is parsed at the pair
+    -- level, so a fact broken into argument lines would swallow the
+    -- facts after its comma)
+    SBy p fs =>
+      DGroup (pe tbl LNoComma False p <->
+              DNest 2 (DLine <-> txt "by " <->
+                       concatDoc (intersperse (txt ", ") (map (flatDoc . pe tbl LNoComma False) fs))))
     SChain h links =>
       DGroup (pe tbl LSumC False h <->
               concatDoc (map (\(j, m) =>
@@ -1014,6 +1040,7 @@ parameters (ok : Range -> Bool, blankAt : Range -> Nat -> Bool)
       SStarUsing _ _ => e
       SSquashElim sc x b => SSquashElim (esE sc) x (esE b)
       SChain h links => SChain (esE h) (map (\(j, m) => (esE j, esE m)) links)
+      SBy p fs => SBy (esE p) (map esE fs)
       SAnn t ty => SAnn (esE t) (esT ty)
       SImpArg t => SImpArg (esE t)
       SNoIns t => SNoIns (esE t)

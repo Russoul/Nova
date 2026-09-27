@@ -43,7 +43,7 @@ nzPosInt = λk. ⋆
 
 -- S (dbl n) is 2·(n+1) — one successor moved across a sum
 sucDbl : (n : ℕ) → S (dbl n) ≡ S n + S n using (Rat.half.dbl.eq)
-sucDbl = λn. sucPlus n (S n), plusSucId n n
+sucDbl = λn. plusSucId n n by sucPlus n (S n)
 
 -- the doubled denominator IS the original one, doubled in Int
 nzPosDbl : (n : ℕ) → nzToInt (nzPos (dbl n)) ≡ nzToInt (nzPos n) + nzToInt (nzPos n)

@@ -453,12 +453,15 @@ that with statements in the text, measured site by site.
          p in ⋆` is simply `p` (45 sites), a chain link is reflected
          from its derivation (an ascribed ⋆ links), and a claim that
          merely renames a hypothesis is gone. Several facts at one
-         site are a PAIR at the proposition (e-pair-fact, 2026-09-27):
-         `(f₁, f₂, p)` is "by f₁, f₂, p", the facts inferred and the
-         proof checked under them — 73 sites; eight more eliminators
-         took their witness. What remains of `let claim` is a fact
-         stated in a TYPE (the vector sample's length equations) or
-         a claim used under an eliminator's binders.
+         site are `p by f₁, …, fₙ` (e-by, 2026-09-27): the proof
+         under its facts, the facts inferred and the proof checked
+         under them, `⋆ by …` the trivial proof by facts — 65 sites;
+         eight more eliminators took their witness. (A pair was tried
+         first and dropped: its last component had to be the proof,
+         which a tuple does not say, and a pair is data elsewhere.)
+         What remains of `let claim` is a fact stated in a TYPE (the
+         vector sample's length equations) or a claim used under an
+         eliminator's binders.
   [x] 3. MIGRATE BY THE COUNT, item by item, until the strict run
          accepts the corpus. tools/migrate-stated.py writes the
          mechanical part from the measure's audit (a root instance

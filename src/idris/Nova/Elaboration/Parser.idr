@@ -324,7 +324,7 @@ parseName = do
                               name /= "import" && name /= "infixl" && name /= "infixr" &&
                               name /= "S" && name /= "Z" && name /= "class" &&
                               name /= "data" && name /= "let" && name /= "in" &&
-                              name /= "using" && name /= "out" &&
+                              name /= "using" && name /= "out" && name /= "by" &&
     -- the ASCII spellings of 𝕌 Ω ℕ 𝟘 𝟙 and of the injections: valid
     -- identifiers, so they need the same reservation S/Z/class do, or a
     -- binder of that name would shadow the constructor or constant at
@@ -673,8 +673,17 @@ mutual
   parseSElemRaw : FixTable -> NameEnv -> Rule SElem
   parseSElemRaw tbl env = do
     e <- parseSElemNoComma tbl env
-    (do sp; kwc ','; sp; e' <- parseSElem tbl env; pure (SPair e e'))
+    -- p by f₁, …, fₙ: the loosest form — the proof a t{1}, the facts
+    -- t{1}s separated by commas (a pair on either side is parenthesized)
+    (do sp; kw "by"; sp; fs <- parseByFacts; pure (SBy e fs))
+      <|> (do sp; kwc ','; sp; e' <- parseSElem tbl env; pure (SPair e e'))
       <|> pure e
+   where
+    parseByFacts : Rule (List SElem)
+    parseByFacts = do
+      f <- parseSElemNoComma tbl env
+      rest <- optional (do sp; kwc ','; sp; parseByFacts)
+      pure (f :: fromMaybe [] rest)
 
   -- t{1}: universe-code binder/infix forms and eq-code; binder groups
   -- iterate exactly as at the type level

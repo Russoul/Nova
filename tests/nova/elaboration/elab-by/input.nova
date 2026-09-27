@@ -1,5 +1,5 @@
--- e-pair-fact: several facts at one site are a PAIR at the
--- proposition — the facts inferred, the proof checked under them
+-- e-by: p by f₁, …, fₙ — the proof under the facts; the facts
+-- inferred (their statements propositions), the proof checked under them
 infixl 6 +
 + : ℕ → ℕ → ℕ
 + = λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
@@ -17,20 +17,23 @@ sucPlus = λn. λm. ℕ-elim (k. S n + k ≡ S (n + k) ∈ ℕ) ⋆ (k ih. ⋆) 
 plusComm : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ
 plusComm =
   λn. λm. ℕ-elim (k. k + n ≡ n + k ∈ ℕ)
-    (zeroPlusId n, plusZeroId n)
-    (k ih. (sucPlus k n, ih, plusSucId n k))
+    (⋆ by zeroPlusId n, plusZeroId n)
+    (k ih. ⋆ by sucPlus k n, ih, plusSucId n k)
     m
 
--- a single fact, the proof itself
+-- the proof a lemma's instance, by one fact
 plusCommZ : (n : ℕ) → Z + n ≡ n + Z ∈ ℕ
-plusCommZ = λn. (zeroPlusId n, plusZeroId n)
+plusCommZ = λn. plusZeroId n by zeroPlusId n
 
--- a pair whose first component is no fact is data, and checks only
--- at a × type
+-- a fact must state a proposition
 notAFact : (n : ℕ) → n + Z ≡ n ∈ ℕ
-notAFact = λn. (n, plusZeroId n)
+notAFact = λn. plusZeroId n by n
 
 -- facts that do not reach the proposition: the obligation stands,
 -- the facts in its context
 short : (n : ℕ) (m : ℕ) → m + n ≡ n + m ∈ ℕ
-short = λn. λm. (plusZeroId n, plusZeroId m)
+short = λn. λm. ⋆ by plusZeroId n, plusZeroId m
+
+-- a chain step by a fact: the justification infers under it
+plusCommC : (n : ℕ) → Z + n ≡ n + Z ∈ ℕ
+plusCommC = λn. (Z + n ≡⟨ zeroPlusId n ⟩ n ≡⟨ plusZeroId n by zeroPlusId n ⟩ n + Z)

@@ -691,6 +691,7 @@ F{0} ::= F{≥1}
 #                                            #   ( t{≥0} ) case is a t{5})
 #   t{2½} ::= ℕ-elim ⟪n. t⟫? a ⟪n ih. t⟫ a   # a ::= t{≥4} | ⟪t{≥0}⟫
 #           | ⊎-elim ⟪z. t⟫? ⟪a. t⟫ ⟪b. t⟫ a
+#   t{0} ::= t{1} by t{1}, …, t{1}    # the proof under its facts (e-by); the loosest form
 #           | quot-elim ⟪z. t⟫? ⟪a. t⟫ ⟪x x' h. t⟫? a   # the three-binder group is
 #                                                 #   the well-definedness WITNESS
 #           | sigma-elim ⟪x y. t⟫ a
@@ -1755,24 +1756,27 @@ whnf(C) = (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ R[id, a, b] ⇝ ê
 # ≡-motive — never `let claim = p in ⋆`. A C the fact does not close
 # is the residual obligation, reported as before.
 
-Γ ⊢ f ⇒ F ⇝ f̂        F a proposition (or a product of them)
-Γ ▷ x:F ⊢ p ⇐ C[↑] ⇝ p̂
---------------------------------------- (e-pair-fact)
-Γ ⊢ f , p ⇐ C ⇝ p̂[id, f̂]              # C a proposition, not a ×
-# SEVERAL FACTS at one site: a pair at a proposition is "by f, p" —
-# the first component a fact, inferred (its statement a proposition,
-# or a product of them); the second the proof, checked at the
-# proposition under the fact, so its own switch sees the fact and
-# its own statement alike. Nested right, (f₁, f₂, p) is "by f₁, f₂,
-# p". A let with no name, inlined: the element and the derivation
-# are the proof's with the fact's at the binder. In an implicit
-# spine a pair of inference forms is tried in inference as the
-# product of their statements (a source for the joint solve) and,
-# failing that (data at a × type, a proof whose blanks the position
-# must supply), deferred to this rule at its final domain. The let
-# form `let c = f in p` remains the named form of the same thing
-# (e-let-check), for a fact used several times or under an
-# eliminator's binders it cannot reach.
+Γ ⊢ f₁ ⇒ F₁ ⇝ f̂₁   …   Γ ▷ x₁:F₁ ▷ … ⊢ fₙ ⇒ Fₙ ⇝ f̂ₙ     each Fᵢ a proposition
+Γ ▷ x₁:F₁ ▷ … ▷ xₙ:Fₙ ⊢ p ⇐ C[↑ⁿ] ⇝ p̂                   (or a product of them)
+--------------------------------------------------------- (e-by)
+Γ ⊢ p by f₁, …, fₙ ⇐ C ⇝ p̂[id, f̂₁, …, f̂ₙ]
+# SEVERAL FACTS at one site: "p, by f₁, …, fₙ". The facts are
+# inferred, in order, each in the context of the ones before it (a
+# fact may use an earlier one); their statements are propositions,
+# or products of them. The proof is checked at the goal under them,
+# so its own switch sees the facts and its own statement alike
+# (e-switch-fact): `⋆ by f, g` is the trivial proof by two facts, a
+# lemma's instance `by` another is that instance accepted at the goal
+# through both. A let with no names, inlined: the element and the
+# derivation are the proof's with the facts' at their binders. In
+# inference position p by … infers when p does (a chain step by a
+# fact). The form is the loosest: the proof a t{1}, the facts t{1}s
+# separated by commas — a pair on either side is parenthesized. In
+# an implicit spine an inference-form proof by facts is inferred for
+# the sources it supplies and elaborated again at its final domain
+# by this rule. The let form `let c = f in p` remains the named form
+# of the same thing (e-let-check), for a fact used under an
+# eliminator's binders or stated in a type.
 
 # Mode inventory. Checking-only forms: λ, pairs, inj₁, inj₂, class,
 # ⋆, ⋆ e,

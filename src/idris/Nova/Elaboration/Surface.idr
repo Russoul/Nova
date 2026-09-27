@@ -213,6 +213,12 @@ mutual
     ||| one reflected equation (plus hypotheses) — never the global
     ||| store. Erases to ⋆, like every equality proof.
     SChain : SElem -> List (SElem, SElem) -> SElem
+    ||| p by f₁, …, fₙ — the proof p under the FACTS fᵢ (e-by): the facts
+    ||| inferred, their statements propositions; p checked at the
+    ||| proposition with them in scope. The facts and the proof are
+    ||| parsed in the same environment: the binders the facts stand at
+    ||| are elaboration's, not the surface's
+    SBy : SElem -> List SElem -> SElem
     ||| (t : T) — ascription; the lever into inference mode
     SAnn : SElem -> SElem -> SElem
     ||| {t} — an explicit override for the next IMPLICIT binder
@@ -362,6 +368,7 @@ mutual
   stripPos e@(SStarUsing _ _) = e
   stripPos (SSquashElim e x b) = SSquashElim (stripPos e) x (stripPos b)
   stripPos (SChain h ls) = SChain (stripPos h) (map (\(j, m) => (stripPos j, stripPos m)) ls)
+  stripPos (SBy p fs) = SBy (stripPos p) (map stripPos fs)
   stripPos (SAnn t ty) = SAnn (stripPos t) (stripPos ty)
   stripPos (SImpArg t) = SImpArg (stripPos t)
   stripPos (SNoIns t) = SNoIns (stripPos t)
@@ -542,6 +549,7 @@ mutual
   mapVarsE f e@(SStarUsing _ _) = Just e
   mapVarsE f (SSquashElim e x b) =
     [| SSquashElim (mapVarsE f e) (pure x) (mapVarsE (underM f) b) |]
+  mapVarsE f (SBy p fs) = [| SBy (mapVarsE f p) (traverse (mapVarsE f) fs) |]
   mapVarsE f (SChain h ls) =
     [| SChain (mapVarsE f h)
               (traverse (\(j, m) => [| MkPair (mapVarsE f j) (mapVarsE f m) |]) ls) |]
@@ -623,6 +631,7 @@ mutual
   headRange (SStarWit e) = headRange e
   headRange (SPair a b) = headRange a <|> headRange b
   headRange (SChain h _) = headRange h
+  headRange (SBy p _) = headRange p
   headRange (SSquash t) = headRange t
   headRange (SSquashElim e _ _) = headRange e
   headRange (SNuC f) = headRangePoly f
@@ -978,6 +987,7 @@ mutual
     show (SStar _) = "⋆"
     show (SStarWit e) = "⋆ (\{show e})"
     show (SStarUsing _ ns) = "⋆ using (\{joinBy ", " ns})"
+    show (SBy p fs) = "By (\{show p}) [\{joinBy ", " (map show fs)}]"
     show (SChain x ls) =
       "\{show x}" ++ concat (map (\(j, y) => " ≡⟨ \{show j} ⟩ \{show y}") ls)
     show (SSquashElim e x body) = "SquashElim (\{show e}) \{fst x} (\{show body})"

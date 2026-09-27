@@ -37,12 +37,8 @@ distribBackR =
 -- the two exchanges of a four-term sum
 swap4 : (p q r s : ℕ) → p + q + (r + s) ≡ p + r + (q + s)
 swap4 =
-  λp q r s. (,)
-    plusAssoc p q (r + s)
-    swapLeft p q (r + s)
-    swapLeft q p (r + s)
-    swapLeft q r s
-    plusAssoc p r (q + s)
+  λp q r s. ⋆
+    by plusAssoc p q (r + s), swapLeft p q (r + s), swapLeft q p (r + s), swapLeft q r s, plusAssoc p r (q + s)
 
 swap4b : {p q r s : ℕ} → p + q + (r + s) ≡ p + s + (q + r)
 swap4b =
@@ -148,9 +144,13 @@ intMulWDRep : (a1 a2 b1 b2 c1 c2 : ℕ)
   (h : a1 + b2 ≡ a2 + b1)
   → a1 * c1 + a2 * c2 + (b1 * c2 + b2 * c1) ≡ a1 * c2 + a2 * c1 + (b1 * c1 + b2 * c2)
 intMulWDRep =
-  λa1 a2 b1 b2 c1 c2 h. (,)
-    plusComm ((a2 + b1) * c1) ((a2 + b1) * c2)
-    trans _ _ _ (sum4DistribR a1 a2 b1 b2 c1 c2) (sym _ _ (sum4DistribR a1 a2 b1 b2 c2 c1))
+  λa1 a2 b1 b2 c1 c2 h. trans
+    _
+    _
+    _
+    sum4DistribR a1 a2 b1 b2 c1 c2
+    sym _ _ (sum4DistribR a1 a2 b1 b2 c2 c1)
+    by plusComm ((a2 + b1) * c1) ((a2 + b1) * c2)
 
 -- ===== the descended operation, one argument at a time =====
 intMulL : ℕ × ℕ → Int → Int using (Int.Int.unfold)
@@ -204,41 +204,24 @@ intMulOneL : (z : Int) → intOne * z ≡ z
   using (Int.Int.unfold, Int.intOne.eq, Int.mul.*.eq, Int.mul.intMulL.eq)
 intMulOneL =
   λz. quot-elim
-    p. (,)
-      oneMult (p .π₁)
-      oneMult (p .π₂)
-      zeroMult (p .π₂)
-      zeroMult (p .π₁)
-      plusZeroId (p .π₁)
-      plusZeroId (p .π₂)
-      trans (class (p .π₁, p .π₂)) _ _ ⋆ (classPairEta p)
+    p. trans (class (p .π₁, p .π₂)) _ _ ⋆ (classPairEta p)
+      by oneMult (p .π₁), oneMult (p .π₂), zeroMult (p .π₂), zeroMult (p .π₁), plusZeroId (p .π₁), plusZeroId (p .π₂)
     z
 
 intMulOneR : (z : Int) → z * intOne ≡ z
   using (Int.Int.unfold, Int.intOne.eq, Int.mul.*.eq, Int.mul.intMulL.eq)
 intMulOneR =
   λz. quot-elim
-    p. (,)
-      multZeroId (p .π₂)
-      multZeroId (p .π₁)
-      zeroPlusId (p .π₂ * S Z)
-      plusZeroId (p .π₁ * S Z)
-      multSucId (p .π₁) Z
-      plusZeroId (p .π₁)
-      multSucId (p .π₂) Z
-      plusZeroId (p .π₂)
-      classPairEta p
+    p. classPairEta p
+      by multZeroId (p .π₂), multZeroId (p .π₁), zeroPlusId (p .π₂ * S Z), plusZeroId (p .π₁ * S Z), multSucId (p .π₁) Z, plusZeroId (p .π₁), multSucId (p .π₂) Z, plusZeroId (p .π₂)
     z
 
 intMulZeroL : (z : Int) → intZero * z ≡ intZero
   using (Int.mul.*.eq, Int.mul.intMulL.eq, Int.Int.eq, Int.Int.unfold, Int.intZero.eq)
 intMulZeroL =
   λz. quot-elim
-    p. (,)
-      distribBack {Z} {p .π₁} {p .π₂}
-      distribBack {Z} {p .π₂} {p .π₁}
-      zeroMult (p .π₁ + p .π₂)
-      zeroMult (p .π₂ + p .π₁)
+    p. ⋆
+      by distribBack {Z} {p .π₁} {p .π₂}, distribBack {Z} {p .π₂} {p .π₁}, zeroMult (p .π₁ + p .π₂), zeroMult (p .π₂ + p .π₁)
     z
 
 intMulZeroR : {z : Int} → z * intZero ≡ intZero
@@ -295,9 +278,8 @@ intMulDistribL =
   λx y z. quot-elim
     a. quot-elim
       b. quot-elim
-        c. (,)
-          sum4Distrib (a .π₁) (a .π₂) (b .π₁) (b .π₂) (c .π₂) (c .π₁)
-          sum4Distrib (a .π₁) (a .π₂) (b .π₂) (b .π₁) (c .π₁) (c .π₂)
+        c. ⋆
+          by sum4Distrib (a .π₁) (a .π₂) (b .π₁) (b .π₂) (c .π₂) (c .π₁), sum4Distrib (a .π₁) (a .π₂) (b .π₂) (b .π₁) (c .π₁) (c .π₂)
         z
       y
     x
@@ -329,14 +311,14 @@ intAddNegR : (z : Int) → z + intNeg z ≡ intZero
   using (Int.Int.unfold, Int.intNeg.eq, Int.intZero.eq, Int.add.+.eq, Int.add.intAddL.eq)
 intAddNegR =
   λz. quot-elim
-    p. plusZeroId (p .π₁ + p .π₂), plusComm (p .π₂) (p .π₁), plusZeroId (p .π₂ + p .π₁)
+    p. ⋆ by plusZeroId (p .π₁ + p .π₂), plusComm (p .π₂) (p .π₁), plusZeroId (p .π₂ + p .π₁)
     z
 
 intAddNegL : (z : Int) → intNeg z + z ≡ intZero
   using (Int.Int.unfold, Int.intNeg.eq, Int.intZero.eq, Int.add.+.eq, Int.add.intAddL.eq)
 intAddNegL =
   λz. quot-elim
-    p. plusZeroId (p .π₂ + p .π₁), plusComm (p .π₁) (p .π₂), plusZeroId (p .π₁ + p .π₂)
+    p. ⋆ by plusZeroId (p .π₂ + p .π₁), plusComm (p .π₁) (p .π₂), plusZeroId (p .π₁ + p .π₂)
     z
 
 -- (−x)·y = −(x·y): the two representatives differ by plusComm in each

@@ -237,6 +237,7 @@ parameters (resolve : String -> String, cands : List (String, List Nat), mode : 
       SStarUsing _ _ => e
       SSquashElim s x b => SSquashElim (xfE s) x (xfE b)
       SChain h links => SChain (xfE h) (map (\(j, m) => (xfE j, xfE m)) links)
+      SBy p fs => SBy (xfE p) (map xfE fs)
       SAnn t ty => SAnn (xfE t) (xfT ty)
       SImpArg t => SImpArg (xfE t)
       SNoIns t => SNoIns (xfE t)
@@ -542,6 +543,7 @@ sitesOfUnit resolve q u = concatMap (\(_, it) => goItem it) u.mitems
       SStarUsing _ _ => []
       SSquashElim sc _ b => goE sc ++ goE b
       SChain h links => goE h ++ concatMap (\(j, m) => goE j ++ goE m) links
+      SBy p fs => goE p ++ concatMap goE fs
       SAnn t ty => goE t ++ goT ty
       SImpArg t => goE t
       SNoIns t => goE t
