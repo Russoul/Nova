@@ -22,7 +22,8 @@ check-distill:
 
 # The FAST pipeline (the local dev loop): build once, then the corpus,
 # the golden suite and the roles audit against the built binaries —
-# no distill round trip. About a minute on a laptop.
+# no distill round trip: about 40s on a laptop, 25 of them the three
+# no-change builds.
 dev: build
 	NOVA_BIN=$(CURDIR)/build/exec/nova ./check-elaborations.sh
 	NOVA_BIN=$(CURDIR)/build/exec/nova NOVA_LSP_BIN=$(CURDIR)/build/exec/nova-lsp NOVA_TESTS_BIN=$(CURDIR)/build/exec/nova-tests ./test.sh
