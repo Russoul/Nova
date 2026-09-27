@@ -1812,10 +1812,48 @@ whnf(C) = (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ R[id, a, b] ⇝ ê
 #      compare-beta-normal-forms certificate, eagerly replayed (the
 #      sides differ as written, so the replay stays as the canary for
 #      any engine/kernel normaliser disagreement).
-#   1. whnf both sides (this alone discharges everything the old
-#      derivation machinery called "by computation": β and
-#      signature unfolding).
-#   2. α-equal → discharged.
+#   1. The LICENSED δ-JOIN: each side unfolded under the site's
+#      licences alone (`<def>.eq` anywhere, `<def>.unfold` at type
+#      heads, the η rules), β-joined, and α-compared. Its proof is
+#      the two unfolding chains. It runs BEFORE the facts: a fact
+#      rewrites by orientation and can carry a side past a join an
+#      unfolding alone reaches (clsRel r a (class a) ≜ rClosure r a a
+#      under a hypothesis class a ≡ class b).
+#   2. The CLOSURE OVER THE FACTS IN SCOPE — the discharge's only
+#      source of equations beyond computation. A FACT is one of:
+#        * a hypothesis of Γ, quantified or not (a Π-closed equation is
+#          matched at its instance);
+#        * a local claim `let h = e in …`;
+#        * the facts of `p by f₁, …, fₙ` (e-by) and the witness of a
+#          quot-elim (e-quotelim), which stand under binders of Γ
+#          exactly like hypotheses;
+#        * a chain link at its step, the ≡-elim hypothesis;
+#        * the statement of the term written at the site itself
+#          (e-switch-fact): a proof of one proposition where another
+#          is expected.
+#      A product-typed fact is read component by component (its
+#      projections are the proofs). NOT a fact: a lemma in Σ. Naming
+#      it in `using` licenses nothing; it enters only as an INSTANCE
+#      the author wrote, in one of the forms above.
+#      Three mechanisms, all over the facts and nothing else:
+#      * REWRITING: a fact is a terminating rule — strictly
+#        size-decreasing instances first, then size-preserving
+#        non-permutative ones — applied LEFT-TO-RIGHT AS STATED at any
+#        subterm of either side, interleaved with the licensed
+#        unfoldings, to a fuel-and-seen-set-bounded normal form. A
+#        permutative fact (its sides equal up to a renaming of its
+#        parameters) never rewrites; a fact whose lhs has no rigid
+#        head never rewrites; both remain available whole.
+#      * WHOLE-FACT MATCH: the residual equation (or its flip) matches
+#        a fact under one first-order instantiation; parameters the
+#        sides do not bind must carry a proposition whose instance
+#        closes as a side condition.
+#      * HOPS along CHAIN LINKS only: a link rewrites one side
+#        wholesale, chaining through the chain's own stated points.
+#      The hypotheses are normalized by the facts in scope alone,
+#      never by a lemma store; the proof of every step is the fact
+#      reflected where it is used, inside the congruence skeleton of
+#      its position, and the kernel replays it.
 #   3. Same rigid head → DECOMPOSE into component equations, each fed
 #      back into ↓. For the type formers and universe codes this is
 #      FAITHFUL — an equivalence, not merely sufficiency: downward it
@@ -1933,59 +1971,39 @@ whnf(C) = (class a ≡ class b ∈ A / R)        Γ ⊢ e ⇐ R[id, a, b] ⇝ ê
 #      intro-guarded), and SAME-TAG INJECTIONS at ⊎ compare by their
 #      payloads at the branch type (the inj final; el-one-prop then
 #      closes 𝟙 payloads — how a three-valued sign's cases pay).
-#   6. SCOPED STORE USE — three complementary mechanisms over the
-#      site's SCOPE (the named lemmas + hypotheses; see THE SCOPE in
-#      Elaboration state — never the whole store):
-#      * REWRITING: equations usable as terminating rules — strictly
-#        size-decreasing instances first (plus n Z → n), then
-#        size-preserving NON-PERMUTATIVE ones (plus n (S m) →
-#        S (plus n m), induction hypotheses) — applied left-to-right
-#        as stated, at any subterm, to a fuel-and-seen-set-bounded
-#        fixpoint before every comparison. An equation whose sides are
-#        equal up to a bijective renaming of its parameters
-#        ("permutative": commutativity, exchange laws) NEVER rewrites —
-#        it would oscillate. An equation whose lhs has NO RIGID head —
-#        a bare parameter spine like v or v .π₁ — never rewrites
-#        either: first-order matching is type-blind, so such a rule
-#        fires at arbitrarily ill-typed positions and its certificate
-#        dies at replay, taking the discharge with it. Both shapes
-#        remain available to whole-equation match and hops, where the
-#        full statement constrains the instantiation.
-#      * WHOLE-EQUATION MATCH: the equation (or its flip) matches a
-#        candidate's l/r under one consistent first-order
-#        instantiation; parameters the sides do not bind must carry a
-#        prop (equality props included) or 𝟙 type whose instance
-#        discharges as a side condition.
-#        This is how permutative and hypothesis-conditional lemmas
-#        discharge. A code parameter in type position is an ordinary
-#        pattern position (a code IS a type): a pattern position p (p
-#        a parameter) facing a rigid type binds p to it. A generic
-#        bag-swap lemma thus discharges its ℕ-instantiated goals.
-#      * TRANSITIVITY HOPS: a candidate that rewriting cannot apply
-#        may rewrite one side WHOLESALE, recursing with a small
-#        depth budget — chaining e.g. an exchange law, a hypothesis,
-#        and an exchange law again.
-#      Matched candidates' sides are stored normalized against the
-#      lemma store as of their acceptance, so equations stated in one
-#      spelling still match goals earlier rules have canonicalized.
-#      An already-assumed obligation matches verbatim (deduplication:
-#      nothing new is reported, and nothing is considered proven).
-#      Closing E under full congruence (e-graph style) remains a
-#      completeness upgrade; none of these mechanisms affects
-#      soundness — each discharge is a Foundation derivation via
-#      (el-sub-cong-fix) + congruence + transitivity + reflection.
-#   8. ASSUME: append the equation to Σ as a machine-named HOLE at
+#   6. ASSUME: append the equation to Σ as a machine-named HOLE at
 #      its prop (sig-decl at (a ≡ b ∈ A), ∈-slot 𝕍 for a type
 #      equation), record its display metadata (source position, and
-#      the composite it was decomposed from, if any), and add it to E;
-#      succeed. Before assuming, probe the WHOLE store once — the same
-#      mechanisms, unscoped, plus kernel replay of the result — and
-#      record what would have closed the equation (or its composite) as
-#      an advisory HINT in the display metadata: search demoted to
-#      feedback, never acceptance. The remedy the report prints is
-#      thereby usually literal: add the hinted name to the using
-#      clause.
+#      the composite it was decomposed from, if any), and add it to
+#      the facts; succeed. The report's `hint:` names the `<def>.eq`
+#      citations that would close the equation by unfolding alone —
+#      a fact about the sides, read off them, never a lemma found for
+#      the author. An already-assumed obligation matches verbatim
+#      (deduplication: nothing new is reported, nothing is proven).
 #
+# THE STATED TIER'S CONTRACT (docs/NovaStrategy.txt, the engine
+# programme). The loop above is the WHOLE discharge: deterministic,
+# a fixed order of steps each determined by the site's text — the
+# sides, the licences, the facts — so a file gives the same
+# derivations every run. It never chooses: no lemma is instantiated by
+# matching against Σ, no depth is searched, no second route is tried
+# after a failure, nothing is assumed inside a step. A site the steps
+# do not close is the author's obligation, reported with the facts in
+# its context. Two consequences shape how proofs are written:
+#   * Rewriting is ORIENTED. A fact rewrites its left side to its
+#     right, and a hypothesis in scope rewrites whether or not the
+#     goal wanted it: h : class a ≡ class b carries every class a to
+#     class b before a later fact can act on class a. The δ-join tier
+#     removes the common case; the principle stands. State the fact
+#     that has to act where the hypothesis would misdirect (clsRelRefl
+#     as a lemma of its own, outside the hypothesis's scope), or spell
+#     the step.
+#   * A spine solves its blanks from the EXPECTED type before it reads
+#     its arguments' statements. A fact used as an argument of such a
+#     spine (`eqToId _ _ (idToEq _ _ _ h)` where the goal fixes the
+#     outer sides) may need its sides spelled, so that its statement,
+#     not the goal, is what the switch sees.
+
 # Invariant (statement well-formedness): every equation reaching ↓ has
 # both sides produced by elaboration at the stated type, in the stated
 # context, under the assumptions active at that moment. Consequently

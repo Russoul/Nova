@@ -427,7 +427,7 @@ that with statements in the text, measured site by site.
          instance at the root (with or without unfolding), 80 are
          well-definedness by one lemma, the rest place lemmas at
          positions or chain several. The count must only go down.
-  [~] 2. THE STATED FORMS. A local claim states an instance and puts
+  [x] 2. THE STATED FORMS. A local claim states an instance and puts
          it in scope as a hypothesis — today the surface's own
          `let h = e in …` (or `let h : a ≡ b ∈ A = e in …`), the
          element e a lemma applied, a hypothesis, a proof; the core's
@@ -438,8 +438,8 @@ that with statements in the text, measured site by site.
          position, in either direction, and chaining through them —
          deterministic, like δ-all; never a Σ-lemma instantiated by
          matching. A ⋆ whose proof is one instance at the root is
-         simply that instance. Whether `have … by …` sugar is wanted
-         over `let` is a surface decision still open. The
+         simply that instance. `p by f₁, …, fₙ` IS the `have … by …`
+         form (2026-09-27); `let` remains its named twin. The
          well-definedness proof of a quotient elimination has its slot
          at the eliminator since 2026-09-26: `quot-elim (a. f) (x x' h.
          p) q` states the witness alone, the eliminator fixing the

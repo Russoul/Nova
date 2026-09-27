@@ -55,29 +55,59 @@ stays blocked until the definiens is supplied.
 The engine places NO lemma by matching (docs/NovaStrategy.txt: the
 engine is a deterministic translator, never an author-substitute). A
 site — a ⋆, a chain step, a conversion between an inferred and an
-expected type — closes by the STATED tier alone:
+expected type — closes by the STATED TIER, in this fixed order:
 
-- tier 0: the sides are α-identical; tier 1: they join under
+- tier 0: the sides are α-identical; tier ½: they join under
   computation (β, the eliminators' ι, let) with no unfolding.
 - the LICENSED δ-JOIN: the sides unfolded under the site's `using`
   licences alone (`<def>.eq` anywhere, `<def>.unfold` at type heads,
   `pi.eta`/`sigma.eta`) and compared.
-- the TYPE-DIRECTED closings: proof irrelevance at a proposition,
-  quotient witnesses at a class equation, η at Π/Σ under its licence.
+- the CLOSURE OVER THE FACTS IN SCOPE: rewriting by them (left to
+  right as stated, at any position, interleaved with the licensed
+  unfoldings), matching them whole (a quantified fact at its
+  instance), hopping along chain links.
+- the TYPE-DIRECTED closings: proof irrelevance at a proposition, a
+  class equation by the quotient witness from a proof of the relation,
+  η at Π/Σ under its licence, injections at their summand.
 - the CONGRUENCE DESCENT through the two sides' common structure,
   each child closed by the above.
-- the CLOSURE OVER THE FACTS IN SCOPE: hypotheses, local claims
-  (`let h = lemma x y in …`), chain links and the ≡-elim hypothesis
-  rewrite the sides to normal form, in either direction, and are
-  matched whole (a quantified hypothesis at its instances).
 
-A lemma in Σ is NOT a fact in scope: naming it in `using` licenses
-nothing (`.rw` is gone). To use a lemma, STATE ITS INSTANCE where it is
-used — as the proof itself (`zeroPlusId n` in place of a ⋆), as a chain
-step (`≡⟨ plusComm b a ⟩`), as a local claim (`let claim = plusSucId x j
-in ⋆`), or through `trans`/`sym`/`cong` explicitly. A site the
-statements do not close is reported as an obligation, with a `hint:`
-naming the `.eq` citations that would close it by unfolding alone.
+WHAT IS A FACT: a hypothesis (quantified ones are instantiated), a
+`let h = e in …` claim, the facts of `p by f₁, …, fₙ`, the witness
+of `quot-elim (a. f) (x x' h. p) q`, a chain link at its step, the
+≡-elim hypothesis, and the statement of the very term you wrote where
+a proposition was expected (`intAddWD … h` where a class equation is
+expected proves it: its statement is the fact). A lemma in Σ is NOT a
+fact: naming it in `using` licenses nothing (`.rw` is gone). To use a
+lemma, STATE ITS INSTANCE where it is used — as the proof itself
+(`zeroPlusId n` in place of a ⋆), as a chain step (`≡⟨ plusComm b a
+⟩`), as a fact of `by` (`⋆ by plusSucId a k, sucMonusSuc (a + k) k,
+ih`), as a witness, or through `trans`/`sym`/`cong` explicitly.
+
+THE FORMS, from most to least natural:
+- `p` alone: the proof, accepted at the goal by its own statement.
+- `p by f₁, …, fₙ`: the proof under facts; `⋆ by f, g` is the trivial
+  proof by two facts. The facts are inferred in order (each may use
+  an earlier one), the proof is checked under them. `by` is the
+  loosest form: parenthesize it inside a pair or an argument.
+- `quot-elim (a. f) (x x' h. p) q`: the case's well-definedness as the
+  witness p under two representatives and the relation instance — a
+  proof of the relation or of the class equation.
+- `let h = e in p`: the named form of `by`, for a fact used under an
+  eliminator's binders or stated in a type.
+
+THE CONTRACT (the two limits you will meet):
+- Rewriting is ORIENTED: a hypothesis in scope rewrites its left side
+  to its right whether or not the goal wanted it. If `h : class a ≡
+  class b` misdirects a step about `class a`, state that step as a
+  lemma of its own, outside h's scope.
+- A spine solves its blanks from the EXPECTED type before it reads its
+  arguments. A fact used inside `eqToId _ _ (…)`-style spines may need
+  its sides spelled so that its statement, not the goal, reaches the
+  switch.
+A site the tier does not close is reported as an obligation with the
+facts in its context (their binders are named `fact`/`wit`), and a
+`hint:` naming the `.eq` citations that would close it by unfolding.
 
 Consequences:
 - ORDER MATTERS only for names: a lemma helps once it is defined above.
@@ -90,7 +120,9 @@ Consequences:
    Π-arguments, the equation becomes the ≡-type.
 2. Try `x = λx. … ⋆` first — computation, the cited unfoldings and the
    hypotheses in scope may close it (⋆ is the proof of EVERY
-   proposition, equations included; there is no Refl).
+   proposition, equations included; there is no Refl). If a lemma is
+   needed, write its instance: `lemma a b` as the proof, or
+   `⋆ by lemma a b, ih` when several facts combine.
 3. Otherwise prove by induction with an eliminator and an ≡-typed
    motive (PARENTHESIZE the motive: `(k. Z + k ≡ k ∈ ℕ)` — equality
    types don't parse bare in binder-body positions):
