@@ -1,18 +1,9 @@
-Γ ⊦ T type // Given core context Γ, check surface type T
-Γ ⊦ t ⇒ T  // Given core context Γ and surface element `t` infer core type T
-Γ ⊦ t ⇐ T // Given core context Γ, core type T, check surface element `t`
-
-Γ ⊦ [α] t₀ ≐ t₁ ⇒ T // Given core context Γ and a surface proof infer the core equation LHS, RHS and type
-Γ ⊦ [α] t₀ ≐ t₁ ⇐ T // Given core context Γ, core type T and a surface proof infer the core equation LHS, RHS
-Γ ⊦ [α] ⇐ T₀ ≐ T₁ type // Given core context Γ, core types T₀ and T₁, check equation proof α
-Γ ⊦ [α] ⇒ T₀ ≐ T₁ type // Given core context Γ and equation proof α, infer core types T₀ and T₁
-
-ē ⇐ (Γ ⇒ Δ norm)              // spine checking, entrywise: eᵢ ⇐ Δ∥ᵢ[id, e₀ … eᵢ₋₁]
+Γ ⊦ [α] t₀ ≐ t₁ ⇒ T    // Given core context Γ and a surface proof infer the core equation LHS, RHS and type
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ T    // Given core context Γ, core type T and a surface proof infer the core equation LHS, RHS
 [ᾱ] ē₀ ≐ ē₁ ⇐ (Γ ⇒ Δ norm)    // spine equation, entrywise, at the type instantiated by ē₁'s prefix
+Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly          // polynomial equation proof, synthesising both sides
 
 // CONVENTIONS.
-// * A metavariable names a SURFACE spelling in a rule's conclusion and its
-//   CORE elaboration in the premises; the judgements elaborate as they check.
 // * A non-linear metavariable occurrence, or a former pattern (A → B, A × B,
 //   t₀ ≡ t₁ ∈ T, …) in an input position, means equality modulo substitution
 //   and β — weak-head β for a pattern, full β for a comparison. "β" is every
@@ -39,52 +30,20 @@
 //   Without δ, β-normal forms are bounded by the written term's own redexes:
 //   every blow-up the corpus shows is δ, and it now happens on the untrusted
 //   side and is recorded.
-// * PROOFS ARE TERMS WITH PROOF LEAVES: the proof grammar is the term grammar
-//   ([Z], [S α], [λ α], [α, β], [α β], [α .π₁], [☐ᵢ], [x ᾱ], [ℕ-elim A α β τ], …)
-//   plus the proof-only forms ; ⁻¹ reflect x-δ lift restrict (_ : A by _) and
-//   the leaves (η→ η× irrel quot-eq propext squash-eq ην coind, the path
-//   leaf, the selectors). A term with no proof leaf is the reflexivity proof
-//   of itself, so `refl t` is `t` read as a proof; refl survives only where a
-//   proof is checked against given sides and has no term to name
-//   ([refl] ⇐ T₀ ≐ T₁ type).
 
-Γ ▷ A ⊦ f ⇐ B
-------------------
-Γ ⊦ λf ⇐ A → B  // i.e. must be Π modulo substitution and β
 
-Γ ⊦ A type
-Γ ⊦ t ⇐ A
-Γ ⊦ [α] ⇐ A ≐ B type
---------------------
-Γ ⊦ (t : A by α) ⇐ B
+// ------ Π-type -------
 
-Γ ⊦ T type
-Γ ⊦ t ⇐ T
----------------
-Γ ⊦ (t : T) ⇒ T
-
-Γ ⊦ ☐ᵢ ⇒ Γ∥ᵢ
-
-Γ ⊦ t ⇒ B
------------ // mode switch
-Γ ⊦ t ⇐ B
-
-Γ ⊦ f ⇒ A → B
-Γ ⊦ e ⇐ A
-------------------
-Γ ⊦ f e ⇒ B[id, e]
-
-Γ ▷ ℕ ⊦ A type
-Γ ⊦ z ⇐ A[id, Z]
-Γ ▷ ℕ ▷ A ⊦ s ⇐ A[↑², S ☐₁]
-Γ ⊦ t ⇐ ℕ
------------------------------
-Γ ⊦ ℕ-elim A z s t ⇒ A[id, t]
+Γ ▷ A ⊦ [α] f₀ ≐ f₁ ⇐ B
+---------------------------
+Γ ⊦ [λ α] λf₀ ≐ λf₁ ⇐ A → B
 
 Γ ⊦ [α] f₀ ≐ f₁ ⇒ A → B
 Γ ⊦ [β] e₀ ≐ e₁ ⇐ A
 -----------------------------------
 Γ ⊦ [α β] f₀ e₀ ≐ f₁ e₁ ⇒ B[id, e₁]
+
+// ------ Σ-type ------
 
 Γ ⊦ [α] p₀ ≐ p₁ ⇒ A × B
 -----------------------------------
@@ -99,9 +58,49 @@
 -----------------------------------------
 Γ ⊦ [α, β] (a₀, b₀) ≐ (a₁, b₁) ⇐ A × B
 
-Γ ▷ A ⊦ [α] f₀ ≐ f₁ ⇐ B
----------------------------
-Γ ⊦ [λ α] λf₀ ≐ λf₁ ⇐ A → B
+// ------- (⊎)-type ---------
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ A                        Γ ⊦ [β] b₀ ≐ b₁ ⇐ B
+-------------------------------------        ------------------------------------
+Γ ⊦ [inj₁ α] inj₁ a₀ ≐ inj₁ a₁ ⇐ A ⊎ B     Γ ⊦ [inj₂ β] inj₂ b₀ ≐ inj₂ b₁ ⇐ A ⊎ B
+
+U ∈ {Ω, 𝕌}
+Γ ⊦ [τ] t₀ ≐ t₁ ⇒ A ⊎ B
+Γ ▷ A ⊎ B ⊦ C ⇐ U
+Γ ▷ A ⊦ [λ] l₀ ≐ l₁ ⇐ C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ [ρ] r₀ ≐ r₁ ⇐ C[↑, inj₂ ☐₀]
+--------------------------------------------------------------------
+Γ ⊦ [⊎-elim U C λ ρ τ] ⊎-elim l₀ r₀ t₀ ≐ ⊎-elim l₁ r₁ t₁ ⇒ C[id, t₁]
+
+// -------- (/)-type ---------
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ A
+-----------------------------------------
+Γ ⊦ [class α] class a₀ ≐ class a₁ ⇐ A / R
+
+Γ ⊦ [α] a ⇐ A  [β] b ⇐ A   Γ ⊦ [ρ] ⋆ ≐ ⋆ ⇐ R[id, a, b]
+------------------------------------------------------ // el-quot-eq: related representatives, equal classes
+Γ ⊦ [quot-eq α β ρ] class a ≐ class b ⇐ A / R
+
+U ∈ {Ω, 𝕌}
+Γ ⊦ [κ] q₀ ≐ q₁ ⇒ A / R
+Γ ▷ A / R ⊦ B ⇐ U
+Γ ▷ A ⊦ [φ] f₀ ≐ f₁ ⇐ B[↑, class ☐₀]
+Γ ▷ A ▷ A[↑] ▷ R ⊦ [ω] f₁[↑³, ☐₂] ≐ f₁[↑³, ☐₁] ⇐ B[↑³, class ☐₂]   // f₀'s well-definedness follows through φ
+------------------------------------------------------------------------
+Γ ⊦ [quot-elim U B φ ω κ] quot-elim f₀ q₀ ≐ quot-elim f₁ q₁ ⇒ B[id, q₁]
+
+// -------- 𝟘-type ---------
+
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ 𝟘
+----------------------------------------
+Γ ⊦ [𝟘-elim α] 𝟘-elim t₀ ≐ 𝟘-elim t₁ ⇐ A
+
+// ------ 𝟙-type -------
+
+Γ ⊦ [()] () ≐ () ⇐ 𝟙
+
+// ------ ℕ-type -------
 
 Γ ⊦ [Z] Z ≐ Z ⇐ ℕ
 
@@ -109,12 +108,99 @@
 -------------------------
 Γ ⊦ [S α] S t₀ ≐ S t₁ ⇐ ℕ
 
-Γ ▷ ℕ ⊦ A type
+U ∈ {Ω, 𝕌}
+Γ ▷ ℕ ⊦ A ⇐ U
 Γ ⊦ [α] z₀ ≐ z₁ ⇐ A[id, Z]
 Γ ▷ ℕ ▷ A ⊦ [β] s₀ ≐ s₁ ⇐ A[↑², S ☐₁]
 Γ ⊦ [τ] t₀ ≐ t₁ ⇐ ℕ
 ------------------------------------------------------------------
-Γ ⊦ [ℕ-elim A α β τ] ℕ-elim z₀ s₀ t₀ ≐ ℕ-elim z₁ s₁ t₁ ⇒ A[id, t₁]
+Γ ⊦ [ℕ-elim U A α β τ] ℕ-elim z₀ s₀ t₀ ≐ ℕ-elim z₁ s₁ t₁ ⇒ A[id, t₁]
+
+
+// ------- ≡-type --------
+
+Γ ⊦ [α] t₀ ≐ t₁ ⇒ T
+---------------------------------
+Γ ⊦ [refl α] ⋆ ≐ ⋆ ⇒ (t₀ ≡ t₁ ∈ T)
+
+
+Γ ⊦ [α] ⋆ ≐ ⋆ ⇒ t₀ ≡ t₁ ∈ T
+---------------------------
+Γ ⊦ [reflect α] t₀ ≐ t₁ ⇒ T
+
+// ----- 𝕌-type ------
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇐ 𝕌
+Γ ▷ A₁ ⊦ [β] B₀ ≐ B₁ ⇐ 𝕌
+------------------------------------
+Γ ⊦ [α → β] (A₀ → B₀) ≐ (A₁ → B₁) ⇐ 𝕌
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇐ 𝕌
+Γ ▷ A₁ ⊦ [β] B₀ ≐ B₁ ⇐ 𝕌
+-------------------------------------
+Γ ⊦ [α × β] (A₀ × B₀) ≐ (A₁ × B₁) ⇐ 𝕌
+
+Γ ⊦ [α] ⇒ A₀ ≐ A₁ ⇐ 𝕌
+Γ ⊦ [β] ⇒ B₀ ≐ B₁ ⇐ 𝕌
+-----------------------------------------
+Γ ⊦ [α ⊎ β] ⇒ (A₀ ⊎ B₀) ≐ (A₁ ⊎ B₁) ⇐ 𝕌
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇐ 𝕌
+Γ ▷ A₁ ▷ A₁[↑] ⊦ [ρ] R₀ ≐ R₁ ⇐ Ω
+---------------------------------------
+Γ ⊦ [α / ρ] (A₀ / R₀) ≐ (A₁ / R₁) ⇐ 𝕌
+
+Γ ⊦ [𝟘] 𝟘 ≐ 𝟘 ⇒ 𝕌
+
+Γ ⊦ [𝟙] 𝟙 ≐ 𝟙 ⇒ 𝕌
+
+Γ ⊦ [ℕ] ℕ ≐ ℕ ⇒ 𝕌
+
+// --------- ∥_∥-type ---------
+
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ A
+--------------------------
+Γ ⊦ [squash α] ⋆ ⇐ ∥A∥
+
+Γ ⊦ [γ] B ⇐ Ω
+Γ ⊦ [β] ⋆ ⇐ ∥A∥
+Γ ▷ A ⊦ [α] ⋆ ⇐ B[↑]
+-------------------------------------
+Γ ⊦ [unsquash γ α β] ⋆ ⇒ B
+
+// ----- Ω-type ------
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇐ 𝕌
+-------------------------
+Γ ⊦ [∥α∥] ∥A₀∥ ≐ ∥A₁∥ ⇐ Ω
+
+Γ ⊦ [τ] T₀ ≐ T₁ ⇐ 𝕌
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ T₁
+Γ ⊦ [β] b₀ ≐ b₁ ⇐ T₁
+---------------------------------------------------
+Γ ⊦ [α ≡ β ∈ τ] (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) ⇐ Ω
+
+Γ ⊦ t₀ ⇐ T      Γ ⊦ t₁ ⇐ T      T ≡β 𝟙, or T ≡β 𝟘, or Γ ⊦ T ⇐ Ω
+------------------------------------------------------------------ // el-one-prop / el-zero-prop / el-prf-prop
+Γ ⊦ [irrel t₀ t₁] t₀ ≐ t₁ ⇐ T
+
+Γ ⊦ [ρ] p ⇐ Ω      Γ ⊦ [θ] q ⇐ Ω      Γ ▷ p ⊦ [γ] s ⇐ q[↑]      Γ ▷ q ⊦ [ι] t ⇐ p[↑]
+------------------------------------------------------------------------------------ // code-prop-eq: propositional extensionality
+Γ ⊦ [propext ρ θ γ ι] p ≐ q ⇐ Ω
+
+// ------ modal ------
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇒ T'
+T ≡β T'
+-------------------------- // mode switch for element proofs
+Γ ⊦ [switch α] a₀ ≐ a₁ ⇐ T
+
+Γ ⊦ [β] A ≐ B ⇐ 𝕌
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ A
+--------------------------
+Γ ⊦ [conv α β] t₀ ≐ t₁ ⇐ B
+
+// ------- contextual -------
 
 Γ ⊦ [☐ᵢ] ☐ᵢ ≐ ☐ᵢ ⇒ Γ∥ᵢ
 
@@ -128,284 +214,21 @@ ē ⇐ (Γ ⇒ Δ norm)
 -------------------------------- // δ is always manual
 Γ ⊦ [x-δ ē] x[ē] ≐ t[ē] ⇒ T[ē]
 
-Γ ⊦ t ⇒ t₀ ≡ t₁ ∈ T
----------------------------
-Γ ⊦ [reflect t] t₀ ≐ t₁ ⇒ T
-
-Γ ⊦ [α] a₀ ≐ a₁ ⇒ T'
-T ≡β T'
------------------------ // mode switch for element proofs
-Γ ⊦ [α] a₀ ≐ a₁ ⇐ T
-
-Γ ⊦ [α] T₀ ≐ T₁ ⇒ U      U ≡β 𝕌  or  U ≡β Ω
----------------------------------------------- // code-lift-eq / prop-lift-eq, one rule: the
-Γ ⊦ [lift α] ⇒ T₀ ≐ T₁ type                    //   universe is READ, never guessed —
-                                               //   synthesised by α, or fixed by α's head
-                                               //   former when α is checking-only
-                                               //   (→ × ⊎ / at 𝕌; ∥·∥ ≡ at Ω)
-
-Γ ⊦ [α] A₀ ≐ A₁ ⇐ 𝕌
-Γ ▷ A₁ ⊦ [β] B₀ ≐ B₁ ⇐ 𝕌
------------------------------------- // derivable: restrict (lift α → lift β), see TYPE EQUATIONS
-Γ ⊦ [α → β] (A₀ → B₀) ≐ (A₁ → B₁) ⇐ 𝕌
+// ------------------
 
 Γ ⊦ [α] a₀ ≐ a₁ ⇐ T
-Γ ⊦ [β] a₁ ≐ a₂ ⇐ T
+Γ ⊦ [β] a₁' ≐ a₂ ⇐ T
+a₁ ≡β a₁'
 -----------------------
 Γ ⊦ [α ; β] a₀ ≐ a₂ ⇐ T
-
-Γ ⊦ [α] a₀ ≐ a₁ ⇒ T
-Γ ⊦ [β] a₁ ≐ a₂ ⇐ T
------------------------
-Γ ⊦ [α ; β] a₀ ≐ a₂ ⇒ T
-
-Γ ⊦ [α] a₀ ≐ a₁ ⇒ T
------------------------
-Γ ⊦ [α ⁻¹] a₁ ≐ a₀ ⇒ T
 
 Γ ⊦ [α] a₀ ≐ a₁ ⇐ T
 -----------------------
 Γ ⊦ [α ⁻¹] a₁ ≐ a₀ ⇐ T
 
-Γ ⊦ t ⇐ T
-----------------------
-Γ ⊦ [refl t] t ≐ t ⇐ T
-
-Γ ⊦ t ⇒ T
-----------------------
-Γ ⊦ [refl t] t ≐ t ⇒ T
-
-Γ ⊦ [α] t₀ ≐ t₁ ⇒ T
----------------------
-Γ ⊦ ⋆ α ⇒ t₀ ≡ t₁ ∈ T
-
-Γ ⊦ [α] t₀ ≐ t₁ ⇐ T
----------------------
-Γ ⊦ ⋆ α ⇐ t₀ ≡ t₁ ∈ T
-
-// ===== TYPE EQUATIONS =====
-// Forms: [α] ⇒ T₀ ≐ T₁ type synthesises both sides; [α] ⇐ T₀ ≐ T₁ type
-// takes both sides as inputs. Congruences are stated ONCE, at `type`;
-// the 𝕌-level congruences (e.g. [α → β] ⇐ 𝕌 above) are derivable
-// through lift and restrict. Constants (𝟘 𝟙 ℕ 𝕌 Ω) need no congruence:
-// refl.
-
-Γ ⊦ [α] ⇒ T₀' ≐ T₁' type
-T₀ ≡β T₀'      T₁ ≡β T₁'
-------------------------- // mode switch: sides compared modulo substitution and β
-Γ ⊦ [α] ⇐ T₀ ≐ T₁ type
-
-Γ ⊦ T type
--------------------------
-Γ ⊦ [refl T] ⇒ T ≐ T type
-
-T₀ ≡β T₁
-------------------------- // checking refl needs no argument: the sides are inputs
-Γ ⊦ [refl] ⇐ T₀ ≐ T₁ type
-
-Γ ⊦ [α] ⇒ T₀ ≐ T₁ type
--------------------------
-Γ ⊦ [α ⁻¹] ⇒ T₁ ≐ T₀ type
-
-Γ ⊦ [α] ⇐ T₁ ≐ T₀ type
--------------------------
-Γ ⊦ [α ⁻¹] ⇐ T₀ ≐ T₁ type
-
-Γ ⊦ [α] ⇒ T₀ ≐ T₁ type
-Γ ⊦ [β] ⇒ T₁ ≐ T₂ type
---------------------------- // the middle compared modulo substitution and β, as at elements
-Γ ⊦ [α ; β] ⇒ T₀ ≐ T₂ type
-
-Γ ⊦ [α] ⇒ T₀' ≐ T₁ type      T₀ ≡β T₀'
-Γ ⊦ [β] ⇐ T₁ ≐ T₂ type
---------------------------------------- // the first component supplies the middle
-Γ ⊦ [α ; β] ⇐ T₀ ≐ T₂ type
-
-Γ ⊦ [α] ⇒ T₀ ≐ T₁ type
-Γ ⊦ T₀ ⇐ 𝕌      Γ ⊦ T₁ ⇐ 𝕌
-------------------------------- // code-restrict: equal types that are codes are equal codes
-Γ ⊦ [restrict α] T₀ ≐ T₁ ⇐ 𝕌
-
-Γ ⊦ [α] ⇒ T₀ ≐ T₁ type
-Γ ⊦ T₀ ⇐ Ω      Γ ⊦ T₁ ⇐ Ω
-------------------------------- // the Ω instance (prop-restrict)
-Γ ⊦ [restrict α] T₀ ≐ T₁ ⇐ Ω
-
-// Congruences of the type formers, at `type`. A bound part is
-// compared over the RIGHT-hand domain of the binder, as in the
-// foundation's code-pi-cong (Γ ▷ a₁) and the 𝕌-level rule above; the
-// left side's body is at that domain by the domain equation.
-
-Γ ⊦ [α] ⇒ A₀ ≐ A₁ type
-Γ ▷ A₁ ⊦ [β] ⇒ B₀ ≐ B₁ type
------------------------------------------
-Γ ⊦ [α → β] ⇒ (A₀ → B₀) ≐ (A₁ → B₁) type
-
-Γ ⊦ [α] ⇒ A₀ ≐ A₁ type
-Γ ▷ A₁ ⊦ [β] ⇒ B₀ ≐ B₁ type
------------------------------------------
-Γ ⊦ [α × β] ⇒ (A₀ × B₀) ≐ (A₁ × B₁) type
-
-Γ ⊦ [α] ⇒ A₀ ≐ A₁ type
-Γ ⊦ [β] ⇒ B₀ ≐ B₁ type
------------------------------------------
-Γ ⊦ [α ⊎ β] ⇒ (A₀ ⊎ B₀) ≐ (A₁ ⊎ B₁) type
-
-Γ ⊦ [α] ⇒ A₀ ≐ A₁ type
-Γ ▷ A₁ ▷ A₁[↑] ⊦ [ρ] R₀ ≐ R₁ ⇐ Ω
------------------------------------------
-Γ ⊦ [α / ρ] ⇒ (A₀ / R₀) ≐ (A₁ / R₁) type
-
-// The PROP formers are elements of Ω: their congruences are element
-// equations at Ω, and lift takes them to `type`.
-
-Γ ⊦ [α] ⇒ A₀ ≐ A₁ type
----------------------------
-Γ ⊦ [∥α∥] ∥A₀∥ ≐ ∥A₁∥ ⇐ Ω
-
-Γ ⊦ [τ] ⇒ T₀ ≐ T₁ type
-Γ ⊦ [α] a₀ ≐ a₁ ⇐ T₀
-Γ ⊦ [β] b₀ ≐ b₁ ⇐ T₀
------------------------------------------------------ // a₁, b₁ are at T₀ through τ (conversion)
-Γ ⊦ [α ≡ β ∈ τ] (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) ⇐ Ω
-
-// There is NO equality prop between LARGE types: A ≡ B exists only at
-// A, B ⇐ 𝕌 (or Ω), as the instance a₀ ≡ a₁ ∈ 𝕌 of the element form.
-// Equality of large types is judgemental only — proved by proof terms,
-// never assumed by a hypothesis or reflected.
-
-// CONVERSION of an equation: the ascription is surface only — the
-// sides are core terms and carry nothing — so the equation-level
-// twin of (t : A by β) moves the TYPE and leaves the sides alone.
-
-Γ ⊦ [α] t₀ ≐ t₁ ⇐ A
-Γ ⊦ [β] ⇐ A ≐ B type
------------------------------
-Γ ⊦ [α : A by β] t₀ ≐ t₁ ⇐ B
-
-
-// ===== COVERAGE: the remaining formers (no QIIT, no ν) =====
-// Motives are SURFACE arguments of eliminators (as ℕ-elim A z s t) and
-// absent from the core. Proof forms reuse the term former's name with
-// proofs in the slots (CONVENTIONS); the leaves added here are
-// η→ η× irrel quot-eq propext squash-eq and the injectivity selectors.
-
-// --- Types and universes ---
-
-Γ ⊦ 𝟘 type    Γ ⊦ 𝟙 type    Γ ⊦ ℕ type    Γ ⊦ 𝕌 type    Γ ⊦ Ω type
-
-Γ ⊦ t ⇒ 𝕌                    Γ ⊦ t ⇒ Ω
----------- // code-lift        ---------- // prop-lift: a prop IS its type of proofs
-Γ ⊦ t type                   Γ ⊦ t type
-
-Γ ⊦ A type      Γ ▷ A ⊦ B type              Γ ⊦ A type      Γ ⊦ B type
-------------------------------              --------------------------
-Γ ⊦ A → B type                              Γ ⊦ A ⊎ B type
-Γ ⊦ A × B type
-
-Γ ⊦ A type      Γ ▷ A ▷ A[↑] ⊦ R ⇐ Ω
-------------------------------------
-Γ ⊦ A / R type
-
-Γ ⊦ A ⇐ 𝕌      Γ ▷ A ⊦ B ⇐ 𝕌               Γ ⊦ A ⇐ 𝕌      Γ ⊦ B ⇐ 𝕌
------------------------------ // codes     -------------------------
-Γ ⊦ A → B ⇒ 𝕌                              Γ ⊦ A ⊎ B ⇒ 𝕌
-Γ ⊦ A × B ⇒ 𝕌
-Γ ⊦ 𝟘 ⇒ 𝕌    Γ ⊦ 𝟙 ⇒ 𝕌    Γ ⊦ ℕ ⇒ 𝕌
-
-Γ ⊦ A ⇐ 𝕌      Γ ▷ A ▷ A[↑] ⊦ R ⇐ Ω
-------------------------------------
-Γ ⊦ A / R ⇒ 𝕌
-
-Γ ⊦ A type                   Γ ⊦ A type      Γ ⊦ a ⇐ A      Γ ⊦ b ⇐ A
------------- // props         ------------------------------------------ // any type A, large included
-Γ ⊦ ∥A∥ ⇒ Ω                  Γ ⊦ a ≡ b ∈ A ⇒ Ω
-
-// --- Elements ---
-
-Γ ⊦ () ⇒ 𝟙        Γ ⊦ Z ⇒ ℕ        Γ ⊦ t ⇐ ℕ ⟹ Γ ⊦ S t ⇒ ℕ
-
-Γ ⊦ t ⇐ 𝟘
------------------- // 𝟘-elim needs no motive: checking position
-Γ ⊦ 𝟘-elim t ⇐ A
-
-Γ ⊦ a ⇐ A      Γ ⊦ b ⇐ B[id, a]         Γ ⊦ p ⇒ A × B              Γ ⊦ p ⇒ A × B
---------------------------------         ---------------            -----------------------------
-Γ ⊦ (a, b) ⇐ A × B                       Γ ⊦ p .π₁ ⇒ A              Γ ⊦ p .π₂ ⇒ B[id, p .π₁]
-
-Γ ⊦ a ⇐ A                   Γ ⊦ b ⇐ B
---------------------         --------------------
-Γ ⊦ inj₁ a ⇐ A ⊎ B          Γ ⊦ inj₂ b ⇐ A ⊎ B
-
-Γ ⊦ t ⇒ A ⊎ B
-Γ ▷ A ⊎ B ⊦ C type
-Γ ▷ A ⊦ l ⇐ C[↑, inj₁ ☐₀]
-Γ ▷ B ⊦ r ⇐ C[↑, inj₂ ☐₀]
--------------------------------
-Γ ⊦ ⊎-elim C l r t ⇒ C[id, t]
-
-Γ ⊦ a ⇐ A
----------------------
-Γ ⊦ class a ⇐ A / R
-
-Γ ⊦ q ⇒ A / R
-Γ ▷ A / R ⊦ B type
-Γ ▷ A ⊦ f ⇐ B[↑, class ☐₀]
-Γ ▷ A ▷ A[↑] ▷ R ⊦ [ω] f[↑³, ☐₂] ≐ f[↑³, ☐₁] ⇐ B[↑³, class ☐₂]   // well-definedness, a PROOF argument
------------------------------------------------------------------
-Γ ⊦ quot-elim B f ω q ⇒ B[id, q]
-
-Γ ⊦ t ⇐ A
---------------- // el-squash-i: the witness is surface only, erased to ⋆
-Γ ⊦ ⋆ t ⇐ ∥A∥
-
-Γ ⊦ q ⇐ Ω      Γ ⊦ s ⇒ ∥A∥      Γ ▷ A ⊦ t ⇐ q[↑]
-------------------------------------------------- // el-squash-e-prf: into a PROP only
-Γ ⊦ squash-elim s t ⇐ q
-
-Γ ⊦ a ⇒ A
-Γ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b ⇒ B
------------------------------------- // el-let; ⇐ likewise with B given. A let is a redex:
-Γ ⊦ let a b ⇒ B[id, a, ⋆]           //   comparison contracts it (el-let-beta), no proof form
-
-(Δ ⊦ x ≔ t : T) ∈ Σ  or  (Δ ⊦ x : T) ∈ Σ
-ē ⇐ (Γ ⇒ Δ norm)
------------------------------------------- // a reference is STUCK: x-δ is the only unfolding
-Γ ⊦ x ē ⇒ T[ē]
-
-// --- Congruences (proofs are terms with proof leaves) ---
-
-Γ ⊦ [()] () ≐ () ⇐ 𝟙
-
-Γ ⊦ [α] t₀ ≐ t₁ ⇐ 𝟘
--------------------------------------
-Γ ⊦ [𝟘-elim α] 𝟘-elim t₀ ≐ 𝟘-elim t₁ ⇐ A
-
-Γ ⊦ [α] a₀ ≐ a₁ ⇐ A                        Γ ⊦ [β] b₀ ≐ b₁ ⇐ B
-------------------------------------        ------------------------------------
-Γ ⊦ [inj₁ α] inj₁ a₀ ≐ inj₁ a₁ ⇐ A ⊎ B     Γ ⊦ [inj₂ β] inj₂ b₀ ≐ inj₂ b₁ ⇐ A ⊎ B
-
-Γ ⊦ [τ] t₀ ≐ t₁ ⇒ A ⊎ B
-Γ ▷ A ⊎ B ⊦ C type
-Γ ▷ A ⊦ [λ] l₀ ≐ l₁ ⇐ C[↑, inj₁ ☐₀]
-Γ ▷ B ⊦ [ρ] r₀ ≐ r₁ ⇐ C[↑, inj₂ ☐₀]
-----------------------------------------------------------------
-Γ ⊦ [⊎-elim C λ ρ τ] ⊎-elim l₀ r₀ t₀ ≐ ⊎-elim l₁ r₁ t₁ ⇒ C[id, t₁]
-
-Γ ⊦ [α] a₀ ≐ a₁ ⇐ A
---------------------------------------
-Γ ⊦ [class α] class a₀ ≐ class a₁ ⇐ A / R
-
-Γ ⊦ [κ] q₀ ≐ q₁ ⇒ A / R
-Γ ▷ A / R ⊦ B type
-Γ ▷ A ⊦ [φ] f₀ ≐ f₁ ⇐ B[↑, class ☐₀]
-Γ ▷ A ▷ A[↑] ▷ R ⊦ [ω] f₁[↑³, ☐₂] ≐ f₁[↑³, ☐₁] ⇐ B[↑³, class ☐₂]   // f₀'s well-definedness follows through φ
-------------------------------------------------------------------------
-Γ ⊦ [quot-elim B φ ω κ] quot-elim f₀ q₀ ≐ quot-elim f₁ q₁ ⇒ B[id, q₁]
-
 Γ ⊦ [α] a₀ ≐ a₁ ⇒ A
 Γ ▷ A ▷ (☐₀ ≡ a₁[↑] ∈ A[↑]) ⊦ [β] b₀ ≐ b₁ ⇒ B
------------------------------------------------------
+--------------------------------------------------
 Γ ⊦ [let α β] let a₀ b₀ ≐ let a₁ b₁ ⇒ B[id, a₁, ⋆]
 
 // --- Leaves: η, irrelevance, quotients, props, injectivity ---
@@ -413,45 +236,11 @@ T₀ ≡β T₁
 //   ext(g₀, g₁, α) ≜ (η→ g₀)⁻¹ ; λ α ; η→ g₁     for Γ ▷ A ⊦ [α] g₀[↑] ☐₀ ≐ g₁[↑] ☐₀ ⇐ B
 //   likewise at pairs through η× and [α, β].
 
-Γ ⊦ g ⇒ A → B                                   Γ ⊦ p ⇒ A × B
---------------------------------------- // el-pi-eta  ---------------------------------- // el-sigma-eta
-Γ ⊦ [η→ g] λ (g[↑] ☐₀) ≐ g ⇒ A → B              Γ ⊦ [η× p] (p .π₁, p .π₂) ≐ p ⇒ A × B
-
-Γ ⊦ t₀ ⇐ T      Γ ⊦ t₁ ⇐ T      T ≡β 𝟙, or T ≡β 𝟘, or Γ ⊦ T ⇐ Ω
------------------------------------------------------------------- // el-one-prop / el-zero-prop / el-prf-prop
-Γ ⊦ [irrel t₀ t₁] t₀ ≐ t₁ ⇐ T
-
-Γ ⊦ a ⇐ A      Γ ⊦ b ⇐ A      Γ ⊦ r ⇐ R[id, a, b]
--------------------------------------------------- // el-quot-eq: related representatives, equal classes
-Γ ⊦ [quot-eq a b r] class a ≐ class b ⇐ A / R
-
-Γ ⊦ p ⇐ Ω      Γ ⊦ q ⇐ Ω      Γ ▷ p ⊦ s ⇐ q[↑]      Γ ▷ q ⊦ t ⇐ p[↑]
----------------------------------------------------------------------- // code-prop-eq: propositional extensionality
-Γ ⊦ [propext p q s t] p ≐ q ⇐ Ω
-
-Γ ⊦ s ⇒ ∥A∥      Γ ▷ A ⊦ [α] b₀[↑] ≐ b₁[↑] ⇐ B[↑]
--------------------------------------------------- // el-squash-e-eq: a squashed hypothesis may prove an equation
-Γ ⊦ [squash-eq s b₀ b₁ α] b₀ ≐ b₁ ⇐ B
-
 // Uniqueness of ℕ-elim, ⊎-elim and quot-elim (el-nat-eta, el-sum-eta,
 // el-quot-eta) gets NO leaf: it is proved by elimination into the
 // equality type and reflected, as the corpus does today.
 
-// Injectivity SELECTORS, on synthesising proofs at 𝕌 (code-*-inj) and
-// at ℕ / ⊎ (the successor and injection components). None at Ω, ∥·∥
-// or ≡: props are anti-structural.
-
-Γ ⊦ [α] (A₀ → B₀) ≐ (A₁ → B₁) ⇒ 𝕌          Γ ⊦ [α] (A₀ → B₀) ≐ (A₁ → B₁) ⇒ 𝕌
-------------------------------------          ------------------------------------
-Γ ⊦ [dom α] A₀ ≐ A₁ ⇒ 𝕌                      Γ ▷ A₁ ⊦ [cod α] B₀ ≐ B₁ ⇒ 𝕌
-                                              // likewise dom / cod at ×; inl / inr at ⊎; dom / rel at /
-                                              //   (rel under Γ ▷ A₁ ▷ A₁[↑], at Ω)
-
-Γ ⊦ [α] S t₀ ≐ S t₁ ⇒ ℕ                     Γ ⊦ [α] inj₁ a₀ ≐ inj₁ a₁ ⇒ A ⊎ B
---------------------------                    ------------------------------------ // and inj₂
-Γ ⊦ [S⁻¹ α] t₀ ≐ t₁ ⇒ ℕ                      Γ ⊦ [inj₁⁻¹ α] a₀ ≐ a₁ ⇒ A
-
-// ===== COVERAGE: polynomials and ν =====
+// ======= polynomials and ν ======
 // The polynomial 𝔽 is CARRIED by the core (ν 𝔽, corec 𝔽 f x): β reads
 // it (el-nu-beta consumes map_𝔽). The carrier code a is read by
 // typing only, so it is SURFACE — the binder annotation of the
@@ -461,42 +250,6 @@ T₀ ≡β T₁
 // computed by the checker; "modulo β" everywhere includes el-nu-beta
 // (out of a corec runs the coalgebra one step), as it includes the
 // ι-rules and let-β.
-
-// polynomial (surface = core; embedded a are codes)
-𝔽, 𝔾 ::= 𝕏 | K a | 𝔽 × 𝔾 | 𝔽 ⊎ 𝔾 | a × 𝔽 | a → 𝔽      // the last two bind a Nova variable
-
-Γ ⊦ 𝔽 poly                    // Given core context Γ, check surface polynomial 𝔽 (elaborating it)
-Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly          // polynomial equation proof, synthesising both sides
-
-Γ ⊦ 𝕏 poly
-
-Γ ⊦ a ⇐ 𝕌                     Γ ⊦ 𝔽 poly      Γ ⊦ 𝔾 poly
-------------                  --------------------------
-Γ ⊦ K a poly                  Γ ⊦ 𝔽 × 𝔾 poly
-                              Γ ⊦ 𝔽 ⊎ 𝔾 poly
-
-Γ ⊦ a ⇐ 𝕌      Γ ▷ a ⊦ 𝔽 poly
-------------------------------
-Γ ⊦ a × 𝔽 poly
-Γ ⊦ a → 𝔽 poly
-
-// --- Types and elements ---
-
-Γ ⊦ 𝔽 poly                    // every polynomial names a SMALL type: ν 𝔽 is a code,
---------------                //   whence a type by code-lift
-Γ ⊦ ν 𝔽 ⇒ 𝕌
-
-Γ ⊦ t ⇒ ν 𝔽
------------------------ // el-nu-e: the observation, the only elimination
-Γ ⊦ out t ⇒ ⌊𝔽⌋(ν 𝔽)
-
-Γ ⊦ 𝔽 poly      Γ ⊦ a ⇐ 𝕌
-Γ ▷ a ⊦ f ⇐ ⌊𝔽⌋(a)[↑]
-Γ ⊦ x ⇐ a
-------------------------------- // el-nu-i; the core term is corec 𝔽 f x
-Γ ⊦ corec 𝔽 (s : a. f) x ⇒ ν 𝔽
-
-// --- Congruences ---
 
 Γ ⊦ [𝕏] 𝕏 ≐ 𝕏 poly
 
@@ -518,7 +271,7 @@ T₀ ≡β T₁
 Γ ▷ a ⊦ [φ] f₀ ≐ f₁ ⇐ ⌊𝔽⌋(a)[↑]
 Γ ⊦ [χ] x₀ ≐ x₁ ⇐ a
 -------------------------------------------------------------------- // same 𝔽: a corec at an equal
-Γ ⊦ [corec 𝔽 (s : a. φ) χ] corec 𝔽 f₀ x₀ ≐ corec 𝔽 f₁ x₁ ⇒ ν 𝔽        //   polynomial goes through ν φ
+Γ ⊦ [corec 𝔽 (s : a. φ) χ] corec 𝔽 f₀ x₀ ≐ corec 𝔽 f₁ x₁ ⇒ ν 𝔽       //   polynomial goes through ν φ
                                                                      //   and conversion of the equation
 
 // --- Leaves: uniqueness and coinduction ---
@@ -537,11 +290,8 @@ T₀ ≡β T₁
 Γ ⊦ p ⇐ R[id, t₀, t₁]
 Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ▷ R ⊦ q ⇐ lift_𝔽(R) (out ☐₂) (out ☐₁)
 ------------------------------------------------------------ // el-nu-coind: bisimulation implies
-Γ ⊦ [coind t₀ t₁ (x y. R) p (x y h. q)] t₀ ≐ t₁ ⇐ ν 𝔽          //   equality; admissible from ην,
+Γ ⊦ [coind t₀ t₁ (x y. R) p (x y h. q)] t₀ ≐ t₁ ⇐ ν 𝔽        //   equality; admissible from ην,
                                                              //   kept as the leaf the corpus writes
-// The endpoints t₀ t₁ are NAMED in the leaf because element proofs
-// synthesise their sides; in a checked position (⋆ (coind …) ⇐ t₀ ≡ t₁)
-// the front end may fill them from the expected type.
 
 // ===== COVERAGE: QIITs =====
 // A signature 𝒮 is CARRIED by the core (𝒮.𝕤 ē, 𝒮.𝕔 θ, 𝒮.𝕤-elim m̄ ē w):
@@ -651,3 +401,7 @@ for each equation 𝕔:              the coherence ω_𝕔 of m̄₁ (m̄₀'s f
 // the one exception): the corpus proves it by elimination into the
 // equality type and reflection. No constructor injectivity: equation
 // entries make constructors non-injective in general (quotients).
+
+Γ ⊦ [𝕌] 𝕌 ≐ 𝕌 ⇒ 𝕌 // TODO:
+
+Γ ⊦ [Ω] Ω ≐ Ω ⇒ ? // TODO:
