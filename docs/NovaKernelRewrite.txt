@@ -470,7 +470,9 @@ X[ē]                     // X over Γ · Δ instantiated by the spine: X[(id, �
 // a further spine.
 
 // --- The displayed reading _ᴰ: motives, methods, coherences as one telescope ---
-// Over the algebra context, for target sorts Ū (one per sort of 𝒮), a
+// Over the algebra context, for target sorts Ū (one per sort of 𝒮 —
+// the sort the sort's motive lands in; the foundation's target levels
+// ℓ̄′, with Ω reached by cumulativity), a
 // ToS type 𝔄 with algebra value x : ⟦𝔄⟧ has the displayed type 𝔄ᴰ x, and
 // a ToS term 𝕥 : 𝔄 has the displayed term 𝕥ᴰ : 𝔄ᴰ ⟦𝕥⟧ — Nova types and
 // terms over Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ, the displayed variable ☐ᵢᴰ of ⬡ᵢ bound in
@@ -483,11 +485,17 @@ Uᴰ X                = X → U_𝕤                           // a MOTIVE over 
                                                         //   for an indexed sort (𝔎 = D̄ ⇛ U) the motive is under the arity: Π ⟦𝔎⟧ᵗ. X d̄ → U_𝕤
 (El 𝕥)ᴰ x           = 𝕥ᴰ x                              // a METHOD: the displayed term of the entry's code, at x
 (A ⇛ 𝔄)ᴰ f          = Π (a : A[↑…]). 𝔄ᴰ (f a)            // external argument: passed through
-(El 𝕦 ⇛ 𝔄)ᴰ f       = Π (x : ⟦𝕦⟧) (xᴰ : 𝕦ᴰ x). 𝔄ᴰ (f x)  // internal (recursive) argument: passed with its image
+(El (𝕤 ī) ⇛ 𝔄)ᴰ f   = Π (x : ⟦𝕤 ī⟧) (xᴰ : (𝕤 ī)ᴰ x). 𝔄ᴰ (f x)  // internal argument at a SORT: passed with its
+                                                             //   image (the induction hypothesis)
+(El (l ≡ r) ⇛ 𝔄)ᴰ f = Π (x : ⟦l ≡ r⟧). 𝔄ᴰ (f x)             // internal argument at an EQUATION code: a proof,
+                                                             //   content-free — no displayed slot (its image
+                                                             //   would be a proposition that always holds, by
+                                                             //   reflection of x and congruence)
 
 ⬡ᵢᴰ                 = ☐ᵢᴰ
 (𝕥 t)ᴰ              = 𝕥ᴰ t[↑…]
-(𝕥 𝕥′)ᴰ             = 𝕥ᴰ ⟦𝕥′⟧ 𝕥′ᴰ
+(𝕥 𝕥′)ᴰ             = 𝕥ᴰ ⟦𝕥′⟧ 𝕥′ᴰ                        // 𝕥′ at a sort code: value and image
+(𝕥 𝕡)ᴰ              = 𝕥ᴰ ⟦𝕡⟧                             // 𝕡 at an equation code: value only
 (λ 𝕥)ᴰ              = λ a. 𝕥ᴰ[ξ]
 (𝕥 ≡ 𝕥′)ᴰ p         = (𝕥ᴰ ≡ 𝕥′ᴰ ∈ 𝕦ᴰ ⟦𝕥′⟧)             // a COHERENCE: by reflection of p, ⟦𝕥⟧ ≐ ⟦𝕥′⟧, so both
                                                         //   displayed sides sit at one type; a proposition
@@ -521,8 +529,9 @@ d̄ ⇐ (Γ ⇒ ⟦𝒮⟧ᴰ[ι])                                   // motives,
 // where θᴰ : (Γ ⇒ ⟦𝔄⟧ᵗᴰ[ι, d̄]) is the DISPLAYED SPINE of θ: entrywise,
 // an external argument a ↦ a, an internal argument x : 𝒮.𝕤′ ī′ ↦ x,
 // 𝒮.𝕤′-elim m̄ ī′ x (the eliminator itself at the recursive position:
-// the section φᵉˡ). Equation constructors have no β: their content is
-// the path leaf below.
+// the section φᵉˡ), an internal argument at an equation code ↦ x
+// alone. Equation constructors have no β: their content is the path
+// leaf below.
 
 // --- Leaves and congruences ---
 
