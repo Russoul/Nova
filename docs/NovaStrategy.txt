@@ -8,8 +8,8 @@ that realises it: three roles, AUTHOR, ENGINE and KERNEL, each with
 one job and a precise criterion for what it must never do. The other
 specs say how each piece works (docs/NovaFoundation.txt the theory,
 docs/NovaKernel.txt the reader, docs/NovaElaboration.txt the
-elaborator, docs/NovaPipeline.txt the trust story, docs/NovaSketch.txt
-the proof surface); this one says what each piece IS, so that the
+elaborator, docs/NovaPipeline.txt the trust story); this one says
+what each piece IS, so that the
 division survives the work on the pieces. The last section is the
 AUDIT: a mechanical check (check-roles.sh) and a checklist of
 judgement questions, to be run from time to time against the tree.
@@ -51,7 +51,7 @@ of local claims, each a statement with a justification, plus
 induction and case statements that name their motive and their
 hypotheses; the bodies of justifications are bare; every choice that
 needs thought is in the text; and the reader builds the derivation
-from the text with no reconstruction. That is docs/NovaSketch.txt.
+from the text with no reconstruction.
 
 The measure of progress is a single question: WHEN A FILE IS
 ACCEPTED, WHAT HAD TO BE RECONSTRUCTED THAT THE AUTHOR KNEW? Every
@@ -193,9 +193,9 @@ well-definedness claim — and the engine's discharge is the stated
 tier alone: computation, the licensed unfoldings, the type-directed
 closings, the congruence descent and the closure over the facts in
 scope. No Σ-lemma is placed by matching; there is no candidate store,
-no depth, no rewrite licence, no search mode (check E3). What remains
-of the sketch design (docs/NovaSketch.txt) is surface: `have`/`view`
-forms over today's `let` claims and eliminator motives.
+no depth, no rewrite licence, no search mode (check E3). The surface
+forms are `p by f₁, …, fₙ` and `let` for the facts, the witness slot
+of the quotient eliminator, and eliminator motives.
 
 Smaller digressions, recorded so the audit can see them:
 
@@ -560,5 +560,4 @@ that with statements in the text, measured site by site.
   docs/NovaElaboration.txt  the engine's surface and elaborator
   docs/NovaPipeline.txt     the trust boundary and the artifact
   docs/NovaPerfectSurface.txt  the printer's round trip (statement fidelity)
-  docs/NovaSketch.txt       the author's proof surface (the goal's form)
   this file                 the roles, and the audit that keeps them
