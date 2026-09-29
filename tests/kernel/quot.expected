@@ -1,0 +1,9 @@
+accepted Q : 𝕌0 := ℕ / (.. ∥𝟙∥)
+accepted const (q : Q) : ℕ := quot-elim (. Z) ☐0
+rejected rep (line 10): quot-elim: the well-definedness proof's right side and f do not agree
+accepted q-prop (q : Q) : ∥𝟙∥ := quot-elim (. ⋆) ☐0
+rejected stuck (line 20): quot-elim: the scrutinee's type is not a quotient
+accepted same : class Z ≡ class (S Z) ∈ (ℕ / (.. ∥𝟙∥)) := ⋆
+accepted same-at-Q : class Z ≡ class (S Z) ∈ Q := ⋆
+rejected class-at-Q (line 31): class: the type is not a quotient
+exit 1

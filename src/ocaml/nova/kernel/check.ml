@@ -19,7 +19,7 @@ let whnf st t = Beta.whnf st.fuel t
 let conv st t u = t = u || Beta.conv st.fuel t u
 
 let need_conv st what t u =
-  if not (conv st t u) then reject "%s: the sides do not agree" what
+  if not (conv st t u) then reject "%s do not agree" what
 
 (* Γ∥ᵢ, brought over Γ *)
 let lookup (ctx : ctx) i =
@@ -54,11 +54,11 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
   (* ------ Σ ------ *)
   | P.Fst a ->
       let p0, p1, t = infer st ctx a in
-      let dom, _ = as_sigma st t in
+      let dom, _ = as_sigma st ".π₁" t in
       (Fst p0, Fst p1, dom)
   | P.Snd a ->
       let p0, p1, t = infer st ctx a in
-      let _, cod = as_sigma st t in
+      let _, cod = as_sigma st ".π₂" t in
       (Snd p0, Snd p1, Subst.apply (Subst.single (Fst p1)) cod)
   | P.Sigma (a, b) ->
       let a0, a1, u = infer_sort st ctx a in
@@ -110,8 +110,10 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
       in
       let side i = Subst.apply { Subst.under = [ Var i ]; shift = 3 } f1 in
       let w0, w1 = check st ctx_wd ty_wd omega in
-      need_conv st "quot-elim: well-definedness, left side" w0 (side 2);
-      need_conv st "quot-elim: well-definedness, right side" w1 (side 1);
+      need_conv st "quot-elim: the well-definedness proof's left side and f" w0
+        (side 2);
+      need_conv st "quot-elim: the well-definedness proof's right side and f" w1
+        (side 1);
       (QuotElim (f0, q0), QuotElim (f1, q1), Subst.apply (Subst.single q1) b1)
   (* ------ 𝟘, 𝟙, ℕ ------ *)
   | P.Zero -> (Zero, Zero, Sort (U 0))
@@ -174,7 +176,7 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
   (* ------ modal ------ *)
   | P.Annot (a, ty) ->
       let ty0, ty1, _ = infer_sort st ctx ty in
-      need_conv st "annotation: the type" ty0 ty1;
+      need_conv st "the annotation type's sides" ty0 ty1;
       let t0, t1 = check st ctx ty1 a in
       (t0, t1, ty1)
   (* ------ contextual ------ *)
@@ -223,26 +225,26 @@ and check st (ctx : ctx) (ty : tm) (p : P.t) : tm * tm =
       (Lam f0, Lam f1)
   (* ------ Σ ------ *)
   | P.Pair (a, b) ->
-      let dom, cod = as_sigma st ty in
+      let dom, cod = as_sigma st "pair" ty in
       let a0, a1 = check st ctx dom a in
       let b0, b1 = check st ctx (Subst.apply (Subst.single a1) cod) b in
       (Pair (a0, b0), Pair (a1, b1))
   (* ------ ⊎ ------ *)
   | P.Inl a ->
-      let dom, _ = as_sum st ty in
+      let dom, _ = as_sum st "inj₁" ty in
       let a0, a1 = check st ctx dom a in
       (Inl a0, Inl a1)
   | P.Inr b ->
-      let _, dom = as_sum st ty in
+      let _, dom = as_sum st "inj₂" ty in
       let b0, b1 = check st ctx dom b in
       (Inr b0, Inr b1)
   (* ------ quotients ------ *)
   | P.Class a ->
-      let carrier, _ = as_quot st ty in
+      let carrier, _ = as_quot st "class" ty in
       let a0, a1 = check st ctx carrier a in
       (Class a0, Class a1)
   | P.QuotEq (a, b, rho) ->
-      let carrier, rel = as_quot st ty in
+      let carrier, rel = as_quot st "quot-eq" ty in
       let a1 = check1 st ctx carrier a in
       let b1 = check1 st ctx carrier b in
       ignore (check st ctx (Subst.apply (Subst.inst [ b1; a1 ]) rel) rho);
@@ -282,7 +284,7 @@ and check st (ctx : ctx) (ty : tm) (p : P.t) : tm * tm =
   (* ------ modal ------ *)
   | P.Switch a ->
       let t0, t1, t = infer st ctx a in
-      need_conv st "switch: the types" ty t;
+      need_conv st "switch: the synthesised and the expected type" ty t;
       (t0, t1)
   | P.Lift a ->
       let target = as_sort st "lift: the target" ty in
@@ -297,29 +299,31 @@ and check st (ctx : ctx) (ty : tm) (p : P.t) : tm * tm =
       let source = as_sort st "restrict: the source" t in
       if not (sort_le target source) then
         reject "restrict: the target sort is not below the source";
-      need_conv st "restrict: the left witness" t0 (check1 st ctx ty g0);
-      need_conv st "restrict: the right witness" t1 (check1 st ctx ty g1);
+      need_conv st "restrict: the left witness and the left side" t0
+        (check1 st ctx ty g0);
+      need_conv st "restrict: the right witness and the right side" t1
+        (check1 st ctx ty g1);
       (t0, t1)
   | P.Conv (a, b) ->
       let from, into, _ = infer_sort st ctx b in
-      need_conv st "conv: the type" ty into;
+      need_conv st "conv: the target and the expected type" ty into;
       check st ctx from a
   (* ------ contextual ------ *)
   | P.Trans (a, b) ->
       let a0, a1 = check st ctx ty a in
       let b0, b1 = check st ctx ty b in
-      need_conv st "chain: the middles" a1 b0;
+      need_conv st "the chain's middles" a1 b0;
       (a0, b1)
   | P.Sym a ->
       let a0, a1 = check st ctx ty a in
       (a1, a0)
   (* ------ η ------ *)
   | P.EtaPi phi ->
-      ignore (as_pi st ty);
+      ignore (as_pi st "η→" ty);
       let f = check1 st ctx ty phi in
       (f, Lam (App (Subst.weaken 1 f, Var 0)))
   | P.EtaSigma pi ->
-      ignore (as_sigma st ty);
+      ignore (as_sigma st "η×" ty);
       let p = check1 st ctx ty pi in
       (p, Pair (Fst p, Snd p))
   (* ------ ν: the second iteration ------ *)
@@ -327,30 +331,38 @@ and check st (ctx : ctx) (ty : tm) (p : P.t) : tm * tm =
   (* ------ everything else synthesises ------ *)
   | _ ->
       let t0, t1, t = infer st ctx p in
-      need_conv st "the synthesised type" ty t;
+      need_conv st "the synthesised and the expected type" ty t;
       (t0, t1)
 
 (* One-sided forms: the sides must β-join, and the right one stands. *)
 and check1 st ctx ty p =
   let t0, t1 = check st ctx ty p in
-  need_conv st "a one-sided proof" t0 t1;
+  need_conv st "the sides of a one-sided proof" t0 t1;
   t1
 
 and infer_sort st ctx p =
   let t0, t1, t = infer st ctx p in
   (t0, t1, as_sort st "a type" t)
 
-and as_pi st t =
-  match whnf st t with Pi (a, b) -> (a, b) | _ -> reject "not a Π-type"
+and as_pi st what t =
+  match whnf st t with
+  | Pi (a, b) -> (a, b)
+  | _ -> reject "%s: the type is not a Π-type" what
 
-and as_sigma st t =
-  match whnf st t with Sigma (a, b) -> (a, b) | _ -> reject "not a Σ-type"
+and as_sigma st what t =
+  match whnf st t with
+  | Sigma (a, b) -> (a, b)
+  | _ -> reject "%s: the type is not a Σ-type" what
 
-and as_sum st t =
-  match whnf st t with Sum (a, b) -> (a, b) | _ -> reject "not a ⊎-type"
+and as_sum st what t =
+  match whnf st t with
+  | Sum (a, b) -> (a, b)
+  | _ -> reject "%s: the type is not a ⊎-type" what
 
-and as_quot st t =
-  match whnf st t with Quot (a, r) -> (a, r) | _ -> reject "not a quotient"
+and as_quot st what t =
+  match whnf st t with
+  | Quot (a, r) -> (a, r)
+  | _ -> reject "%s: the type is not a quotient" what
 
 (* Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ Δ: entrywise at the type instantiated by ē₁'s
    prefix. Telescopes and spines are snoc lists; the fold runs from
@@ -367,7 +379,7 @@ and spine st ctx (tele : tm list) (ps : P.t list) : tm list * tm list =
 
 and spine1 st ctx tele ps =
   let e0, e1 = spine st ctx tele ps in
-  List.iter2 (need_conv st "a one-sided spine") e0 e1;
+  List.iter2 (need_conv st "the sides of a one-sided spine entry") e0 e1;
   e1
 
 (* ------ the entry points ------ *)
@@ -378,7 +390,7 @@ let check_ctx st (ps : P.t list) : ctx =
   List.fold_left
     (fun ctx p ->
       let a0, a1, _ = infer_sort st ctx p in
-      need_conv st "a context entry" a0 a1;
+      need_conv st "the sides of a context entry" a0 a1;
       a1 :: ctx)
     [] (List.rev ps)
 
@@ -389,6 +401,6 @@ let check_item ~fuel (sg : Sig.t) ~(tele : P.t list) ~(ty : P.t)
   let st = { sg; fuel = Beta.fuel fuel } in
   let ctx = check_ctx st tele in
   let ty0, ty1, _ = infer_sort st ctx ty in
-  need_conv st "an item's type" ty0 ty1;
+  need_conv st "the sides of an item's type" ty0 ty1;
   let def = Option.map (fun p -> check1 st ctx ty1 p) def in
   { Sig.tele = ctx; ty = ty1; def }

@@ -1,0 +1,8 @@
+-- modes: what only checks must be annotated to synthesise
+
+app-lam : ℕ := switch ((λx. x) Z)
+app-lam-annot : ℕ := switch (((λx. x) : ℕ → ℕ) Z)
+bad-chain : Z ≡ Z ∈ ℕ := switch (refl ((Z ; S Z) : ℕ))
+eta : (f : ℕ → ℕ) → f ≡ (λx. f x) ∈ (ℕ → ℕ) := λf. switch (refl ((η→ f) : ℕ → ℕ))
+eta-pair : (p : ℕ × ℕ) → p ≡ (p .π₁, p .π₂) ∈ (ℕ × ℕ) := λp. switch (refl ((η× p) : ℕ × ℕ))
+unknown : ℕ := foo
