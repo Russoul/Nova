@@ -3,14 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-
-    # The Idris2 library pack.toml pins under [custom.all.*]. The
-    # compiler itself, and the `contrib` library that ships with it,
-    # come from nixpkgs.
-    just-a-parser = {
-      url = "github:Russoul/Just-a-Parser/bd6acd473ef0f3fcd1bdc5fba0032b96a7b9313b";
-      flake = false;
-    };
   };
 
   outputs =
@@ -28,14 +20,29 @@
       packages = forAllSystems (
         pkgs:
         let
-          novaPkgs = import ./nix/packages.nix { inherit pkgs inputs; };
+          novaPkgs = import ./nix/packages.nix { inherit pkgs; };
         in
         novaPkgs // { default = novaPkgs.nova; }
       );
 
-      checks = forAllSystems (pkgs: import ./nix/checks.nix { inherit pkgs inputs; });
+      apps = forAllSystems (
+        pkgs:
+        let
+          novaPkgs = import ./nix/packages.nix { inherit pkgs; };
+          nova = {
+            type = "app";
+            program = "${novaPkgs.nova}/bin/nova";
+          };
+        in
+        {
+          default = nova;
+          inherit nova;
+        }
+      );
 
-      devShells = forAllSystems (pkgs: import ./nix/shell.nix { inherit pkgs inputs; });
+      checks = forAllSystems (pkgs: import ./nix/checks.nix { inherit pkgs; });
+
+      devShells = forAllSystems (pkgs: import ./nix/shell.nix { inherit pkgs; });
 
       formatter = forAllSystems (pkgs: pkgs.nixfmt-tree);
     };

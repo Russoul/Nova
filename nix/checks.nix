@@ -1,16 +1,17 @@
 # The gates, as flake checks.
-{ pkgs, inputs }:
+{ pkgs }:
 
 let
   inherit (pkgs) lib;
   fs = lib.fileset;
+  novaPkgs = import ./packages.nix { inherit pkgs; };
 
   specs = fs.toSource {
     root = ../.;
     fileset = fs.unions [
       ../docs
       ../tools
-      (fs.fileFilter (f: f.hasExt "idr") ../src/idris)
+      ../src/ocaml
     ];
   };
 
@@ -36,7 +37,10 @@ let
 
 in
 {
-  # Rule-shaped citations in src/idris must all be defined by a spec,
+  # The executable builds.
+  nova = novaPkgs.nova;
+
+  # Rule-shaped citations in src/ocaml must all be defined by a spec,
   # and rule names must be unique.
   spec-rules = mkCheck "spec-rules" {
     src = specs;

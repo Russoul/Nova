@@ -19,7 +19,7 @@ Recognized structure:
 
 Modes:
   render (default)       write the HTML page (--out PATH)
-  --check                cross-check rule names against src/idris:
+  --check                cross-check rule names against src/ocaml:
                            - duplicate rule definitions in the specs
                            - rule-shaped tokens cited in Idris sources
                              that no spec defines (likely typos) — FATAL
@@ -652,9 +652,9 @@ def assemble(renderers, vocab, out_path):
 # ----- cross-check -------------------------------------------------------
 
 def crosscheck(rulemap, dups):
-    """Rules cited in src/idris vs rules defined in docs/."""
+    """Rules cited in src/ocaml vs rules defined in docs/."""
     src_text = ""
-    for p in sorted((ROOT / "src" / "idris").rglob("*.idr")):
+    for p in sorted(q for ext in ("*.ml", "*.mli", "*.mll", "*.mly") for q in (ROOT / "src" / "ocaml").rglob(ext)):
         src_text += p.read_text()
 
     ok = True
@@ -678,13 +678,13 @@ def crosscheck(rulemap, dups):
 
     if unknown:
         ok = False
-        print(f"\nUNKNOWN rule-shaped citations in src/idris ({len(unknown)}) — "
+        print(f"\nUNKNOWN rule-shaped citations in src/ocaml ({len(unknown)}) — "
               "typo or undocumented rule:")
         for t in sorted(unknown):
             print(f"  {t}")
 
     uncited = [n for n in rulemap if n not in cited]
-    print(f"\ncoverage: {len(cited)}/{len(rulemap)} spec rules cited in src/idris")
+    print(f"\ncoverage: {len(cited)}/{len(rulemap)} spec rules cited in src/ocaml")
     if uncited:
         print(f"uncited rules ({len(uncited)}) — informational:")
         for n in sorted(uncited):

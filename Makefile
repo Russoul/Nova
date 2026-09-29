@@ -1,7 +1,7 @@
 .PHONY: build dev ci clean
 
 build:
-	pack build nova.ipkg
+	dune build
 
 # The local dev loop: build, then the spec-rules check.
 dev: build
@@ -12,4 +12,4 @@ ci:
 	nix flake check
 
 clean:
-	rm -rf build
+	dune clean

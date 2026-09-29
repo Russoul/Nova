@@ -1,22 +1,5 @@
 {
   "nodes": {
-    "just-a-parser": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1788109665,
-        "narHash": "sha256-lzFEq5uRT/71CeAfuEU7LSUj4dDufZI4FxhYzwzGdmg=",
-        "owner": "Russoul",
-        "repo": "Just-a-Parser",
-        "rev": "bd6acd473ef0f3fcd1bdc5fba0032b96a7b9313b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "Russoul",
-        "repo": "Just-a-Parser",
-        "rev": "bd6acd473ef0f3fcd1bdc5fba0032b96a7b9313b",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1787498568,
@@ -35,7 +18,6 @@
     },
     "root": {
       "inputs": {
-        "just-a-parser": "just-a-parser",
         "nixpkgs": "nixpkgs"
       }
     }
