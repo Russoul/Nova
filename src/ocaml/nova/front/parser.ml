@@ -162,11 +162,10 @@ and app st env =
   loop head
 
 and is_form = function
-  | "refl" | "reflect" | "switch" | "lift" | "S" | "class" | "squash" | "inj₁"
-  | "inj1" | "inj₂" | "inj2" | "𝟘-elim" | "Void-elim" | "η→" | "eta->" | "η×"
-  | "eta*" | "conv" | "irrel" | "quot-eq" | "prop-irrel" | "restrict"
-  | "unsquash" | "propext" | "ℕ-elim" | "Nat-elim" | "⊎-elim" | "Sum-elim"
-  | "quot-elim" ->
+  | "refl" | "reflect" | "lift" | "S" | "class" | "squash" | "inj₁" | "inj1"
+  | "inj₂" | "inj2" | "𝟘-elim" | "Void-elim" | "η→" | "eta->" | "η×" | "eta*"
+  | "conv" | "irrel" | "quot-eq" | "prop-irrel" | "restrict" | "unsquash"
+  | "propext" | "ℕ-elim" | "Nat-elim" | "⊎-elim" | "Sum-elim" | "quot-elim" ->
       true
   | _ -> false
 
@@ -186,7 +185,6 @@ and form st env s : P.t =
   match s with
   | "refl" -> P.Refl (a ())
   | "reflect" -> P.Reflect (a ())
-  | "switch" -> P.Switch (a ())
   | "lift" -> P.Lift (a ())
   | "S" -> P.S (a ())
   | "class" -> P.Class (a ())

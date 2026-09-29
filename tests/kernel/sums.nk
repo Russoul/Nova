@@ -1,18 +1,18 @@
 -- ⊎: injections check, the eliminator names its sort and synthesises
 -- at the motive's instance; a type-valued elimination lands in 𝕌1
 
-isLeft (s : ℕ ⊎ 𝟙) : 𝕌0 := switch (⊎-elim 𝕌1 (_. 𝕌0) (a. 𝟙) (b. 𝟘) s)
-isLeft-inl : isLeft[inj₁ Z] ≡ 𝟙 ∈ 𝕌0 := switch (refl (switch (δ isLeft[inj₁ Z]) : 𝕌0))
-isLeft-inr : isLeft[inj₂ ()] ≡ 𝟘 ∈ 𝕌0 := switch (refl (switch (δ isLeft[inj₂ ()]) : 𝕌0))
+isLeft (s : ℕ ⊎ 𝟙) : 𝕌0 := ⊎-elim 𝕌1 (_. 𝕌0) (a. 𝟙) (b. 𝟘) s
+isLeft-inl : isLeft[inj₁ Z] ≡ 𝟙 ∈ 𝕌0 := refl ((δ isLeft[inj₁ Z]) : 𝕌0)
+isLeft-inr : isLeft[inj₂ ()] ≡ 𝟘 ∈ 𝕌0 := refl ((δ isLeft[inj₂ ()]) : 𝕌0)
 
 -- a scrutinee that only checks must be annotated
-elim-inj : ℕ := switch (⊎-elim 𝕌0 (_. ℕ) (a. a) (b. Z) (inj₁ (S Z)))
-elim-inj-annot : ℕ := switch (⊎-elim 𝕌0 (_. ℕ) (a. a) (b. Z) ((inj₁ (S Z)) : ℕ ⊎ 𝟙))
+elim-inj : ℕ := ⊎-elim 𝕌0 (_. ℕ) (a. a) (b. Z) (inj₁ (S Z))
+elim-inj-annot : ℕ := ⊎-elim 𝕌0 (_. ℕ) (a. a) (b. Z) ((inj₁ (S Z)) : ℕ ⊎ 𝟙)
 
 -- a proof by cases lands in Ω; the motive may depend on the scrutinee
-cases (s : ℕ ⊎ 𝟙) : ∥𝟙∥ := switch (⊎-elim Ω (_. ∥𝟙∥) (a. squash ()) (b. squash ()) s)
+cases (s : ℕ ⊎ 𝟙) : ∥𝟙∥ := ⊎-elim Ω (_. ∥𝟙∥) (a. squash ()) (b. squash ()) s
 dep-cases (s : ℕ ⊎ 𝟙) : s ≡ s ∈ (ℕ ⊎ 𝟙) :=
-  switch (⊎-elim Ω (t. t ≡ t ∈ (ℕ ⊎ 𝟙)) (a. refl (inj₁ a : ℕ ⊎ 𝟙)) (b. refl (inj₂ b : ℕ ⊎ 𝟙)) s)
+  ⊎-elim Ω (t. t ≡ t ∈ (ℕ ⊎ 𝟙)) (a. refl (inj₁ a : ℕ ⊎ 𝟙)) (b. refl (inj₂ b : ℕ ⊎ 𝟙)) s
 
 -- 𝟘 eliminates into a type as well as into an element
 absurd-ty (e : 𝟘) : 𝕌0 := 𝟘-elim e

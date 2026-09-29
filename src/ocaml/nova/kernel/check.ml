@@ -235,9 +235,9 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
       reject "QIIT: not implemented in this iteration"
   (* ------ forms that only check ------ *)
   | P.Lam _ | P.Pair _ | P.Inl _ | P.Inr _ | P.Class _ | P.QuotEq _
-  | P.ZeroElim _ | P.Unit | P.Z | P.S _ | P.Squash _ | P.Irrel _ | P.Switch _
-  | P.Lift _ | P.Restrict _ | P.Conv _ | P.Trans _ | P.Sym _ | P.EtaPi _
-  | P.EtaSigma _ | P.Coind _ ->
+  | P.ZeroElim _ | P.Unit | P.Z | P.S _ | P.Squash _ | P.Irrel _ | P.Lift _
+  | P.Restrict _ | P.Conv _ | P.Trans _ | P.Sym _ | P.EtaPi _ | P.EtaSigma _
+  | P.Coind _ ->
       reject "this proof only checks; annotate it to synthesise"
 
 and check st (ctx : ctx) (ty : tm) (p : P.t) : tm * tm =
@@ -310,10 +310,6 @@ and check st (ctx : ctx) (ty : tm) (p : P.t) : tm * tm =
       let b1 = check1 st ctx ty b in
       (a1, b1)
   (* ------ modal ------ *)
-  | P.Switch a ->
-      let t0, t1, t = infer st ctx a in
-      need_conv st "switch: the synthesised and the expected type" ty t;
-      (t0, t1)
   | P.Lift a ->
       let target = as_sort st "lift: the target" ty in
       let t0, t1, t = infer st ctx a in
@@ -360,7 +356,7 @@ and check st (ctx : ctx) (ty : tm) (p : P.t) : tm * tm =
       (p, Pair (Fst p, Snd p))
   (* ------ ν: the second iteration ------ *)
   | P.Coind _ -> reject "ν: not implemented in this iteration"
-  (* ------ everything else synthesises ------ *)
+  (* ------ THE SILENT SWITCH: everything else synthesises ------ *)
   | _ ->
       let t0, t1, t = infer st ctx p in
       need_conv st "the synthesised and the expected type" ty t;

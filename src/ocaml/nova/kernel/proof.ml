@@ -50,7 +50,6 @@ type t =
   | PropIrrel of t * t * t (* prop-irrel γ α β *)
   | Propext of t * t * t * t (* propext ρ θ γ ι *)
   (* modal *)
-  | Switch of t
   | Lift of t
   | Restrict of t * t * t (* restrict γ₀ γ₁ α *)
   | Conv of t * t (* conv α β *)

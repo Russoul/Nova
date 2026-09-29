@@ -90,7 +90,7 @@
 ----------------------------------------- // a definition: the producer hands over a PROOF α at T; its
 Σ ⊢ (Δ ⊦ x ≔ t : T) item                  //   right side is the definiens the kernel records (a plain
                                           //   term is its own proof; a lemma is a definition of ⋆ at an
-                                          //   equation type, its proof ending in switch (refl …))
+                                          //   equation type, its proof a refl …)
 
 
 // ------ Π-type -------
@@ -248,7 +248,7 @@ U a sort
 
 // ----- Ω-type ------
 // The prop formers SYNTHESISE Ω whatever the sort of their parts (so the
-// impredicative → rule sees them); ⇐ Ω follows by switch.
+// impredicative → rule sees them); ⇐ Ω follows by the silent switch.
 
 Γ ⊦ [α] A₀ ≐ A₁ ⇒ U
 -------------------------
@@ -266,7 +266,7 @@ U a sort
 
 Γ ⊦ [γ] T ⇐ Ω      Γ ⊦ [α] a ⇐ T      Γ ⊦ [β] b ⇐ T
 ----------------------------------------------------- // el-prf-prop: γ carries the proposition, so the rule
-Γ ⊦ [prop-irrel γ α β] a ≐ b ⇒ T                      //   SYNTHESISES it; ⇐ follows by switch. Propositionhood
+Γ ⊦ [prop-irrel γ α β] a ≐ b ⇒ T                      //   SYNTHESISES it; ⇐ follows silently. Propositionhood
                                                       //   is witnessed, never read off a core type
 
 Γ ⊦ [ρ] p ⇐ Ω      Γ ⊦ [θ] q ⇐ Ω      Γ ▷ p ⊦ [γ] s ⇐ q[↑]      Γ ▷ q ⊦ [ι] t ⇐ p[↑]
@@ -277,8 +277,13 @@ U a sort
 
 Γ ⊦ [α] a₀ ≐ a₁ ⇒ T'
 T ≡β T'
--------------------------- // mode switch for element proofs
-Γ ⊦ [switch α] a₀ ≐ a₁ ⇐ T
+-------------------------- // THE SILENT SWITCH, for every α that synthesises: not a leaf but
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ T        //   the reader's convention. Every proof form belongs to ONE mode,
+                           //   so a synthesising form in checking position is read in its own
+                           //   mode and its type compared with the expected one; this is what
+                           //   makes Γ ⊦ t ⇐ T meaningful for a synthesising t. The switches
+                           //   that change something stay explicit: lift (the sort) and the
+                           //   annotation (⇐ to ⇒, the type)
 
 Γ ⊦ [α] a₀ ≐ a₁ ⇒ U
 U ≤ U′

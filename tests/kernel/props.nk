@@ -1,15 +1,15 @@
 -- propositions: squash, irrelevance, extensionality, let, 𝟘
 
-unsq (h : ∥ℕ∥) : ∥ℕ∥ := switch (unsquash ∥ℕ∥ (n. squash n) h)
+unsq (h : ∥ℕ∥) : ∥ℕ∥ := unsquash ∥ℕ∥ (n. squash n) h
 
-unit-irrel (a : 𝟙) (b : 𝟙) : a ≡ b ∈ 𝟙 := switch (refl ((irrel a b) : 𝟙))
+unit-irrel (a : 𝟙) (b : 𝟙) : a ≡ b ∈ 𝟙 := refl ((irrel a b) : 𝟙)
 
 pe (p : Ω) (q : Ω) (f : p → q) (g : q → p) : p ≡ q ∈ Ω :=
-  switch (refl (propext p q (x. f x) (y. g y)))
+  refl (propext p q (x. f x) (y. g y))
 
-let-hyp : ℕ := switch (let x h := (S Z : ℕ) in reflect h)
+let-hyp : ℕ := (let x h := (S Z : ℕ) in reflect h)
 
 absurd (e : 𝟘) : Z ≡ S Z ∈ ℕ := 𝟘-elim e
 
 -- a proof of a proposition is any of its elements: a hypothesis serves
-hyp-serves (p : Ω) (h : p) (k : p) : h ≡ k ∈ p := switch (refl (prop-irrel p h k))
+hyp-serves (p : Ω) (h : p) (k : p) : h ≡ k ∈ p := refl (prop-irrel p h k)

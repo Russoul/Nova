@@ -79,9 +79,7 @@ let () =
   (* plus : ℕ → ℕ → ℕ ≔ λn m. ℕ-elim 𝕌₀ (_. ℕ) n (k ih. S ih) m — ℕ-elim
      synthesises, so the body switches *)
   let plus_body =
-    P.Lam
-      (P.Lam
-         (P.Switch (P.NatElim (U 0, P.Nat, P.Var 1, P.S (P.Var 0), P.Var 0))))
+    P.Lam (P.Lam (P.NatElim (U 0, P.Nat, P.Var 1, P.S (P.Var 0), P.Var 0)))
   in
   let plus = item "plus" (P.Pi (P.Nat, P.Pi (P.Nat, P.Nat))) (Some plus_body) in
   check "plus accepted" (Option.is_some plus.def);
@@ -89,7 +87,7 @@ let () =
      leaf then β *)
   let two =
     item "two" P.Nat
-      (Some (P.Switch (P.App (P.App (P.Item ("plus", []), P.S P.Z), P.S P.Z))))
+      (Some (P.App (P.App (P.Item ("plus", []), P.S P.Z), P.S P.Z)))
   in
   check "two's definiens is the application"
     (two.def = Some (App (App (Item ("plus", []), S Z), S Z)));
@@ -97,28 +95,25 @@ let () =
     item "two-is-SSZ"
       (P.Eq (P.Item ("two", []), P.S (P.S P.Z), P.Nat))
       (Some
-         (P.Switch
-            (P.Refl
-               (P.Annot
-                  ( P.Trans
-                      ( P.Switch (P.Delta ("two", [])),
-                        P.Switch
-                          (P.App (P.App (P.Delta ("plus", []), P.S P.Z), P.S P.Z))
-                      ),
-                    P.Nat )))))
+         (P.Refl
+            (P.Annot
+               ( P.Trans
+                   ( P.Delta ("two", []),
+                     P.App (P.App (P.Delta ("plus", []), P.S P.Z), P.S P.Z) ),
+                 P.Nat ))))
   in
   check "two ≡ S (S Z) by δ then β" (lemma.def = Some Star);
   (* the same without the δ leaves: two is stuck against S (S Z) *)
   rejects "no δ without the leaf" (fun () ->
       item "bad"
         (P.Eq (P.Item ("two", []), P.S (P.S P.Z), P.Nat))
-        (Some (P.Switch (P.Refl (P.Annot (P.Item ("two", []), P.Nat))))));
+        (Some (P.Refl (P.Annot (P.Item ("two", []), P.Nat)))));
   (* a hypothesis reflected: (h : n ≡ Z ∈ ℕ) ⊦ S n ≡ S Z, via congruence *)
   let cong =
     item "S-cong"
       ~tele:[ P.Eq (P.Var 0, P.Z, P.Nat); P.Nat ]
       (P.Eq (P.S (P.Var 1), P.S P.Z, P.Nat))
-      (Some (P.Switch (P.Refl (P.Annot (P.S (P.Reflect (P.Var 0)), P.Nat)))))
+      (Some (P.Refl (P.Annot (P.S (P.Reflect (P.Var 0)), P.Nat))))
   in
   check "reflect + congruence"
     (cong.def = Some Star && List.length cong.tele = 2);
@@ -139,17 +134,15 @@ let () =
   ignore (item "omega1" (P.Sort (U 1)) (Some (P.Sort Omega)));
   (* a mode error: a λ as a head needs an annotation *)
   rejects "λ as a head" (fun () ->
-      item "app-lam" P.Nat (Some (P.Switch (P.App (P.Lam (P.Var 0), P.Z)))));
+      item "app-lam" P.Nat (Some (P.App (P.Lam (P.Var 0), P.Z))));
   ignore
     (item "app-lam-annot" P.Nat
-       (Some
-          (P.Switch
-             (P.App (P.Annot (P.Lam (P.Var 0), P.Pi (P.Nat, P.Nat)), P.Z)))));
+       (Some (P.App (P.Annot (P.Lam (P.Var 0), P.Pi (P.Nat, P.Nat)), P.Z))));
   (* a chain whose middles do not join *)
   rejects "chain middles" (fun () ->
       item "bad-chain"
         (P.Eq (P.Z, P.Z, P.Nat))
-        (Some (P.Switch (P.Refl (P.Annot (P.Trans (P.Z, P.S P.Z), P.Nat))))));
+        (Some (P.Refl (P.Annot (P.Trans (P.Z, P.S P.Z), P.Nat)))));
   (* quotient: ℕ / (x y. 𝟙) with quot-elim into ℕ at 𝕌₀ needs
      well-definedness; the constant function is well defined *)
   let q = item "Q" (P.Sort (U 0)) (Some (P.Quot (P.Nat, P.SquashTy P.One))) in
@@ -165,21 +158,20 @@ let () =
       ~tele:[ P.Item ("Q", []) ]
       P.Nat
       (Some
-         (P.Switch
-            (P.QuotElim
-               ( U 0,
-                 P.Nat,
-                 P.Z,
-                 (* ω: Z ≐ Z at ℕ over Γ ▷ ℕ ▷ ℕ ▷ ∥𝟙∥ *)
-                 P.Z,
-                 scrut ))))
+         (P.QuotElim
+            ( U 0,
+              P.Nat,
+              P.Z,
+              (* ω: Z ≐ Z at ℕ over Γ ▷ ℕ ▷ ℕ ▷ ∥𝟙∥ *)
+              P.Z,
+              scrut )))
   in
   check "quot-elim, constant" (const.def = Some (QuotElim (Z, Var 0)));
   rejects "quot-elim, not well defined" (fun () ->
       item "rep"
         ~tele:[ P.Item ("Q", []) ]
         P.Nat
-        (Some (P.Switch (P.QuotElim (U 0, P.Nat, P.Var 0, P.Var 2, scrut)))));
+        (Some (P.QuotElim (U 0, P.Nat, P.Var 0, P.Var 2, scrut))));
   (* at Ω the motive is a proposition and well-definedness closes by
      irrelevance: Q ⊦ ∥𝟙∥ by eliminating into Ω *)
   ignore
@@ -187,43 +179,36 @@ let () =
        ~tele:[ P.Item ("Q", []) ]
        (P.SquashTy P.One)
        (Some
-          (P.Switch
-             (P.QuotElim
-                ( Omega,
-                  P.SquashTy P.One,
-                  P.Squash P.Unit,
-                  P.Switch
-                    (P.PropIrrel
-                       (P.SquashTy P.One, P.Squash P.Unit, P.Squash P.Unit)),
-                  scrut )))));
+          (P.QuotElim
+             ( Omega,
+               P.SquashTy P.One,
+               P.Squash P.Unit,
+               P.PropIrrel (P.SquashTy P.One, P.Squash P.Unit, P.Squash P.Unit),
+               scrut ))));
   (* a motive Ω is a 𝕌₁ family, not a proposition *)
   rejects "motive Ω at Ω" (fun () ->
       item "q-fam"
         ~tele:[ P.Item ("Q", []) ]
         (P.Sort Omega)
         (Some
-           (P.Switch
-              (P.QuotElim
-                 ( Omega,
-                   P.Sort Omega,
-                   P.SquashTy P.One,
-                   P.Switch
-                     (P.PropIrrel
-                        (P.Sort Omega, P.SquashTy P.One, P.SquashTy P.One)),
-                   scrut )))));
+           (P.QuotElim
+              ( Omega,
+                P.Sort Omega,
+                P.SquashTy P.One,
+                P.PropIrrel (P.Sort Omega, P.SquashTy P.One, P.SquashTy P.One),
+                scrut ))));
   (* squash: from ∥ℕ∥ to ∥ℕ∥ by unsquash, and 𝟙's elements are irrelevant *)
   ignore
     (item "unsq" ~tele:[ P.SquashTy P.Nat ] (P.SquashTy P.Nat)
-       (Some
-          (P.Switch (P.Unsquash (P.SquashTy P.Nat, P.Squash (P.Var 0), P.Var 0)))));
+       (Some (P.Unsquash (P.SquashTy P.Nat, P.Squash (P.Var 0), P.Var 0))));
   ignore
     (item "unit-irrel" ~tele:[ P.One; P.One ]
        (P.Eq (P.Var 1, P.Var 0, P.One))
-       (Some (P.Switch (P.Refl (P.Annot (P.Irrel (P.Var 1, P.Var 0), P.One))))));
+       (Some (P.Refl (P.Annot (P.Irrel (P.Var 1, P.Var 0), P.One)))));
   (* let: the hypothesis names the value *)
   ignore
     (item "let-hyp" P.Nat
-       (Some (P.Switch (P.Let (P.Annot (P.S P.Z, P.Nat), P.Reflect (P.Var 0))))));
+       (Some (P.Let (P.Annot (P.S P.Z, P.Nat), P.Reflect (P.Var 0)))));
   (* fuel: 0 + 3 by unfolding plus needs two β and four ι steps *)
   let three = P.S (P.S (P.S P.Z)) in
   let plus_3_0 ~fuel =
@@ -231,11 +216,8 @@ let () =
       ~ty:(P.Eq (P.App (P.App (P.Item ("plus", []), P.Z), three), three, P.Nat))
       ~def:
         (Some
-           (P.Switch
-              (P.Refl
-                 (P.Annot
-                    ( P.Switch (P.App (P.App (P.Delta ("plus", []), P.Z), three)),
-                      P.Nat )))))
+           (P.Refl
+              (P.Annot (P.App (P.App (P.Delta ("plus", []), P.Z), three), P.Nat))))
   in
   check "plus 0 3 ≡ 3 by δ and computation"
     ((plus_3_0 ~fuel:1000).def = Some Star);

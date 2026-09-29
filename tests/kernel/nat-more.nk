@@ -1,48 +1,48 @@
 -- Natural.nova's equational theory: lemmas by unfolding and by
 -- induction, then REUSED through item references with spines
 
-plus (n : ℕ) (m : ℕ) : ℕ := switch (ℕ-elim 𝕌0 (_. ℕ) n (k ih. S ih) m)
+plus (n : ℕ) (m : ℕ) : ℕ := ℕ-elim 𝕌0 (_. ℕ) n (k ih. S ih) m
 
 plusZeroId (n : ℕ) : plus[n, Z] ≡ n ∈ ℕ :=
-  switch (refl (switch (δ plus[n, Z]) : ℕ))
+  refl ((δ plus[n, Z]) : ℕ)
 
 -- both sides unfold: the right side is spelled with its own δ leaf
 plusSucId (n : ℕ) (m : ℕ) : plus[n, S m] ≡ S plus[n, m] ∈ ℕ :=
-  switch (refl ((switch (δ plus[n, S m]) ; S ((switch (δ plus[n, m]))⁻¹)) : ℕ))
+  refl ((δ plus[n, S m] ; S ((δ plus[n, m])⁻¹)) : ℕ)
 
 zeroPlusId (n : ℕ) : plus[Z, n] ≡ n ∈ ℕ :=
-  switch (ℕ-elim Ω (k. plus[Z, k] ≡ k ∈ ℕ)
-    (switch (refl (switch (δ plus[Z, Z]) : ℕ)))
-    (k ih. switch (refl ((switch (δ plus[Z, S k])
-                          ; S ((switch (δ plus[Z, k]))⁻¹ ; switch (reflect ih)))
-                         : ℕ)))
-    n)
+  ℕ-elim Ω (k. plus[Z, k] ≡ k ∈ ℕ)
+    (refl ((δ plus[Z, Z]) : ℕ))
+    (k ih. refl ((δ plus[Z, S k]
+                          ; S ((δ plus[Z, k])⁻¹ ; reflect ih))
+                         : ℕ))
+    n
 
 sucPlus (n : ℕ) (m : ℕ) : plus[S n, m] ≡ S plus[n, m] ∈ ℕ :=
-  switch (ℕ-elim Ω (k. plus[S n, k] ≡ S plus[n, k] ∈ ℕ)
-    (switch (refl ((switch (δ plus[S n, Z]) ; S ((switch (δ plus[n, Z]))⁻¹)) : ℕ)))
-    (k ih. switch (refl ((switch (δ plus[S n, S k])
-                          ; S ((switch (δ plus[S n, k]))⁻¹ ; switch (reflect ih))
-                          ; S ((switch (reflect plusSucId[n, k]))⁻¹))
-                         : ℕ)))
-    m)
+  ℕ-elim Ω (k. plus[S n, k] ≡ S plus[n, k] ∈ ℕ)
+    (refl ((δ plus[S n, Z] ; S ((δ plus[n, Z])⁻¹)) : ℕ))
+    (k ih. refl ((δ plus[S n, S k]
+                          ; S ((δ plus[S n, k])⁻¹ ; reflect ih)
+                          ; S ((reflect plusSucId[n, k])⁻¹))
+                         : ℕ))
+    m
 
 -- commutativity, the corpus's proof: induction on m, each step a
 -- chain of reflected lemmas — every middle is syntactic
 plusComm (n : ℕ) (m : ℕ) : plus[m, n] ≡ plus[n, m] ∈ ℕ :=
-  switch (ℕ-elim Ω (k. plus[k, n] ≡ plus[n, k] ∈ ℕ)
-    (switch (refl ((switch (reflect zeroPlusId[n]) ; (switch (reflect plusZeroId[n]))⁻¹) : ℕ)))
-    (k ih. switch (refl ((switch (reflect sucPlus[k, n])
-                          ; S (switch (reflect ih))
-                          ; (switch (reflect plusSucId[n, k]))⁻¹)
-                         : ℕ)))
-    m)
+  ℕ-elim Ω (k. plus[k, n] ≡ plus[n, k] ∈ ℕ)
+    (refl ((reflect zeroPlusId[n] ; (reflect plusZeroId[n])⁻¹) : ℕ))
+    (k ih. refl ((reflect sucPlus[k, n]
+                          ; S (reflect ih)
+                          ; (reflect plusSucId[n, k])⁻¹)
+                         : ℕ))
+    m
 
 -- S is injective through its retraction pred: a congruence of an item
 -- applied to the reflected hypothesis, computed at both ends
-pred (n : ℕ) : ℕ := switch (ℕ-elim 𝕌0 (_. ℕ) Z (k ih. k) n)
+pred (n : ℕ) : ℕ := ℕ-elim 𝕌0 (_. ℕ) Z (k ih. k) n
 sucInj (n : ℕ) (m : ℕ) (h : S n ≡ S m ∈ ℕ) : n ≡ m ∈ ℕ :=
-  switch (refl (((switch (δ pred[S n]))⁻¹ ; switch pred[reflect h] ; switch (δ pred[S m])) : ℕ))
+  refl (((δ pred[S n])⁻¹ ; pred[reflect h] ; δ pred[S m]) : ℕ)
 
 -- an item applied to the wrong number of arguments
-arity : ℕ := switch plus[Z]
+arity : ℕ := plus[Z]
