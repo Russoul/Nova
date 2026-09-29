@@ -8,8 +8,8 @@ isLeft (s : ℕ ⊎ 𝟙) : 𝕌0 :=
     b. 𝟘
     s
 
-isLeft-inl : isLeft[inj₁ Z] ≡ 𝟙 ∈ 𝕌0 := refl (δ isLeft[inj₁ Z] : 𝕌0)
-isLeft-inr : isLeft[inj₂ ()] ≡ 𝟘 ∈ 𝕌0 := refl (δ isLeft[inj₂ ()] : 𝕌0)
+isLeft-inl : isLeft[inj₁ Z] ≡ 𝟙 ∈ 𝕌0 := ⌜δ isLeft[inj₁ Z] : 𝕌0⌝
+isLeft-inr : isLeft[inj₂ ()] ≡ 𝟘 ∈ 𝕌0 := ⌜δ isLeft[inj₂ ()] : 𝕌0⌝
 
 -- a scrutinee that only checks must be annotated
 elim-inj : ℕ :=
@@ -37,8 +37,8 @@ cases (s : ℕ ⊎ 𝟙) : ∥𝟙∥ :=
 dep-cases (s : ℕ ⊎ 𝟙) : s ≡ s ∈ (ℕ ⊎ 𝟙) :=
   ⊎-elim Ω
     t. t ≡ t ∈ (ℕ ⊎ 𝟙)
-    a. refl (inj₁ a : ℕ ⊎ 𝟙)
-    b. refl (inj₂ b : ℕ ⊎ 𝟙)
+    a. ⌜inj₁ a : ℕ ⊎ 𝟙⌝
+    b. ⌜inj₂ b : ℕ ⊎ 𝟙⌝
     s
 
 -- 𝟘 eliminates into a type as well as into an element

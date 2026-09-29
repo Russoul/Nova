@@ -14,14 +14,14 @@ L2 : ℕ :=
 
 -- unfold L2, then reason inside the let through h and plus's δ
 L2-is-SSZ : L2 ≡ S (S Z) ∈ ℕ :=
-  refl
+  reify
     δ L2
       ; let x h := (plus[S Z, S Z] : ℕ)
-        in (reflect h ; δ plus[S Z, S Z] : ℕ)
+        in (⌞h⌟ ; δ plus[S Z, S Z] : ℕ)
       : ℕ
 
 -- a definition's proof must be one-sided: rewriting inside a definiens
 -- is a lemma's business, not a definition's
 one-sided : ℕ :=
   let x h := (plus[S Z, S Z] : ℕ)
-  in (reflect h ; δ plus[S Z, S Z] : ℕ)
+  in (⌞h⌟ ; δ plus[S Z, S Z] : ℕ)

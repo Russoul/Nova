@@ -36,13 +36,11 @@ stuck (q : Q) : ℕ :=
 
 -- related representatives give equal classes, stated at the quotient itself
 same : class Z ≡ class (S Z) ∈ (ℕ / (x y. ∥𝟙∥)) :=
-  refl
-    quot-eq Z (S Z) (squash ()) : ℕ / (x y. ∥𝟙∥)
+  ⌜quot-eq Z (S Z) (squash ()) : ℕ / (x y. ∥𝟙∥)⌝
 
 -- and stated at Q, where every class must be converted across Q's unfolding
 same-at-Q : (conv (class Z) (δ Q⁻¹ : 𝕌0)) ≡ (conv (class (S Z)) (δ Q⁻¹ : 𝕌0)) ∈ Q :=
-  refl
-    conv (quot-eq Z (S Z) (squash ())) (δ Q⁻¹ : 𝕌0) : Q
+  ⌜conv (quot-eq Z (S Z) (squash ())) (δ Q⁻¹ : 𝕌0) : Q⌝
 
 -- a class against the item Q is stuck
-class-at-Q : class Z ≡ class Z ∈ Q := refl (class Z : Q)
+class-at-Q : class Z ≡ class Z ∈ Q := ⌜class Z : Q⌝

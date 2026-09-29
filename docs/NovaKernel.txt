@@ -90,7 +90,7 @@
 ----------------------------------------- // a definition: the producer hands over a PROOF α at T; its
 Σ ⊢ (Δ ⊦ x ≔ t : T) item                  //   right side is the definiens the kernel records (a plain
                                           //   term is its own proof; a lemma is a definition of ⋆ at an
-                                          //   equation type, its proof a refl …)
+                                          //   equation type, its proof a reify …)
 
 
 // ------ Π-type -------
@@ -182,12 +182,14 @@ U a sort
 
 Γ ⊦ [α] t₀ ≐ t₁ ⇒ T
 ---------------------------------
-Γ ⊦ [refl α] ⋆ ≐ ⋆ ⇒ (t₀ ≡ t₁ ∈ T)
+Γ ⊦ [reify α] ⋆ ≐ ⋆ ⇒ (t₀ ≡ t₁ ∈ T)   // the equation REIFIED as a proposition; written ⌜α⌝ inline
 
 
 Γ ⊦ [α] ⋆ ⇒ t₀ ≡ t₁ ∈ T
 ---------------------------
-Γ ⊦ [reflect α] t₀ ≐ t₁ ⇒ T
+Γ ⊦ [reflect α] t₀ ≐ t₁ ⇒ T           // the proposition REFLECTED to its equation; written ⌞α⌟
+                                      //   inline. The two are inverse: reflect (reify α) proves
+                                      //   what α proves, and reify (reflect h) ≐ h by irrelevance
 
 // ----- the sorts as terms ------
 
@@ -305,8 +307,8 @@ U ≤ U′
 
 Γ ⊦ T ⇒ U
 Γ ⊦ [α] t₀ ≐ t₁ ⇐ T
--------------------------- // annotation: the switch back, ⇐ to ⇒ — a chain becomes a refl
-Γ ⊦ [(α : T)] t₀ ≐ t₁ ⇒ T  //   subject, a λ a head, an inj a scrutinee; ((conv t α) : T)
+-------------------------- // annotation: the switch back, ⇐ to ⇒ — a chain becomes a reify's
+Γ ⊦ [(α : T)] t₀ ≐ t₁ ⇒ T  //   content, a λ a head, an inj a scrutinee; ((conv t α) : T)
                            //   is the ascription that exposes a shape (CONVENTIONS)
 
 // ------- contextual -------

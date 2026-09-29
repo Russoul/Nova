@@ -16,9 +16,12 @@
                                      f x .π₁ is (f x) .π₁, reflect h⁻¹ is (reflect h)⁻¹
      atom   ::= NAME ['[' expr, … ']'] | 'δ' NAME ['[' … ']'] | sort
               | '(' expr ')' | '(' expr ',' expr ')' | '(' expr ':' expr ')'
+              | '⌜' expr [':' expr] '⌝'        inline reify: the equation as a proposition
+              | '⌞' expr [':' expr] '⌟'        inline reflect: the proposition as its equation
               | 'λ' NAME+ '.' expr | '∥' expr '∥' | 'let' NAME NAME ':=' expr 'in' expr
      form   ::= keyword slots, a binder slot written (x y. expr) or ⟪x y. expr⟫;
-                a form is a spine head: it may take further arguments
+                a form is a spine head: it may take further arguments;
+                reify α and reflect α are the block spellings of the corners
 
    LAYOUT. The file is a block at column 1: an item starts there and
    its other lines are indented. Inside, three rules:
@@ -140,7 +143,7 @@ let sort_of_id (s : string) : sort option =
         | _ -> None)
 
 let is_form = function
-  | "refl" | "reflect" | "lift" | "S" | "class" | "squash" | "inj₁" | "inj1"
+  | "reify" | "reflect" | "lift" | "S" | "class" | "squash" | "inj₁" | "inj1"
   | "inj₂" | "inj2" | "𝟘-elim" | "Void-elim" | "η→" | "eta->" | "η×" | "eta*"
   | "conv" | "irrel" | "quot-eq" | "prop-irrel" | "restrict" | "unsquash"
   | "propext" | "ℕ-elim" | "Nat-elim" | "⊎-elim" | "Sum-elim" | "quot-elim" ->
@@ -158,7 +161,7 @@ let is_keyword s =
 let term_initial st (t : tok) =
   match t.kind with
   | ID "in" -> false
-  | ID _ | LPAREN | UNIT | LAM -> true
+  | ID _ | LPAREN | UNIT | LAM | LQUOTE | LUNQUOTE -> true
   | BAR2 -> st.squash = 0
   | _ -> false
 
@@ -325,7 +328,7 @@ and form st env sp s : P.t =
     | _ -> err st "expected a sort"
   in
   match s with
-  | "refl" -> P.Refl (a ())
+  | "reify" -> P.Refl (a ())
   | "reflect" -> P.Reflect (a ())
   | "lift" -> P.Lift (a ())
   | "S" -> P.S (a ())
@@ -505,6 +508,8 @@ and atom st env : P.t =
       st.squash <- saved;
       expect st BAR2 "'∥'";
       P.SquashTy e
+  | LQUOTE -> corners st env RQUOTE "'⌝'" (fun e -> P.Refl e)
+  | LUNQUOTE -> corners st env RUNQUOTE "'⌟'" (fun e -> P.Reflect e)
   | ID s -> (
       advance st;
       match s with
@@ -534,6 +539,24 @@ and atom st env : P.t =
                 err st (s ^ " takes arguments; parenthesise the form")
               else name_ref st env s))
   | _ -> err st "expected an expression"
+
+(* ⌜e⌝ and ⌞e⌟: the content is what a parenthesis may hold, an
+   expression or an ascription. *)
+and corners st env closer what wrap : P.t =
+  advance st;
+  let saved = st.squash in
+  st.squash <- 0;
+  let e = expr st env in
+  let e =
+    if (peek st).kind = COLON && continues st then (
+      advance st;
+      let ty = expr st env in
+      P.Annot (e, ty))
+    else e
+  in
+  st.squash <- saved;
+  expect st closer what;
+  wrap e
 
 (* ----- items ----- *)
 

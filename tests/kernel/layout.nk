@@ -31,7 +31,7 @@ twice : (ℕ → ℕ) → ℕ → ℕ :=
 -- a chain's links and its ascription continue past the line that
 -- opens it; a form's argument line carries a chain of its own
 plusSucId (n : ℕ) (m : ℕ) : plus[n, S m] ≡ S plus[n, m] ∈ ℕ :=
-  refl
+  reify
     δ plus[n, S m]
       ; S
           δ plus[n, m]⁻¹

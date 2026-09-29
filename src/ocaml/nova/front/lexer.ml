@@ -27,6 +27,10 @@ type kind =
   | UNIT (* () *)
   | PROJ1 (* .π₁ .1 *)
   | PROJ2 (* .π₂ .2 *)
+  | LQUOTE (* ⌜ [| *)
+  | RQUOTE (* ⌝ |] *)
+  | LUNQUOTE (* ⌞ (| *)
+  | RUNQUOTE (* ⌟ |) *)
   | EOF
 
 type tok = { kind : kind; line : int; col : int }
@@ -80,7 +84,8 @@ let symbol = function
   | 0x2208 (* ∈ *)
   | 0x3BB (* λ *)
   | 0x2225 (* ∥ *)
-  | 0x207B (* ⁻ *) ->
+  | 0x207B (* ⁻ *)
+  | 0x231C | 0x231D | 0x231E | 0x231F (* ⌜ ⌝ ⌞ ⌟ *) ->
       true
   | _ -> false
 
@@ -152,6 +157,10 @@ let tokenize (src : string) : tok list =
         i := !i + 2
       in
       if two 0x28 0x29 then two_ UNIT
+      else if two 0x5B 0x7C then two_ LQUOTE
+      else if two 0x7C 0x5D then two_ RQUOTE
+      else if two 0x28 0x7C then two_ LUNQUOTE
+      else if two 0x7C 0x29 then two_ RUNQUOTE
       else if two 0x2D 0x3E then two_ ARROW
       else if two 0x3D 0x3D then two_ EQUIV
       else if two 0x7C 0x7C then two_ BAR2
@@ -195,6 +204,10 @@ let tokenize (src : string) : tok list =
         | 0x2208 | 0x40 -> one MEMBER
         | 0x3BB | 0x5C -> one LAM
         | 0x2225 -> one BAR2
+        | 0x231C -> one LQUOTE
+        | 0x231D -> one RQUOTE
+        | 0x231E -> one LUNQUOTE
+        | 0x231F -> one RUNQUOTE
         | _ -> err !i (Printf.sprintf "unexpected character U+%04X" c)
     end
   done;

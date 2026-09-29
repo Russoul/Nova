@@ -2,10 +2,10 @@
 -- computation; the sort of a product is the join, never Ω
 
 Zeros : 𝕌0 := (n : ℕ) × (n ≡ Z ∈ ℕ)
-zero-witness : (n : ℕ) × (n ≡ Z ∈ ℕ) := (Z, refl (Z : ℕ))
+zero-witness : (n : ℕ) × (n ≡ Z ∈ ℕ) := (Z, ⌜Z : ℕ⌝)
 first : ℕ := zero-witness .π₁
 second : zero-witness .π₁ ≡ Z ∈ ℕ := zero-witness .π₂
-first-is-Z : zero-witness .π₁ ≡ Z ∈ ℕ := refl (δ zero-witness .π₁ : ℕ)
+first-is-Z : zero-witness .π₁ ≡ Z ∈ ℕ := ⌜δ zero-witness .π₁ : ℕ⌝
 
 -- the same element at the item Zeros: converted across Zeros' unfolding,
 -- and projected only after converting back

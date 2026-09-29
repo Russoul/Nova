@@ -8,11 +8,11 @@ plus (n : ℕ) (m : ℕ) : ℕ :=
     k ih. S ih
     m
 
-plusZeroId (n : ℕ) : plus[n, Z] ≡ n ∈ ℕ := refl (δ plus[n, Z] : ℕ)
+plusZeroId (n : ℕ) : plus[n, Z] ≡ n ∈ ℕ := ⌜δ plus[n, Z] : ℕ⌝
 
 -- both sides unfold: the right side is spelled with its own δ leaf
 plusSucId (n : ℕ) (m : ℕ) : plus[n, S m] ≡ S plus[n, m] ∈ ℕ :=
-  refl
+  reify
     δ plus[n, S m]
       ; S (δ plus[n, m]⁻¹)
       : ℕ
@@ -20,21 +20,21 @@ plusSucId (n : ℕ) (m : ℕ) : plus[n, S m] ≡ S plus[n, m] ∈ ℕ :=
 zeroPlusId (n : ℕ) : plus[Z, n] ≡ n ∈ ℕ :=
   ℕ-elim Ω
     k. plus[Z, k] ≡ k ∈ ℕ
-    refl (δ plus[Z, Z] : ℕ)
-    k ih. refl
+    ⌜δ plus[Z, Z] : ℕ⌝
+    k ih. reify
       δ plus[Z, S k]
-        ; S (δ plus[Z, k]⁻¹ ; reflect ih)
+        ; S (δ plus[Z, k]⁻¹ ; ⌞ih⌟)
         : ℕ
     n
 
 sucPlus (n : ℕ) (m : ℕ) : plus[S n, m] ≡ S plus[n, m] ∈ ℕ :=
   ℕ-elim Ω
     k. plus[S n, k] ≡ S plus[n, k] ∈ ℕ
-    refl (δ plus[S n, Z] ; S (δ plus[n, Z]⁻¹) : ℕ)
-    k ih. refl
+    ⌜δ plus[S n, Z] ; S (δ plus[n, Z]⁻¹) : ℕ⌝
+    k ih. reify
       δ plus[S n, S k]
-        ; S (δ plus[S n, k]⁻¹ ; reflect ih)
-        ; S (reflect plusSucId[n, k]⁻¹)
+        ; S (δ plus[S n, k]⁻¹ ; ⌞ih⌟)
+        ; S (⌞plusSucId[n, k]⌟⁻¹)
         : ℕ
     m
 
@@ -43,11 +43,11 @@ sucPlus (n : ℕ) (m : ℕ) : plus[S n, m] ≡ S plus[n, m] ∈ ℕ :=
 plusComm (n : ℕ) (m : ℕ) : plus[m, n] ≡ plus[n, m] ∈ ℕ :=
   ℕ-elim Ω
     k. plus[k, n] ≡ plus[n, k] ∈ ℕ
-    refl (reflect zeroPlusId[n] ; reflect plusZeroId[n]⁻¹ : ℕ)
-    k ih. refl
-      reflect sucPlus[k, n]
-        ; S (reflect ih)
-        ; reflect plusSucId[n, k]⁻¹
+    ⌜⌞zeroPlusId[n]⌟ ; ⌞plusZeroId[n]⌟⁻¹ : ℕ⌝
+    k ih. reify
+      ⌞sucPlus[k, n]⌟
+        ; S ⌞ih⌟
+        ; ⌞plusSucId[n, k]⌟⁻¹
         : ℕ
     m
 
@@ -61,9 +61,9 @@ pred (n : ℕ) : ℕ :=
     n
 
 sucInj (n : ℕ) (m : ℕ) (h : S n ≡ S m ∈ ℕ) : n ≡ m ∈ ℕ :=
-  refl
+  reify
     δ pred[S n]⁻¹
-      ; pred[reflect h]
+      ; pred[⌞h⌟]
       ; δ pred[S m]
       : ℕ
 
