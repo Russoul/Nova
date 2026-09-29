@@ -18,7 +18,7 @@ accepted props-as-family-ok (f : ℕ → Ω) : ℕ → 𝕌0 := λ. ☐1 ☐0
 accepted const-prop (p : Ω) : ℕ → 𝕌0 := λ. ☐1
 accepted restr (A : 𝕌0) (B : 𝕌0) (h : ☐1 ≡ ☐0 ∈ 𝕌1) : ☐2 ≡ ☐1 ∈ 𝕌0 := ⋆
 accepted restr-props (p : Ω) (q : Ω) (h : ☐1 ≡ ☐0 ∈ 𝕌0) : ☐2 ≡ ☐1 ∈ Ω := ⋆
-rejected restr-wrong-way (line 39): the definiens: restrict: the target sort is not below the source
-rejected restr-not-a-code (line 41): the definiens: restrict: the right witness: the synthesised and the expected type do not agree
+rejected restr-wrong-way (line 43): the definiens: restrict: the target sort is not below the source
+rejected restr-not-a-code (line 47): the definiens: restrict: the right witness: the synthesised and the expected type do not agree
 accepted lift-eq (A : 𝕌0) (B : 𝕌0) (h : ☐1 ≡ ☐0 ∈ 𝕌0) : ☐2 ≡ ☐1 ∈ 𝕌1 := ⋆
 exit 1

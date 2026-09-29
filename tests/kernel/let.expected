@@ -1,5 +1,5 @@
 accepted plus (n : ℕ) (m : ℕ) : ℕ := ℕ-elim ☐1 (.. S ☐0) ☐0
 accepted L2 : ℕ := let plus[S Z, S Z] (.. ☐1)
 accepted L2-is-SSZ : L2 ≡ S (S Z) ∈ ℕ := ⋆
-rejected one-sided (line 16): the definiens: the sides of a one-sided proof do not agree
+rejected one-sided (line 25): the definiens: the sides of a one-sided proof do not agree
 exit 1

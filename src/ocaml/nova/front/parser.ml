@@ -2,10 +2,8 @@
    over the lexer's tokens, producing surface proofs. It is UNTRUSTED,
    so it affords conveniences the kernel does not: binders are NAMED
    and resolved to de Bruijn indices here; keyword forms take their
-   arguments as atoms in the document's spine style.
-
-   Layout: an item starts with an identifier at column 0; a token at
-   column 0 therefore ends the expression before it.
+   arguments in the document's spine style; and layout replaces
+   parentheses.
 
    Grammar (precedence from loose to tight):
      item   ::= NAME ('(' NAME ':' expr ')')* ':' expr [':=' expr]
@@ -13,14 +11,32 @@
      arrow  ::= prod ['→' arrow]                     (x : A) → B binds x
      prod   ::= eq ['×' prod | '⊎' prod | '/' (x y. expr)]
      eq     ::= app ['≡' app '∈' app]
-     app    ::= (form | atom) (atom | '.π₁' | '.π₂' | '⁻¹')*
+     app    ::= (form | atom) (atom | '.π₁' | '.π₂' | '⁻¹' | ⟪arg⟫)*
                                      a postfix applies to the whole spine before it:
                                      f x .π₁ is (f x) .π₁, reflect h⁻¹ is (reflect h)⁻¹
      atom   ::= NAME ['[' expr, … ']'] | 'δ' NAME ['[' … ']'] | sort
               | '(' expr ')' | '(' expr ',' expr ')' | '(' expr ':' expr ')'
               | 'λ' NAME+ '.' expr | '∥' expr '∥' | 'let' NAME NAME ':=' expr 'in' expr
-     form   ::= keyword args, a binder argument written (x y. expr);
-                a form is a spine head: it may take further arguments *)
+     form   ::= keyword slots, a binder slot written (x y. expr) or ⟪x y. expr⟫;
+                a form is a spine head: it may take further arguments
+
+   LAYOUT. The file is a block at column 1: an item starts there and
+   its other lines are indented. Inside, three rules:
+     1. THE OFFSIDE RULE: a construct's continuation lines are indented
+        past the block that encloses it (column > b).
+     2. AN INDENTED LINE THAT BEGINS A TERM IS AN ARGUMENT, ⟪arg⟫: a line
+        deeper than the line the spine's head sits on (column > r) is
+        one more argument of the innermost open spine, a whole term up
+        to the next line at or left of its own column. Sibling
+        argument lines share their column; a line between r and that
+        column is an error.
+     3. A LINE MAY HOLD WHAT A PARENTHESIS MAY HOLD: a maximal term, an
+        ascription e : T, or a binder abstraction x y. e where the slot
+        takes binders; the line's extent replaces the parentheses.
+   After a token that demands a term (:=, a binder's '.', → × ⊎ / ≡ ∈ ,
+   ; :, 'in', '(') a newline is whitespace. A non-term-initial token on
+   a deeper line (an operator, ';', ':', 'in', ')') continues the
+   enclosing construct. *)
 
 open Core
 module P = Proof
@@ -36,9 +52,16 @@ type item = {
 
 exception Error of int * int * string
 
-type state = { toks : tok array; mutable pos : int; mutable squash : int }
-(* squash > 0 while inside ∥…∥ and not inside parentheses: there a ∥
-   closes rather than opening an argument *)
+type state = {
+  toks : tok array;
+  indent : int array; (* the column of the first token on each token's line *)
+  mutable pos : int;
+  mutable block : int; (* b: the enclosing block's column *)
+  mutable block_tok : int; (* the index of the block's first token *)
+  mutable squash : int;
+      (* > 0 while inside ∥…∥ and not inside parentheses: there a ∥
+         closes rather than opening an argument *)
+}
 
 let peek st = st.toks.(st.pos)
 let peek_at st k = st.toks.(min (st.pos + k) (Array.length st.toks - 1))
@@ -48,18 +71,41 @@ let err st msg =
   let t = peek st in
   raise (Error (t.line, t.col, msg))
 
-let expect st kind what =
-  if (peek st).kind = kind then advance st else err st ("expected " ^ what)
+let err_at (t : tok) msg = raise (Error (t.line, t.col, msg))
+
+(* Is the next token on the line of the previous one? *)
+let same_line st = st.pos > 0 && (peek st).line = st.toks.(st.pos - 1).line
+
+(* May the next token continue the construct being parsed? On the
+   same line always; on a new line only past the block column. *)
+let continues st = same_line st || (peek st).col > st.block
+
+let with_block st c f =
+  let saved = (st.block, st.block_tok) in
+  st.block <- c;
+  st.block_tok <- st.pos;
+  Fun.protect
+    ~finally:(fun () ->
+      st.block <- fst saved;
+      st.block_tok <- snd saved)
+    f
+
+(* A new line's token at or left of the block column is not part of
+   this block — unless it is the block's own first token. *)
+let offside st =
+  let t = peek st in
+  (not (same_line st)) && t.col <= st.block && st.pos <> st.block_tok
 
 let ident st =
   match (peek st).kind with
-  | ID x ->
+  | ID x when not (offside st) ->
       advance st;
       x
   | _ -> err st "expected a name"
 
-(* A token at column 0 belongs to the next item. *)
-let continues st = (peek st).col > 1
+let expect st kind what =
+  if (peek st).kind = kind && not (offside st) then advance st
+  else err st ("expected " ^ what)
 
 (* ----- names ----- *)
 
@@ -92,6 +138,61 @@ let sort_of_id (s : string) : sort option =
         match cps with
         | 0x1D54C :: ds | 0x55 :: ds -> Option.map (fun l -> U l) (digits ds)
         | _ -> None)
+
+let is_form = function
+  | "refl" | "reflect" | "lift" | "S" | "class" | "squash" | "inj₁" | "inj1"
+  | "inj₂" | "inj2" | "𝟘-elim" | "Void-elim" | "η→" | "eta->" | "η×" | "eta*"
+  | "conv" | "irrel" | "quot-eq" | "prop-irrel" | "restrict" | "unsquash"
+  | "propext" | "ℕ-elim" | "Nat-elim" | "⊎-elim" | "Sum-elim" | "quot-elim" ->
+      true
+  | _ -> false
+
+(* The identifiers that are never names. *)
+let is_keyword s =
+  is_form s
+  || List.mem s
+       [ "let"; "in"; "δ"; "delta"; "𝟘"; "Void"; "𝟙"; "Unit"; "ℕ"; "Nat"; "Z" ]
+  || Option.is_some (sort_of_id s)
+
+(* Can this token begin a term? *)
+let term_initial st (t : tok) =
+  match t.kind with
+  | ID "in" -> false
+  | ID _ | LPAREN | UNIT | LAM -> true
+  | BAR2 -> st.squash = 0
+  | _ -> false
+
+(* ----- spines and their argument lines ----- *)
+
+(* The layout state of one spine: the reference column r (the indent
+   of the line its head sits on) and the column of its argument block
+   once one is open. *)
+type spine = { r : int; mutable argcol : int option }
+
+let new_spine st = { r = st.indent.(st.pos); argcol = None }
+
+(* Does the next token start an argument LINE of this spine (rule 2)?
+   Only asked on a new line. Opens the argument block on the first
+   such line; rejects a misaligned one. *)
+let arg_line st sp =
+  let t = peek st in
+  if same_line st || not (term_initial st t) then false
+  else
+    match sp.argcol with
+    | None ->
+        if t.col > sp.r && t.col > st.block then (
+          sp.argcol <- Some t.col;
+          true)
+        else false
+    | Some c0 ->
+        if t.col = c0 then true
+        else if t.col > sp.r && t.col > st.block then
+          err_at t
+            (Printf.sprintf
+               "an argument line at column %d — this spine's arguments stand \
+                at column %d"
+               t.col c0)
+        else false
 
 (* ----- expressions ----- *)
 
@@ -141,21 +242,18 @@ and eq st env =
     P.Eq (l, r, t))
   else l
 
-and starts_atom st =
-  continues st
-  &&
-  match (peek st).kind with
-  | ID "in" -> false
-  | ID _ | LPAREN | UNIT | LAM -> true
-  | BAR2 -> st.squash = 0
-  | _ -> false
+(* A same-line atom may follow. *)
+and starts_atom st = same_line st && term_initial st (peek st)
 
 and app st env =
+  let t = peek st in
+  if offside st then err st "a term must be indented past its block";
+  let sp = new_spine st in
   let head =
-    match (peek st).kind with
+    match t.kind with
     | ID s when is_form s ->
         advance st;
-        form st env s
+        form st env sp s
     | _ -> atom st env
   in
   let rec loop h =
@@ -169,23 +267,55 @@ and app st env =
     | INV when continues st ->
         advance st;
         loop (P.Sym h)
-    | _ -> if starts_atom st then loop (P.App (h, atom st env)) else h
+    | _ ->
+        if starts_atom st then loop (P.App (h, atom st env))
+        else if arg_line st sp then loop (P.App (h, block_arg st env))
+        else h
   in
   loop head
 
-and is_form = function
-  | "refl" | "reflect" | "lift" | "S" | "class" | "squash" | "inj₁" | "inj1"
-  | "inj₂" | "inj2" | "𝟘-elim" | "Void-elim" | "η→" | "eta->" | "η×" | "eta*"
-  | "conv" | "irrel" | "quot-eq" | "prop-irrel" | "restrict" | "unsquash"
-  | "propext" | "ℕ-elim" | "Nat-elim" | "⊎-elim" | "Sum-elim" | "quot-elim" ->
-      true
-  | _ -> false
+(* An argument line: a maximal term, or an ascription e : T. *)
+and block_arg st env =
+  with_block st (peek st).col (fun () ->
+      let e = expr st env in
+      if (peek st).kind = COLON && continues st then (
+        advance st;
+        let ty = expr st env in
+        P.Annot (e, ty))
+      else e)
 
-and form st env s : P.t =
-  let a () = atom st env in
-  let b n = bound st env n in
+(* A slot of a keyword form: an atom on the same line, or an argument
+   line. With n > 0 binders, the parenthesised (x y. e) or the bare
+   x y. e on its line. *)
+and slot st env sp n : P.t =
+  if same_line st then bound st env n
+  else if arg_line st sp then
+    with_block st (peek st).col (fun () ->
+        if n = 0 then
+          let e = expr st env in
+          if (peek st).kind = COLON && continues st then (
+            advance st;
+            let ty = expr st env in
+            P.Annot (e, ty))
+          else e
+        else if (peek st).kind = LPAREN then bound st env n
+        else binder_body st env n)
+  else err st "expected an argument"
+
+and binder_body st env n =
+  let names = List.init n (fun _ -> ident st) in
+  expect st DOT "'.' after the binder's names";
+  let env' = List.fold_left (fun e x -> x :: e) env names in
+  expr st env'
+
+and form st env sp s : P.t =
+  let a () = slot st env sp 0 in
+  let b n = slot st env sp n in
   let sort () =
-    match (peek st).kind with
+    let t = peek st in
+    if (not (same_line st)) && not (arg_line st sp) then
+      err st "expected a sort";
+    match t.kind with
     | ID x -> (
         match sort_of_id x with
         | Some u ->
@@ -269,16 +399,13 @@ and bound st env n : P.t =
   if n = 0 then atom st env
   else (
     expect st LPAREN "a binder (x. …)";
-    let names = List.init n (fun _ -> ident st) in
-    expect st DOT "'.' after the binder's names";
-    let env' = List.fold_left (fun e x -> x :: e) env names in
-    let e = expr st env' in
+    let e = binder_body st env n in
     expect st RPAREN "')'";
     e)
 
-and spine st env : P.t list =
+and spine_args st env : P.t list =
   (* [e₀, …, eₙ] in order; returned as a snoc list *)
-  if (peek st).kind = LBRACK then (
+  if (peek st).kind = LBRACK && same_line st then (
     advance st;
     let rec items acc =
       if (peek st).kind = RBRACK then (
@@ -302,18 +429,12 @@ and spine st env : P.t list =
 and name_ref st env x : P.t =
   match index_of x env with
   | Some i -> P.Var i
-  | None -> P.Item (x, spine st env)
-
-(* The identifiers that are never names: a (x : A) after '(' with such
-   an x is an annotation, not a binder. *)
-and is_keyword s =
-  is_form s
-  || List.mem s
-       [ "let"; "in"; "δ"; "delta"; "𝟘"; "Void"; "𝟙"; "Unit"; "ℕ"; "Nat"; "Z" ]
-  || Option.is_some (sort_of_id s)
+  | None -> P.Item (x, spine_args st env)
 
 and atom st env : P.t =
-  match (peek st).kind with
+  let t = peek st in
+  if offside st then err st "a term must be indented past its block";
+  match t.kind with
   | UNIT ->
       advance st;
       P.Unit
@@ -393,13 +514,13 @@ and atom st env : P.t =
           expect st DEF "':='";
           let a = expr st env in
           (match (peek st).kind with
-          | ID "in" -> advance st
+          | ID "in" when continues st -> advance st
           | _ -> err st "expected 'in'");
           let b = expr st (h :: x :: env) in
           P.Let (a, b)
       | "δ" | "delta" ->
           let x = ident st in
-          P.Delta (x, spine st env)
+          P.Delta (x, spine_args st env)
       | "in" -> err st "'in' closes a let; it is not a name"
       | "𝟘" | "Void" -> P.Zero
       | "𝟙" | "Unit" -> P.One
@@ -418,8 +539,19 @@ and atom st env : P.t =
 
 let item st : item =
   let t = peek st in
-  if t.col <> 1 then err st "an item starts at column 0";
-  let name = ident st in
+  if t.col <> 1 then
+    err st
+      (Printf.sprintf
+         "column %d does not continue the item above — indent it past the term \
+          it belongs to, or start an item at column 1"
+         t.col);
+  let name =
+    match t.kind with
+    | ID x ->
+        advance st;
+        x
+    | _ -> err st "expected an item's name"
+  in
   let rec params env acc =
     if (peek st).kind = LPAREN && continues st then (
       advance st;
@@ -442,7 +574,17 @@ let item st : item =
   { name; line = t.line; params; ty; def }
 
 let items (src : string) : item list =
-  let st = { toks = Array.of_list (Lexer.tokenize src); pos = 0; squash = 0 } in
+  let toks = Array.of_list (Lexer.tokenize src) in
+  let indent = Array.make (Array.length toks) 1 in
+  let cur_line = ref 0 and cur_indent = ref 1 in
+  Array.iteri
+    (fun i (t : tok) ->
+      if t.line <> !cur_line then (
+        cur_line := t.line;
+        cur_indent := t.col);
+      indent.(i) <- !cur_indent)
+    toks;
+  let st = { toks; indent; pos = 0; block = 1; block_tok = -1; squash = 0 } in
   let rec loop acc =
     if (peek st).kind = EOF then List.rev acc else loop (item st :: acc)
   in

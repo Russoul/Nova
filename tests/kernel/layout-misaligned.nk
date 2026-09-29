@@ -1,0 +1,7 @@
+-- a line between the spine's reference column and its argument column
+plus (n : ℕ) (m : ℕ) : ℕ :=
+  ℕ-elim 𝕌0
+    _. ℕ
+   n
+    k ih. S ih
+    m

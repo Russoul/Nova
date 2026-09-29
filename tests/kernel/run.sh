@@ -24,4 +24,14 @@ for f in "$dir"/*.nk; do
     echo "FAIL $f"; fail=1
   fi
 done
+# NAME-inline.nk and NAME-block.nk spell the same items two ways: their
+# outputs must coincide.
+for b in "$dir"/*-block.nk; do
+  [ -e "$b" ] || continue
+  i="${b%-block.nk}-inline.nk"
+  [ -f "$i" ] || continue
+  if ! diff -u <("$nova" check "$i" 2>&1) <("$nova" check "$b" 2>&1); then
+    echo "FAIL $i and $b differ"; fail=1
+  fi
+done
 exit $fail

@@ -6,5 +6,5 @@ accepted sucPlus (n : ℕ) (m : ℕ) : plus[S ☐1, ☐0] ≡ S plus[☐1, ☐0]
 accepted plusComm (n : ℕ) (m : ℕ) : plus[☐0, ☐1] ≡ plus[☐1, ☐0] ∈ ℕ := ℕ-elim ⋆ (.. ⋆) ☐0
 accepted pred (n : ℕ) : ℕ := ℕ-elim Z (.. ☐1) ☐0
 accepted sucInj (n : ℕ) (m : ℕ) (h : S ☐1 ≡ S ☐0 ∈ ℕ) : ☐2 ≡ ☐1 ∈ ℕ := ⋆
-rejected arity (line 48): the definiens: spine: 1 arguments against a telescope of 2
+rejected arity (line 71): the definiens: spine: 1 arguments against a telescope of 2
 exit 1
