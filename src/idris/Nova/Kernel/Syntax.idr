@@ -124,7 +124,7 @@ mutual
       ||| Γ·⌊𝔎⌋ᵗ ▷ 𝒮.k δ) and the coherences are what typing alone
       ||| reads: they ride in the skeleton (kernel PQMotives, PQCoh),
       ||| never in the term — a term carries what its computation
-      ||| rules read, docs/NovaKernelRewrite.txt.)
+      ||| rules read, docs/NovaKernel.txt.)
       QElim : QSig -> Nat -> List Elem -> SubNorm -> Elem -> Elem
       ||| ν 𝔽  (the coinductive type at the carried polynomial — a type
       ||| (ty-nu) and a code (code-nu; every polynomial is small, the

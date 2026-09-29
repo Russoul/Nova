@@ -1,1119 +1,568 @@
-////////// NovaKernel.txt — the trusted kernel, rule by rule //////////
-
-////////// Preface //////////
-
-This file writes out every rule the kernel (Nova.Kernel) implements:
-the fuel-bounded normalizer and the readings of DERIVATIONS — proof
-terms whose erasures are the core terms. It exists so the kernel can
-be audited against docs/NovaFoundation.txt clause by clause — every
-rule below is an instance or a derivable composite of Foundation's
-rules, and each one names its justification.
-
-Position in the pipeline (docs/NovaPipeline.txt): everything upstream
-— elaborator, discharge engine, AI — is untrusted and merely PROPOSES;
-the kernel re-establishes each judgement from its own signature Σ and
-is the only component whose verdict counts. Nothing here searches and
-nothing here chooses: every rule is syntax-directed, every premise is
-checked mechanically, and the sole input beyond Σ is the derivation.
-There is no bare-term checker: a core term is never checked, only
-read off a derivation as its erasure (§8 says how a bare value the
-elaborator never elaborated gets a derivation — by re-derivation,
-whose result is read like any other).
-
-Notation is Foundation's (contexts Γ, signature Σ, elements t, types
-T, judgemental equality ≐, definitional contraction ≜), with these
-kernel judgement forms:
-
-  nf(t) ⇓ t′ , nf(T) ⇓ T′        fuel-bounded normalization (§1)
-  Σ; Γ ⊦ π ⇒ l ≐ r : T           INFERENCE: the derivation states its
-                                 equation and its type (§3)
-  Σ; Γ ⊦ π ⇐ T ⇒ l ≐ r           CHECKING at a known type (§3)
-  Σ; Γ ⊦ π ▷ l ≐ r : T           reading AGAINST GIVEN SIDES — the one
-                                 place a derivation meets sides it did
-                                 not produce: a conversion's proof (§7)
-  Σ; Γ ⊦ π → x ⇝ y               the directional RUN: one side given,
-                                 the other produced (§7)
-
-An ELEMENT derivation is a π whose two sides coincide; we write
-Σ; Γ ⊦ π ⇒ t : T for it, and Σ; Γ ⊦ π ⇐ T ⇒ t. Foundation's type
-judgement is the T = 𝕍 instance of element typing (docs/
-NovaFoundation.txt, no-type dissolution) and a type equation is the
-T = 𝕍 instance of an element equation — one channel throughout.
-
-An accepted item enters Σ as its DERIVATIONS (Δ ⊦ x ≔ π : π_T),
-with their erasures |π| and |π_T| beside them: the erasures are what
-δ and β read, a cache of the derivations and never a second source;
-the derivations are what the engine will read a definition's
-positions off (an unfolded body's motives, a declared type's parts).
-A declaration — a hole, an obligation — stores its type's derivation
-likewise (the elaborator re-derives the prop of an obligation it
-assumes; a read validates it).
-
-The kernel invariant is one-directional — kernel accepts the
-derivation ⟹ its erasure is Foundation-derivable at the stated type.
-Rejection claims nothing.
-
-////////// 1. Normalization: the β join, one fuel per contraction //////////
-
-The kernel has ONE normalizer, the β join (kJoinElem; kWhnf* is its
-weak-head form, used by the readings' shape tests). It mirrors
-Foundation's ≜ rules clause for clause and normalizes everywhere
-(under binders, in all components, inside carried signatures) — with
-NO δ clause: a definition reference is a stuck head, like a
-declaration's. The congruence clauses are not listed; the contraction
-clauses, each of which burns one unit of fuel, are exactly:
-
-  (λ f) e            ≜  f[id, e]                    # el-pi-beta
-  let a b            ≜  b[id, a, ⋆]                 # el-let-beta (a let is
-                                                    # ALWAYS a redex: normal
-                                                    # forms contain no let)
-  (a , b) .π₁        ≜  a                           # el-sigma-beta₁
-  (a , b) .π₂        ≜  b                           # el-sigma-beta₂
-  ℕ-elim z s Z       ≜  z                           # el-nat-beta-z
-  ℕ-elim z s (S n)   ≜  s[id, n, ℕ-elim z s n]      # el-nat-beta-s
-  ⊎-elim l r (inj₁ a) ≜ l[id, a]                    # el-sum-beta₁
-  ⊎-elim l r (inj₂ b) ≜ r[id, b]                    # el-sum-beta₂
-  quot-elim f (class a) ≜ f[id, a]                  # el-quot-beta
-  out (corec 𝔽 a f x) ≜ map_𝔽 hᵉˡ f[id, x]         # el-nu-beta; map_𝔽 and
-                                                    # hᵉˡ = λ (corec 𝔽 a f[↑] ☐₀)
-                                                    # expand by Foundation's
-                                                    # ≜-clauses at contraction
-                                                    # time (one fuel unit)
-  𝒮.𝕤-elim m̄ ē (𝒮′.𝕔 θ) ≜ m_𝕔 θ⟨φᵉˡ⟩               # el-qiit-beta; fires
-                                                    # only when 𝒮 and 𝒮′ are
-                                                    # IDENTICAL after nf
-Foundation's el-sig-beta (δ: x[e˲] ≜ a[e˲] for Σ ∋ Γ ⊦ x ≔ a : A,
-type entries included) is NOT a clause of the kernel's normalizer.
-It enters only through a derivation: a δ leaf x-δ π̄ states one
-unfolding (§3), a δ-all leaf unfolds every occurrence of the named
-definitions at once (§7, unfoldAllK), and a δ-apart spelling meets
-its position through a conversion or an ascription (§2). No verdict
-path unfolds a definition on the kernel's own initiative; there is
-no liberal mode.
-
-(El is retired — a small code IS its type, by cumulativity
-code-lift; there are no decoding clauses.)
-
-Ω adds exactly TWO contraction clauses — the syntax-directed
-instances of the admissible code-squash-idem (Prf is retired: a
-prop's OWN head marks it, and an Ω-NEUTRAL under ∥·∥ stays stuck):
-
-  ∥(l ≡ r ∈ A)∥      ≜  (l ≡ r ∈ A)   # code-squash-idem instances
-  ∥∥A∥∥              ≜  ∥A∥           #   (squash is idempotent on props)
-
-Otherwise ∥-∥ is inert: ∥A∥, as a type, does NOT reduce to A
-(realizer irrelevance is the point of the squash), equality props
-(l ≡ r ∈ A) — Ω-valued, per Foundation — have no contraction, and ⋆
-has no eliminator. nf treats Ω/∥-∥/≡/⋆ congruently beyond the
-clauses above.
-
-QIIT formers (NovaFoundation.txt, QIIT section) normalize congruently
-everywhere they embed Nova syntax — inside a carried signature's
-external pieces, the eliminator's methods, index and constructor
-spines — so the signature-identity test above is plain syntactic
-equality of β-normal forms (Foundation's structural identity,
-nameless: no α); two carriers spelled through different definitions
-are DIFFERENT here, and meet through a conversion (A3, §9). The
-signature checker's own comparison of a qiit-term's code with the
-expected one (§8) is the same join. θ⟨φᵉˡ⟩ is Foundation's section spine at the
-eliminator itself: the contraction materializes one recursive
-𝒮.𝕤-elim call per inductive component of θ, and each later
-contraction of those burns its own fuel. Path constructors add NO
-contraction — their content is a judgemental equation (el-qiit-path),
-which enters replay as a step license (§4). A signature is inert
-syntax and is never itself a redex.
-
-Scrutinees are normalized before the contraction test (call-by-value
-on elimination positions), so a stuck scrutinee leaves a stuck
-eliminator — the join never invents progress.
-
-Σ may be OPEN (Foundation, DEFINITIONAL AND OPEN SIGNATURES): during
-an elaboration run it carries the run's assumed equation holes
-and declarations. A reference to a DECLARATION is STUCK — typed
-by el-sig-decl (type entries included), no contraction — and the join
-leaves it as a neutral head. Constraint entries are nameless and never referenced by
-terms, so the join never sees them; they exist for the equational
-theory (an equation hole read through el-reflect). Only the kernel
-tolerates open signatures: Nova.Compute (the uncertified evaluator)
-assumes a definitional Σ and rejects open entries outright.
-
-(HOLE INSTANTIATION is REMOVED: the kCheckSolution/kCheckTySolution
-legality gate and the declaration-to-definition flip went with the
-elaborator's hole machinery — see NovaElaboration's preface and
-PerfNotes "The cost of a hole". Σ therefore never mutates in place:
-a declaration stays a declaration for the run's lifetime.)
-
-Fuel is a LIVENESS bound, not a semantic one: under inconsistent
-hypotheses a well-formed term may have no normal form (see
-NovaFoundation.txt, preface), and the fuel bound is what keeps the
-kernel total in that world. Exhaustion never certifies anything.
-
-
-////////// 2. Derivations //////////
-
-A derivation is a term-shaped tree: a node is the former it derives,
-with derivations in the children's places; a subscript is an
-ANNOTATION — what the former's computation rule does not read and its
-typing rule needs — and is itself a derivation (of a type), never a
-bare term. Read BIDIRECTIONALLY (§3), a derivation SYNTHESIZES its
-equation's two sides and, in inference mode, its type. The core term
-is the erasure |π| (erase: drop annotations, keep the former; a leaf
-erases to its term; an equation form — ⟨π⟩, x-δ, refl, … — has no
-erasure in an element position and occurs inside an element
-derivation only as a witness node's proof, which erases to ⋆).
-Computation stays on erasures: the join normalizes |π|, refl compares
-erasures, δ unfolds a definition's stored erasure. Derivations are
-never β-reduced.
-
-One grammar serves elements and equations: an element derivation is
-one whose sides coincide; a node whose children state PROPER
-equations (lᵢ ≠ rᵢ) is a congruence, read by the same rule with the
-result F(l̄) ≐ F(r̄). α, β, π, … range over derivations; constructors
-of the implementation (Nova.Kernel.Derivation, type Drv) in
-parentheses.
-
-  -- leaves
-  π ::= ☐ᵢ                     variable                    (DVar)
-      | x[π̄]                   signature reference, its spine
-                               derived entrywise (§3)      (DRef)
-      | () | Z | 𝟘 | 𝟙 | ℕ | 𝕌 | Ω | 𝕍
-                               (DUnit, DZero, DZeroTy, DOneTy,
-                                DNatTy, DUniverse, DProp, DTop)
-      | ⟨π⟩                    REFLECTION: π ⇒ p : (l ≡ r ∈ A)
-                               states l ≐ r : A            (DRefl)
-      | qpath 𝕔 π̄              an imposed QIIT equation, its
-                               spine derived                (DPath)
-      | x-δ π̄                  x[ū] ≐ t[ū] for (Δ ⊦ x ≔ t : T),
-                               ū derived                    (DDelta)
-  -- structure
-      | refl                   the sides join under β      (DReflx)
-      | π⁻¹                                                 (DSym)
-      | π ; π                  transitivity, middle COMPUTED (DTrans)
-      | π ; [π_m] ; π          transitivity, middle STATED — an
-                               element derivation checked at the
-                               chain's type                 (DTransAt)
-      | δ-all x̄                every addressable occurrence of the
-                               named definitions unfolded at once,
-                               left to right                (DDeltaAll)
-  -- type-directed leaves (read against given sides only, §7)
-      | irrel(π_P?)            P a prop: derived, π_P ⇒ P : Ω, or (the
-                               derivation absent) the position's
-                               type judged a prop by the kernel (its
-                               prop-ness is the kernel's own question
-                               on a given, well-formed type) (DIrrel)
-      | η→(π) | η×(π, π)                     (DEtaPi, DEtaSigma)
-      | quot-wit(π?) | quot-wit[π_w]         (DQuotWit, DQuotWitPrf)
-      | inj(π)                               (DInj)
-      | propext[π_f, π_g]                    (DPropExt)
-      | prop-lift(π_p?, π_q?, π)             (DPrfCong) each side a
-                               prop: derived at Ω, or (absent) the
-                               given side judged a prop by the kernel
-  -- conversion, ascription
-      | π ∷ π_T by β           inference: the type CONVERTED —
-                               π_T ⇒ T′ : 𝕍, β ▷ T ≐ T′   (DConv, annotated)
-      | π by β                 checking at T: π ⇒ T′, β ▷ T′ ≐ T; in
-                               inference position β is RUN from T′:
-                               π ⇒ t : T′, β → T′ ⇝ T″ gives t : T″
-                               (an eliminator's scrutinee exposed)
-                                                  (DConv, annotation absent)
-      | (π : π_T by β)         ascription of a STATED equation, the
-                               same reading as π ∷ π_T by β    (DAt)
-      | (π : π_T? by β?)       ASCRIPTION of an element: π CHECKED at
-                               what π_T derives; under checking at T,
-                               β ▷ T ≐ that (an exposure), or the two
-                               agree (β absent); in inference
-                               position the type is what π_T derives,
-                               β absent. With π_T ABSENT (checking
-                               only) the target is what β PRODUCES run
-                               from T, β → T ⇝ T′, and π is checked at
-                               T′: an exposure names no target of its
-                               own — the target is what unfolding
-                               reaches, well-formed because the run is
-                               a chain of rule applications (no copy
-                               of an exposed type enters a
-                               derivation)                  (DAscribe)
-  -- intro forms: the subscript is the INFERENCE-mode annotation,
-  -- what the type would have supplied; absent under checking
-      | λ_{π_A} π              domain                       (DLam)
-      | (π, π)_{π_B}           the Σ's family, over Γ ▷ A   (DPair)
-      | inj₁_{π_B} π | inj₂_{π_A} π        the other summand
-                                                  (DInj1, DInj2)
-      | class_{π_R} π          the relation, over Γ ▷ A ▷ A[↑] (DClass)
-      | S π                                                 (DSuc)
-      | 𝒮.𝕔 π̄                  constructor, signature carried (DCtor)
-      | corec_𝔽 π π π          polynomial carried            (DCorec)
-      | let π_{π_A} π          the core's let: the definiens CHECKED
-                               at π_A ⇒ A : 𝕍 (β's unfolding witness
-                               ⋆_{a ≡ a ∈ A} needs A's derivation) (DLet)
-      | ⋆_{π_P} by π           el-eq-i: π_P ⇒ (l ≡ r ∈ A) : Ω,
-                               π ▷ l ≐ r : A; checking: ⋆ by π (DStar)
-      | sq(π)                  el-squash-i: π ⇒ e : A gives ⋆ : ∥A∥;
-                               checking at ∥A∥: π ⇐ A        (DSq)
-      | squash-elim_{π_Q} π (x. π)   el-squash-e-prf: the goal prop
-                                                  (DSquashElim)
-      | coind_{π_P} R π_p π_q        el-nu-coind: the equation prop
-                                                  (DCoind)
-  -- eliminators: motives MANDATORY in inference; under checking an
-  -- eliminator without its motive reads at the CONSTANT motive (§3)
-      | 𝟘-elim_{π_T} π                                      (DZeroElim)
-      | ℕ-elim_{π_M} π π π                                  (DNatElim)
-      | ⊎-elim_{π_M} π π π                                  (DSumElim)
-      | quot-elim_{π_M ; wd} π π      wd a proof, or absent when M is
-                                      a prop                (DQuotElim)
-      | 𝒮.𝕤-elim_{π̄_C ; coh̄} π̄ π̄ π   motives (one per sort, absent
-                                      under checking), coherences (one
-                                      per equation entry), methods,
-                                      index spine, eliminee (DQElim)
-      | out π                                               (DOut)
-      | π π | π .π₁ | π .π₂                    (DApp, DProj1, DProj2)
-  -- types and codes
-      | Π π π | Σ π π | π ⊎ π | π ≡ π ∈ π | π / π | ∥π∥ | ν 𝔽 | 𝒮.𝕤 π̄
-        (DPi, DSigma, DSum, DEq, DQuot, DSquash, DNu, DSort)
-
-Binders are as in the core: a child under a binder is read in the
-extended context (the annotations' contexts are given with each
-rule). A carried signature 𝒮 and polynomial 𝔽 carry their embedded
-Nova pieces AS DERIVATIONS (DQSig mirrors the ToS grammar with a
-derivation at each external domain and argument; DPoly with one at
-each code), read when the carrier is (§8); a carrier is no CONGRUENCE
-position — its erasure must match the side's (A3, §9). Placed under
-binders by the data-item emitter, a carrier is weakened within the
-grammar: each piece substituted by ↑ⁿ⁺ᵐ extended by the m external
-variables before it (§4).
-
-showDrv prints the grammar above in the core's own syntax (an
-annotation in braces); the elaborator's diagnostics and the engine's
-audits print derivations so.
-
-Substitution is a FUNCTION on derivations (§4), not a node: a
-hypothesis under three binders is the weakened ⟨☐ᵢ₊₃⟩.
-
-DECIDED: motives are mandatory on eliminator nodes — knowing the
-type of an ℕ-elim determines its motive's INSTANCE at the scrutinee,
-not the motive. In checking mode an eliminator written without one
-is read at the constant motive T[↑], a legitimate instance the rule
-accepts; the engine writes that form when it derives an eliminator it
-did not elaborate. The domain (not the full type) annotates an intro
-node: the domain suffices for synthesis and is what the elaborator
-has.
-
-////////// 3. The two readings: ⇒ and ⇐ //////////
-
-Inference: every node reads its children (⇒ or ⇐, as its rule says),
-obtaining lᵢ ≐ rᵢ : Tᵢ, checks the side conditions its rule imposes
-on the Tᵢ and the annotations, and states F(l̄) ≐ F(r̄) : T, where T
-is computed from the annotations and the LEFT sides. Checking at T:
-an intro node reads its children at the parts of nf(T) — the domain,
-the family's instance, the summand, the carrier — and needs no
-annotation; any other node infers and its type must AGREE with T, or
-arrives converted (π by β). TYPE AGREEMENT (tyAgree) is the only
-comparison: syntactic identity, then the β-join, then cumulativity
-(a 𝕌 or Ω code at a 𝕍 position — code-lift-eq, prop-lift-eq), and two
-sort applications at one position and spine agree when their carried
-signatures join alike (A3). Never δ. There is no checking of bare
-terms.
-
-  Σ; Γ ⊦ π_A ⇒ A : 𝕍      Σ; Γ ▷ A ⊦ π ⇒ b : B
-  --------------------------------------------------          # el-pi-i ⇒
-  Σ; Γ ⊦ λ_{π_A} π ⇒ λ b : Π A B
-
-  nf(T) ⇓ Π A B      Σ; Γ ▷ A ⊦ π ⇐ B ⇒ b
-  --------------------------------------------------          # el-pi-i ⇐
-  Σ; Γ ⊦ λ π ⇐ T ⇒ λ b
-
-  Σ; Γ ⊦ π ⇒ f : F    nf(F) ⇓ Π A B    Σ; Γ ⊦ α ⇒ a : A′    A′ agrees A
-  ---------------------------------------------------------------------
-  Σ; Γ ⊦ π α ⇒ f a : B[id, a]                                # el-pi-e
-
-  Σ; Γ ⊦ π_u ⇒ u : A    Σ; Γ ▷ A ⊦ π_B ⇒ B : 𝕍    Σ; Γ ⊦ π_v ⇒ v : B′
-  B′ agrees B[id, u]
-  ---------------------------------------------------------------------
-  Σ; Γ ⊦ (π_u, π_v)_{π_B} ⇒ (u, v) : Σ A B                   # el-sigma-i
-
-  Σ; Γ ▷ ℕ ⊦ π_M ⇒ M : 𝕍    Σ; Γ ⊦ π_z ⇐ M[id, Z] ⇒ z
-  Σ; Γ ▷ ℕ ▷ M ⊦ π_s ⇐ M[(↑, S ☐₀) ∘ ↑] ⇒ s    Σ; Γ ⊦ π_n ⇐ ℕ ⇒ n
-  ---------------------------------------------------------------------
-  Σ; Γ ⊦ ℕ-elim_{π_M} π_z π_s π_n ⇒ ℕ-elim z s n : M[id, n]   # el-nat-e
-
-  Σ; Γ ⊦ π_P ⇒ (l ≡ r ∈ A) : Ω      Σ; Γ ⊦ π ▷ l ≐ r : A
-  ---------------------------------------------------------------------
-  Σ; Γ ⊦ ⋆_{π_P} by π ⇒ ⋆ : (l ≡ r ∈ A)                     # el-eq-i ⇒
-  # the type is an OUTPUT of the witness node: what π_P derives;
-  # under checking, nf(T) ⇓ (l ≡ r ∈ A) supplies it: ⋆ by π ⇐ T
-
-  Σ; Γ ⊦ π ⇒ t : T′    Σ; Γ ⊦ π_T ⇒ T : 𝕍    Σ; Γ ⊦ β ▷ T′ ≐ T : 𝕍
-  ---------------------------------------------------------------------
-  Σ; Γ ⊦ π ∷ π_T by β ⇒ t : T                               # conversion ⇒
-
-  Σ; Γ ⊦ π ⇒ t : T′         Σ; Γ ⊦ β ▷ T′ ≐ T : 𝕍
-  ---------------------------------------------------------------------
-  Σ; Γ ⊦ π by β ⇐ T ⇒ t                                     # conversion ⇐
-
-  Σ; Γ ⊦ π ⇒ t : T′         Σ; Γ ⊦ β → T′ ⇝ T″
-  ---------------------------------------------------------------------
-  Σ; Γ ⊦ π by β ⇒ t : nf(T″)                      # conversion, run ⇒
-  # a checking-form conversion in inference position: the scrutinee
-  # of an elimination whose type a definition hides, exposed by the
-  # δ chain β run from the inferred type
-
-  Σ; Γ ⊦ π_T ⇒ T′ : 𝕍    Σ; Γ ⊦ π ⇐ T′ ⇒ t    Σ; Γ ⊦ β ▷ T ≐ T′ : 𝕍
-  ---------------------------------------------------------------------
-  Σ; Γ ⊦ (π : π_T by β) ⇐ T ⇒ t                             # ascription ⇐
-  # β absent: T′ agrees T; π_T absent: T′ := nf(β → T), π checked there
-
-  Σ; Γ ⊦ π_T ⇒ T : 𝕍    Σ; Γ ⊦ π ⇐ T ⇒ t
-  ---------------------------------------------------------------------
-  Σ; Γ ⊦ (π : π_T) ⇒ t : T                                  # ascription ⇒
-  # how an introduction form sits in inference position
-
-The remaining element rules are Foundation's, read the same way — an
-annotation where the skeleton used to carry a payload, the type
-flowing down otherwise: el-sigma-i, el-sum-i₁/₂ (the summand), el-
-quot-i (the relation), el-nu-i (the carried 𝔽 join-identical to
-nf(T)'s), el-qiit-intro (the term's carried 𝒮 and nf(T)'s join alike
-— a carrier spelled through a definition arrives converted; the spine
-entrywise at ⌊𝔄⌋ᵗ, nf(⌊ī⌋[θ]) = nf(ē)), el-let (the definiens
-inferred; the body at T[↑ ∘ ↑] under the value and its unfolding
-equation — fully general: under the hypothesis (id, a, ⋆) ∘ (↑ ∘ ↑)
-≐ id), el-squash-i, el-squash-e-prf (the goal prop annotated, or the
-type flowing down, judged a prop by shape: §8), el-nu-coind (the
-invariant, the endpoint proof and the one-step closure at the relator
-lift_𝔽(R) — kernel-computed from 𝔽 and R), el-zero-e, el-sum-e, el-
-quot-e (below), el-qiit-elim (below), el-nu-e (out: no motive, the
-scrutinee's ν 𝔽 read off its derived type), el-pi-e, el-sigma-e₁/₂,
-el-var, el-sig-var, the universe codes (components at 𝕌 — a code is a
-type, code-lift; the quotient code's relation at Ω), ∥A∥ at Ω, an
-equality prop at Ω with the sides at A, a sort application at 𝕌 when
-𝒮 passes the SMALLNESS scan (every external Π domain re-derived and
-read at 𝕌 or at Ω, code-qiit — §8) and at 𝕍 otherwise. A shared
-former checked at a classifier (𝕌, Ω or 𝕍) reads its components at
-that classifier — cumulativity, the checking sugar.
-
-quot-elim: with the motive M and the relation instance read off the
-scrutinee's derived type (nf(Tq) ⇓ A / r), the well-definedness proof
-wd ▷ f[↑³, ☐₂] ≐ f[↑³, ☐₁] : M[↑³, class ☐₂] under Γ ▷ A ▷ A[↑] ▷ r is
-demanded unless M derives at Ω (the motive's own derivation is asked;
-its classifier is the kernel's conclusion, no skeleton to thread) —
-el-prf-prop, the ElimP rationale. The QIIT eliminator: each sort's
-motive derived over Γ·⌊𝔎ⱼ⌋ᵗ ▷ 𝒮.𝕤ⱼ δ; each point method checked at
-𝔄ᴰ⟨𝒮.𝕔 δ⟩; each equation entry's coherence read ▷ ⟦l⟧ ≐ ⟦r⟧ :
-C_𝕤′[⌊ī⌋[πᴰ], ⌊l⌋[πᴰ]] in the ᴰ-context (the QIIT generalization of wd,
-one per equation entry); the index spine entrywise at ⌊𝔎⌋ᵗ; the
-eliminee at 𝒮.𝕤 ē; the type C_𝕤[ē, w]. ⌊·⌋, ⌊·⌋ᵗ, ·ᴰ⟨·⟩, ·ᴰᵗ, ⟦·⟧,
-θ⟨φ⟩ and πᴰ are Foundation's QIIT meta-operations, implemented as
-(trusted) kernel functions.
-
-CHECKING SUGAR: under checking at T an eliminator without its motive
-reads at the constant motive — ℕ-elim at T[↑] over Γ ▷ ℕ, ⊎-elim at
-T[↑] over the sum, quot-elim at T[↑] over the quotient (wd absent:
-demanded unless T is a prop), the QIIT eliminator at every sort's
-motive T weakened into the sort's context (constMotives). Each is an
-instance the rule accepts; A1 of the former kernel made explicit.
-
-STATED SPINES (el-sig-var, qpath, x-δ): a reference's, path leaf's or
-δ leaf's spine is derived ENTRYWISE — each entry a derivation read ⇒
-whose type agrees with the telescope entry instantiated by the
-preceding entries' LEFT sides (sub-norm-ext) — so a dependent
-telescope is walked in order and the kernel unfolds nothing to type
-a spine (an entry whose type a definition hides arrives ascribed by
-its producer). A spine may carry proper equations: the congruence at
-the spine, the entry types instantiated by the left entries.
-
-  Γ‖ᵢ = T                     Σ ∋ (Δ ⊦ x ≔ a : A)   Σ; Γ ⊦ π̄ ⇒ ē ⇐ˢ Δ
-  ------------------          ---------------------------------------
-  ☐ᵢ ⇒ ☐ᵢ ≐ ☐ᵢ : T             x[π̄] ⇒ x[ē] ≐ x[ē] : A[ē]
-
-  α ⇒ p₀ ≐ p₁ : P    nf_β(P) ⇓ (l ≡ r ∈ A)
-  ------------------------------------------          # el-reflect
-  ⟨α⟩ ⇒  l ≐ r : A
-  # equality is Ω-valued, so this is the ONE pathway — squashed
-  # spellings normalize to the prop by code-squash-idem's instances;
-  # an equality hidden behind a definition arrives ascribed,
-  # ⟨(α : π_T by β)⟩; Γ is the context AT THE LEAF
-
-  Σ; Γ ⊦ π̄ ⇒ ē ⇐ˢ Δ        (Δ ⊦ x ≔ t : T) ∈ Σ
-  ------------------------------                      # x-δ
-  x-δ π̄ ⇒  x[ē] ≐ t[ē] : T[ē]
-
-  qpath 𝕔 π̄: 𝒮(𝕔) = 𝔄 ending in El (l ≡ r), π̄ ⇒ θ ⇐ˢ ⌊𝔄⌋ᵗ (the
-  signature's embedded pieces joined, as the sort's are), stating
-  ⌊l⌋[θ] ≐ ⌊r⌋[θ] : ⌊El 𝕦⌋[θ]                       # el-qiit-path
-
-  π⁻¹    : swaps the sides
-  π₁ ; π₂ : when π₁ ⇒ a ≐ b : A and π₂ runs → from nf(b) to c: a ≐ c :
-           A; symmetrically when π₂ states and π₁ runs ←; in checking
-           mode the type flows down into both links
-  π₁ ; [π_m] ; π₂ : π_m ⇐ T ⇒ m; π₁ ▷ a ≐ nf(m), π₂ from nf(m)   # el-trans
-  δ-all x̄  states nothing: a function of the side it acts on (→, left
-           to right only). It keeps a computation-heavy join linear:
-           a numeral test unfolds a recursive definition hundreds of
-           times, and one occurrence per leaf with a β-join after
-           each would be quadratic on both sides.
-
-The classifiers of a derivation's shape (decided before any reading):
-STATING (dSynth) — a leaf, a node over stating heads and CHECKABLE
-children at its checked positions, an annotated intro, an eliminator
-with its motive, a chain one of whose links states and whose other
-link runs the other way;
-CHECKABLE (dCheckable) — stating, or a checking-mode intro over
-checkable children, an eliminator at the constant motive, a switch
-π by β, an ascription, a type former; DIRECTIONAL by shape (dDirable,
-§7). The kernel never guesses a reading.
-
-Two checks of the same kind: in a checking position a node that
-infers a proper equation must agree with the position's type unless
-it is a SPINE node (an application, a projection, an observation, a
-reference), whose head is a variable or a reference and whose typings
-therefore all factor through one declared type (a dependent codomain
-moves with the argument); an eliminator node is compared, since the
-same term types at other motives.
-
-Type equations — π ▷ T₀ ≐ T₁ at 𝕍: no conversion is admissible
-(circular); the type formers are nodes like any other, their
-components at the classifier 𝕍, and the extensional components that
-no leaf reaches are closed by prop-lift (a prop codomain equal only
-by propext, under Π refl …). A universe-code equation is already a
-type equation by cumulativity (code-lift-eq) — no transport is
-involved.
-
-////////// 4. Substitution //////////
-
-  σ ::= ↑ᵈ ▷ π₁ … πₖ      d ≥ 0, k ≥ 0        (DSb: depth, entries)
-
-  π[σ]  the derivation π with ☐ᵢ replaced by πₖ₋₁₋ᵢ for i < k and by
-        ☐ᵢ₋ₖ₊d otherwise, every entry weakened past the binders π
-        crosses (weakenD; dsbLift lifts σ under one binder, the new
-        variable its own entry)
-
-Substitution is the substitution LEMMA of the theory, admissible, and
-the kernel needs no rule for it: it is a total FUNCTION on the
-grammar of §2 (substD), computable at every derivation, and its
-erasure commutes — |π[σ]| = |π|[|σ|]. Every node is closed under it:
-a variable is replaced or shifted; a binder lifts σ; an annotation,
-a motive, a stated middle, a carried signature or polynomial (their
-embedded pieces, §2) is substituted as a derivation in its own
-context — a QIIT motive under the sort's binders plus the point,
-a coherence method under its equation's displayed telescope
-(dTelLen); a δ leaf, a signature reference or a δ-all leaf has its
-spine substituted and its name kept (σ is a substitution of the
-CONTEXT; Σ is untouched); refl, the type-directed leaves and the
-constants are fixed. The shape ↑ᵈ ▷ π̄ — a weakening followed by an
-extension — is the only shape the engine performs (a match's
-instantiation under the binders it crossed, a hypothesis moved
-under a binder, a lemma instantiated at its parameters, a carrier
-placed under binders); general substitutions are not needed and are
-not built.
-
-The result is a derivation like any other, read by §3 and §7 with
-nothing remembered of the substitution: a stating leaf stays
-stating (an entry at a variable is itself a derivation that states
-or is checkable where the variable was — the engine substitutes
-reflected typed neutrals, which infer), a chain stays a chain, and
-whether the substituted derivation reads at a position is decided
-by its shape as for one written there directly. No typing of the
-entries is carried: the substituted derivation is re-read where it
-lands, and an ill-typed entry fails there (a substitution that
-mistypes a variable produces a derivation that does not read).
-
-What it buys: a candidate stores its licence ONCE, a proof over its
-own context, and each use is the substituted copy; a hypothesis
-under three binders is the weakened variable; the β-whnf on
-derivations (§3, dWhnf) contracts a redex by substD — the body of a
-λ at its argument's derivation, a let's body at its binding and the
-⋆ witness of its equation, a corecursion's unfolding at the seed —
-so the derivation-level normalizer needs no node either.
-
-IMPLEMENTATION (the engine, Nova.Elaboration): a candidate records
-the LENGTH of the base context it was built over and its parameters'
-types; its LEAF — the licence at the pattern variables bridged by
-the normalization proofs, pL⁻¹ ; lic ; pR — is built once over the
-pattern context. A use writes substD leaf (↑ᵈ ▷ e₁ … eₖ) with d the
-use context's length past the base (binders the rewriter crossed
-included) and each eᵢ the matched term's derivation (a reflected
-typed neutral) over the use context. Extending a candidate set under
-a binder weakens the PATTERNS (the matcher works in the extended
-context) and nothing else; the hypotheses of the new context are
-still rebuilt (a rebuild of what a wrap could give — the remaining
-sharing).
-
-
-////////// 5. Injectivity //////////
-
-There is NO injectivity node. A proof passes from an equation to a
-component equation only the way the theory does: by a CONGRUENCE
-whose β-reduct is the component. S-injectivity is the predecessor
-congruence — Foundation notes it as derivable (an ℕ-elim retraction
-of S) — and the engine derives it so: from a licence h for S x ≐ S y
-it emits
-
-  (pred : Π ℕ ℕ) ⟨h⟩   ⇒  pred (S x) ≐ pred (S y) : ℕ
-  pred = λk. ℕ-elim Z (k ih. k) k, an ascribed λ
-
-an application node over an ascribed head, STATING its equation;
-read against the position x ≐ y (§7) its stated sides join to the
-goal's by β. The retraction is inlined as an ascribed λ rather than
-referenced through Σ so that the join needs no δ.
-
-Foundation's TYPE-CONSTRUCTOR injectivity rules (code-pi-inj,
-code-sum-inj, code-quot-inj, QIIT code injectivity indexwise) have no
-derivation form: no proof in the corpus ever cited one. A component
-equation of a code equation is therefore not extracted
-(tests/nova/elaboration/elab-injectivity records this: the sites end
-in obligations). Should a proof need one, the node to add is the rule
-itself, its binder-crossing instantiation derived as a spine's
-entries are (§3).
-
-What does NOT hold, as before: point constructors of a QIIT are NOT
-injective (equation constructors may merge them — a quotient's cls is
-the canonical counterexample), and equations between equality props
-have no injectivity (equality is Ω-valued and inherits Ω's
-anti-structural discipline: code-prop-eq equates all true equations).
-Injectivity is a TYPE/CODE phenomenon only, exactly as in Foundation.
-
-////////// 6. Nodes over proper equations: the position's type //////////
-
-A node whose children state proper equations is one Foundation
-congruence rule (or a derived instance: el-sub-cong through the
-former's binders). Read against a goal (§7) it DECOMPOSES the given
-side — which must have the node's former as its head — and reads each
-child against its part at the child's expected type, computed from
-the node: the types of §3's rules, with a head child's type taken
-from the child itself.
-
-  𝟘-elim_{π_T} π    child : 𝟘             S π       child : ℕ
-  ℕ-elim_{M?} πz πs πn
-                    motive M (Γ ▷ ℕ ⊦ π_M ⇒ M : 𝕍, M[id, n] agrees E):
-                    z : M[id, Z],  s : M[↑², S ☐₁] under Γ ▷ ℕ ▷ M,
-                    n : ℕ; no motive: the constant motive E[↑]
-  λ π               child : B under Γ ▷ A   when nf(E) ⇓ Π A B
-  π_f π_a           f : HEAD(f),  a : A     when nf(HEAD(f)) ⇓ Π A B
-  (π_u, π_v)        u : A,  v : B[id, u]    when nf(E) ⇓ Σ A B
-  π .π₁ / π .π₂     child : HEAD(π)
-  inj₁ π / inj₂ π   child : the summand     when nf(E) ⇓ A ⊎ B
-  ⊎-elim_{M?} πl πr πt
-                    t : HEAD(t) ⇓ A ⊎ B; motive M over Γ ▷ A ⊎ B
-                    (M[id, t] agrees E): l : M[↑, inj₁ ☐₀] under Γ ▷ A,
-                    likewise r; no motive: the constant motive
-  Π πa πb, Σ πa πb  a : 𝕂,  b : 𝕂 under Γ ▷ A′ — the domain the
-                    domain child PRODUCES (ty-pi-cong / ty-sigma-cong
-                    over the right domain)
-  πa ⊎ πb           both : 𝕂
-  πl ≡ πr ∈ πt      l, r : T (the left side's ∈-type),  t : 𝕍
-                    # code-eq-cong (admissible)
-  πa / πr           a : 𝕂,  r : Ω under Γ ▷ A′ ▷ A′[↑]
-  x[π̄]              child i : Δᵢ[e˲ prefix]  # the telescope entry
-  class π           child : A               when nf(E) ⇓ A / r
-  quot-elim_{M?} πf πq
-                    q : HEAD(q) ⇓ A / R; motive M over Γ ▷ A / R
-                    (M[id, q] agrees E): f : M[↑, class ☐₀]; no
-                    motive: the constant motive
-  ∥π∥               child : 𝕍
-  𝒮.𝕤 π̄, 𝒮.𝕔 π̄     child i : entry i of the reflected telescope,
-                    instantiated by the preceding children
-  𝒮.𝕤-elim_{C̄?} π̄m π̄ πw
-                    motives C̄ (C_𝕤[ē, w] agrees E): m_𝕔 : 𝔄ᴰ⟨𝒮.𝕔 δ⟩ at
-                    C̄; no motives: the constant motives; spine as
-                    above; w : 𝒮.𝕤 ē
-  out π             child : HEAD(π)
-  corec_𝔽 πa πf πx  a : 𝕌,  f : ⌊𝔽⌋(a)[↑] under Γ ▷ a,  x : a
-  let πa πb         a : HEAD(a); b : E[↑ ∘ ↑] under Γ ▷ A ▷ (☐₀ ≡ a[↑])
-
-  𝕂 is the components' classifier: 𝕍 when the node's own type is 𝕍
-  (a type), 𝕌 otherwise (a code). E is the node's own type (the type
-  flowing down). HEAD(π) is the head child's type: what the child
-  STATES when it does (a variable, a reference, an ascribed or
-  converted child, a spine over one), else what it INVERTS to from
-  the given side, STRUCTURALLY through the child's own nodes
-  (headOfMT): a conversion π by β runs β from the inner's type, an
-  observation out π takes ⌊𝔽⌋(ν 𝔽) from the inner's ν, a projection
-  the component, an application the codomain instantiated by the
-  side's argument, a chain its first link's, an ELIMINATOR NODE WITH
-  ITS MOTIVE the motive's instance at the side's scrutinee (whatever
-  its children state: a stuck eliminator that unfolding produced,
-  standing as the scrutinee of another, is typed by its motive
-  alone) — so a child under `by x-δ` types exactly as far
-  as the exposure reaches, and a variable the crossed binders bind is
-  resolved against them. Any type a neutral inhabits is judgementally
-  equal to the one inversion computes (typing inversion; ⇒ᴺ refuses
-  intro heads, where the multi-typing lives — a class spelling
-  inhabits every quotient that relates its representative). A head
-  or scrutinee child that neither states nor inverts is REJECTED:
-  there is NO UNDETERMINED POSITION — an untyped comparison is not a
-  reading. Every "when nf(·) ⇓ …" is the β-whnf: a shape a
-  definition hides reaches the node only through a conversion —
-  (π : by β) around the node for the type flowing down, π by β around
-  a scrutinee child for its inferred type.
-
-The carried heads — a signature variable's name, a QIIT signature
-and position, a polynomial — must match the sides' syntactically
-(A3, §9).
-
-Soundness note: the positional check is load-bearing. Equality is
-type-relative in this theory (a class equation at one quotient says
-nothing at another), and the two historical exploits
-(docs/NovaPipeline.txt, "Why this shape") both die on exactly this
-check or on the stated spines (§3). The invariant every reading
-maintains: the side(s) a derivation is read against are well-typed
-at the node's type, so a node is a rule instance whose typing
-premises hold — under ▷ both sides (the goal's are; a computed or
-stated middle is, by the equation just checked), under → the given
-side.
-
-////////// 7. Reading against given sides //////////
-
-Conversions are the one place a derivation meets sides it did not
-produce: in π by β the proof β is read against the two erasures T′
-and T — Σ; Γ ⊦ β ▷ l ≐ r : T; an element equation the engine
-discharges is read the same way (kCheckEqDrv); a type equation is
-the T = 𝕍 instance. Both sides are β-JOINED first (every computation
-rule, NO δ — a definition reference is stuck, whatever its
-classifier), then the derivation is read against them; refl at
-α-identical sides is accepted without normalizing (the normalizer is
-a function: same acceptance set, none of the work).
-
-ONE READING PER DERIVATION. The reader never backtracks. A GOAL is
-the side the derivation runs FROM, its direction, and — when known —
-the other side as a HINT; the reading returns the side it produces
-and the caller compares it with the hint under β (sameB). Which
-reading a derivation gets is a function of its shape and the given
-side, in this order (dRun):
-  1. Structure is read through: transitivity and symmetry link by
-     link, an ascription or conversion wrapper at the type it
-     converts to — even when the structure states.
-  2. A derivation that states or is checkable is CHECKED at the type
-     (§3) and its given side compared.
-  3. Otherwise it RUNS from the given side when the side has its
-     shape DOWN TO EVERY CHILD (runnable): a stating derivation
-     always, except a ONE-WAY one from the right (a δ leaf's right
-     side is a definition's body, an intro form that β-reduces
-     against the node above — it never is a syntactic part); refl;
-     δ-all from the left; symmetry in the flipped direction;
-     transitivity when its first link runs from the side and its
-     second is directional that way by shape (one-way leaves
-     excluded); a wrapper when its inner does; a node when the side
-     is its former's construct and each child is runnable from the
-     matching part.
-  4. Otherwise, given a hint it is runnable from, it runs from the
-     hint and the given side is compared with what that produces.
-  5. Otherwise the decomposition (dGo): a type-directed leaf reads at
-     both sides (it needs the hint), anything else reports the
-     mismatch.
-A node passes the hint down at its parts when the hint has its shape
-(else the children get none). Transitivity runs the link at the
-given side and hands its neighbour the middle with the hint; when
-that link cannot run, the link at the hint runs from the hint and
-the other link reads from the given side with that middle as ITS
-hint; when neither runs, a STATING link supplies the middle — the
-link at the given side (one-way against the direction) by its
-statement, its outer side compared with the given side and the
-other link run from its inner side with the hint, else the far link,
-the near one then read from the given side towards its inner side —
-so a chain may mix directions (a rewrite run from the left,
-an unfolding run from the right), and a wrapper over a chain is read
-through first so the chain is never run as a whole from one side.
-The classifiers agree with the reader: a chain STATES through one
-link only when its other link is directional that way with one-way
-leaves excluded (dirable).
-The produced side need not have the shape the other side has: it may
-be the β-normal form of it (a δ exposure's result), which is why a
-node runs from one side and compares at the top rather than
-decomposing both sides one level at a time (a one-level shape match
-would misalign a δ head against its unfolding's application).
-
-The → reading (dGo under a goal with the direction), given one side x
-and E; it produces the other side, unjoined (the consumer joins):
-
-  refl          x
-  π⁻¹           π in the opposite direction
-  π₁ ; π₂       as above; without a hint and neither link runnable, a
-                stating far link supplies the middle
-  π₁ ; [π_m] ; π₂  π_m ⇐ E ⇒ m; π₁ ▷ x ≐ nf(m), then π₂ from nf(m)
-  (π : by β), π by β   the type converted (§3), π read there
-  δ-all x̄       left to right: unfold-all(x); right to left: with a
-                hint h, unfold-all(h) compared with x; else reject
-  stating leaf  π ⇒ a ≐ b : A; A agrees E (§3); nf(a) = nf(x),
-                result b (swapped right to left)
-  node          x decomposes by the node (§6); children from their
-                parts; the node rebuilt from the results
-  type-directed leaves: need both sides (below)
-
-The type-directed leaves, given l, r (β-joined) and E:
-
-  irrel(π_P?)   nf(E) ⇓ 𝟙 or 𝟘, or E is a PROPOSITION: π_P ⇒ P : Ω with
-                P agreeing E, or (π_P absent) E judged a prop by SHAPE
-                (kIsProp: an ≡ or ∥·∥ is, the other formers are not,
-                a neutral is one exactly when its head's declared type
-                inverts to Ω — inferHead, β-only; nothing else, in
-                particular no constant-motive reading of an
-                eliminator standing as a prop: such a prop is DERIVED
-                by whoever writes the node, or the node is rejected)
-                # el-one-prop / el-zero-prop / el-prf-prop
-  quot-wit(π?)  sides class a ≐ class b, nf(E) ⇓ A / r; by the shape
-                of nf(r[id, a, b]) (an Ω code): ⇓ ∥𝟙∥ accepted;
-                ⇓ (wl ≡ wr ∈ W) — π ▷ wl ≐ wr : W   # el-quot-eq with
-                the witness RE-DERIVED from the relation's shape
-  quot-wit[π_w] sides class a ≐ class b, nf(E) ⇓ A / r;
-                π_w ⇐ r[id, a, b]   # el-quot-eq, faithful: an
-                ARBITRARY Ω-valued relation
-  inj(π)        nf(E) ⇓ A ⊎ B; l, r same-tag injections; π ▷ x ≐ y
-                at the branch type   # congruence at el-sum-i₁/i₂,
-                as a leaf so el-one-prop can close 𝟙 payloads beneath
-  η→(π)         nf(E) ⇓ Π A B;  Σ; Γ ▷ A ⊦ π ▷ l[↑] ☐₀ ≐ r[↑] ☐₀ : B
-  η×(π₁, π₂)    nf(E) ⇓ Σ A B;  π₁ ▷ l.π₁ ≐ r.π₁ : A,
-                π₂ ▷ l.π₂ ≐ r.π₂ : B[id, l.π₁]      # el-sigma-eta
-  propext[π_f, π_g]
-                nf(E) ⇓ Ω, sides prop codes p, q; π_f ⇐ Π p q[↑] and
-                π_g ⇐ Π q p[↑] — the two implications as functions
-                over Γ (prop-lift; the form a surface term can hand
-                over)   # code-prop-eq
-  prop-lift(π_p?, π_q?, π)
-                E = 𝕍, both sides PROPOSITIONS (derived at Ω, or
-                judged by shape — the lift's load-bearing side
-                condition); π ▷ l ≐ r : Ω   # prop-lift-eq
-
-////////// 8. Items, Σ, re-derivation //////////
-
-Items. A definition arrives as two derivations, Σ; Δ ⊦ π_T ⇒ T : 𝕍
-and Σ; Δ ⊦ π ⇐ T ⇒ t (kCheckDefDrv); a type definition as the first
-alone (kCheckTyDefDrv). Acceptance EXTENDS Σ with the entry
-(Δ ⊦ x ≔ π : π_T), the two derivations it read beside their
-erasures. Σ is OWNED BY CONSTRUCTION: the entry type's constructors
-are private to the kernel module, so an admitted entry is only what
-an entry point returned; what the engine assumes — an item not
-admitted, an obligation, a hole, a written declaration — enters
-through assumeDef/assumeDecl, marked and never read; admission
-reads the ADMITTED entries alone (a reference to an assumed entry
-is an unknown name), and a signature is closed when it has no
-assumed entry — the elaborator's opinion of any earlier item is
-never consulted. (The kernel accepts Foundation's
-general form — nonempty Δ, x[e˲] references with derived spines — but
-the elaborator only ever produces CLOSED items: surface parameters
-are Π-binders, so Δ = ε and every reference carries the empty
-spine.) The distiller prints erasures; the round trip is surface →
-derivation → erasure → surface (docs/NovaPerfectSurface.txt).
-
-Formation is the T = 𝕍 instance of checking: the type formers'
-nodes read their components at 𝕍 (their binder children under the
-domain), anything that is not a large former falls through to 𝕌 and
-then to Ω by cumulativity; a ν's polynomial and a sort's signature
-are carriers, checked as below; the squashee of ∥·∥ as a type, the
-quotient's relation at Ω, an equality prop's sides at its ∈-type.
-
-CARRIERS — a polynomial 𝔽 (ν 𝔽, corec_𝔽) and a QIIT signature 𝒮
-(𝒮.𝕤, 𝒮.𝕔, 𝒮.𝕤-elim, qpath) — carry their embedded Nova pieces as
-derivations (§2). A ν's polynomial is READ where the node is (dPoly:
-poly-hole/-const/-prod/-sum/-sigma/-pi, each code derivation at 𝕌,
-the context growing by the binders' domains); a sort's or
-eliminator's signature likewise (dQSig): Foundation's qctx / qty /
-qtm system read as an algorithm on the erasure (the ToS is syntax-
-directed by construction: qiit-terms are variables and application
-chains, entry heads classify themselves), every embedded piece read
-where it stands — an external Π domain as a type over the Nova zone,
-an external argument at its instantiated domain. SMALLNESS (code-
-qiit's side condition) is read off each external domain's own
-classifier (𝕌 or Ω small, 𝕍 large) — never tried. A constructor's
-and a path leaf's carrier is not read again: it must join with the
-type's, which was read where that type was. The fragment is the one
-the elaborator emits (A6, §9). The kernel checks no bare term: a
-carrier's pieces arrive derived like everything else.
-
-RE-DERIVATION (Nova.Elaboration.Rederive: rdCheck, rdInfer, rdType,
-rdQSig, rdPoly — a module BESIDE the engine, not the kernel's, and
-UNTRUSTED: a builder whose every result is read before it counts;
-the kernel imports nothing from it).
-What the elaborator did not elaborate — a solved hole against its
-domain, a recovered motive over its quotient, an inferred type
-standing as an annotation, an inline definition's type over its
-context, a data expansion's items, an engine leaf (a typed neutral,
-an argument at a domain), a carrier's embedded piece — is DERIVED
-against its type by the same bidirectional walk the reader takes,
-building instead of checking:
-
-  * checking at T by the term's shape: an intro form at the parts of
-    T, the shape EXPOSED by a proved δ chain when a definition hides
-    it (rdShaped: the derivation wrapped (π : by β) with β the
-    exposure run from T); an eliminator at the CONSTANT motive (the
-    checking sugar, coherences refl); ⋆ at an equality prop as the
-    refl witness; anything else inferred and ascribed;
-  * inference by the head: variables, references with their spines
-    derived entrywise, spines whose scrutinee's type is exposed by a
-    proved δ chain when its head is hidden (π by β around the
-    scrutinee), an eliminator without a motive at the constant
-    motive read off its base case's type (an ℕ-elim's z, a ⊎-elim's
-    or quot-elim's case when it does not mention the branch variable;
-    a bare QIIT eliminator does not infer), codes at 𝕌, types at 𝕍;
-  * a carrier's pieces: a signature's external domains as types
-    under the external binders before them, its external arguments
-    by inference (as the elaborator elaborates them); a polynomial's
-    codes at 𝕌;
-  * a type as a type: formation; a type that is no large former is
-    classified by its OWN type — inferred, exposed to its head (a
-    definition may hide Ω or 𝕌), and read off (never tried at one
-    classifier and then the other) — and ascribed at that classifier,
-    the derivation READ there before it is handed out.
-  When an eliminator's case is an intro form (a map from the quotient
-  or the sum to itself, unfolded: abs, neg) its type does not infer;
-  the scrutinee's own type is then the motive candidate, the case
-  CHECKED there — a checked candidate, never a guess.
-
-Its EXPOSURE WALK (rdExposeWT) — the head path unfolded to the shape
-a node needs, each step a δ leaf inside the node of its position —
-threads the TYPE of the term where it is free (a definition's
-declared type at its spine, a β-reduct's, a projection's component,
-an application's codomain), so that the eliminator nodes it writes
-around a scrutinee exposure carry their CONSTANT MOTIVE at the type
-the position has, and a δ leaf standing at a position spelled
-otherwise (a proof written at the exposed type of its equation)
-arrives ascribed to the position's spelling. The engine's δ-rounds
-(unfLogElem) run this walk FIRST, under the δ licence, and the δ-all
-leaves after: the rounds compute the same normal form, but the head
-path — where a stuck eliminator lands as another's scrutinee, its
-motive otherwise lost to a δ-all leaf — is typed. δ-all enters a
-QIIT eliminator's methods like any other position.
-
-Its δ bridge (rdBridge, the engine's deltaPrf) proves a term equal
-to another spelling by the two HEAD exposures first (a definition
-against its unfolding, the exposures stated so the proof runs) and
-δ-rounds after. The elaborator's services (kReDeriveTy/TyK/Chk/Inf)
-each READ their result — a re-derivation that would not read is a
-failure, never a derivation; kInferBare types a hole's value the same
-way (re-derived, read, the type returned); kIsPropD asks whether a
-type is a prop on the bare type and, failing that, on its
-re-derivation at Ω.
-
-A checking-form annotation the elaborator cannot derive — a
-squash-elim's goal, a prop-lift's side, an irrelevance's prop, the
-type flowing down — is left to the kernel's own judgement on the bare
-type, by SHAPE ALONE (kIsProp, §7): an equation or a squash is a
-prop, the other formers are not, a neutral is one when its head's
-declared type inverts to Ω. An eliminator-headed prop is derived (at
-the constant motive, read by the kernel) by whoever writes the node —
-the elaborator for a squash-elim's goal, the engine for an
-irrelevance leaf or a prop-lift's sides — or the node is rejected.
-
-The engine (docs/NovaPipeline.txt; Nova.Elaboration.Proof, untrusted)
-WRITES derivations as it searches: a licence applied at a position is
-its leaf inside the nodes along the path — the candidate's leaf built
-once over its pattern context and instantiated by substitution
-(§4) — with refl at the siblings, a rewritten head or scrutinee
-child under the exposure of its type when a definition hides the
-shape, a δ-round a δ-all leaf, a closing step by the type's shape
-its type-directed leaf, the rewrites of one side a chain, the two
-sides' chains joined through the closing leaf, an equation proved at
-an exposed type an ascription around the whole. There is no
-intermediate language: what the search returns and what the kernel
-reads is the derivation.
-
-////////// 9. Acknowledged approximations and their scope //////////
-
-The kernel is deliberately dumber than the theory; where it accepts
-by an approximation, the approximation is an INSTANCE of a Foundation
-rule (so soundness is unaffected) that may reject spellings the
-theory would accept (incompleteness only).
-
-  A3  OPAQUE CARRIERS. No node descends into a carried signature 𝒮,
-      eliminator problem or polynomial 𝔽 — their embedded Nova pieces
-      are derived (§2) but are no PROOF positions; a node carrying one
-      demands the sides' to match syntactically; two sorts at one
-      position and
-      spine agree when their carried signatures JOIN alike (tyAgree,
-      §3 — the structural identity el-qiit-beta fires on); a path
-      leaf's carried signature and a corec's polynomial against its
-      ν-type's are joined the same way. The remedy for a signature-
-      piece equation is a lemma respelling the whole former, via a
-      conversion or an exposure.
-
-  A4  β-ONLY COHERENCES IN RE-DERIVED ELIMINATORS. A QIIT eliminator
-      the engine re-derives in argument position (the constant
-      motives, §8) carries reflexive coherences, so its coherences
-      are verified by pure β alone. An eliminator whose coherences
-      need real proofs is referenced through Σ, where the elaborator
-      writes them (the data-item emitter).
-
-  A5  NO η CERTIFICATE FOR QIITs. el-qiit-eta (like el-nat-eta,
-      el-sum-eta and el-quot-eta) has no leaf; for ν the gap is
-      CLOSED, by el-nu-coind as a witness node (§2) — the admissible
-      relational form, not el-nu-eta itself (whose candidate h would
-      be a carried higher-order payload; the relational form subsumes
-      it via graph invariants); uniqueness arguments live in the
-      elaborator as lemmas, not in kernel derivations (an el-sum-eta
-      instance is proven as an ordinary ⊎-elim lemma at an equality
-      motive, β closing both cases). The Π/Σ η leaves are unaffected.
-
-  A6  FIRST-ORDER SIGNATURE FRAGMENT. The signature checker (§8)
-      covers the fragment the elaborator emits: no equation-code
-      binders, no external λ (infinitary recursive arguments). Sort
-      entries MAY carry inductive index binders (induction-induction
-      — Con/Ty-style signatures check; the entry walk rebases each
-      index code from its declaration site into the walk state of
-      its use site). Foundation covers the rest; the restriction is
-      checking incompleteness only. Embedded pieces arrive as
-      derivations (§2), read at their arities (§8).
-
-(A1, the constant motive, and A2, neutral spines only, of the former
-kernel are not approximations of this one: motives are mandatory, the
-constant motive is explicit checking sugar, and a head is typed by
-what it states or inverts to — never left undetermined, §6.)
-
-NO δ FOR EXPOSURE: the kernel's weak-head normalizer is β-only. Every
-shape a definition hides — the Π of a checked λ, the Σ of a projected
-pair, the quotient of a class, the ≡ behind a proof's type, the type
-a stated equation sits at — reaches the kernel through a recorded
-conversion: an ascription or conversion node, an ascribed leaf (§2,
-§3). The producer records them from its own exposure (the engine's
-whitelist governs matching, not shapes; the exposure of a scrutinee's
-TYPE for typing is re-derivation's own and free of the whitelist).
-Every element a derivation carries is derived (a spine's entries,
-§3) and every prop-ness test is by shape or by a derivation (§7).
-NO kernel-initiated δ remains on a verdict path: inversion of a
-head's type (§6) opens a bare spine's head type by the β-whnf, and a
-stated head is read from its statement; el-qiit-intro joins the
-expected type, the term's carried signature and the index spines
-under β; the signature checker's qiit-term comparison joins the
-embedded pieces the same way. The kernel HAS no δ normalizer (§1):
-there is nothing a verdict path could inherit.
-
-Two structural caveats restated from docs/NovaPipeline.txt: an
-annotation (motive, ascription, exposure target) is a REPRESENTATIVE,
-never a canonical type — no consumer compares annotations
-syntactically, only up to certified conversion (an exposure's target
-is not even spelled: it is what the run produces, §2); and the kernel
-invariant is one-directional — kernel accepts the derivation ⟹ the
-erasure is Foundation-derivable at the stated type. Rejection claims
-nothing.
-
-////////// 10. History: from skeletons to derivations //////////
-
-Until 2026-09-24 the kernel's input was a core term plus a SKELETON —
-a tree aligned with the term, carrying what β does not read (motives,
-ascribed types, switch and exposure proofs, witnesses) — and equations
-were proof terms (Prf) whose leaves stated equations and whose nodes
-were congruences, with a checked leaf [t : T] ⟨sk⟩ as the one place
-a bare term and a skeleton entered together. Every awkwardness of the
-pair lived there or in the item level that mirrored it: child
-indexing by position, motives whose binder depth the skeleton did
-not record, a substitution that could not enter skeletons, skeleton
-reconstruction for values the elaborator never elaborated, a
-neutral-subterm rule with an UNDETERMINED position, a bare-term
-checker of its own (kCheckE/kInferE) with the constant-motive (A1)
-and neutral-spine (A2) approximations.
-
-The observation: the proof-term language already synthesized — the
-⇒ reading of a typed neutral produced both sides and the type, and an
-element's derivation IS such a proof, one whose sides coincide. Give
-the intro forms and the eliminators their own nodes, carrying what β
-does not read, and the term becomes an OUTPUT, the erasure.
-
-The migration, all on 2026-09-24: (1) the grammar and its erasure as
-data, beside Prf; (2) the readings of every node, the entry points,
-and a re-derivation of what the elaborator emitted (terms with
-skeletons, proof terms) run as a CANARY at every kernel entry point
-(over the corpus the readings agreed with the checker on every item
-and every discharge the re-derivation could express); (3) the
-elaborator returns derivations at every site, the data-item emitters
-build them, re-derivation replaced skeleton reconstruction; (4) the
-engine writes derivations, candidates store one leaf and are
-instantiated by a substitution node, the undetermined position
-removed (its corpus sites disappeared once the engine's normalization
-loop rewrites the raw sides before unfolding and the reader inverts
-a head's type structurally through the child's nodes — a proof
-written under a lost motive is rejected); the reading against given
-sides made deterministic (§7: one reading per derivation, hinted
-goals, one-way leaves); the QIIT eliminator's motives an explicit
-absence; the stated middle a derivation; (5) Skel, Payload, Prf, the
-proof-term reader, the bare-term checker and the bridge deleted, the
-embedded pieces of carriers checked by re-derivation, this document
-rewritten; then (2026-09-25) carriers carry their pieces as
-derivations and the kernel reads them (no bare-term check remains),
-and re-derivation left the kernel module for
-Nova.Elaboration.Rederive; the signature stores each entry's
-derivations beside their erasures; a β-whnf on derivations (§3,
-closed on the redex's own subderivations once the let node carried
-its definiens' type derivation; its canary and the error dumps are
-the engine's);
-and the substitution node became the function of §4 (its reading
-was the substituted derivation's own, so the node carried nothing —
-its typed entries were never read at a use; and a chain a use
-inlines is read link by link like any chain: a stating link at the
-given side, one-way against the direction, supplies the middle by
-its statement, §7).
-
-Open: whether a proof-level let (α ≔ π in π′) is wanted for sharing
-beyond what substitution gives — deferred to the let-sharing item; the
-hypotheses of an extended candidate set are still rebuilt per
-extension (a wrap could share them).
-
-
-////////// 11. The interface //////////
-
-What passes between the kernel and the rest of the program, in two
-layers (docs/NovaStrategy.txt, the roles). Nothing else the kernel
-modules export is meant to be called; what remains exported is
-listed under the LIBRARY, with the reason.
-
-THE TRUSTED INTERFACE — every verdict passes through it, and only
-through it:
-
-  entry points     kCheckDefDrv   Σ → Δ̄ → π_T → π → SigEntry | error
-                   kCheckTyDefDrv Σ → Δ̄ → π_T → SigEntry | error
-                   kAssumeDecl    Σ → Δ̄ → π_T → SigEntry | error
-                   kAssumeDef     Σ → Δ̄ → π_T → t → π → SigEntry | error
-                   kCheckEqDrv    Σ → Δ̄ → π_A → π → l → r → () | error
-                   The telescope Δ̄ and the type are DERIVATIONS, read
-                   before anything else; the equation's sides are bare
-                   because they are compared, never trusted. The
-                   assumption entry points read an assumption's
-                   statement (against the whole Σ — an assumption may
-                   mention earlier ones) and mark the entry ASSUMED: a
-                   well-formed statement that blocks acceptance; a
-                   definition assumed keeps its body unread. An
-                   admitting entry point returns the entry it admits;
-                   the engine extends the kernel's Σ with that entry
-                   and nothing else (kernelAccept, one site).
-  the signature    SigEntry (abstract: constructors private to the
-                   kernel module), Sig, sigLookup, the accessors
-                   (sigEntryName, sigEntryIsDef, entryAssumed,
-                   entryCtx, entryTy, entryBody, entryTyD, entryBodyD,
-                   entryDef, entryDecl, entryClosed, entryClosedDef),
-                   sigAdmitted, sigClosed, renameEntry; and the raw
-                   constructors assumeDef/assumeDecl — an entry
-                   assumed with its type UNREAD, the engine's fallback
-                   when it cannot supply the derivations the
-                   assumption entry points read, counted by its
-                   ASSUME-UNREAD audit (§8).
-  the grammar      Drv, DQTm, DQTy, DQSig, DPoly (§2) — the input
-                   language; the engine writes it, the kernel reads it.
-  on derivations   erase (and eraseQTm/QTy/QSig, erasePoly), substD
-                   with DSb, weakenD, dsbLift, liftN, the carrier
-                   substitutions (§4); dWhnf (§3); showDrv;
-                   drvChildren; mapNamesD (renaming the Σ names a
-                   derivation mentions, for module prefixes).
-
-THE LIBRARY — pure functions of the reader, exported so the engine's
-UNTRUSTED builders can run them: the re-derivation builder
-(Nova.Elaboration.Rederive) validates the derivations it rebuilds
-from bare terms by the reader's own readings, and the proof library
-types positions by the same functions the reader uses. Calling any
-of them cannot affect a verdict, because a verdict is only what the
-entry points return over the kernel's Σ. They are:
-
-  the readings     dInfer, dCheck, dAt, dDir, dType, dTypeK, dElemTy,
-                   dElemAt, dQSig, dPoly (§3, §7, §8)
-  the β join       kWhnfE, kWhnfT, kJoinElem, kJoinTy, kJoinQTm,
-                   kJoinQSig, kJoinSubNorm, liftQ (§1)
-  comparison       sameB, tyAgree, kIsProp
-  classifiers      dSynth (§3)
-  helpers          ctxLookup, weakenTyN, unfoldAllK, compClassifier,
-                   sigChildTy, qSpineChildTy, constMotives, qMotives,
-                   kQSigSmallD
-  the monad        KM, runKM, kerr, kCatch, kSigLookup
-
-The library is expected to SHRINK: the readings leave it when the
-engine carries derivations everywhere and re-derivation of bare
-terms is no longer needed. (The δ-all leaf and unfoldAllK stay: a
-computation leaf on the erasure, on the same footing as the β join
-— docs/NovaStrategy.txt, kernel programme item 4.) The
-kernel has no bare-term typing at all: a head's type is what the
-child derivation states, a neutral's prop-ness what a derivation
-states (the builder's head inference, rdInferHead, is the engine's). Backtracking combinators are not the
-kernel's: the builder defines its own over kCatch.
+Γ ⊦ [α] t₀ ≐ t₁ ⇒ T    // Given core context Γ and a surface proof infer the core equation LHS, RHS and type
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ T    // Given core context Γ, core type T and a surface proof infer the core equation LHS, RHS
+[ᾱ] ē₀ ≐ ē₁ ⇐ (Γ ⇒ Δ norm)    // spine equation, entrywise, at the type instantiated by ē₁'s prefix
+Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ        // polynomial equation proof at level ℓ, synthesising both sides
+
+// NOTATION. Γ ⊦ t ⇐ T and Γ ⊦ t ⇒ T abbreviate Γ ⊦ [t] t ≐ t ⇐ T and
+// Γ ⊦ [t] t ≐ t ⇒ T: a term with no proof leaf is its own reflexivity
+// proof. A TYPE is a term at a SORT
+//   U ::= Ω | 𝕌ℓ         (ℓ a natural-number literal; |Ω| = 0, |𝕌ℓ| = ℓ),
+// so "T is a type" is Γ ⊦ T ⇒ U, and an equation of types is an equation
+// at a sort. There is no judgement of types, and no judgement of type
+// equations, beside the two above. (The ToS universe symbol U in the
+// QIIT section is unrelated.)
+
+// CONVENTIONS.
+// * A non-linear metavariable occurrence, or a former pattern (A → B, A × B,
+//   t₀ ≡ t₁ ∈ T, …) in an input position, means equality modulo substitution
+//   and β — weak-head β for a pattern, full β for a comparison. "β" is every
+//   computation rule: β, the ι-rules, let-β, ν-β, QIIT-β. NEVER δ:
+//   definitions unfold only through the proof former x-δ. Every comparison
+//   runs under a FUEL budget (equality reflection makes β-normalisation of a
+//   well-typed term diverge under an inconsistent hypothesis); exhaustion is
+//   rejection, so the checker is total.
+// * NO δ FOR EXPOSURE EITHER. A pattern input (λ against a Π, a quot-elim
+//   scrutinee against a quotient, ⋆ against a prop) is matched after
+//   weak-head β only; a reference at the head is STUCK, and the term is
+//   rejected unless an ascription (t : T by α) exposes the shape, α a chain
+//   of x-δ leaves naming each unfolding at its path. The reason: whnf-δ in
+//   the checker would fix ONE unfolding strategy in the trusted base — the
+//   producer would have to predict it step for step, its spellings would
+//   leak into every downstream type and report, and its one wasteful case
+//   (unfolding a scrutinee that then fails to make ι fire, leaving a larger
+//   stuck term) could never be improved without changing what the checker
+//   accepts. With δ explicit, over-normalisation is a PRODUCER quality —
+//   visible as proof size, fixable by a better strategy or a lemma, never a
+//   checker semantics. The producer should unfold PROGRESS-ONLY: the head
+//   while it yields a former, a scrutinee only if ι then fires, rolled back
+//   otherwise; the emitted chain is the shortest δ-sequence to the shape.
+//   Without δ, β-normal forms are bounded by the written term's own redexes:
+//   every blow-up the corpus shows is δ, and it now happens on the untrusted
+//   side and is recorded.
+// * SORTS ARE CUMULATIVE, Ω ≤ 𝕌₀ ≤ 𝕌₁ ≤ …: a proposition is a small type, a
+//   small type is a large one. Cumulativity enters through exactly two proof
+//   forms, lift and restrict (the modal section) — never silently — and acts
+//   at the ROOT only: A → Ω is not A → 𝕌₀ (write λx. f x). Levels are
+//   literals: no level polymorphism; a statement over (A : 𝕌₀) lives at 𝕌₁.
+//   A former INFERS its least sort (the arithmetic on ℓ ⊔ ℓ′ below) and is
+//   used at any higher one through lift; the checker never guesses a
+//   universe.
+// * Ω HAS NO CODE BELOW 𝕌₁: Ω ⇒ 𝕌₁ and never Ω ⇒ 𝕌₀, so A → Ω is a 𝕌₁ type
+//   for every A (Cantor stays a theorem; the effective topos refutes Ω : 𝕌₀,
+//   a program cannot tell two propositions apart, while validating every
+//   p : Ω at 𝕌₀). Individual propositions ARE 𝕌₀ codes, by Ω ≤ 𝕌₀. Every
+//   𝕌ℓ's equality is thereby MIXED: structural on the formers, extensional
+//   (propext) on the proposition cluster; an equation across the clusters is
+//   underivable by absence, and the injectivity selectors act on same-headed
+//   formers only.
+// * ELIMINATORS NAME THEIR SORT: the U on ℕ-elim, ⊎-elim, quot-elim and the
+//   QIIT eliminator is the sort the motive lands in, an INPUT the motive is
+//   checked at, never computed from it. U = Ω is where well-definedness and
+//   coherences close by irrelevance.
+
+
+// ------ Π-type -------
+
+Γ ▷ A ⊦ [α] f₀ ≐ f₁ ⇐ B
+---------------------------
+Γ ⊦ [λ α] λf₀ ≐ λf₁ ⇐ A → B
+
+Γ ⊦ [α] f₀ ≐ f₁ ⇒ A → B
+Γ ⊦ [β] e₀ ≐ e₁ ⇐ A
+-----------------------------------
+Γ ⊦ [α β] f₀ e₀ ≐ f₁ e₁ ⇒ B[id, e₁]
+
+// ------ Σ-type ------
+
+Γ ⊦ [α] p₀ ≐ p₁ ⇒ A × B
+-----------------------------------
+Γ ⊦ [α .π₁] p₀ .π₁ ≐ p₁ .π₁ ⇒ A
+
+Γ ⊦ [α] p₀ ≐ p₁ ⇒ A × B
+--------------------------------------------
+Γ ⊦ [α .π₂] p₀ .π₂ ≐ p₁ .π₂ ⇒ B[id, p₁ .π₁]
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ A
+Γ ⊦ [β] b₀ ≐ b₁ ⇐ B[id, a₁]
+-----------------------------------------
+Γ ⊦ [α, β] (a₀, b₀) ≐ (a₁, b₁) ⇐ A × B
+
+// ------- (⊎)-type ---------
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ A                        Γ ⊦ [β] b₀ ≐ b₁ ⇐ B
+-------------------------------------        ------------------------------------
+Γ ⊦ [inj₁ α] inj₁ a₀ ≐ inj₁ a₁ ⇐ A ⊎ B     Γ ⊦ [inj₂ β] inj₂ b₀ ≐ inj₂ b₁ ⇐ A ⊎ B
+
+U a sort
+Γ ⊦ [τ] t₀ ≐ t₁ ⇒ A ⊎ B
+Γ ▷ A ⊎ B ⊦ C ⇐ U
+Γ ▷ A ⊦ [λ] l₀ ≐ l₁ ⇐ C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ [ρ] r₀ ≐ r₁ ⇐ C[↑, inj₂ ☐₀]
+--------------------------------------------------------------------
+Γ ⊦ [⊎-elim U C λ ρ τ] ⊎-elim l₀ r₀ t₀ ≐ ⊎-elim l₁ r₁ t₁ ⇒ C[id, t₁]
+
+// -------- (/)-type ---------
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ A
+-----------------------------------------
+Γ ⊦ [class α] class a₀ ≐ class a₁ ⇐ A / R
+
+Γ ⊦ [α] a ⇐ A  [β] b ⇐ A   Γ ⊦ [ρ] ⋆ ≐ ⋆ ⇐ R[id, a, b]
+------------------------------------------------------ // el-quot-eq: related representatives, equal classes
+Γ ⊦ [quot-eq α β ρ] class a ≐ class b ⇐ A / R
+
+U a sort
+Γ ⊦ [κ] q₀ ≐ q₁ ⇒ A / R
+Γ ▷ A / R ⊦ B ⇐ U
+Γ ▷ A ⊦ [φ] f₀ ≐ f₁ ⇐ B[↑, class ☐₀]
+Γ ▷ A ▷ A[↑] ▷ R ⊦ [ω] f₁[↑³, ☐₂] ≐ f₁[↑³, ☐₁] ⇐ B[↑³, class ☐₂]   // f₀'s well-definedness follows through φ;
+------------------------------------------------------------------------   //   at U = Ω, ω is irrel
+Γ ⊦ [quot-elim U B φ ω κ] quot-elim f₀ q₀ ≐ quot-elim f₁ q₁ ⇒ B[id, q₁]
+
+// -------- 𝟘-type ---------
+
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ 𝟘
+----------------------------------------
+Γ ⊦ [𝟘-elim α] 𝟘-elim t₀ ≐ 𝟘-elim t₁ ⇐ A
+
+// ------ 𝟙-type -------
+
+Γ ⊦ [()] () ≐ () ⇐ 𝟙
+
+// ------ ℕ-type -------
+
+Γ ⊦ [Z] Z ≐ Z ⇐ ℕ
+
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ ℕ
+-------------------------
+Γ ⊦ [S α] S t₀ ≐ S t₁ ⇐ ℕ
+
+U a sort
+Γ ▷ ℕ ⊦ A ⇐ U
+Γ ⊦ [α] z₀ ≐ z₁ ⇐ A[id, Z]
+Γ ▷ ℕ ▷ A ⊦ [β] s₀ ≐ s₁ ⇐ A[↑², S ☐₁]
+Γ ⊦ [τ] t₀ ≐ t₁ ⇐ ℕ
+------------------------------------------------------------------
+Γ ⊦ [ℕ-elim U A α β τ] ℕ-elim z₀ s₀ t₀ ≐ ℕ-elim z₁ s₁ t₁ ⇒ A[id, t₁]
+
+
+// ------- ≡-type --------
+
+Γ ⊦ [α] t₀ ≐ t₁ ⇒ T
+---------------------------------
+Γ ⊦ [refl α] ⋆ ≐ ⋆ ⇒ (t₀ ≡ t₁ ∈ T)
+
+
+Γ ⊦ [α] ⋆ ≐ ⋆ ⇒ t₀ ≡ t₁ ∈ T
+---------------------------
+Γ ⊦ [reflect α] t₀ ≐ t₁ ⇒ T
+
+// ----- the sorts as terms ------
+
+Γ ⊦ [𝕌ℓ] 𝕌ℓ ≐ 𝕌ℓ ⇒ 𝕌ℓ₊₁
+
+Γ ⊦ [Ω] Ω ≐ Ω ⇒ 𝕌₁          // and NOT ⇒ 𝕌₀ (CONVENTIONS): Ω is the one type
+                            //   that is not a code at the level of its elements
+
+// ----- 𝕌-type ------
+// The formers INFER their least sort; the arithmetic is on the sorts the
+// parts infer. Two rules for →: into a universe (the level is the join)
+// and into Ω (a proposition whatever the domain — the one impredicative
+// rule, and the reason Ω is a sort of its own rather than a universe).
+// A bound part is compared over the RIGHT-hand domain of the binder.
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇒ U
+Γ ▷ A₁ ⊦ [β] B₀ ≐ B₁ ⇒ 𝕌ℓ
+------------------------------------------------
+Γ ⊦ [α → β] (A₀ → B₀) ≐ (A₁ → B₁) ⇒ 𝕌(|U| ⊔ ℓ)
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇒ U
+Γ ▷ A₁ ⊦ [β] B₀ ≐ B₁ ⇒ Ω
+------------------------------------------------ // impredicative
+Γ ⊦ [α → β] (A₀ → B₀) ≐ (A₁ → B₁) ⇒ Ω
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇒ U₁
+Γ ▷ A₁ ⊦ [β] B₀ ≐ B₁ ⇒ U₂
+--------------------------------------------------- // a product of propositions is a small TYPE,
+Γ ⊦ [α × β] (A₀ × B₀) ≐ (A₁ × B₁) ⇒ 𝕌(|U₁| ⊔ |U₂|)   //   not a proposition: p ∧ q is ∥p × q∥
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇒ U₁
+Γ ⊦ [β] B₀ ≐ B₁ ⇒ U₂
+---------------------------------------------------
+Γ ⊦ [α ⊎ β] (A₀ ⊎ B₀) ≐ (A₁ ⊎ B₁) ⇒ 𝕌(|U₁| ⊔ |U₂|)
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇒ U
+Γ ▷ A₁ ▷ A₁[↑] ⊦ [ρ] R₀ ≐ R₁ ⇐ Ω
+--------------------------------------- // the relation slot is Ω: a code is not a proposition
+Γ ⊦ [α / ρ] (A₀ / R₀) ≐ (A₁ / R₁) ⇒ 𝕌|U|
+
+Γ ⊦ [𝟘] 𝟘 ≐ 𝟘 ⇒ 𝕌₀
+
+Γ ⊦ [𝟙] 𝟙 ≐ 𝟙 ⇒ 𝕌₀
+
+Γ ⊦ [ℕ] ℕ ≐ ℕ ⇒ 𝕌₀
+
+// --------- ∥_∥-type ---------
+
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ A
+--------------------------
+Γ ⊦ [squash α] ⋆ ⇐ ∥A∥
+
+Γ ⊦ [γ] B ⇐ Ω                        // a CHECK at Ω: cumulativity is one-way, B ⇐ 𝕌₀ says nothing
+Γ ⊦ [β] ⋆ ⇐ ∥A∥
+Γ ▷ A ⊦ [α] ⋆ ⇐ B[↑]
+-------------------------------------
+Γ ⊦ [unsquash γ α β] ⋆ ⇒ B
+
+// ----- Ω-type ------
+// The prop formers are elements of Ω whatever the sort of their parts.
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇒ U
+-------------------------
+Γ ⊦ [∥α∥] ∥A₀∥ ≐ ∥A₁∥ ⇐ Ω
+
+Γ ⊦ [τ] T₀ ≐ T₁ ⇒ U
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ T₁
+Γ ⊦ [β] b₀ ≐ b₁ ⇐ T₁
+--------------------------------------------------- // at every sort: (A ≡ B ∈ 𝕌ℓ) between types,
+Γ ⊦ [α ≡ β ∈ τ] (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) ⇐ Ω   //   (p ≡ q ∈ Ω) between propositions
+
+Γ ⊦ t₀ ⇐ T      Γ ⊦ t₁ ⇐ T      T ≡β 𝟙, or T ≡β 𝟘, or Γ ⊦ T ⇐ Ω
+------------------------------------------------------------------ // el-one-prop / el-zero-prop / el-prf-prop
+Γ ⊦ [irrel t₀ t₁] t₀ ≐ t₁ ⇐ T
+
+Γ ⊦ [ρ] p ⇐ Ω      Γ ⊦ [θ] q ⇐ Ω      Γ ▷ p ⊦ [γ] s ⇐ q[↑]      Γ ▷ q ⊦ [ι] t ⇐ p[↑]
+------------------------------------------------------------------------------------ // code-prop-eq: propositional extensionality
+Γ ⊦ [propext ρ θ γ ι] p ≐ q ⇐ Ω
+
+// ------ modal ------
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇒ T'
+T ≡β T'
+-------------------------- // mode switch for element proofs
+Γ ⊦ [switch α] a₀ ≐ a₁ ⇐ T
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇒ U
+U ≤ U′
+-------------------------- // the switch at a sort: cumulativity, the target sort READ off
+Γ ⊦ [lift α] a₀ ≐ a₁ ⇐ U′  //   the position; on a term, [lift T] T ≐ T ⇐ U′
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇒ U′
+U ≤ U′
+Γ ⊦ a₀ ⇐ U      Γ ⊦ a₁ ⇐ U
+------------------------------ // restrict, MANDATORY: equal types that are codes are equal
+Γ ⊦ [restrict α] a₀ ≐ a₁ ⇐ U   //   codes, equal codes that are propositions are equivalent
+                               //   propositions — (a₀ ≡ a₁ ∈ U) and (a₀ ≡ a₁ ∈ U′) equi-true
+
+Γ ⊦ [β] A ≐ B ⇒ U
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ A
+--------------------------
+Γ ⊦ [conv α β] t₀ ≐ t₁ ⇐ B
+
+// ------- contextual -------
+
+Γ ⊦ [☐ᵢ] ☐ᵢ ≐ ☐ᵢ ⇒ Γ∥ᵢ
+
+(Δ ⊦ x ≔ t : T) ∈ Σ  or  (Δ ⊦ x : T) ∈ Σ     // definitions and declarations alike
+[ᾱ] ē₀ ≐ ē₁ ⇐ (Γ ⇒ Δ norm)
+---------------------------------
+Γ ⊦ [x ᾱ] x[ē₀] ≐ x[ē₁] ⇒ T[ē₁]
+
+(Δ ⊦ x ≔ t : T) ∈ Σ
+ē ⇐ (Γ ⇒ Δ norm)
+-------------------------------- // δ is always manual
+Γ ⊦ [x-δ ē] x[ē] ≐ t[ē] ⇒ T[ē]
+
+// ------------------
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ T
+Γ ⊦ [β] a₁' ≐ a₂ ⇐ T
+a₁ ≡β a₁'
+-----------------------
+Γ ⊦ [α ; β] a₀ ≐ a₂ ⇐ T
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ T
+-----------------------
+Γ ⊦ [α ⁻¹] a₁ ≐ a₀ ⇐ T
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇒ A
+Γ ▷ A ▷ (☐₀ ≡ a₁[↑] ∈ A[↑]) ⊦ [β] b₀ ≐ b₁ ⇒ B
+--------------------------------------------------
+Γ ⊦ [let α β] let a₀ b₀ ≐ let a₁ b₁ ⇒ B[id, a₁, ⋆]
+
+// --- Leaves: η, irrelevance, quotients, props, injectivity ---
+// The η's are LEAVES in the style of x-δ; extensionality is derived:
+//   ext(g₀, g₁, α) ≜ (η→ g₀)⁻¹ ; λ α ; η→ g₁     for Γ ▷ A ⊦ [α] g₀[↑] ☐₀ ≐ g₁[↑] ☐₀ ⇐ B
+//   likewise at pairs through η× and [α, β].
+
+// Uniqueness of ℕ-elim, ⊎-elim and quot-elim (el-nat-eta, el-sum-eta,
+// el-quot-eta) gets NO leaf: it is proved by elimination into the
+// equality type and reflected, as the corpus does today.
+
+// Injectivity SELECTORS act on synthesising proofs at a universe 𝕌ℓ
+// (code-*-inj). None at Ω, ∥·∥ or ≡: props are anti-structural, and an
+// equation between propositions synthesises at Ω, never at 𝕌ℓ, so no
+// selector ever sees the proposition cluster. A selected part that
+// lives lower is brought down by restrict.
+
+// ======= polynomials and ν ======
+// The polynomial 𝔽 is CARRIED by the core (ν 𝔽, corec 𝔽 f x): β reads
+// it (el-nu-beta consumes map_𝔽). The carrier code a is read by
+// typing only, so it is SURFACE — the binder annotation of the
+// coalgebra, corec 𝔽 (s : a. f) x — and absent from the core. The
+// meta-operations ⌊𝔽⌋(c) (hole filling), map_𝔽 g (functorial action)
+// and lift_𝔽(R) (the relator) are the foundation's ≜-definitions,
+// computed by the checker; "modulo β" everywhere includes el-nu-beta
+// (out of a corec runs the coalgebra one step), as it includes the
+// ι-rules and let-β. A polynomial is checked AT A LEVEL ℓ, every
+// embedded code at 𝕌ℓ (a proposition included, by Ω ≤ 𝕌₀ ≤ 𝕌ℓ); ν 𝔽
+// lives at that level.
+
+Γ ⊦ [𝕏] 𝕏 ≐ 𝕏 poly ℓ
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ 𝕌ℓ             Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ      Γ ⊦ [ψ] 𝔾₀ ≐ 𝔾₁ poly ℓ
+--------------------------       --------------------------------------------------
+Γ ⊦ [K α] K a₀ ≐ K a₁ poly ℓ     Γ ⊦ [φ × ψ] 𝔽₀ × 𝔾₀ ≐ 𝔽₁ × 𝔾₁ poly ℓ
+                                 Γ ⊦ [φ ⊎ ψ] 𝔽₀ ⊎ 𝔾₀ ≐ 𝔽₁ ⊎ 𝔾₁ poly ℓ
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ 𝕌ℓ      Γ ▷ a₁ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ
+----------------------------------------------------
+Γ ⊦ [α × φ] a₀ × 𝔽₀ ≐ a₁ × 𝔽₁ poly ℓ
+Γ ⊦ [α → φ] a₀ → 𝔽₀ ≐ a₁ → 𝔽₁ poly ℓ
+
+Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ                  Γ ⊦ [α] t₀ ≐ t₁ ⇒ ν 𝔽
+------------------------- // code-nu-cong  ----------------------------------
+Γ ⊦ [ν φ] ν 𝔽₀ ≐ ν 𝔽₁ ⇒ 𝕌ℓ              Γ ⊦ [out α] out t₀ ≐ out t₁ ⇒ ⌊𝔽⌋(ν 𝔽)
+
+Γ ⊦ 𝔽 poly ℓ      Γ ⊦ a ⇐ 𝕌ℓ
+Γ ▷ a ⊦ [φ] f₀ ≐ f₁ ⇐ ⌊𝔽⌋(a)[↑]
+Γ ⊦ [χ] x₀ ≐ x₁ ⇐ a
+-------------------------------------------------------------------- // same 𝔽: a corec at an equal
+Γ ⊦ [corec 𝔽 (s : a. φ) χ] corec 𝔽 f₀ x₀ ≐ corec 𝔽 f₁ x₁ ⇒ ν 𝔽       //   polynomial goes through ν φ
+                                                                     //   and conversion of the equation
+
+// --- Leaves: uniqueness and coinduction ---
+
+Γ ⊦ 𝔽 poly ℓ      Γ ⊦ a ⇐ 𝕌ℓ
+Γ ▷ a ⊦ f ⇐ ⌊𝔽⌋(a)[↑]
+Γ ▷ a ⊦ h ⇐ (ν 𝔽)[↑]
+Γ ▷ a ⊦ [α] out h ≐ map_𝔽 ((λ h)[↑]) f ⇐ ⌊𝔽⌋(ν 𝔽)[↑]
+Γ ⊦ x ⇐ a
+------------------------------------------------------------ // el-nu-eta: a candidate commuting with
+Γ ⊦ [ην 𝔽 (s : a. f) (s. h) α x] h[id, x] ≐ corec 𝔽 f x ⇒ ν 𝔽  //   out IS the corecursor
+
+Γ ⊦ 𝔽 poly ℓ
+Γ ⊦ t₀ ⇐ ν 𝔽      Γ ⊦ t₁ ⇐ ν 𝔽
+Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ⊦ R ⇐ Ω
+Γ ⊦ p ⇐ R[id, t₀, t₁]
+Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ▷ R ⊦ q ⇐ lift_𝔽(R) (out ☐₂) (out ☐₁)
+------------------------------------------------------------ // el-nu-coind: bisimulation implies
+Γ ⊦ [coind t₀ t₁ (x y. R) p (x y h. q)] t₀ ≐ t₁ ⇐ ν 𝔽        //   equality; admissible from ην,
+                                                             //   kept as the leaf the corpus writes
+
+// ===== COVERAGE: QIITs =====
+// A signature 𝒮 is CARRIED by the core (𝒮.𝕤 ē, 𝒮.𝕔 θ, 𝒮.𝕤-elim m̄ ē w):
+// QIIT equality is structural on it and β reads it (el-qiit-beta
+// recurses by the constructor's arity). It is WRITTEN in the theory of
+// signatures below — the grammar is the positivity guarantee, and β
+// reads constructor arities off it — and it is TYPED through its
+// reading as a Nova telescope, ⟦𝒮⟧, over the ALGEBRA CONTEXT Γ · ⟦𝒮⟧:
+// an algebra is a spine of that telescope; the initial algebra ι is the
+// spine of the formers themselves; the eliminator's motives, methods
+// and coherences are ONE spine of the displayed telescope ⟦𝒮⟧ᴰ over ι;
+// the eliminator's type and its β are substitutions. Nothing about the
+// ToS is trusted beyond the readings ⟦_⟧ and _ᴰ and the displayed spine
+// θᴰ, each defined by recursion on the grammar and landing in Nova
+// syntax the rules above already read. The eliminator's core carries
+// the METHODS only: motives, coherences and the sorts Ū the motives
+// land in are SURFACE, as ℕ-elim's A and U are.
+// A signature is checked AT A LEVEL ℓ, its BOUND: every Nova type it
+// embeds at 𝕌ℓ (a proposition included, by Ω ≤ 𝕌₀ ≤ 𝕌ℓ), its sorts
+// types at 𝕌ℓ, ⟦𝒮⟧ a telescope with sort entries at 𝕌ℓ₊₁. One bound
+// serves every sort. The former SMALLNESS condition ("every external
+// domain at 𝕌 or at Ω, tried in turn") is gone: one check at 𝕌ℓ, no
+// universe guessed.
+
+// --- Telescopes and spines (the Nova notation the readings land in) ---
+
+Δ ::= · | Δ ▷ A          // a telescope over Γ: snoc, each entry a type over Γ and the entries before it
+Γ · Δ                    // the context Γ extended by Δ, entry by entry
+↑Δ                       // weakening past Δ: ↑ iterated |Δ| times
+ē : (Γ ⇒ Δ)              // a SPINE: entrywise eᵢ ⇐ Δ∥ᵢ[id, e₀ … eᵢ₋₁]; as a substitution (id, ē) : Γ ⇒ Γ · Δ
+X[ē]                     // X over Γ · Δ instantiated by the spine: X[(id, ē)]; likewise Δ′[ē] for a telescope over Γ · Δ
+Δ∥ᵢ                      // the i-th entry, over Γ · (the entries before it)
+
+// --- The theory of signatures (surface = core: nameless indexed syntax) ---
+
+Φ, 𝒮 ::= ⬦ | Φ ▷ 𝔄                       // a signature is a closed qiit-context
+𝔄 ::= U | El 𝕥 | A ⇛ 𝔄 | El 𝕥 ⇛ 𝔄        // A a Nova type; ⇛ binds a Nova / a ToS variable
+𝕥 ::= ⬡ᵢ | 𝕥 t | 𝕥 𝕥 | λ 𝕥 | 𝕥 ≡ 𝕥        // t a Nova term; the equation code at the sides' common sort
+
+Γ ⊦ Φ qctx ℓ           // Given core Γ, check surface Φ at level ℓ (elaborating its Nova pieces)
+Γ ; Φ ⊦ 𝔄 qty ℓ
+Γ ; Φ ⊦ 𝕥 ⇒ 𝔄          // ToS terms INFER: they are variables and application chains
+Γ ; Φ ⊦ 𝕥 ⇐ 𝔄
+Γ ⊦ 𝒮 qsig ℓ  ≜  Γ ⊦ 𝒮 qctx ℓ
+Γ ⊦ [ϑ] 𝒮₀ ≐ 𝒮₁ qsig ℓ  // signature equation: 𝒮 with each embedded Nova piece replaced by a proof
+                        //   (a type piece by an equation at 𝕌ℓ, a term piece by a proof at its type);
+                        //   the ToS structure itself is compared syntactically — no α, no β
+                        //   (likewise [ψ] 𝔄₀ ≐ 𝔄₁ qty ℓ, [θ] 𝕥₀ ≐ 𝕥₁ qtm)
+
+Γ ⊦ ⬦ qctx ℓ         Γ ⊦ Φ qctx ℓ      Γ ; Φ ⊦ 𝔄 qty ℓ              Γ ⊦ Φ qctx ℓ
+                     ----------------------------------              -----------------
+                     Γ ⊦ Φ ▷ 𝔄 qctx ℓ                                Γ ; Φ ⊦ U qty ℓ
+
+Γ ; Φ ⊦ 𝕥 ⇐ U         Γ ⊦ A ⇐ 𝕌ℓ      Γ ▷ A ; Φ[↑] ⊦ 𝔄 qty ℓ      Γ ; Φ ⊦ 𝕥 ⇐ U      Γ ; Φ ▷ El 𝕥 ⊦ 𝔄 qty ℓ
+----------------      -------------------------------------     ----------------------------------------
+Γ ; Φ ⊦ El 𝕥 qty ℓ    Γ ; Φ ⊦ A ⇛ 𝔄 qty ℓ                        Γ ; Φ ⊦ El 𝕥 ⇛ 𝔄 qty ℓ
+
+Γ ; Φ ⊦ ⬡ᵢ ⇒ Φ‖ᵢ
+
+Γ ; Φ ⊦ 𝕥 ⇒ A ⇛ 𝔄      Γ ⊦ t ⇐ A          Γ ; Φ ⊦ 𝕥 ⇒ El 𝕦 ⇛ 𝔄      Γ ; Φ ⊦ 𝕥' ⇐ El 𝕦
+----------------------------------        -------------------------------------------
+Γ ; Φ ⊦ 𝕥 t ⇒ 𝔄[id, t]                    Γ ; Φ ⊦ 𝕥 𝕥' ⇒ 𝔄[𝕥']
+
+Γ ▷ A ; Φ[↑] ⊦ 𝕥 ⇐ 𝔄          Γ ; Φ ⊦ 𝕥₀ ⇐ El 𝕦      Γ ; Φ ⊦ 𝕥₁ ⇐ El 𝕦        Γ ; Φ ⊦ 𝕥 ⇒ 𝔄'      𝔄 ≡β 𝔄'
+------------------------      ------------------------------------------      ------------------------- // mode switch
+Γ ; Φ ⊦ λ 𝕥 ⇐ A ⇛ 𝔄           Γ ; Φ ⊦ 𝕥₀ ≡ 𝕥₁ ⇐ U                              Γ ; Φ ⊦ 𝕥 ⇐ 𝔄
+                                                                              // (β on the embedded Nova pieces only)
+
+// --- The reading ⟦_⟧: a signature as a telescope, its terms as Nova terms ---
+// ⟦Φ⟧ is a telescope over Γ. For Γ ; Φ ⊦ 𝔄 qty ℓ and Γ ; Φ ⊦ 𝕥 ⇒ 𝔄,
+// ⟦𝔄⟧ is a type and ⟦𝕥⟧ a term over the algebra context Γ · ⟦Φ⟧, the
+// ToS variable ⬡ᵢ being the Nova variable ☐ᵢ of that context. Two
+// pieces of bookkeeping: an external Nova piece (a domain A, an
+// argument t) is over Γ and is weakened past the algebra, [↑⟦Φ⟧]; the
+// ToS λ and the external ⇛ bind a NOVA variable while the ToS context
+// is weakened, so their bodies are read over Γ ▷ A · ⟦Φ[↑]⟧ and moved
+// to Γ · ⟦Φ⟧ ▷ A[↑⟦Φ⟧] by the EXCHANGE ξ, the substitution that swaps
+// the one variable past the telescope (a raw identity on syntax; a
+// lemma, not a rule).
+
+⟦⬦⟧          = ·
+⟦Φ ▷ 𝔄⟧      = ⟦Φ⟧ ▷ ⟦𝔄⟧
+
+⟦U⟧          = 𝕌ℓ                                   // a sort entry: a type variable at the bound
+⟦El 𝕥⟧       = ⟦𝕥⟧                                  // a code at 𝕌ℓ, hence a type
+⟦A ⇛ 𝔄⟧      = A[↑⟦Φ⟧] → ⟦𝔄⟧[ξ]                     // external Π
+⟦El 𝕥 ⇛ 𝔄⟧   = ⟦𝕥⟧ → ⟦𝔄⟧                            // internal Π: the ToS variable IS the Nova variable
+
+⟦⬡ᵢ⟧         = ☐ᵢ
+⟦𝕥 t⟧        = ⟦𝕥⟧ t[↑⟦Φ⟧]
+⟦𝕥 𝕥′⟧       = ⟦𝕥⟧ ⟦𝕥′⟧
+⟦λ 𝕥⟧        = λ ⟦𝕥⟧[ξ]
+⟦𝕥 ≡ 𝕥′⟧     = (⟦𝕥⟧ ≡ ⟦𝕥′⟧ ∈ ⟦𝕦⟧)                    // 𝕦 the sides' common code; a proposition, so a 𝕌₀
+                                                    //   code, so an entry like any other (Ω ≤ 𝕌₀)
+
+// An ARITY: a ToS type is D₁ ⇛ … ⇛ Dₙ ⇛ E with E = U or E = El 𝕥.
+// Its arity telescope and end are read over Γ · ⟦Φ⟧:
+⟦D₁ ⇛ … ⇛ Dₙ ⇛ E⟧ᵗ  = · ▷ ⟦D₁⟧ ▷ … ▷ ⟦Dₙ⟧          // each ⟦Dᵢ⟧ read over the entries before it, ξ applied at the external ones
+⟦D₁ ⇛ … ⇛ Dₙ ⇛ E⟧ᵉ  = ⟦E⟧                            // over Γ · ⟦Φ⟧ · ⟦𝔄⟧ᵗ
+// so that ⟦𝔄⟧ = Π ⟦𝔄⟧ᵗ. ⟦𝔄⟧ᵉ, the iterated Π over the arity.
+
+// An ALGEBRA of 𝒮 over Γ is a spine ā : (Γ ⇒ ⟦𝒮⟧). The INITIAL algebra
+// ι : (Γ ⇒ ⟦𝒮⟧) is the spine of the carried formers, entry by entry:
+ι(𝕤)  = λ ⟦𝔎⟧ᵗ. 𝒮.𝕤 (the bound variables)             // for a sort entry 𝒮(𝕤) = 𝔎
+ι(𝕔)  = λ ⟦𝔄⟧ᵗ. 𝒮.𝕔 (the bound variables)             // for a point entry 𝒮(𝕔) = 𝔄
+ι(𝕔)  = λ ⟦𝔄⟧ᵗ. ⋆                                    // for an equation entry: its end is a proposition
+// Every type below is stated in the algebra context and instantiated
+// at ι by substitution; X[ι] is X[(id, ι)], and X[ι, θ] extends it by
+// a further spine.
+
+// --- The displayed reading _ᴰ: motives, methods, coherences as one telescope ---
+// Over the algebra context, for target sorts Ū (one per sort of 𝒮 —
+// the sort the sort's motive lands in; the foundation's target levels
+// ℓ̄′, with Ω reached by cumulativity), a
+// ToS type 𝔄 with algebra value x : ⟦𝔄⟧ has the displayed type 𝔄ᴰ x, and
+// a ToS term 𝕥 : 𝔄 has the displayed term 𝕥ᴰ : 𝔄ᴰ ⟦𝕥⟧ — Nova types and
+// terms over Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ, the displayed variable ☐ᵢᴰ of ⬡ᵢ bound in
+// the displayed telescope:
+
+⟦⬦⟧ᴰ         = ·
+⟦Φ ▷ 𝔄⟧ᴰ     = ⟦Φ⟧ᴰ ▷ 𝔄ᴰ ☐_𝔄                          // ☐_𝔄: the algebra's variable for this entry, weakened past the displayed entries before
+
+Uᴰ X                = X → U_𝕤                           // a MOTIVE over the sort's carrier, at the sort's named target U_𝕤;
+                                                        //   for an indexed sort (𝔎 = D̄ ⇛ U) the motive is under the arity: Π ⟦𝔎⟧ᵗ. X d̄ → U_𝕤
+(El 𝕥)ᴰ x           = 𝕥ᴰ x                              // a METHOD: the displayed term of the entry's code, at x
+(A ⇛ 𝔄)ᴰ f          = Π (a : A[↑…]). 𝔄ᴰ (f a)            // external argument: passed through
+(El (𝕤 ī) ⇛ 𝔄)ᴰ f   = Π (x : ⟦𝕤 ī⟧) (xᴰ : (𝕤 ī)ᴰ x). 𝔄ᴰ (f x)  // internal argument at a SORT: passed with its
+                                                             //   image (the induction hypothesis)
+(El (l ≡ r) ⇛ 𝔄)ᴰ f = Π (x : ⟦l ≡ r⟧). 𝔄ᴰ (f x)             // internal argument at an EQUATION code: a proof,
+                                                             //   content-free — no displayed slot (its image
+                                                             //   would be a proposition that always holds, by
+                                                             //   reflection of x and congruence)
+
+⬡ᵢᴰ                 = ☐ᵢᴰ
+(𝕥 t)ᴰ              = 𝕥ᴰ t[↑…]
+(𝕥 𝕥′)ᴰ             = 𝕥ᴰ ⟦𝕥′⟧ 𝕥′ᴰ                        // 𝕥′ at a sort code: value and image
+(𝕥 𝕡)ᴰ              = 𝕥ᴰ ⟦𝕡⟧                             // 𝕡 at an equation code: value only
+(λ 𝕥)ᴰ              = λ a. 𝕥ᴰ[ξ]
+(𝕥 ≡ 𝕥′)ᴰ p         = (𝕥ᴰ ≡ 𝕥′ᴰ ∈ 𝕦ᴰ ⟦𝕥′⟧)             // a COHERENCE: by reflection of p, ⟦𝕥⟧ ≐ ⟦𝕥′⟧, so both
+                                                        //   displayed sides sit at one type; a proposition
+// So ⟦𝒮⟧ᴰ[ι] is the telescope of the eliminator's SURFACE arguments in
+// signature order — motives at the sort entries, methods at the point
+// entries, coherences at the equation entries — and d̄ : (Γ ⇒ ⟦𝒮⟧ᴰ[ι])
+// is all of them at once. d̄(𝕤) names the motive entry for sort 𝕤, d̄(𝕔)
+// the method entry for point 𝕔, m̄ the point entries (what the core
+// keeps). The current document's 𝔄ᴰ⟨e⟩, 𝔄ᴰᵗ, ⟦𝕥⟧ and θ⟨φ⟩ are these
+// definitions; ⌊𝔎⌋ᵗ is ⟦𝔎⟧ᵗ[ι].
+
+// --- The outer formers ---
+
+Γ ⊦ 𝒮 qsig ℓ      𝒮(𝕤) = 𝔎      ē ⇐ (Γ ⇒ ⟦𝔎⟧ᵗ[ι])
+--------------------------------------------------- // ty-qiit and code-qiit as one rule: a sort is a
+Γ ⊦ 𝒮.𝕤 ē ⇒ 𝕌ℓ                                      //   type at the signature's bound
+
+Γ ⊦ 𝒮 qsig ℓ      𝒮(𝕔) = 𝔄  (ending in El 𝕥)      θ ⇐ (Γ ⇒ ⟦𝔄⟧ᵗ[ι])
+------------------------------------------------------------------- // el-qiit-intro, SATURATED
+Γ ⊦ 𝒮.𝕔 θ ⇒ ⟦𝕥⟧[ι, θ]
+
+Γ ⊦ 𝒮 qsig ℓ      Ū sorts, one per sort of 𝒮
+d̄ ⇐ (Γ ⇒ ⟦𝒮⟧ᴰ[ι])                                   // motives, methods, coherences: ONE spine of the displayed
+𝒮(𝕤) = 𝔎      ē ⇐ (Γ ⇒ ⟦𝔎⟧ᵗ[ι])      Γ ⊦ w ⇐ 𝒮.𝕤 ē    //   telescope over the initial algebra; a coherence entry
+--------------------------------------------------- //   is a proposition (irrel at U_𝕤 = Ω, a proof otherwise)
+Γ ⊦ 𝒮.𝕤-elim Ū d̄ ē w ⇒ d̄(𝕤) ē w                      // core: 𝒮.𝕤-elim m̄ ē w, m̄ the point entries of d̄
+
+// COMPUTATION is el-qiit-beta, inside "modulo β": at a constructor
+// 𝒮(𝕔) = 𝔄 with arguments θ : (Γ ⇒ ⟦𝔄⟧ᵗ[ι]),
+//   𝒮.𝕤-elim m̄ ⟦ī⟧[ι, θ] (𝒮.𝕔 θ)  ⇝  m_𝕔 θᴰ
+// where θᴰ : (Γ ⇒ ⟦𝔄⟧ᵗᴰ[ι, d̄]) is the DISPLAYED SPINE of θ: entrywise,
+// an external argument a ↦ a, an internal argument x : 𝒮.𝕤′ ī′ ↦ x,
+// 𝒮.𝕤′-elim m̄ ī′ x (the eliminator itself at the recursive position:
+// the section φᵉˡ), an internal argument at an equation code ↦ x
+// alone. Equation constructors have no β: their content is the path
+// leaf below.
+
+// --- Leaves and congruences ---
+
+Γ ⊦ 𝒮 qsig ℓ      𝒮(𝕔) = 𝔄  (ending in El (l ≡ r), the sides at code 𝕦)      θ ⇐ (Γ ⇒ ⟦𝔄⟧ᵗ[ι])
+------------------------------------------------------------------------------------------ // el-qiit-path: the imposed
+Γ ⊦ [𝒮.𝕔 θ] ⟦l⟧[ι, θ] ≐ ⟦r⟧[ι, θ] ⇒ ⟦𝕦⟧[ι, θ]                                             //   equation, as a proof leaf
+                                                                                            //   (no term is minted: the
+                                                                                            //   prop's element is ⋆)
+
+Γ ⊦ [ϑ] 𝒮₀ ≐ 𝒮₁ qsig ℓ      [ᾱ] ē₀ ≐ ē₁ ⇐ (Γ ⇒ ⟦𝔎⟧ᵗ[ι])
+------------------------------------------------------ // ty-qiit-cong, at the bound. The spine equation is at the
+Γ ⊦ [ϑ.𝕤 ᾱ] 𝒮₀.𝕤 ē₀ ≐ 𝒮₁.𝕤 ē₁ ⇒ 𝕌ℓ                     //   arity instantiated by ē₁'s prefix, as every spine equation
+
+Γ ⊦ [ϑ] 𝒮₀ ≐ 𝒮₁ qsig ℓ      [ᾱ] θ₀ ≐ θ₁ ⇐ (Γ ⇒ ⟦𝔄⟧ᵗ[ι])
+------------------------------------------------------ // el-qiit-intro-cong
+Γ ⊦ [ϑ.𝕔 ᾱ] 𝒮₀.𝕔 θ₀ ≐ 𝒮₁.𝕔 θ₁ ⇒ ⟦𝕥⟧[ι, θ₁]
+
+Γ ⊦ 𝒮 qsig ℓ      Ū as in the eliminator
+[δ̄] d̄₀ ≐ d̄₁ ⇐ (Γ ⇒ ⟦𝒮⟧ᴰ[ι])                          // entrywise: the motive entries reflexive (the two
+[ᾱ] ē₀ ≐ ē₁ ⇐ (Γ ⇒ ⟦𝔎⟧ᵗ[ι])      Γ ⊦ [κ] w₀ ≐ w₁ ⇐ 𝒮.𝕤 ē₁   //   eliminators share their motives), the method
+--------------------------------------------------------------------------------------- //   entries proper equations, the coherence
+Γ ⊦ [𝒮.𝕤-elim Ū δ̄ ᾱ κ] 𝒮.𝕤-elim m̄₀ ē₀ w₀ ≐ 𝒮.𝕤-elim m̄₁ ē₁ w₁ ⇒ d̄₁(𝕤) ē₁ w₁              //   entries irrel (propositions). Same 𝒮:
+                                                                                       //   across a signature equation ϑ, go
+                                                                                       //   through ϑ.𝕤 ᾱ and conversion
+
+Γ ⊦ [α] 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ ⇒ 𝕌ℓ      e₀ⱼ = e₁ⱼ for j < i (syntactically)
+---------------------------------------------------------------------- // code-qiit-inj: index selector; the
+Γ ⊦ [idxᵢ α] e₀ᵢ ≐ e₁ᵢ ⇒ ⟦𝔎⟧ᵗ∥ᵢ[ι, e₁₀ … e₁ᵢ₋₁]                        //   signature is inert syntax, so it
+                                                                        //   is not selected, only compared
+
+// Uniqueness (el-qiit-eta) gets no leaf, as at ℕ, ⊎ and / (ν's ην is
+// the one exception): the corpus proves it by elimination into the
+// equality type and reflection. No constructor injectivity: equation
+// entries make constructors non-injective in general (quotients).

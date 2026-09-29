@@ -1612,7 +1612,7 @@ dispUnfs sig ns = filter opens (ns ++ mapMaybe expName ns)
 -- The kernel never unfolds inside an equation on its own initiative:
 -- every δ it performs is a δ leaf the proof carries at a position,
 -- applied to the β-JOINED side and followed by a β-join
--- (docs/NovaKernelRewrite.txt, CONVENTIONS). So the engine's join
+-- (docs/NovaKernel.txt, CONVENTIONS). So the engine's join
 -- normal form is computed the same way — the β-normal form, then
 -- one licensed unfolding at a time, leftmost-outermost, β between —
 -- and the steps that reproduce it are returned. Only

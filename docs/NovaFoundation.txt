@@ -2197,7 +2197,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # THE DISPLAYED READING _ᴰ, relative to TARGET LEVELS ℓ̄′ — one per
 # sort of 𝒮, ℓ′_𝕤 the universe the motive of 𝕤 lands in (Ω-valued
 # motives arriving by Ω ≤ 𝕌₀ ≤ 𝕌ℓ′; the checker names the motive's
-# sort on the eliminator, docs/NovaKernelRewrite). Over the DISPLAYED CONTEXT
+# sort on the eliminator, docs/NovaKernel.txt). Over the DISPLAYED CONTEXT
 # Γ·⟦Φ⟧·⟦Φ⟧ᴰ — the algebra context extended by the displayed
 # telescope — a ToS type 𝔄 with algebra value x : ⟦𝔄⟧ has the
 # displayed type 𝔄ᴰ x, "x is covered", and a ToS term 𝕥 : 𝔄 has the
@@ -3153,7 +3153,7 @@ e˲ : Γ₁ ⇒ Γ norm
 # at Ω" — superseded by THE TOWER below.)
 
 # ALGEBRAS AS TELESCOPES (the QIIT eliminator's data read as Nova
-# telescopes over the algebra context, matching docs/NovaKernelRewrite):
+# telescopes over the algebra context, matching docs/NovaKernel.txt):
 #
 #   ⌊·⌋, ⌊·⌋ᵗ, the walk state 𝑤 = (Γ̂, ρ, υ), the merge ⋈, the
 #   opening ⋉, the ᴰ-state (𝑤 ; π), πᴰ, m(i), d(i)
