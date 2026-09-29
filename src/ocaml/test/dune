@@ -1,0 +1,3 @@
+(test
+ (name kernel_test)
+ (libraries nova))
