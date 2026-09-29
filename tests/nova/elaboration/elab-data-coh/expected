@@ -1,5 +1,0 @@
-defined data (Bag, nil, ins, swp)
-defined headOr0 [+1 obligation]
-open obligations (1):
-  [1] (m : Bag) (x : ℕ) (y : ℕ) (r : Bag) (ih : ℕ) ⊢ x ≐ y : ℕ
-      at: input.nova:14:60: def headOr0: checking ⋆

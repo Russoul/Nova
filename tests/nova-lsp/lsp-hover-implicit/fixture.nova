@@ -1,5 +1,0 @@
-cst : {A : 𝕌} (a : A) {B : 𝕌} (b : B) → A
-cst = λA. λa. λB. λb. a
-
-use : ℕ → 𝟙 → ℕ
-use = λn. λu. cst n u

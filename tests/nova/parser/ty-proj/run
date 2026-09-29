@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run surface-ty "P .π₁ → P .π₁"

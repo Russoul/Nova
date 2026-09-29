@@ -36,9 +36,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 FILES = [
     ("foundation", "docs/NovaFoundation.txt", "Nova Foundation"),
-    ("model", "docs/NovaModel.txt", "Nova Model"),
     ("kernel", "docs/NovaKernel.txt", "Nova Kernel"),
-    ("elaboration", "docs/NovaElaboration.txt", "Nova Elaboration"),
     ("pipeline", "docs/NovaPipeline.txt", "Nova Pipeline"),
     ("strategy", "docs/NovaStrategy.txt", "Nova Strategy"),
 ]

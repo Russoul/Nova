@@ -3,15 +3,14 @@ let
   inherit (pkgs) lib;
   deps = import ./deps.nix { inherit pkgs inputs; };
 
-  # With source, so the editor and `idris2 --repl` can jump into them.
+  # With source, so the editor and `idris2 --repl` can jump into it.
   libs = map (l: l.library { withSource = true; }) [
     deps.just-a-parser
-    deps.lsp-lib
   ];
 in
 {
   # A shell where `idris2 --build nova.ipkg` works straight away: the
-  # pinned dependencies are already on IDRIS2_PACKAGE_PATH, so nothing
+  # pinned dependency is already on IDRIS2_PACKAGE_PATH, so nothing
   # is fetched or bootstrapped.
   default = pkgs.mkShell {
     packages = [
@@ -25,8 +24,8 @@ in
     shellHook = ''
       exec 3>&1 1>&2
       echo "Nova dev shell — idris2 ${pkgs.idris2.version}"
-      echo "  idris2 --build nova.ipkg     build the elaborator"
-      echo "  nix flake check              run every CI gate"
+      echo "  idris2 --build nova.ipkg     build the library"
+      echo "  nix flake check              run the spec-rules gate"
       exec 1>&3 3>&-
     '';
   };

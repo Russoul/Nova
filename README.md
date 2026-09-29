@@ -3,14 +3,19 @@
 Nova Foundation is a mechanised formal type theory based on
 [extensional Martin Lof Type Theory](https://ncatlab.org/nlab/show/extensional+type+theory),
 checked by an elaborator/kernel pipeline: surface files elaborate to
-certificate-carrying artifacts that a small trusted kernel re-checks.
+derivations that a small trusted kernel reads.
 Written in [Idris2](https://github.com/idris-lang/Idris2).
 
 See `docs/NovaFoundation.txt` for the theory, `docs/NovaPipeline.txt`
-for the architecture, `docs/NovaElaboration.txt` for the surface
-syntax and elaborator, and `docs/NovaKernel.txt` for the kernel rules.
+for the architecture and `docs/NovaKernel.txt` for the kernel rules.
 Browse the rendered specs and syntax-highlighted `src/nova/*.nova`
 sources online at [russoul.github.io/Nova](https://russoul.github.io/Nova/).
+
+This branch is a fresh start: the kernel and the elaborator are being
+written anew against `docs/NovaKernel.txt`. The previous pipeline — its
+elaborator, kernel, language server, golden tests and gate scripts — is
+frozen on the `dev-freeze` branch. The surface corpus in `src/nova/` is
+kept in full as the acceptance target of the new one.
 
 ### Dependencies
 
@@ -21,8 +26,8 @@ sources online at [russoul.github.io/Nova](https://russoul.github.io/Nova/).
 With [pack](https://github.com/stefan-hoeck/idris2-pack):
 
 ```
-make build     # pack build nova.ipkg  ->  build/exec/nova
-make test      # golden tests + the elaboration gate
+make build     # pack build nova.ipkg
+make dev       # build, then the spec-rules check
 ```
 
 With [Nix](https://nixos.org) (flakes) — `pack.toml`'s pins are
@@ -30,35 +35,13 @@ mirrored in `flake.nix`, so nothing is bootstrapped or fetched at
 build time:
 
 ```
-nix build                # the nova elaborator
-nix run . -- elab src/nova/all.nova
-nix flake check          # every CI gate: tests, elaborations, distill, specs, site
+nix build                # the nova library
+nix flake check          # the spec-rules gate
 nix develop              # a shell where `idris2 --build nova.ipkg` just works
 ```
 
-Also buildable: `nix build .#nova-lsp` (language server),
-`.#nova-docs` (HTML renderer), `.#nova-tests` (golden-test driver),
-`.#site` (the rendered specs and corpus published to GitHub Pages),
-`.#vscode-extension` (the VS Code extension) and `.#nvim-plugin` (the
-neovim plugin).
-
 ### Editor support
 
-`nova-lsp` serves diagnostics, hover, go-to-definition, document
-symbols and semantic highlighting, and reports each load's elaboration
-time as a `nova/elabTime` notification.
-
-`editors/vscode` and `editors/nvim` are clients for it. Installing
-either from the flake bakes in the matching `nova-lsp`, so there is
-nothing to configure and the two cannot drift apart:
-
-```
-nix run .#install-vscode-extension
-nix run .#install-nvim-plugin
-```
-
-Plain neovim loads the plugin from `pack/*/start` on its own and it
-sets itself up, so there is nothing to add to your config; under
-lazy.nvim, which resets `packpath`, one line in `init.lua` is needed.
-See `editors/vscode/README.md` and `editors/nvim/README.md` for
-options, and for using either with a plugin manager instead.
+`editors/vscode` and `editors/nvim` are clients for the `nova-lsp`
+language server of the frozen pipeline. There is no server on this
+branch yet.

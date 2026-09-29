@@ -1,3 +1,0 @@
-cycB.nova:1:1: error: import cycle through module 'cycA'
-1 | import cycA
-  | ^^^^^^^^^^^

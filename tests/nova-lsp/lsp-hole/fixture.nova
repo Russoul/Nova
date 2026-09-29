@@ -1,5 +1,0 @@
--- a hole is a WARNING at its own span: the goal, in context
-plus : ℕ → ℕ → ℕ
-plus = λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-open : (n : ℕ) → ℕ
-open = λn. ?goal

@@ -14,13 +14,6 @@ commit      = "bd6acd473ef0f3fcd1bdc5fba0032b96a7b9313b"
 ipkg        = "just-a-parser.ipkg"
 packagePath = false
 
-[custom.all.lsp-lib]
-type        = "github"
-url         = "https://github.com/idris-community/lsp-lib"
-commit      = "512504c6680f9ee45d82f1cc06c596cc0be7c4ea"
-ipkg        = "lsp-lib.ipkg"
-packagePath = false
-
 [custom.all.idris2-lsp]
 type        = "github"
 url         = "https://github.com/Russoul/idris2-lsp"

@@ -1,6 +1,0 @@
-defined q1eq
-defined q2bad [+1 obligation]
-open obligations (1):
-  [1] ⊢ Z ≐ S Z : ℕ
-      at: input.nova:7:9: def q2bad: checking ⋆
-      from composite: ⊢ class Z ≐ class (S Z) : ℕ / (n x. n ≡ x ∈ ℕ)

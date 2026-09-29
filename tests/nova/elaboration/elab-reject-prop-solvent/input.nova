@@ -1,7 +1,0 @@
--- a TRUE lemma (𝟙-Prop): any two units are equal
-triv : (x : 𝟙) (y : 𝟙) → x ≡ y ∈ 𝟙
-triv = λx. λy. ⋆
--- a FALSE claim at ℕ — the 𝟙-lemma is NAMED, so the engine tries
--- it; the kernel gate must reject the certificate
-boom : Z ≡ S Z ∈ ℕ
-boom = ⋆

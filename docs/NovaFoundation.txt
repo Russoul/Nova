@@ -64,8 +64,8 @@
 # Semantics is assigned by the SETOID MODEL: a type denotes a
 # structural CODE together with a proof-irrelevant equivalence relation
 # on the code's decoding — type equality is equality of codes, element
-# equality is the relation. docs/NovaModel.txt constructs the code
-# layer for the structural fragment; the relation layer is where
+# equality is the relation. The code layer interprets the structural
+# fragment; the relation layer is where
 # quotients, Ω-truth and the QIIT congruences live (see the SEMANTICS
 # notes at their rules).
 #
@@ -383,7 +383,7 @@ t, T ::= x [e˲]      # signature reference
 #   denotes the FULL (doubled) form of the former rule it is named
 #   after (THE DOUBLING CONVENTION), displayed separately only where
 #   a source cites it. These names are the ones docs/NovaKernel.txt
-#   and docs/NovaElaboration.txt cite; there are no other synonyms.
+#   and the sources cite; there are no other synonyms.
 
 ///////// Judgement forms and what their derivability yields /////////
 
@@ -503,9 +503,8 @@ x ∉ Σ
 # equation by el-reflect: what the retired constraint kind provided
 # through its own rules (sig-eq/el-sig-eq) is one el-reflect away
 # from an ordinary declaration, so the kind is gone. Open signatures
-# are the working states of an elaboration run
-# (docs/NovaElaboration.txt): the declarations of the run's signature
-# ARE its open proof obligations, and a run is ACCEPTED only once its
+# are the working states of an elaboration run: the declarations of
+# the run's signature ARE its open proof obligations, and a run is ACCEPTED only once its
 # signature is definitional.
 #
 # The canonical-forms semantics below reads over definitional
@@ -827,8 +826,8 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # what keeps the equality props (a ≡ b ∈ 𝕌ℓ) and (a ≡ b ∈ 𝕌ℓ₊₁)
 # equi-true at level-ℓ types (whence ≐-equal by code-prop-eq), so
 # facts established one level up descend. SEMANTICS: the codes of
-# level ℓ are a sub-collection of those of level ℓ+1 (NovaModel's
-# `el` embedding, now an inclusion); the lift is that inclusion, and
+# level ℓ are a sub-collection of those of level ℓ+1 (the setoid
+# model's `el` embedding, now an inclusion); the lift is that inclusion, and
 # type equality restricted to the lower image is the lower level's
 # own — exactly code-restrict. Cumulativity acts at the ROOT of a
 # type only: a function into 𝕌ℓ is not thereby a function into 𝕌ℓ₊₁
@@ -1003,7 +1002,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # before these rules the composite equality was derivable in a context
 # where the component equality was not. Adding them is a semantic
 # commitment, and it is the one this file's preface already makes: a
-# type denotes a structural CODE (docs/NovaModel.txt's code
+# type denotes a structural CODE (the setoid model's code
 # universes), so two Π-types are equal exactly when their heads and
 # components are — the rules are the meta's ordinary constructor
 # injectivity, read back through the interpretation — and likewise
@@ -1013,8 +1012,8 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # Under that semantics these rules are sound;
 # models that collapse structurally distinct types (the set-theoretic
 # one above) are hereby excluded, and the code-universe model shows
-# the exclusion is not vacuous: all the rules hold in it at once
-# (NovaModel's soundness notes). A concrete consequence:
+# the exclusion is not vacuous: all the rules hold in it at once.
+# A concrete consequence:
 # a context hypothesizing (𝟙 → 𝟘) ≡ (ℕ → 𝟘) ∈ 𝕌₀ is now INCONSISTENT
 # (𝟙 ≐ ℕ gives Z ≐ S Z : ℕ via el-one-prop and coercion, and a ℕ-elim
 # discriminator into 𝕌₀ turns that into an inhabitant of 𝟘).
@@ -1048,7 +1047,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #    expressible as a rule of this positive inference system, and in
 #    inconsistent contexts it is false. It remains a meta-property of
 #    consistent contexts, inherited from the meta's no-confusion for
-#    the code universes (docs/NovaModel.txt).
+#    the code universes.
 #  * S-injectivity and pair-injectivity need no rules: they are already
 #    derivable (congruence with a ℕ-elim predecessor, respectively the
 #    projections). Ditto inj₁/inj₂-injectivity and -disjointness:
@@ -1086,9 +1085,8 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
 
 # The same rules at level 0, displayed under their code-* names (the
-# setoid model gives 𝕌₀ a structural universe of codes, Code₀ in
-# docs/NovaModel.txt; the rules above are the same statement at every
-# level).
+# setoid model gives 𝕌₀ a structural universe of codes; the rules
+# above are the same statement at every level).
 
 Γ ▷ a₀ ⊦ b₀ : 𝕌
 Γ ▷ a₁ ⊦ b₁ : 𝕌
@@ -2862,8 +2860,8 @@ e˲ : Γ₁ ⇒ Γ norm
 # second by q's head equations, reflected), so el-nu-eta equates
 # them through the corecursor, and instantiating at (t₀, t₁, p)
 # gives the conclusion. The kernel replays the rule as stated
-# instead (a ⋆-payload — docs/NovaKernel.txt §8): the subset-carrier
-# construction is the JUSTIFICATION, not the implementation.
+# instead: the subset-carrier construction is the JUSTIFICATION, not
+# the implementation.
 
 # SUBSTITUTION ACTION. Substitution acts through the carried
 # polynomial (𝔽[σ] the evident meta-operation: σ on the embedded
@@ -2912,7 +2910,7 @@ e˲ : Γ₁ ⇒ Γ norm
 #   head, tail, and friends are out followed by projections and
 #   ⊎-elim; constructors (cons, and Cotree's leaf/node) are in
 #   instances. Surface codata declarations elaborate to
-#   ν-polynomials — docs/NovaElaboration.txt's business.
+#   ν-polynomials — the elaborator's business.
 
 ///////// Rules (elem list) /////////
 
@@ -2992,8 +2990,8 @@ e˲ : Γ₁ ⇒ Γ norm
 
 # The type judgement's dissolution retires these rule names. Every
 # retired name maps to the rule (or derivation) that replaces it —
-# for the propagation of docs/NovaKernel.txt, docs/NovaElaboration.txt
-# and the sources, which cite rules by name:
+# for the propagation of docs/NovaKernel.txt and the sources, which
+# cite rules by name:
 #
 #   sig-ty-def       sig-def at A = 𝕌ℓ
 #   sig-ty-eq        RETIRED with the constraint kind (below)

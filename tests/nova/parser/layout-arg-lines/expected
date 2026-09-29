@@ -1,2 +1,0 @@
-NatElim x (x@0) (Z) k ih (S (ih@0)) (S (Z))
-App (App (App (App (App (f@sig) (App (a@sig) (b@sig))) (Lam x (x@0))) (Pair (Z) (S (Z)))) (App (g@sig) (Z))) (S (Z))

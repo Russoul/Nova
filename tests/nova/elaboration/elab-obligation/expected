@@ -1,5 +1,0 @@
-defined plus
-defined needsLemma [+1 obligation]
-open obligations (1):
-  [1] (n : ℕ) ⊢ plus Z n ≐ n : ℕ
-      at: input.nova:5:18: def needsLemma: checking ⋆

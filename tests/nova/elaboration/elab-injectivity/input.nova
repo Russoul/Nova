@@ -1,8 +1,0 @@
--- code injectivity (Foundation's →-inj-𝕌) has NO proof-term form: a
--- component equation is not extracted from a composite hypothesis,
--- and the sites end in obligations (docs/NovaKernel.txt §5)
-useInj : (a : 𝕌) (b : 𝕌) (h : (a → 𝟙) ≡ (b → 𝟙) ∈ 𝕌) (x : a) → b
-useInj = λa. λb. λh. λx. x
--- and through (El-inj is the type-level route the elaborator takes)
-useInjPair : (a : 𝕌) (b : 𝕌) (c : 𝕌) (h : (a × c) ≡ (b × c) ∈ 𝕌) (x : a) → b
-useInjPair = λa. λb. λc. λh. λx. x

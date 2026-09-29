@@ -1,8 +1,0 @@
-input.nova:4:14: error: def choice: squash-elim checked against ℕ, which is not a proposition (el-squash-e-prf reaches only further propositions)
-4 | choice = λh. squash-elim h (n. n)
-  |              ^^^^^^^^^^^^^^^^^^^^
-declared choice [+1 declaration]
-open declarations (1):
-  [choice] ⊢ ? : ∥ℕ∥ → ℕ
-      at: input.nova:3:1: def choice
-Error: 1 item failed to elaborate

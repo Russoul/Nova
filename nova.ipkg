@@ -3,43 +3,7 @@ version = 0.1.0
 
 depends = contrib, just-a-parser
 
-executable = nova
-main = Nova.Application
-
-modules = Nova.Diagnostic
-        , Nova.Profile
-        , Nova.Kernel.Syntax
-        , Nova.Kernel.Subst
-        , Nova.Kernel
-        , Nova.Kernel.QIIT
-        , Nova.Kernel.Derivation
-        , Nova.Elaboration.Rederive
-        , Nova.Compute
-        , Nova.Elaboration.Beta
-        , Nova.Elaboration.Proof
-        , Nova.Elaboration.Named
-        , Nova.Elaboration
-        , Nova.Elaboration.Surface
-        , Nova.Elaboration.Clauses
-        , Nova.Elaboration.Parser
-        , Nova.Elaboration.Loader
-        , Nova.CoreParser
-        , Nova.Distill
-        , Nova.Recovery
-        , Nova.Implicitize
-        , Nova.Rename
-        , Nova.Eliminate
-        , Nova.Application
-
-        , Solver.CommutativeMonoid
-        , Solver.CommutativeMonoid.Evaluation
-        , Solver.CommutativeMonoid.Language
-        , Solver.CommutativeMonoid.Normalisation
-        , Solver.CommutativeMonoid.Parser
-        , Solver.CommutativeMonoid.Quotation
-        , Solver.CommutativeMonoid.Value
-
-        , Data.Util
+modules = Data.Util
 
         , Control.Monad.EitherSt
         , Control.Monad.IOEither

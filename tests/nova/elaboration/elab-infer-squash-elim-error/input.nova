@@ -1,4 +1,0 @@
--- squash-elim is a checking-only form: its type is not determined by
--- its syntax, so an inference position is a structural error
-bad : ∥𝟙∥ → ℕ
-bad = λh. (squash-elim h (u. u)) Z

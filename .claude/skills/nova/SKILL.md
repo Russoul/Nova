@@ -16,7 +16,6 @@ interact with it directly.
 ```
 pack build nova.ipkg              # once per source change
 build/exec/nova elab file.nova    # check one file
-./test.sh                         # full suite (golden tests + corpus)
 ```
 
 A file is ACCEPTED iff the run ends with `Accepted.` (zero obligations).
@@ -158,7 +157,7 @@ data [a : 𝕌]                      -- QIIT signature: entries as an indented b
   Bag : U                         --   (see below)
   nil : El Bag
 ```
-LAYOUT is significant (docs/NovaElaboration.txt, Layout): an item's
+LAYOUT is significant: an item's
 continuation lines are indented; a line indented deeper than the line
 above whose first token begins a term is ONE MORE ARGUMENT of the spine
 above it, parenthesis-free — so an eliminator lays out as
@@ -359,7 +358,6 @@ data [a : 𝕌] [r : El a → El a → Ω]
 
 - `docs/NovaFoundation.txt` — the theory, sole source of truth; every
   rule is named and those names are cited in code comments.
-- `docs/NovaElaboration.txt` — surface syntax and the discharge engine.
 - `docs/NovaKernel.txt` — certificates and approximations (A1–A6).
 - `docs/NovaPipeline.txt` — the trust architecture.
 - `src/nova/` — the corpus, a TREE whose directories ARE namespace

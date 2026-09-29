@@ -1,5 +1,0 @@
-import ops (+)
-three : ℕ
-three = S Z + S (S Z)
-check : three ≡ S (S (S Z)) ∈ ℕ using (ops.+.eq, ops.plus.eq, three.eq)
-check = ⋆
