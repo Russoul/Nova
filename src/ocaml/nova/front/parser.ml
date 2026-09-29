@@ -294,6 +294,14 @@ and name_ref st env x : P.t =
   | Some i -> P.Var i
   | None -> P.Item (x, spine st env)
 
+(* The identifiers that are never names: a (x : A) after '(' with such
+   an x is an annotation, not a binder. *)
+and is_keyword s =
+  is_form s
+  || List.mem s
+       [ "let"; "in"; "δ"; "delta"; "𝟘"; "Void"; "𝟙"; "Unit"; "ℕ"; "Nat"; "Z" ]
+  || Option.is_some (sort_of_id s)
+
 and atom st env : P.t =
   let base = atom_base st env in
   let rec post e =
@@ -321,7 +329,7 @@ and atom_base st env : P.t =
       st.squash <- 0;
       let restore () = st.squash <- saved in
       match ((peek_at st 1).kind, (peek_at st 2).kind) with
-      | ID x, COLON -> (
+      | ID x, COLON when not (is_keyword x) -> (
           (* (x : A) → B, (x : A) × B, or the annotation (x : T) *)
           advance st;
           advance st;

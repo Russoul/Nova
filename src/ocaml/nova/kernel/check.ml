@@ -21,6 +21,9 @@ let conv st t u = t = u || Beta.conv st.fuel t u
 let need_conv st what t u =
   if not (conv st t u) then reject "%s do not agree" what
 
+(* Run a sub-check and name its place in a rejection. *)
+let within what f = try f () with Reject msg -> reject "%s: %s" what msg
+
 (* Γ∥ᵢ, brought over Γ *)
 let lookup (ctx : ctx) i =
   match List.nth_opt ctx i with
@@ -28,7 +31,9 @@ let lookup (ctx : ctx) i =
   | None -> reject "☐%d: no such variable" i
 
 let as_sort st what t =
-  match whnf st t with Sort u -> u | _ -> reject "%s: not a sort" what
+  match whnf st t with
+  | Sort u -> u
+  | _ -> reject "%s: its type is not a sort" what
 
 let sort_of_pi u u' =
   match u' with Omega -> Omega | U l -> U (max (level u) l)
@@ -48,8 +53,8 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
       let e0, e1 = check st ctx dom b in
       (App (f0, e0), App (f1, e1), Subst.apply (Subst.single e1) cod)
   | P.Pi (a, b) ->
-      let a0, a1, u = infer_sort st ctx a in
-      let b0, b1, u' = infer_sort st (a1 :: ctx) b in
+      let a0, a1, u = infer_sort st "Π: the domain" ctx a in
+      let b0, b1, u' = infer_sort st "Π: the codomain" (a1 :: ctx) b in
       (Pi (a0, b0), Pi (a1, b1), Sort (sort_of_pi u u'))
   (* ------ Σ ------ *)
   | P.Fst a ->
@@ -61,13 +66,13 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
       let _, cod = as_sigma st ".π₂" t in
       (Snd p0, Snd p1, Subst.apply (Subst.single (Fst p1)) cod)
   | P.Sigma (a, b) ->
-      let a0, a1, u = infer_sort st ctx a in
-      let b0, b1, u' = infer_sort st (a1 :: ctx) b in
+      let a0, a1, u = infer_sort st "Σ: the first component" ctx a in
+      let b0, b1, u' = infer_sort st "Σ: the second component" (a1 :: ctx) b in
       (Sigma (a0, b0), Sigma (a1, b1), Sort (join_sorts u u'))
   (* ------ ⊎ ------ *)
   | P.Sum (a, b) ->
-      let a0, a1, u = infer_sort st ctx a in
-      let b0, b1, u' = infer_sort st ctx b in
+      let a0, a1, u = infer_sort st "⊎: the left summand" ctx a in
+      let b0, b1, u' = infer_sort st "⊎: the right summand" ctx b in
       (Sum (a0, b0), Sum (a1, b1), Sort (join_sorts u u'))
   | P.SumElim (u, c, l, r, tau) ->
       let t0, t1, t = infer st ctx tau in
@@ -76,7 +81,10 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
         | Sum (a, b) -> (a, b)
         | _ -> reject "⊎-elim: the scrutinee's type is not a ⊎-type"
       in
-      let c1 = check1 st (Sum (dom_l, dom_r) :: ctx) (Sort u) c in
+      let c1 =
+        within "⊎-elim: the motive" (fun () ->
+            check1 st (Sum (dom_l, dom_r) :: ctx) (Sort u) c)
+      in
       let at inj =
         Subst.apply { Subst.under = [ inj (Var 0) ]; shift = 1 } c1
       in
@@ -87,7 +95,7 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
         Subst.apply (Subst.single t1) c1 )
   (* ------ quotients ------ *)
   | P.Quot (a, rho) ->
-      let a0, a1, u = infer_sort st ctx a in
+      let a0, a1, u = infer_sort st "/: the carrier" ctx a in
       let r0, r1 = check st (Subst.weaken 1 a1 :: a1 :: ctx) (Sort Omega) rho in
       (Quot (a0, r0), Quot (a1, r1), Sort (U (level u)))
   | P.QuotElim (u, b, phi, omega, kappa) ->
@@ -97,7 +105,10 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
         | Quot (a, r) -> (a, r)
         | _ -> reject "quot-elim: the scrutinee's type is not a quotient"
       in
-      let b1 = check1 st (Quot (carrier, rel) :: ctx) (Sort u) b in
+      let b1 =
+        within "quot-elim: the motive" (fun () ->
+            check1 st (Quot (carrier, rel) :: ctx) (Sort u) b)
+      in
       let f0, f1 =
         check st (carrier :: ctx)
           (Subst.apply { Subst.under = [ Class (Var 0) ]; shift = 1 } b1)
@@ -109,7 +120,10 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
         Subst.apply { Subst.under = [ Class (Var 2) ]; shift = 3 } b1
       in
       let side i = Subst.apply { Subst.under = [ Var i ]; shift = 3 } f1 in
-      let w0, w1 = check st ctx_wd ty_wd omega in
+      let w0, w1 =
+        within "quot-elim: the well-definedness proof" (fun () ->
+            check st ctx_wd ty_wd omega)
+      in
       need_conv st "quot-elim: the well-definedness proof's left side and f" w0
         (side 2);
       need_conv st "quot-elim: the well-definedness proof's right side and f" w1
@@ -120,7 +134,10 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
   | P.One -> (One, One, Sort (U 0))
   | P.Nat -> (Nat, Nat, Sort (U 0))
   | P.NatElim (u, a, z, s, tau) ->
-      let a1 = check1 st (Nat :: ctx) (Sort u) a in
+      let a1 =
+        within "ℕ-elim: the motive" (fun () ->
+            check1 st (Nat :: ctx) (Sort u) a)
+      in
       let z0, z1 = check st ctx (Subst.apply (Subst.single Z) a1) z in
       let s0, s1 =
         check st (a1 :: Nat :: ctx)
@@ -141,7 +158,7 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
       | Eq (t0, t1, a) -> (t0, t1, a)
       | _ -> reject "reflect: the proof's type is not an equality")
   | P.Eq (a, b, tau) ->
-      let ty0, ty1, _ = infer_sort st ctx tau in
+      let ty0, ty1, _ = infer_sort st "≡: the type" ctx tau in
       let a0, a1 = check st ctx ty1 a in
       let b0, b1 = check st ctx ty1 b in
       (Eq (a0, b0, ty0), Eq (a1, b1, ty1), Sort Omega)
@@ -150,10 +167,12 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
   | P.Sort (U l) -> (Sort (U l), Sort (U l), Sort (U (l + 1)))
   (* ------ ∥·∥ and the propositions ------ *)
   | P.SquashTy a ->
-      let a0, a1, _ = infer_sort st ctx a in
+      let a0, a1, _ = infer_sort st "∥·∥: the type" ctx a in
       (Squash a0, Squash a1, Sort Omega)
   | P.Unsquash (g, a, b) ->
-      let target = check1 st ctx (Sort Omega) g in
+      let target =
+        within "unsquash: the target" (fun () -> check1 st ctx (Sort Omega) g)
+      in
       let _, _, t = infer st ctx b in
       let inner =
         match whnf st t with
@@ -163,19 +182,28 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
       ignore (check st (inner :: ctx) (Subst.weaken 1 target) a);
       (Star, Star, target)
   | P.PropIrrel (g, a, b) ->
-      let t = check1 st ctx (Sort Omega) g in
+      let t =
+        within "prop-irrel: the witness" (fun () ->
+            check1 st ctx (Sort Omega) g)
+      in
       let a1 = check1 st ctx t a in
       let b1 = check1 st ctx t b in
       (a1, b1, t)
   | P.Propext (rho, theta, gamma, iota) ->
-      let p = check1 st ctx (Sort Omega) rho in
-      let q = check1 st ctx (Sort Omega) theta in
+      let p =
+        within "propext: the left proposition" (fun () ->
+            check1 st ctx (Sort Omega) rho)
+      in
+      let q =
+        within "propext: the right proposition" (fun () ->
+            check1 st ctx (Sort Omega) theta)
+      in
       ignore (check st (p :: ctx) (Subst.weaken 1 q) gamma);
       ignore (check st (q :: ctx) (Subst.weaken 1 p) iota);
       (p, q, Sort Omega)
   (* ------ modal ------ *)
   | P.Annot (a, ty) ->
-      let ty0, ty1, _ = infer_sort st ctx ty in
+      let ty0, ty1, _ = infer_sort st "the annotation's type" ctx ty in
       need_conv st "the annotation type's sides" ty0 ty1;
       let t0, t1 = check st ctx ty1 a in
       (t0, t1, ty1)
@@ -299,13 +327,17 @@ and check st (ctx : ctx) (ty : tm) (p : P.t) : tm * tm =
       let source = as_sort st "restrict: the source" t in
       if not (sort_le target source) then
         reject "restrict: the target sort is not below the source";
-      need_conv st "restrict: the left witness and the left side" t0
-        (check1 st ctx ty g0);
-      need_conv st "restrict: the right witness and the right side" t1
-        (check1 st ctx ty g1);
+      let w0 =
+        within "restrict: the left witness" (fun () -> check1 st ctx ty g0)
+      in
+      let w1 =
+        within "restrict: the right witness" (fun () -> check1 st ctx ty g1)
+      in
+      need_conv st "restrict: the left witness and the left side" t0 w0;
+      need_conv st "restrict: the right witness and the right side" t1 w1;
       (t0, t1)
   | P.Conv (a, b) ->
-      let from, into, _ = infer_sort st ctx b in
+      let from, into, _ = infer_sort st "conv: the type equation" ctx b in
       need_conv st "conv: the target and the expected type" ty into;
       check st ctx from a
   (* ------ contextual ------ *)
@@ -340,9 +372,9 @@ and check1 st ctx ty p =
   need_conv st "the sides of a one-sided proof" t0 t1;
   t1
 
-and infer_sort st ctx p =
-  let t0, t1, t = infer st ctx p in
-  (t0, t1, as_sort st "a type" t)
+and infer_sort st what ctx p =
+  let t0, t1, t = within what (fun () -> infer st ctx p) in
+  (t0, t1, as_sort st what t)
 
 and as_pi st what t =
   match whnf st t with
@@ -389,7 +421,7 @@ and spine1 st ctx tele ps =
 let check_ctx st (ps : P.t list) : ctx =
   List.fold_left
     (fun ctx p ->
-      let a0, a1, _ = infer_sort st ctx p in
+      let a0, a1, _ = infer_sort st "a context entry" ctx p in
       need_conv st "the sides of a context entry" a0 a1;
       a1 :: ctx)
     [] (List.rev ps)
@@ -400,7 +432,11 @@ let check_item ~fuel (sg : Sig.t) ~(tele : P.t list) ~(ty : P.t)
     ~(def : P.t option) : Sig.item =
   let st = { sg; fuel = Beta.fuel fuel } in
   let ctx = check_ctx st tele in
-  let ty0, ty1, _ = infer_sort st ctx ty in
+  let ty0, ty1, _ = infer_sort st "the type" ctx ty in
   need_conv st "the sides of an item's type" ty0 ty1;
-  let def = Option.map (fun p -> check1 st ctx ty1 p) def in
+  let def =
+    Option.map
+      (fun p -> within "the definiens" (fun () -> check1 st ctx ty1 p))
+      def
+  in
   { Sig.tele = ctx; ty = ty1; def }

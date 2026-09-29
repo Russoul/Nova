@@ -1,0 +1,12 @@
+accepted isLeft (s : ℕ ⊎ 𝟙) : 𝕌0 := ⊎-elim (. 𝟙) (. 𝟘) ☐0
+accepted isLeft-inl : isLeft[inj₁ Z] ≡ 𝟙 ∈ 𝕌0 := ⋆
+accepted isLeft-inr : isLeft[inj₂ ()] ≡ 𝟘 ∈ 𝕌0 := ⋆
+rejected elim-inj (line 9): the definiens: this proof only checks; annotate it to synthesise
+accepted elim-inj-annot : ℕ := ⊎-elim (. ☐0) (. Z) (inj₁ (S Z))
+accepted cases (s : ℕ ⊎ 𝟙) : ∥𝟙∥ := ⊎-elim (. ⋆) (. ⋆) ☐0
+accepted dep-cases (s : ℕ ⊎ 𝟙) : ☐0 ≡ ☐0 ∈ (ℕ ⊎ 𝟙) := ⊎-elim (. ⋆) (. ⋆) ☐0
+accepted absurd-ty (e : 𝟘) : 𝕌0 := 𝟘-elim ☐0
+accepted absurd-at-omega (e : 𝟘) : Ω := 𝟘-elim ☐0
+accepted sum-small : 𝕌0 := ℕ ⊎ 𝟙
+accepted sum-with-prop : 𝕌0 := ℕ ⊎ Z ≡ Z ∈ ℕ
+exit 1

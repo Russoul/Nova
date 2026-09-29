@@ -1,7 +1,7 @@
-rejected app-lam (line 3): this proof only checks; annotate it to synthesise
+rejected app-lam (line 3): the definiens: this proof only checks; annotate it to synthesise
 accepted app-lam-annot : ℕ := (λ. ☐0) Z
-rejected bad-chain (line 5): the chain's middles do not agree
+rejected bad-chain (line 5): the definiens: the chain's middles do not agree
 accepted eta : (ℕ → ℕ) → ☐0 ≡ (λ. ☐1 ☐0) ∈ (ℕ → ℕ) := λ. ⋆
 accepted eta-pair : ℕ × ℕ → ☐0 ≡ (☐0 .π₁, ☐0 .π₂) ∈ (ℕ × ℕ) := λ. ⋆
-rejected unknown (line 8): unknown item 'foo'
+rejected unknown (line 8): the definiens: unknown item 'foo'
 exit 1

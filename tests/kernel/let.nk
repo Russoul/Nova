@@ -1,0 +1,17 @@
+-- Lang/letExpr.nova: let binds a value and the hypothesis that names
+-- it; the hypothesis rewrites inside the body, and let-β computes
+
+plus (n : ℕ) (m : ℕ) : ℕ := switch (ℕ-elim 𝕌0 (_. ℕ) n (k ih. S ih) m)
+L2 : ℕ := switch (let x h := (plus[S Z, S Z] : ℕ) in x)
+
+-- unfold L, then reason inside the let through h and plus's δ
+L2-is-SSZ : L2 ≡ S (S Z) ∈ ℕ :=
+  switch (refl ((switch (δ L2)
+                 ; switch (let x h := (plus[S Z, S Z] : ℕ)
+                           in ((switch (reflect h) ; switch (δ plus[S Z, S Z])) : ℕ)))
+                : ℕ))
+
+-- a definition's proof must be one-sided: rewriting inside a definiens
+-- is a lemma's business, not a definition's
+one-sided : ℕ :=
+  switch (let x h := (plus[S Z, S Z] : ℕ) in ((switch (reflect h) ; switch (δ plus[S Z, S Z])) : ℕ))
