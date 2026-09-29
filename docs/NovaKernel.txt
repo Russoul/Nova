@@ -1,11 +1,18 @@
 Γ ⊦ [α] t₀ ≐ t₁ ⇒ T    // Given core context Γ and a surface proof infer the core equation LHS, RHS and type
 Γ ⊦ [α] t₀ ≐ t₁ ⇐ T    // Given core context Γ, core type T and a surface proof infer the core equation LHS, RHS
-[ᾱ] ē₀ ≐ ē₁ ⇐ (Γ ⇒ Δ norm)    // spine equation, entrywise, at the type instantiated by ē₁'s prefix
+Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ Δ    // spine equation: ē a snoc-list of terms against the telescope Δ over Γ, entrywise
+                        //   Γ ⊦ [αᵢ] e₀ᵢ ≐ e₁ᵢ ⇐ Δ∥ᵢ[id, e₁₀ … e₁ᵢ₋₁] — the type instantiated by ē₁'s prefix
+Γ ctx                     // Γ is a well-formed context
+Σ ⊢ I item                // the item I extends the signature Σ (the entry points)
 Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ        // polynomial equation proof at level ℓ, synthesising both sides
 
-// NOTATION. Γ ⊦ t ⇐ T and Γ ⊦ t ⇒ T abbreviate Γ ⊦ [t] t ≐ t ⇐ T and
+// NOTATION. A proof written with ONE side, Γ ⊦ [α] a ⇐ A (likewise ⇒),
+// means Γ ⊦ [α] a₀ ≐ a₁ ⇐ A with a₀ ≡β a₁ (the join is checked), and a
+// stands for a₁. Γ ⊦ t ⇐ T and Γ ⊦ t ⇒ T abbreviate Γ ⊦ [t] t ≐ t ⇐ T and
 // Γ ⊦ [t] t ≐ t ⇒ T: a term with no proof leaf is its own reflexivity
-// proof. A TYPE is a term at a SORT
+// proof, the one-sided case α = t. A surface piece a rule names in a
+// premise (a motive C, a carrier a, a witness type T) denotes its core
+// elaboration where the conclusion uses it. A TYPE is a term at a SORT
 //   U ::= Ω | 𝕌ℓ         (ℓ a natural-number literal; |Ω| = 0, |𝕌ℓ| = ℓ),
 // so "T is a type" is Γ ⊦ T ⇒ U, and an equation of types is an equation
 // at a sort. There is no judgement of types, and no judgement of type
@@ -24,8 +31,9 @@
 // * NO δ FOR EXPOSURE EITHER. A pattern input (λ against a Π, a quot-elim
 //   scrutinee against a quotient, ⋆ against a prop) is matched after
 //   weak-head β only; a reference at the head is STUCK, and the term is
-//   rejected unless an ascription (t : T by α) exposes the shape, α a chain
-//   of x-δ leaves naming each unfolding at its path. The reason: whnf-δ in
+//   rejected unless an annotation ((conv t α) : T) exposes the shape, α a
+//   chain of x-δ leaves naming each unfolding at its path (the annotation
+//   rule, modal section). The reason: whnf-δ in
 //   the checker would fix ONE unfolding strategy in the trusted base — the
 //   producer would have to predict it step for step, its spellings would
 //   leak into every downstream type and report, and its one wasteful case
@@ -53,12 +61,33 @@
 //   p : Ω at 𝕌₀). Individual propositions ARE 𝕌₀ codes, by Ω ≤ 𝕌₀. Every
 //   𝕌ℓ's equality is thereby MIXED: structural on the formers, extensional
 //   (propext) on the proposition cluster; an equation across the clusters is
-//   underivable by absence, and the injectivity selectors act on same-headed
-//   formers only.
+//   underivable by absence.
 // * ELIMINATORS NAME THEIR SORT: the U on ℕ-elim, ⊎-elim, quot-elim and the
 //   QIIT eliminator is the sort the motive lands in, an INPUT the motive is
 //   checked at, never computed from it. U = Ω is where well-definedness and
 //   coherences close by irrelevance.
+
+// ------ The entry points: contexts, items, the signature Σ ------
+// Σ is a list of ITEMS, each closed over its own telescope Δ:
+//   (Δ ⊦ x : T) ∈ Σ        a DECLARATION (an assumption, a hole, a lemma's statement)
+//   (Δ ⊦ x ≔ t : T) ∈ Σ    a DEFINITION
+// Every rule below is relative to Σ. The checker is entered one item
+// at a time, each read against the whole of Σ before it; an accepted
+// item is appended, and nothing else ever extends Σ.
+
+· ctx           Γ ctx      Γ ⊦ A ⇒ U
+                ---------------------
+                Γ ▷ A ctx
+
+Δ ctx      Δ ⊦ T ⇒ U
+-------------------------- // a declaration: a statement that is a type at some sort
+Σ ⊢ (Δ ⊦ x : T) item
+
+Δ ctx      Δ ⊦ T ⇒ U      Δ ⊦ [α] t ⇐ T
+----------------------------------------- // a definition: the producer hands over a PROOF α at T; its
+Σ ⊢ (Δ ⊦ x ≔ t : T) item                  //   right side is the definiens the kernel records (a plain
+                                          //   term is its own proof; a lemma is a definition of ⋆ at an
+                                          //   equation type, its proof ending in switch (refl …))
 
 
 // ------ Π-type -------
@@ -215,25 +244,31 @@ U a sort
 Γ ⊦ [unsquash γ α β] ⋆ ⇒ B
 
 // ----- Ω-type ------
-// The prop formers are elements of Ω whatever the sort of their parts.
+// The prop formers SYNTHESISE Ω whatever the sort of their parts (so the
+// impredicative → rule sees them); ⇐ Ω follows by switch.
 
 Γ ⊦ [α] A₀ ≐ A₁ ⇒ U
 -------------------------
-Γ ⊦ [∥α∥] ∥A₀∥ ≐ ∥A₁∥ ⇐ Ω
+Γ ⊦ [∥α∥] ∥A₀∥ ≐ ∥A₁∥ ⇒ Ω
 
 Γ ⊦ [τ] T₀ ≐ T₁ ⇒ U
 Γ ⊦ [α] a₀ ≐ a₁ ⇐ T₁
 Γ ⊦ [β] b₀ ≐ b₁ ⇐ T₁
 --------------------------------------------------- // at every sort: (A ≡ B ∈ 𝕌ℓ) between types,
-Γ ⊦ [α ≡ β ∈ τ] (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) ⇐ Ω   //   (p ≡ q ∈ Ω) between propositions
+Γ ⊦ [α ≡ β ∈ τ] (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) ⇒ Ω   //   (p ≡ q ∈ Ω) between propositions
 
-Γ ⊦ t₀ ⇐ T      Γ ⊦ t₁ ⇐ T      T ≡β 𝟙, or T ≡β 𝟘, or Γ ⊦ T ⇐ Ω
------------------------------------------------------------------- // el-one-prop / el-zero-prop / el-prf-prop
-Γ ⊦ [irrel t₀ t₁] t₀ ≐ t₁ ⇐ T
+Γ ⊦ [α] a ⇐ T      Γ ⊦ [β] b ⇐ T      T ≡β 𝟙 or T ≡β 𝟘
+--------------------------------------------------------- // el-one-prop / el-zero-prop
+Γ ⊦ [irrel α β] a ≐ b ⇐ T
+
+Γ ⊦ [γ] T ⇐ Ω      Γ ⊦ [α] a ⇐ T      Γ ⊦ [β] b ⇐ T
+----------------------------------------------------- // el-prf-prop: γ carries the proposition, so the rule
+Γ ⊦ [irrel γ α β] a ≐ b ⇒ T                           //   SYNTHESISES it; ⇐ follows by switch. Propositionhood
+                                                      //   is witnessed, never read off a core type
 
 Γ ⊦ [ρ] p ⇐ Ω      Γ ⊦ [θ] q ⇐ Ω      Γ ▷ p ⊦ [γ] s ⇐ q[↑]      Γ ▷ q ⊦ [ι] t ⇐ p[↑]
 ------------------------------------------------------------------------------------ // code-prop-eq: propositional extensionality
-Γ ⊦ [propext ρ θ γ ι] p ≐ q ⇐ Ω
+Γ ⊦ [propext ρ θ γ ι] p ≐ q ⇒ Ω
 
 // ------ modal ------
 
@@ -249,27 +284,34 @@ U ≤ U′
 
 Γ ⊦ [α] a₀ ≐ a₁ ⇒ U′
 U ≤ U′
-Γ ⊦ a₀ ⇐ U      Γ ⊦ a₁ ⇐ U
------------------------------- // restrict, MANDATORY: equal types that are codes are equal
-Γ ⊦ [restrict α] a₀ ≐ a₁ ⇐ U   //   codes, equal codes that are propositions are equivalent
-                               //   propositions — (a₀ ≡ a₁ ∈ U) and (a₀ ≡ a₁ ∈ U′) equi-true
+Γ ⊦ [γ₀] a₀′ ⇐ U      Γ ⊦ [γ₁] a₁′ ⇐ U      a₀ ≡β a₀′      a₁ ≡β a₁′
+------------------------------------------------------------------- // restrict, MANDATORY: equal types that are codes are equal
+Γ ⊦ [restrict γ₀ γ₁ α] a₀ ≐ a₁ ⇐ U                                    //   codes, equal codes that are propositions are equivalent
+                                                                     //   propositions — (a₀ ≡ a₁ ∈ U) and (a₀ ≡ a₁ ∈ U′) equi-true;
+                                                                     //   the sides' membership of U is WITNESSED
 
 Γ ⊦ [β] A ≐ B ⇒ U
 Γ ⊦ [α] t₀ ≐ t₁ ⇐ A
 --------------------------
 Γ ⊦ [conv α β] t₀ ≐ t₁ ⇐ B
 
+Γ ⊦ T ⇒ U
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ T
+-------------------------- // annotation: the switch back, ⇐ to ⇒ — a chain becomes a refl
+Γ ⊦ [(α : T)] t₀ ≐ t₁ ⇒ T  //   subject, a λ a head, an inj a scrutinee; ((conv t α) : T)
+                           //   is the ascription that exposes a shape (CONVENTIONS)
+
 // ------- contextual -------
 
 Γ ⊦ [☐ᵢ] ☐ᵢ ≐ ☐ᵢ ⇒ Γ∥ᵢ
 
 (Δ ⊦ x ≔ t : T) ∈ Σ  or  (Δ ⊦ x : T) ∈ Σ     // definitions and declarations alike
-[ᾱ] ē₀ ≐ ē₁ ⇐ (Γ ⇒ Δ norm)
+Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ Δ
 ---------------------------------
 Γ ⊦ [x ᾱ] x[ē₀] ≐ x[ē₁] ⇒ T[ē₁]
 
 (Δ ⊦ x ≔ t : T) ∈ Σ
-ē ⇐ (Γ ⇒ Δ norm)
+Γ ⊦ ē ⇐ Δ
 -------------------------------- // δ is always manual
 Γ ⊦ [x-δ ē] x[ē] ≐ t[ē] ⇒ T[ē]
 
@@ -290,20 +332,24 @@ a₁ ≡β a₁'
 --------------------------------------------------
 Γ ⊦ [let α β] let a₀ b₀ ≐ let a₁ b₁ ⇒ B[id, a₁, ⋆]
 
-// --- Leaves: η, irrelevance, quotients, props, injectivity ---
-// The η's are LEAVES in the style of x-δ; extensionality is derived:
+// --- Leaves: η ---
+// The η's are LEAVES; extensionality is derived:
 //   ext(g₀, g₁, α) ≜ (η→ g₀)⁻¹ ; λ α ; η→ g₁     for Γ ▷ A ⊦ [α] g₀[↑] ☐₀ ≐ g₁[↑] ☐₀ ⇐ B
 //   likewise at pairs through η× and [α, β].
+
+Γ ⊦ [φ] f ⇐ A → B
+------------------------------------ // el-pi-eta
+Γ ⊦ [η→ φ] f ≐ λ (f[↑] ☐₀) ⇐ A → B
+
+Γ ⊦ [π] p ⇐ A × B
+------------------------------------- // el-sigma-eta
+Γ ⊦ [η× π] p ≐ (p .π₁, p .π₂) ⇐ A × B
 
 // Uniqueness of ℕ-elim, ⊎-elim and quot-elim (el-nat-eta, el-sum-eta,
 // el-quot-eta) gets NO leaf: it is proved by elimination into the
 // equality type and reflected, as the corpus does today.
 
-// Injectivity SELECTORS act on synthesising proofs at a universe 𝕌ℓ
-// (code-*-inj). None at Ω, ∥·∥ or ≡: props are anti-structural, and an
-// equation between propositions synthesises at Ω, never at 𝕌ℓ, so no
-// selector ever sees the proposition cluster. A selected part that
-// lives lower is brought down by restrict.
+// No injectivity selectors, for now.
 
 // ======= polynomials and ν ======
 // The polynomial 𝔽 is CARRIED by the core (ν 𝔽, corec 𝔽 f x): β reads
@@ -314,21 +360,22 @@ a₁ ≡β a₁'
 // and lift_𝔽(R) (the relator) are the foundation's ≜-definitions,
 // computed by the checker; "modulo β" everywhere includes el-nu-beta
 // (out of a corec runs the coalgebra one step), as it includes the
-// ι-rules and let-β. A polynomial is checked AT A LEVEL ℓ, every
-// embedded code at 𝕌ℓ (a proposition included, by Ω ≤ 𝕌₀ ≤ 𝕌ℓ); ν 𝔽
-// lives at that level.
+// ι-rules and let-β. A polynomial INFERS its least level, the join of
+// the sorts its embedded codes infer (|Ω| = 0: a proposition costs
+// nothing); ν 𝔽 lives at that level, and a corec's carrier is checked
+// at it.
 
-Γ ⊦ [𝕏] 𝕏 ≐ 𝕏 poly ℓ
+Γ ⊦ [𝕏] 𝕏 ≐ 𝕏 poly 0
 
-Γ ⊦ [α] a₀ ≐ a₁ ⇐ 𝕌ℓ             Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ      Γ ⊦ [ψ] 𝔾₀ ≐ 𝔾₁ poly ℓ
+Γ ⊦ [α] a₀ ≐ a₁ ⇒ U              Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ      Γ ⊦ [ψ] 𝔾₀ ≐ 𝔾₁ poly ℓ′
 --------------------------       --------------------------------------------------
-Γ ⊦ [K α] K a₀ ≐ K a₁ poly ℓ     Γ ⊦ [φ × ψ] 𝔽₀ × 𝔾₀ ≐ 𝔽₁ × 𝔾₁ poly ℓ
-                                 Γ ⊦ [φ ⊎ ψ] 𝔽₀ ⊎ 𝔾₀ ≐ 𝔽₁ ⊎ 𝔾₁ poly ℓ
+Γ ⊦ [K α] K a₀ ≐ K a₁ poly |U|   Γ ⊦ [φ × ψ] 𝔽₀ × 𝔾₀ ≐ 𝔽₁ × 𝔾₁ poly (ℓ ⊔ ℓ′)
+                                 Γ ⊦ [φ ⊎ ψ] 𝔽₀ ⊎ 𝔾₀ ≐ 𝔽₁ ⊎ 𝔾₁ poly (ℓ ⊔ ℓ′)
 
-Γ ⊦ [α] a₀ ≐ a₁ ⇐ 𝕌ℓ      Γ ▷ a₁ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ
+Γ ⊦ [α] a₀ ≐ a₁ ⇒ U      Γ ▷ a₁ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ
 ----------------------------------------------------
-Γ ⊦ [α × φ] a₀ × 𝔽₀ ≐ a₁ × 𝔽₁ poly ℓ
-Γ ⊦ [α → φ] a₀ → 𝔽₀ ≐ a₁ → 𝔽₁ poly ℓ
+Γ ⊦ [α × φ] a₀ × 𝔽₀ ≐ a₁ × 𝔽₁ poly (|U| ⊔ ℓ)
+Γ ⊦ [α → φ] a₀ → 𝔽₀ ≐ a₁ → 𝔽₁ poly (|U| ⊔ ℓ)
 
 Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ                  Γ ⊦ [α] t₀ ≐ t₁ ⇒ ν 𝔽
 ------------------------- // code-nu-cong  ----------------------------------
@@ -351,8 +398,7 @@ a₁ ≡β a₁'
 ------------------------------------------------------------ // el-nu-eta: a candidate commuting with
 Γ ⊦ [ην 𝔽 (s : a. f) (s. h) α x] h[id, x] ≐ corec 𝔽 f x ⇒ ν 𝔽  //   out IS the corecursor
 
-Γ ⊦ 𝔽 poly ℓ
-Γ ⊦ t₀ ⇐ ν 𝔽      Γ ⊦ t₁ ⇐ ν 𝔽
+Γ ⊦ t₀ ⇐ ν 𝔽      Γ ⊦ t₁ ⇐ ν 𝔽                                 // 𝔽 the input type's polynomial
 Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ⊦ R ⇐ Ω
 Γ ⊦ p ⇐ R[id, t₀, t₁]
 Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ▷ R ⊦ q ⇐ lift_𝔽(R) (out ☐₂) (out ☐₁)
@@ -388,7 +434,8 @@ a₁ ≡β a₁'
 Δ ::= · | Δ ▷ A          // a telescope over Γ: snoc, each entry a type over Γ and the entries before it
 Γ · Δ                    // the context Γ extended by Δ, entry by entry
 ↑Δ                       // weakening past Δ: ↑ iterated |Δ| times
-ē : (Γ ⇒ Δ)              // a SPINE: entrywise eᵢ ⇐ Δ∥ᵢ[id, e₀ … eᵢ₋₁]; as a substitution (id, ē) : Γ ⇒ Γ · Δ
+Γ ⊦ ē ⇐ Δ                // a SPINE, a snoc-list of terms against Δ: entrywise Γ ⊦ eᵢ ⇐ Δ∥ᵢ[id, e₀ … eᵢ₋₁]; its
+                         //   reading as a substitution is (id, ē) : Γ ⇒ Γ · Δ
 X[ē]                     // X over Γ · Δ instantiated by the spine: X[(id, ē)]; likewise Δ′[ē] for a telescope over Γ · Δ
 Δ∥ᵢ                      // the i-th entry, over Γ · (the entries before it)
 
@@ -460,8 +507,8 @@ X[ē]                     // X over Γ · Δ instantiated by the spine: X[(id, �
 ⟦D₁ ⇛ … ⇛ Dₙ ⇛ E⟧ᵉ  = ⟦E⟧                            // over Γ · ⟦Φ⟧ · ⟦𝔄⟧ᵗ
 // so that ⟦𝔄⟧ = Π ⟦𝔄⟧ᵗ. ⟦𝔄⟧ᵉ, the iterated Π over the arity.
 
-// An ALGEBRA of 𝒮 over Γ is a spine ā : (Γ ⇒ ⟦𝒮⟧). The INITIAL algebra
-// ι : (Γ ⇒ ⟦𝒮⟧) is the spine of the carried formers, entry by entry:
+// An ALGEBRA of 𝒮 over Γ is a spine Γ ⊦ ā ⇐ ⟦𝒮⟧. The INITIAL algebra
+// Γ ⊦ ι ⇐ ⟦𝒮⟧ is the spine of the carried formers, entry by entry:
 ι(𝕤)  = λ ⟦𝔎⟧ᵗ. 𝒮.𝕤 (the bound variables)             // for a sort entry 𝒮(𝕤) = 𝔎
 ι(𝕔)  = λ ⟦𝔄⟧ᵗ. 𝒮.𝕔 (the bound variables)             // for a point entry 𝒮(𝕔) = 𝔄
 ι(𝕔)  = λ ⟦𝔄⟧ᵗ. ⋆                                    // for an equation entry: its end is a proposition
@@ -482,7 +529,10 @@ X[ē]                     // X over Γ · Δ instantiated by the spine: X[(id, �
 ⟦Φ ▷ 𝔄⟧ᴰ     = ⟦Φ⟧ᴰ ▷ 𝔄ᴰ ☐_𝔄                          // ☐_𝔄: the algebra's variable for this entry, weakened past the displayed entries before
 
 Uᴰ X                = X → U_𝕤                           // a MOTIVE over the sort's carrier, at the sort's named target U_𝕤;
-                                                        //   for an indexed sort (𝔎 = D̄ ⇛ U) the motive is under the arity: Π ⟦𝔎⟧ᵗ. X d̄ → U_𝕤
+                                                        //   for an indexed sort (𝔎 = D̄ ⇛ U) the ⇛ clauses below put the motive under the
+                                                        //   DISPLAYED arity: an inductive index is passed with its image, so the motive of
+                                                        //   Ty : Con ⇛ U is over (Γ : ⟦Con⟧) (Γᴰ : Conᴰ Γ) (t : ⟦Ty⟧ Γ) — the standard
+                                                        //   displayed algebra; the motive over the plain arity is the instance that ignores Γᴰ
 (El 𝕥)ᴰ x           = 𝕥ᴰ x                              // a METHOD: the displayed term of the entry's code, at x
 (A ⇛ 𝔄)ᴰ f          = Π (a : A[↑…]). 𝔄ᴰ (f a)            // external argument: passed through
 (El (𝕤 ī) ⇛ 𝔄)ᴰ f   = Π (x : ⟦𝕤 ī⟧) (xᴰ : (𝕤 ī)ᴰ x). 𝔄ᴰ (f x)  // internal argument at a SORT: passed with its
@@ -501,7 +551,7 @@ Uᴰ X                = X → U_𝕤                           // a MOTIVE over 
                                                         //   displayed sides sit at one type; a proposition
 // So ⟦𝒮⟧ᴰ[ι] is the telescope of the eliminator's SURFACE arguments in
 // signature order — motives at the sort entries, methods at the point
-// entries, coherences at the equation entries — and d̄ : (Γ ⇒ ⟦𝒮⟧ᴰ[ι])
+// entries, coherences at the equation entries — and Γ ⊦ d̄ ⇐ ⟦𝒮⟧ᴰ[ι]
 // is all of them at once. d̄(𝕤) names the motive entry for sort 𝕤, d̄(𝕔)
 // the method entry for point 𝕔, m̄ the point entries (what the core
 // keeps). The current document's 𝔄ᴰ⟨e⟩, 𝔄ᴰᵗ, ⟦𝕥⟧ and θ⟨φ⟩ are these
@@ -509,24 +559,26 @@ Uᴰ X                = X → U_𝕤                           // a MOTIVE over 
 
 // --- The outer formers ---
 
-Γ ⊦ 𝒮 qsig ℓ      𝒮(𝕤) = 𝔎      ē ⇐ (Γ ⇒ ⟦𝔎⟧ᵗ[ι])
+Γ ⊦ 𝒮 qsig ℓ      𝒮(𝕤) = 𝔎      Γ ⊦ ē ⇐ ⟦𝔎⟧ᵗ[ι]
 --------------------------------------------------- // ty-qiit and code-qiit as one rule: a sort is a
 Γ ⊦ 𝒮.𝕤 ē ⇒ 𝕌ℓ                                      //   type at the signature's bound
 
-Γ ⊦ 𝒮 qsig ℓ      𝒮(𝕔) = 𝔄  (ending in El 𝕥)      θ ⇐ (Γ ⇒ ⟦𝔄⟧ᵗ[ι])
+Γ ⊦ 𝒮 qsig ℓ      𝒮(𝕔) = 𝔄  (ending in El 𝕥)      Γ ⊦ θ ⇐ ⟦𝔄⟧ᵗ[ι]
 ------------------------------------------------------------------- // el-qiit-intro, SATURATED
 Γ ⊦ 𝒮.𝕔 θ ⇒ ⟦𝕥⟧[ι, θ]
 
 Γ ⊦ 𝒮 qsig ℓ      Ū sorts, one per sort of 𝒮
-d̄ ⇐ (Γ ⇒ ⟦𝒮⟧ᴰ[ι])                                   // motives, methods, coherences: ONE spine of the displayed
-𝒮(𝕤) = 𝔎      ē ⇐ (Γ ⇒ ⟦𝔎⟧ᵗ[ι])      Γ ⊦ w ⇐ 𝒮.𝕤 ē    //   telescope over the initial algebra; a coherence entry
+Γ ⊦ d̄ ⇐ ⟦𝒮⟧ᴰ[ι]                                   // motives, methods, coherences: ONE spine of the displayed
+𝒮(𝕤) = 𝔎      Γ ⊦ ē ⇐ ⟦𝔎⟧ᵗ[ι]      Γ ⊦ w ⇐ 𝒮.𝕤 ē    //   telescope over the initial algebra; a coherence entry
 --------------------------------------------------- //   is a proposition (irrel at U_𝕤 = Ω, a proof otherwise)
-Γ ⊦ 𝒮.𝕤-elim Ū d̄ ē w ⇒ d̄(𝕤) ē w                      // core: 𝒮.𝕤-elim m̄ ē w, m̄ the point entries of d̄
+Γ ⊦ 𝒮.𝕤-elim Ū d̄ ē w ⇒ d̄(𝕤) ēᴰ w                     // core: 𝒮.𝕤-elim m̄ ē w, m̄ the point entries of d̄; ēᴰ the
+                                                    //   DISPLAYED SPINE of the indices (COMPUTATION below)
 
 // COMPUTATION is el-qiit-beta, inside "modulo β": at a constructor
-// 𝒮(𝕔) = 𝔄 with arguments θ : (Γ ⇒ ⟦𝔄⟧ᵗ[ι]),
+// 𝒮(𝕔) = 𝔄 with arguments Γ ⊦ θ ⇐ ⟦𝔄⟧ᵗ[ι],
 //   𝒮.𝕤-elim m̄ ⟦ī⟧[ι, θ] (𝒮.𝕔 θ)  ⇝  m_𝕔 θᴰ
-// where θᴰ : (Γ ⇒ ⟦𝔄⟧ᵗᴰ[ι, d̄]) is the DISPLAYED SPINE of θ: entrywise,
+// where Γ ⊦ θᴰ ⇐ ⟦𝔄⟧ᵗᴰ[ι, d̄] is the DISPLAYED SPINE of θ (likewise ēᴰ
+// of an index spine Γ ⊦ ē ⇐ ⟦𝔎⟧ᵗ[ι] in the eliminator's type): entrywise,
 // an external argument a ↦ a, an internal argument x : 𝒮.𝕤′ ī′ ↦ x,
 // 𝒮.𝕤′-elim m̄ ī′ x (the eliminator itself at the recursive position:
 // the section φᵉˡ), an internal argument at an equation code ↦ x
@@ -535,34 +587,30 @@ d̄ ⇐ (Γ ⇒ ⟦𝒮⟧ᴰ[ι])                                   // motives,
 
 // --- Leaves and congruences ---
 
-Γ ⊦ 𝒮 qsig ℓ      𝒮(𝕔) = 𝔄  (ending in El (l ≡ r), the sides at code 𝕦)      θ ⇐ (Γ ⇒ ⟦𝔄⟧ᵗ[ι])
+Γ ⊦ 𝒮 qsig ℓ      𝒮(𝕔) = 𝔄  (ending in El (l ≡ r), the sides at code 𝕦)      Γ ⊦ θ ⇐ ⟦𝔄⟧ᵗ[ι]
 ------------------------------------------------------------------------------------------ // el-qiit-path: the imposed
 Γ ⊦ [𝒮.𝕔 θ] ⟦l⟧[ι, θ] ≐ ⟦r⟧[ι, θ] ⇒ ⟦𝕦⟧[ι, θ]                                             //   equation, as a proof leaf
                                                                                             //   (no term is minted: the
                                                                                             //   prop's element is ⋆)
 
-Γ ⊦ [ϑ] 𝒮₀ ≐ 𝒮₁ qsig ℓ      [ᾱ] ē₀ ≐ ē₁ ⇐ (Γ ⇒ ⟦𝔎⟧ᵗ[ι])
+Γ ⊦ [ϑ] 𝒮₀ ≐ 𝒮₁ qsig ℓ      Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ ⟦𝔎⟧ᵗ[ι]
 ------------------------------------------------------ // ty-qiit-cong, at the bound. The spine equation is at the
 Γ ⊦ [ϑ.𝕤 ᾱ] 𝒮₀.𝕤 ē₀ ≐ 𝒮₁.𝕤 ē₁ ⇒ 𝕌ℓ                     //   arity instantiated by ē₁'s prefix, as every spine equation
 
-Γ ⊦ [ϑ] 𝒮₀ ≐ 𝒮₁ qsig ℓ      [ᾱ] θ₀ ≐ θ₁ ⇐ (Γ ⇒ ⟦𝔄⟧ᵗ[ι])
+Γ ⊦ [ϑ] 𝒮₀ ≐ 𝒮₁ qsig ℓ      Γ ⊦ [ᾱ] θ₀ ≐ θ₁ ⇐ ⟦𝔄⟧ᵗ[ι]
 ------------------------------------------------------ // el-qiit-intro-cong
 Γ ⊦ [ϑ.𝕔 ᾱ] 𝒮₀.𝕔 θ₀ ≐ 𝒮₁.𝕔 θ₁ ⇒ ⟦𝕥⟧[ι, θ₁]
 
 Γ ⊦ 𝒮 qsig ℓ      Ū as in the eliminator
-[δ̄] d̄₀ ≐ d̄₁ ⇐ (Γ ⇒ ⟦𝒮⟧ᴰ[ι])                          // entrywise: the motive entries reflexive (the two
-[ᾱ] ē₀ ≐ ē₁ ⇐ (Γ ⇒ ⟦𝔎⟧ᵗ[ι])      Γ ⊦ [κ] w₀ ≐ w₁ ⇐ 𝒮.𝕤 ē₁   //   eliminators share their motives), the method
+Γ ⊦ [δ̄] d̄₀ ≐ d̄₁ ⇐ ⟦𝒮⟧ᴰ[ι]                          // entrywise: the motive entries reflexive (the two
+Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ ⟦𝔎⟧ᵗ[ι]      Γ ⊦ [κ] w₀ ≐ w₁ ⇐ 𝒮.𝕤 ē₁   //   eliminators share their motives), the method
 --------------------------------------------------------------------------------------- //   entries proper equations, the coherence
-Γ ⊦ [𝒮.𝕤-elim Ū δ̄ ᾱ κ] 𝒮.𝕤-elim m̄₀ ē₀ w₀ ≐ 𝒮.𝕤-elim m̄₁ ē₁ w₁ ⇒ d̄₁(𝕤) ē₁ w₁              //   entries irrel (propositions). Same 𝒮:
+Γ ⊦ [𝒮.𝕤-elim Ū δ̄ ᾱ κ] 𝒮.𝕤-elim m̄₀ ē₀ w₀ ≐ 𝒮.𝕤-elim m̄₁ ē₁ w₁ ⇒ d̄₁(𝕤) ē₁ᴰ w₁             //   entries irrel (propositions). Same 𝒮:
                                                                                        //   across a signature equation ϑ, go
                                                                                        //   through ϑ.𝕤 ᾱ and conversion
-
-Γ ⊦ [α] 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ ⇒ 𝕌ℓ      e₀ⱼ = e₁ⱼ for j < i (syntactically)
----------------------------------------------------------------------- // code-qiit-inj: index selector; the
-Γ ⊦ [idxᵢ α] e₀ᵢ ≐ e₁ᵢ ⇒ ⟦𝔎⟧ᵗ∥ᵢ[ι, e₁₀ … e₁ᵢ₋₁]                        //   signature is inert syntax, so it
-                                                                        //   is not selected, only compared
 
 // Uniqueness (el-qiit-eta) gets no leaf, as at ℕ, ⊎ and / (ν's ην is
 // the one exception): the corpus proves it by elimination into the
 // equality type and reflection. No constructor injectivity: equation
-// entries make constructors non-injective in general (quotients).
+// entries make constructors non-injective in general (quotients); no
+// index selector either, for now.
