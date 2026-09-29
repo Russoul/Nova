@@ -12,7 +12,10 @@
 // Γ ⊦ [t] t ≐ t ⇒ T: a term with no proof leaf is its own reflexivity
 // proof, the one-sided case α = t. A surface piece a rule names in a
 // premise (a motive C, a carrier a, a witness type T) denotes its core
-// elaboration where the conclusion uses it. A TYPE is a term at a SORT
+// elaboration where the conclusion uses it. A premise Γ ⊦ [ρ] ⋆ ⇐ P, P a
+// proposition, asks for ANY proof at P and disregards its sides: a
+// hypothesis ☐ᵢ proves ☐ᵢ ≐ ☐ᵢ at P and serves there. Only a conclusion
+// mints ⋆. A TYPE is a term at a SORT
 //   U ::= Ω | 𝕌ℓ         (ℓ a natural-number literal; |Ω| = 0, |𝕌ℓ| = ℓ),
 // so "T is a type" is Γ ⊦ T ⇒ U, and an equation of types is an equation
 // at a sort. There is no judgement of types, and no judgement of type
@@ -136,7 +139,7 @@ U a sort
 -----------------------------------------
 Γ ⊦ [class α] class a₀ ≐ class a₁ ⇐ A / R
 
-Γ ⊦ [α] a ⇐ A  [β] b ⇐ A   Γ ⊦ [ρ] ⋆ ≐ ⋆ ⇐ R[id, a, b]
+Γ ⊦ [α] a ⇐ A  [β] b ⇐ A   Γ ⊦ [ρ] ⋆ ⇐ R[id, a, b]
 ------------------------------------------------------ // el-quot-eq: related representatives, equal classes
 Γ ⊦ [quot-eq α β ρ] class a ≐ class b ⇐ A / R
 
@@ -182,7 +185,7 @@ U a sort
 Γ ⊦ [refl α] ⋆ ≐ ⋆ ⇒ (t₀ ≡ t₁ ∈ T)
 
 
-Γ ⊦ [α] ⋆ ≐ ⋆ ⇒ t₀ ≡ t₁ ∈ T
+Γ ⊦ [α] ⋆ ⇒ t₀ ≡ t₁ ∈ T
 ---------------------------
 Γ ⊦ [reflect α] t₀ ≐ t₁ ⇒ T
 
@@ -238,7 +241,7 @@ U a sort
 Γ ⊦ [squash α] ⋆ ⇐ ∥A∥
 
 Γ ⊦ [γ] B ⇐ Ω                        // a CHECK at Ω: cumulativity is one-way, B ⇐ 𝕌₀ says nothing
-Γ ⊦ [β] ⋆ ⇐ ∥A∥
+Γ ⊦ [β] ⋆ ⇒ ∥A∥                      // β SYNTHESISES the squash: nothing else determines A
 Γ ▷ A ⊦ [α] ⋆ ⇐ B[↑]
 -------------------------------------
 Γ ⊦ [unsquash γ α β] ⋆ ⇒ B
