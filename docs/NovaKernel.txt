@@ -263,7 +263,7 @@ U a sort
 
 Γ ⊦ [γ] T ⇐ Ω      Γ ⊦ [α] a ⇐ T      Γ ⊦ [β] b ⇐ T
 ----------------------------------------------------- // el-prf-prop: γ carries the proposition, so the rule
-Γ ⊦ [irrel γ α β] a ≐ b ⇒ T                           //   SYNTHESISES it; ⇐ follows by switch. Propositionhood
+Γ ⊦ [prop-irrel γ α β] a ≐ b ⇒ T                      //   SYNTHESISES it; ⇐ follows by switch. Propositionhood
                                                       //   is witnessed, never read off a core type
 
 Γ ⊦ [ρ] p ⇐ Ω      Γ ⊦ [θ] q ⇐ Ω      Γ ▷ p ⊦ [γ] s ⇐ q[↑]      Γ ▷ q ⊦ [ι] t ⇐ p[↑]
