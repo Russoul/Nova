@@ -10,7 +10,7 @@ fa : A := f a
 use-ax : f a ≡ f (f a) ∈ A := refl (f (reflect ax))
 no-delta : A := δ A
 twice : A → A := λx. f (f x)
-twice-a : twice a ≡ f (f a) ∈ A := refl (((δ twice) a) : A)
+twice-a : twice a ≡ f (f a) ∈ A := refl ((δ twice) a : A)
 
 -- a declared PROPOSITION and a declared proof of it
 p : Ω

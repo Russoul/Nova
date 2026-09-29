@@ -1,8 +1,8 @@
 -- modes: what only checks must be annotated to synthesise
 
 app-lam : ℕ := (λx. x) Z
-app-lam-annot : ℕ := ((λx. x) : ℕ → ℕ) Z
-bad-chain : Z ≡ Z ∈ ℕ := refl ((Z ; S Z) : ℕ)
-eta : (f : ℕ → ℕ) → f ≡ (λx. f x) ∈ (ℕ → ℕ) := λf. (refl ((η→ f) : ℕ → ℕ))
-eta-pair : (p : ℕ × ℕ) → p ≡ (p .π₁, p .π₂) ∈ (ℕ × ℕ) := λp. (refl ((η× p) : ℕ × ℕ))
+app-lam-annot : ℕ := (λx. x : ℕ → ℕ) Z
+bad-chain : Z ≡ Z ∈ ℕ := refl (Z ; S Z : ℕ)
+eta : (f : ℕ → ℕ) → f ≡ (λx. f x) ∈ (ℕ → ℕ) := λf. refl (η→ f : ℕ → ℕ)
+eta-pair : (p : ℕ × ℕ) → p ≡ (p .π₁, p .π₂) ∈ (ℕ × ℕ) := λp. refl (η× p : ℕ × ℕ)
 unknown : ℕ := foo

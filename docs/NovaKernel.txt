@@ -27,7 +27,7 @@
 //   t₀ ≡ t₁ ∈ T, …) in an input position, means equality modulo substitution
 //   and β — weak-head β for a pattern, full β for a comparison. "β" is every
 //   computation rule: β, the ι-rules, let-β, ν-β, QIIT-β. NEVER δ:
-//   definitions unfold only through the proof former x-δ. Every comparison
+//   definitions unfold only through the proof former δ x. Every comparison
 //   runs under a FUEL budget (equality reflection makes β-normalisation of a
 //   well-typed term diverge under an inconsistent hypothesis); exhaustion is
 //   rejection, so the checker is total.
@@ -35,7 +35,7 @@
 //   scrutinee against a quotient, ⋆ against a prop) is matched after
 //   weak-head β only; a reference at the head is STUCK, and the term is
 //   rejected unless an annotation ((conv t α) : T) exposes the shape, α a
-//   chain of x-δ leaves naming each unfolding at its path (the annotation
+//   chain of δ leaves naming each unfolding at its path (the annotation
 //   rule, modal section). The reason: whnf-δ in
 //   the checker would fix ONE unfolding strategy in the trusted base — the
 //   producer would have to predict it step for step, its spellings would
@@ -321,7 +321,7 @@ U ≤ U′
 (Δ ⊦ x ≔ t : T) ∈ Σ
 Γ ⊦ ē ⇐ Δ
 -------------------------------- // δ is always manual
-Γ ⊦ [x-δ ē] x[ē] ≐ t[ē] ⇒ T[ē]
+Γ ⊦ [δ x ē] x[ē] ≐ t[ē] ⇒ T[ē]
 
 // ------------------
 

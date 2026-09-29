@@ -6,7 +6,7 @@ two : ℕ := plus[S Z, S Z]
 
 -- unfold two, then plus, then compute
 two-is-SSZ : two ≡ S (S Z) ∈ ℕ :=
-  refl ((δ two ; δ plus[S Z, S Z]) : ℕ)
+  refl (δ two ; δ plus[S Z, S Z] : ℕ)
 
 -- without the leaves, two is stuck
 two-stuck : two ≡ S (S Z) ∈ ℕ := refl (two : ℕ)
@@ -17,26 +17,26 @@ S-cong (n : ℕ) (h : n ≡ Z ∈ ℕ) : S n ≡ S Z ∈ ℕ :=
 
 -- 0 + 3 ≡ 3: two β and four ι steps
 plus-0-3 : plus[Z, S (S (S Z))] ≡ S (S (S Z)) ∈ ℕ :=
-  refl ((δ plus[Z, S (S (S Z))]) : ℕ)
+  refl (δ plus[Z, S (S (S Z))] : ℕ)
 
 -- n + 0 ≡ n is computation: plus recurses on its second argument
 plus-n-0 (n : ℕ) : plus[n, Z] ≡ n ∈ ℕ :=
-  refl ((δ plus[n, Z]) : ℕ)
+  refl (δ plus[n, Z] : ℕ)
 
 -- 0 + n ≡ n is INDUCTION: ℕ-elim into the equation, at Ω; the step
 -- unfolds plus at S k, and rewrites under S with the hypothesis after
 -- unfolding plus at k so that the hypothesis' side is the computed one
 plus-0-n (n : ℕ) : plus[Z, n] ≡ n ∈ ℕ :=
   ℕ-elim Ω (k. plus[Z, k] ≡ k ∈ ℕ)
-    (refl ((δ plus[Z, Z]) : ℕ))
-    (k ih. refl ((δ plus[Z, S k]
-                          ; S ((δ plus[Z, k])⁻¹ ; reflect ih))
+    (refl (δ plus[Z, Z] : ℕ))
+    (k ih. refl (δ plus[Z, S k]
+                          ; S (δ plus[Z, k]⁻¹ ; reflect ih)
                          : ℕ))
     n
 
 -- the step without unfolding plus at k: the hypothesis' side is stuck
 plus-0-n-stuck (n : ℕ) : plus[Z, n] ≡ n ∈ ℕ :=
   ℕ-elim Ω (k. plus[Z, k] ≡ k ∈ ℕ)
-    (refl ((δ plus[Z, Z]) : ℕ))
-    (k ih. refl ((δ plus[Z, S k] ; S (reflect ih)) : ℕ))
+    (refl (δ plus[Z, Z] : ℕ))
+    (k ih. refl (δ plus[Z, S k] ; S (reflect ih) : ℕ))
     n

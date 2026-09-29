@@ -2,7 +2,7 @@
 
 unsq (h : ∥ℕ∥) : ∥ℕ∥ := unsquash ∥ℕ∥ (n. squash n) h
 
-unit-irrel (a : 𝟙) (b : 𝟙) : a ≡ b ∈ 𝟙 := refl ((irrel a b) : 𝟙)
+unit-irrel (a : 𝟙) (b : 𝟙) : a ≡ b ∈ 𝟙 := refl (irrel a b : 𝟙)
 
 pe (p : Ω) (q : Ω) (f : p → q) (g : q → p) : p ≡ q ∈ Ω :=
   refl (propext p q (x. f x) (y. g y))

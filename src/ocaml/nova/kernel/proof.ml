@@ -57,7 +57,7 @@ type t =
   (* contextual *)
   | Var of int (* ☐ᵢ *)
   | Item of name * t list (* x ᾱ *)
-  | Delta of name * t list (* x-δ ē *)
+  | Delta of name * t list (* δ x ē *)
   | Trans of t * t (* α ; β *)
   | Sym of t (* α ⁻¹ *)
   | Let of t * t (* let α β *)

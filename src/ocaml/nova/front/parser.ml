@@ -13,12 +13,14 @@
      arrow  ::= prod ['→' arrow]                     (x : A) → B binds x
      prod   ::= eq ['×' prod | '⊎' prod | '/' (x y. expr)]
      eq     ::= app ['≡' app '∈' app]
-     app    ::= (form | atom) atom*
+     app    ::= (form | atom) (atom | '.π₁' | '.π₂' | '⁻¹')*
+                                     a postfix applies to the whole spine before it:
+                                     f x .π₁ is (f x) .π₁, reflect h⁻¹ is (reflect h)⁻¹
      atom   ::= NAME ['[' expr, … ']'] | 'δ' NAME ['[' … ']'] | sort
               | '(' expr ')' | '(' expr ',' expr ')' | '(' expr ':' expr ')'
               | 'λ' NAME+ '.' expr | '∥' expr '∥' | 'let' NAME NAME ':=' expr 'in' expr
-              | atom '.π₁' | atom '.π₂' | atom '⁻¹'
-     form   ::= keyword args, a binder argument written (x y. expr) *)
+     form   ::= keyword args, a binder argument written (x y. expr);
+                a form is a spine head: it may take further arguments *)
 
 open Core
 module P = Proof
@@ -157,7 +159,17 @@ and app st env =
     | _ -> atom st env
   in
   let rec loop h =
-    if starts_atom st then loop (P.App (h, atom st env)) else h
+    match (peek st).kind with
+    | PROJ1 when continues st ->
+        advance st;
+        loop (P.Fst h)
+    | PROJ2 when continues st ->
+        advance st;
+        loop (P.Snd h)
+    | INV when continues st ->
+        advance st;
+        loop (P.Sym h)
+    | _ -> if starts_atom st then loop (P.App (h, atom st env)) else h
   in
   loop head
 
@@ -301,23 +313,6 @@ and is_keyword s =
   || Option.is_some (sort_of_id s)
 
 and atom st env : P.t =
-  let base = atom_base st env in
-  let rec post e =
-    match (peek st).kind with
-    | PROJ1 when continues st ->
-        advance st;
-        post (P.Fst e)
-    | PROJ2 when continues st ->
-        advance st;
-        post (P.Snd e)
-    | INV when continues st ->
-        advance st;
-        post (P.Sym e)
-    | _ -> e
-  in
-  post base
-
-and atom_base st env : P.t =
   match (peek st).kind with
   | UNIT ->
       advance st;

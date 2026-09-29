@@ -218,7 +218,7 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
       let body =
         match it.def with
         | Some t -> t
-        | None -> reject "x-δ: '%s' is a declaration, it has no definiens" x
+        | None -> reject "δ: '%s' is a declaration, it has no definiens" x
       in
       let e = spine1 st ctx it.tele ps in
       let at = Subst.inst e in

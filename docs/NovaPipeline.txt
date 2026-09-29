@@ -144,7 +144,7 @@ every producer to predict it step for step; the certificate's paths
 are meaningful only relative to the normal form that strategy
 computes, and any mismatch is a "bad path" (docs/NovaKernel.txt,
 CONVENTIONS, records the reasoning). So δ is CERTIFIED: a proof term
-carries δ LEAVES — one occurrence (x-δ ē), or every addressable
+carries δ LEAVES — one occurrence (δ x ē), or every addressable
 occurrence of named definitions at once (δ-all, the δ-round of a
 join) — and the kernel's join is β-only. The producer's every
 unfolding is recorded; the licence vocabulary (`<def>.eq`,

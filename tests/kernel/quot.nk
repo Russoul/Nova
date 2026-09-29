@@ -4,28 +4,28 @@ Q : 𝕌0 := ℕ / (x y. ∥𝟙∥)
 
 -- expose Q, then eliminate at 𝕌0: the constant function is well defined
 const (q : Q) : ℕ :=
-  quot-elim 𝕌0 (_. ℕ) (x. Z) (x y h. Z) ((conv q (δ Q)) : ℕ / (x y. ∥𝟙∥))
+  quot-elim 𝕌0 (_. ℕ) (x. Z) (x y h. Z) (conv q (δ Q) : ℕ / (x y. ∥𝟙∥))
 
 -- the representative is not
 rep (q : Q) : ℕ :=
-  quot-elim 𝕌0 (_. ℕ) (x. x) (x y h. x) ((conv q (δ Q)) : ℕ / (x y. ∥𝟙∥))
+  quot-elim 𝕌0 (_. ℕ) (x. x) (x y h. x) (conv q (δ Q) : ℕ / (x y. ∥𝟙∥))
 
 -- at Ω the motive is a proposition and well-definedness is irrelevance
 q-prop (q : Q) : ∥𝟙∥ :=
   quot-elim Ω (_. ∥𝟙∥) (x. squash ())
             (x y h. prop-irrel ∥𝟙∥ (squash ()) (squash ()))
-            ((conv q (δ Q)) : ℕ / (x y. ∥𝟙∥))
+            (conv q (δ Q) : ℕ / (x y. ∥𝟙∥))
 
 -- without exposing, the eliminator sees an item
 stuck (q : Q) : ℕ := quot-elim 𝕌0 (_. ℕ) (x. Z) (x y h. Z) q
 
 -- related representatives give equal classes, stated at the quotient itself
 same : class Z ≡ class (S Z) ∈ (ℕ / (x y. ∥𝟙∥)) :=
-  refl ((quot-eq Z (S Z) (squash ())) : ℕ / (x y. ∥𝟙∥))
+  refl (quot-eq Z (S Z) (squash ()) : ℕ / (x y. ∥𝟙∥))
 
 -- and stated at Q, where every class must be converted across Q's unfolding
-same-at-Q : (conv (class Z) ((δ Q)⁻¹ : 𝕌0)) ≡ (conv (class (S Z)) ((δ Q)⁻¹ : 𝕌0)) ∈ Q :=
-  refl ((conv (quot-eq Z (S Z) (squash ())) ((δ Q)⁻¹ : 𝕌0)) : Q)
+same-at-Q : (conv (class Z) (δ Q⁻¹ : 𝕌0)) ≡ (conv (class (S Z)) (δ Q⁻¹ : 𝕌0)) ∈ Q :=
+  refl (conv (quot-eq Z (S Z) (squash ())) (δ Q⁻¹ : 𝕌0) : Q)
 
 -- a class against the item Q is stuck
-class-at-Q : class Z ≡ class Z ∈ Q := refl ((class Z) : Q)
+class-at-Q : class Z ≡ class Z ∈ Q := refl (class Z : Q)

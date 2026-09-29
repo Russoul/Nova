@@ -4,26 +4,26 @@
 plus (n : ℕ) (m : ℕ) : ℕ := ℕ-elim 𝕌0 (_. ℕ) n (k ih. S ih) m
 
 plusZeroId (n : ℕ) : plus[n, Z] ≡ n ∈ ℕ :=
-  refl ((δ plus[n, Z]) : ℕ)
+  refl (δ plus[n, Z] : ℕ)
 
 -- both sides unfold: the right side is spelled with its own δ leaf
 plusSucId (n : ℕ) (m : ℕ) : plus[n, S m] ≡ S plus[n, m] ∈ ℕ :=
-  refl ((δ plus[n, S m] ; S ((δ plus[n, m])⁻¹)) : ℕ)
+  refl (δ plus[n, S m] ; S (δ plus[n, m]⁻¹) : ℕ)
 
 zeroPlusId (n : ℕ) : plus[Z, n] ≡ n ∈ ℕ :=
   ℕ-elim Ω (k. plus[Z, k] ≡ k ∈ ℕ)
-    (refl ((δ plus[Z, Z]) : ℕ))
-    (k ih. refl ((δ plus[Z, S k]
-                          ; S ((δ plus[Z, k])⁻¹ ; reflect ih))
+    (refl (δ plus[Z, Z] : ℕ))
+    (k ih. refl (δ plus[Z, S k]
+                          ; S (δ plus[Z, k]⁻¹ ; reflect ih)
                          : ℕ))
     n
 
 sucPlus (n : ℕ) (m : ℕ) : plus[S n, m] ≡ S plus[n, m] ∈ ℕ :=
   ℕ-elim Ω (k. plus[S n, k] ≡ S plus[n, k] ∈ ℕ)
-    (refl ((δ plus[S n, Z] ; S ((δ plus[n, Z])⁻¹)) : ℕ))
-    (k ih. refl ((δ plus[S n, S k]
-                          ; S ((δ plus[S n, k])⁻¹ ; reflect ih)
-                          ; S ((reflect plusSucId[n, k])⁻¹))
+    (refl (δ plus[S n, Z] ; S (δ plus[n, Z]⁻¹) : ℕ))
+    (k ih. refl (δ plus[S n, S k]
+                          ; S (δ plus[S n, k]⁻¹ ; reflect ih)
+                          ; S (reflect plusSucId[n, k]⁻¹)
                          : ℕ))
     m
 
@@ -31,10 +31,10 @@ sucPlus (n : ℕ) (m : ℕ) : plus[S n, m] ≡ S plus[n, m] ∈ ℕ :=
 -- chain of reflected lemmas — every middle is syntactic
 plusComm (n : ℕ) (m : ℕ) : plus[m, n] ≡ plus[n, m] ∈ ℕ :=
   ℕ-elim Ω (k. plus[k, n] ≡ plus[n, k] ∈ ℕ)
-    (refl ((reflect zeroPlusId[n] ; (reflect plusZeroId[n])⁻¹) : ℕ))
-    (k ih. refl ((reflect sucPlus[k, n]
+    (refl (reflect zeroPlusId[n] ; reflect plusZeroId[n]⁻¹ : ℕ))
+    (k ih. refl (reflect sucPlus[k, n]
                           ; S (reflect ih)
-                          ; (reflect plusSucId[n, k])⁻¹)
+                          ; reflect plusSucId[n, k]⁻¹
                          : ℕ))
     m
 
@@ -42,7 +42,7 @@ plusComm (n : ℕ) (m : ℕ) : plus[m, n] ≡ plus[n, m] ∈ ℕ :=
 -- applied to the reflected hypothesis, computed at both ends
 pred (n : ℕ) : ℕ := ℕ-elim 𝕌0 (_. ℕ) Z (k ih. k) n
 sucInj (n : ℕ) (m : ℕ) (h : S n ≡ S m ∈ ℕ) : n ≡ m ∈ ℕ :=
-  refl (((δ pred[S n])⁻¹ ; pred[reflect h] ; δ pred[S m]) : ℕ)
+  refl (δ pred[S n]⁻¹ ; pred[reflect h] ; δ pred[S m] : ℕ)
 
 -- an item applied to the wrong number of arguments
 arity : ℕ := plus[Z]
