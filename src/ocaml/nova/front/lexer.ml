@@ -27,6 +27,7 @@ type kind =
   | UNIT (* () *)
   | PROJ1 (* .π₁ .1 *)
   | PROJ2 (* .π₂ .2 *)
+  | ARROW2 (* ⇛ =>> *)
   | LQUOTE (* ⌜ [| *)
   | RQUOTE (* ⌝ |] *)
   | LUNQUOTE (* ⌞ (| *)
@@ -85,7 +86,8 @@ let symbol = function
   | 0x3BB (* λ *)
   | 0x2225 (* ∥ *)
   | 0x207B (* ⁻ *)
-  | 0x231C | 0x231D | 0x231E | 0x231F (* ⌜ ⌝ ⌞ ⌟ *) ->
+  | 0x231C | 0x231D | 0x231E | 0x231F (* ⌜ ⌝ ⌞ ⌟ *)
+  | 0x21DB (* ⇛ *) ->
       true
   | _ -> false
 
@@ -157,6 +159,9 @@ let tokenize (src : string) : tok list =
         i := !i + 2
       in
       if two 0x28 0x29 then two_ UNIT
+      else if cp !i = 0x3D && cp (!i + 1) = 0x3E && cp (!i + 2) = 0x3E then (
+        emit start ARROW2;
+        i := !i + 3)
       else if two 0x5B 0x7C then two_ LQUOTE
       else if two 0x7C 0x5D then two_ RQUOTE
       else if two 0x28 0x7C then two_ LUNQUOTE
@@ -204,6 +209,7 @@ let tokenize (src : string) : tok list =
         | 0x2208 | 0x40 -> one MEMBER
         | 0x3BB | 0x5C -> one LAM
         | 0x2225 -> one BAR2
+        | 0x21DB -> one ARROW2
         | 0x231C -> one LQUOTE
         | 0x231D -> one RQUOTE
         | 0x231E -> one LUNQUOTE

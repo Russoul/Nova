@@ -50,14 +50,12 @@ let rec go (p : int) (t : tm) : string =
   | Out e -> app "out" [ e ]
   | Corec (f, g, x) ->
       paren 3 ("corec " ^ poly 4 f ^ " " ^ under 1 g ^ " " ^ go 4 x)
-  | QSort (sg, i, es) ->
-      paren 3 (signature sg ^ ".⬡" ^ string_of_int i ^ spine es)
-  | QCon (sg, i, es) ->
-      paren 3 (signature sg ^ ".⬡" ^ string_of_int i ^ spine es)
+  | QSort (sg, i, es) -> paren 3 (short sg ^ ".⬡" ^ string_of_int i ^ spine es)
+  | QCon (sg, i, es) -> paren 3 (short sg ^ ".⬡" ^ string_of_int i ^ spine es)
   | QElim (sg, i, ms, es, w) ->
       paren 3
-        (signature sg ^ ".⬡" ^ string_of_int i ^ "-elim" ^ spine ms ^ spine es
-       ^ " " ^ go 4 w)
+        (short sg ^ ".⬡" ^ string_of_int i ^ "-elim" ^ spine ms ^ spine es ^ " "
+       ^ go 4 w)
 
 and spine es =
   if es = [] then ""
@@ -73,8 +71,16 @@ and poly p (f : tm poly) : string =
   | PSigma (a, f) -> paren 1 (go 2 a ^ " × (. " ^ poly 0 f ^ ")")
   | PPi (a, f) -> paren 0 (go 1 a ^ " → (. " ^ poly 0 f ^ ")")
 
+(* a carried signature, by its size and level *)
+and short (sg : tm signature) : string =
+  "⟨"
+  ^ string_of_int (List.length sg.entries)
+  ^ "@" ^ string_of_int sg.level ^ "⟩"
+
 and signature (sg : tm signature) : string =
-  "⟨" ^ String.concat " ▷ " (List.rev_map qty sg) ^ "⟩"
+  "⟨"
+  ^ String.concat " ▷ " (List.rev_map qty sg.entries)
+  ^ "⟩@" ^ string_of_int sg.level
 
 and qty = function
   | QU -> "U"

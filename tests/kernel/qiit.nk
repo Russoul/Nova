@@ -1,0 +1,104 @@
+-- QIITs: a signature is declared once and carried by every use; the
+-- eliminator takes the whole displayed spine, motives first
+
+-- ℕ as a QIIT
+data N : 𝕌0
+  N : U
+  z : El N
+  s : El N ⇛ El N
+
+plusQ (a : N.N) (b : N.N) : N.N :=
+  N.N-elim 𝕌0 (λn. N.N) b (λn ih. N.s[ih]) [] a
+
+plusQzl (b : N.N) : plusQ[N.z, b] ≡ b ∈ N.N := ⌜δ plusQ[N.z, b] : N.N⌝
+
+plusQsl (a : N.N) (b : N.N) : plusQ[N.s[a], b] ≡ N.s[plusQ[a, b]] ∈ N.N :=
+  ⌜δ plusQ[N.s[a], b] ; N.s[δ plusQ[a, b]⁻¹] : N.N⌝
+
+-- finite multisets: points quotiented by the swap equation
+data Bag : 𝕌0
+  Bag : U
+  nil : El Bag
+  ins : (x : ℕ) ⇛ El Bag ⇛ El Bag
+  swp : (x : ℕ) ⇛ (y : ℕ) ⇛ (m : El Bag) ⇛ ins x (ins y m) ≡ ins y (ins x m)
+
+-- the imposed equation, as a path leaf
+swap (x : ℕ) (y : ℕ) (m : Bag.Bag) : Bag.ins[x, Bag.ins[y, m]] ≡ Bag.ins[y, Bag.ins[x, m]] ∈ Bag.Bag :=
+  ⌜Bag.swp[x, y, m]⌝
+
+-- size: the method is order-insensitive, so the coherence closes by β
+size (m : Bag.Bag) : ℕ :=
+  Bag.Bag-elim 𝕌0
+    λb. ℕ
+    Z
+    λx r ih. S ih
+    λx y r ih. ⌜S (S ih) : ℕ⌝
+    []
+    m
+
+sizeTwo : size[Bag.ins[Z, Bag.ins[S Z, Bag.nil]]] ≡ S (S Z) ∈ ℕ :=
+  ⌜δ size[Bag.ins[Z, Bag.ins[S Z, Bag.nil]]] : ℕ⌝
+
+-- an order-sensitive method fails its coherence
+first (m : Bag.Bag) : ℕ :=
+  Bag.Bag-elim 𝕌0
+    λb. ℕ
+    Z
+    λx r ih. x
+    λx y r ih. ⌜x : ℕ⌝
+    []
+    m
+
+-- an indexed sort: length-indexed vectors, the index external
+data V : 𝕌0
+  V : (n : ℕ) ⇛ U
+  vnil : El (V Z)
+  vcons : (n : ℕ) ⇛ (x : ℕ) ⇛ El (V n) ⇛ El (V (S n))
+
+vlen (n : ℕ) (v : V.V[n]) : ℕ :=
+  V.V-elim 𝕌0 (λm w. ℕ) Z (λm x xs ih. S ih) [n] v
+
+single : V.V[S Z] := V.vcons[Z, S (S (S Z)), V.vnil]
+
+vlenSingle : vlen[S Z, single] ≡ S Z ∈ ℕ :=
+  ⌜δ vlen[S Z, single] ; V.V-elim 𝕌0 (λm w. ℕ) Z (λm x xs ih. S ih) [S Z] (δ single) : ℕ⌝
+
+-- induction-induction: contexts and types over them; Ty's motive takes
+-- the displayed value of its index
+data CT : 𝕌0
+  Con : U
+  Ty : El Con ⇛ U
+  nil : El Con
+  ext : (g : El Con) ⇛ El (Ty g) ⇛ El Con
+  unit : (g : El Con) ⇛ El (Ty g)
+  arr : (g : El Con) ⇛ El (Ty g) ⇛ El (Ty g) ⇛ El (Ty g)
+
+clen (g : CT.Con) : ℕ :=
+  CT.Con-elim 𝕌0 𝕌0
+    λw. ℕ
+    λg gd t. ℕ
+    Z
+    λg ihg A ihA. S ihg
+    λg ihg. S Z
+    λg ihg A ihA B ihB. S ihA
+    []
+    g
+
+tsize (g : CT.Con) (t : CT.Ty[g]) : ℕ :=
+  CT.Ty-elim 𝕌0 𝕌0
+    λw. ℕ
+    λg gd t. ℕ
+    Z
+    λg ihg A ihA. S ihg
+    λg ihg. S Z
+    λg ihg A ihA B ihB. S ihA
+    [g]
+    t
+
+g1 : CT.Con := CT.ext[CT.nil, CT.unit[CT.nil]]
+
+clenG1 : clen[g1] ≡ S Z ∈ ℕ :=
+  reify
+    δ clen[g1]
+      ; CT.Con-elim 𝕌0 𝕌0 (λw. ℕ) (λg gd t. ℕ) Z (λg ihg A ihA. S ihg) (λg ihg. S Z) (λg ihg A ihA B ihB. S ihA) [] (δ g1)
+      : ℕ

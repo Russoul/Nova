@@ -55,7 +55,15 @@ type item = {
 
 exception Error of int * int * string
 
+(* a `data` declaration: its level and its entries as token ranges,
+   re-parsed at every use in the environment of the use *)
+type data = {
+  dlevel : int;
+  dentries : (string * int) list (* name, first token *);
+}
+
 type state = {
+  datas : (string, data) Hashtbl.t;
   toks : tok array;
   indent : int array; (* the column of the first token on each token's line *)
   mutable pos : int;
@@ -146,7 +154,8 @@ let is_form = function
   | "reify" | "reflect" | "lift" | "S" | "class" | "squash" | "inj₁" | "inj1"
   | "inj₂" | "inj2" | "𝟘-elim" | "Void-elim" | "η→" | "eta->" | "η×" | "eta*"
   | "conv" | "irrel" | "quot-eq" | "prop-irrel" | "restrict" | "unsquash"
-  | "propext" | "ℕ-elim" | "Nat-elim" | "⊎-elim" | "Sum-elim" | "quot-elim" ->
+  | "propext" | "ℕ-elim" | "Nat-elim" | "⊎-elim" | "Sum-elim" | "quot-elim"
+  | "ν" | "nu" | "out" | "corec" | "ην" | "eta-nu" | "coind" ->
       true
   | _ -> false
 
@@ -154,7 +163,24 @@ let is_form = function
 let is_keyword s =
   is_form s
   || List.mem s
-       [ "let"; "in"; "δ"; "delta"; "𝟘"; "Void"; "𝟙"; "Unit"; "ℕ"; "Nat"; "Z" ]
+       [
+         "let";
+         "in";
+         "δ";
+         "delta";
+         "𝟘";
+         "Void";
+         "𝟙";
+         "Unit";
+         "ℕ";
+         "Nat";
+         "Z";
+         "𝕏";
+         "K";
+         "U";
+         "El";
+         "data";
+       ]
   || Option.is_some (sort_of_id s)
 
 (* Can this token begin a term? *)
@@ -177,9 +203,9 @@ let new_spine st = { r = st.indent.(st.pos); argcol = None }
 (* Does the next token start an argument LINE of this spine (rule 2)?
    Only asked on a new line. Opens the argument block on the first
    such line; rejects a misaligned one. *)
-let arg_line st sp =
+let arg_column st sp =
   let t = peek st in
-  if same_line st || not (term_initial st t) then false
+  if same_line st then false
   else
     match sp.argcol with
     | None ->
@@ -196,6 +222,8 @@ let arg_line st sp =
                 at column %d"
                t.col c0)
         else false
+
+let arg_line st sp = term_initial st (peek st) && arg_column st sp
 
 (* ----- expressions ----- *)
 
@@ -257,6 +285,9 @@ and app st env =
     | ID s when is_form s ->
         advance st;
         form st env sp s
+    | ID s when Hashtbl.mem st.datas s && (peek_at st 1).kind = DOT ->
+        advance st;
+        qiit_form st env sp s
     | _ -> atom st env
   in
   let rec loop h =
@@ -394,7 +425,280 @@ and form st env sp s : P.t =
       let w = b 3 in
       let q = a () in
       P.QuotElim (u, m, f, w, q)
+  | "ν" | "nu" -> P.Nu (poly st env)
+  | "out" -> P.Out (a ())
+  | "corec" ->
+      let f = poly st env in
+      let x, carrier, body = carrier_binder st env sp in
+      ignore x;
+      let seed = a () in
+      P.Corec (f, carrier, body, seed)
+  | "ην" | "eta-nu" ->
+      let f = poly st env in
+      let _, carrier, body = carrier_binder st env sp in
+      let h = b 1 in
+      let alpha = b 1 in
+      let x = a () in
+      P.EtaNu (f, carrier, body, h, alpha, x)
+  | "coind" ->
+      let t0 = a () in
+      let t1 = a () in
+      let r = b 2 in
+      let p = a () in
+      let q = b 3 in
+      P.Coind (t0, t1, r, p, q)
   | _ -> err st ("not a form: " ^ s)
+
+(* corec's carrier binder (s : a. e): the name, the carrier, the body
+   under the name; parenthesised, or bare on an argument line *)
+and carrier_binder st env sp =
+  let body () =
+    let x = ident st in
+    expect st COLON "':' after the carrier's name";
+    let a = expr st env in
+    expect st DOT "'.' after the carrier";
+    let e = expr st (x :: env) in
+    (x, a, e)
+  in
+  if same_line st || not (arg_line st sp) then (
+    expect st LPAREN "a carrier binder (s : a. …)";
+    let r = body () in
+    expect st RPAREN "')'";
+    r)
+  else
+    with_block st (peek st).col (fun () ->
+        if (peek st).kind = LPAREN then (
+          advance st;
+          let r = body () in
+          expect st RPAREN "')'";
+          r)
+        else body ())
+
+(* ----- polynomials ----- *)
+(* poly ::= pprod ['⊎' poly]; pprod ::= patom ['×' pprod]
+   patom ::= '𝕏' | 'K' atom | '(' x ':' expr ')' ('×' | '→') poly | '(' poly ')' *)
+and poly st env : P.t poly =
+  let l = pprod st env in
+  if (peek st).kind = SUM && continues st then (
+    advance st;
+    PSum (l, poly st env))
+  else l
+
+and pprod st env : P.t poly =
+  let l = patom st env in
+  if (peek st).kind = TIMES && continues st then (
+    advance st;
+    PProd (l, pprod st env))
+  else l
+
+and patom st env : P.t poly =
+  match (peek st).kind with
+  | ID ("𝕏" | "X") ->
+      advance st;
+      PX
+  | ID "K" ->
+      advance st;
+      PK (atom st env)
+  | LPAREN -> (
+      match ((peek_at st 1).kind, (peek_at st 2).kind) with
+      | ID x, COLON when not (is_keyword x) -> (
+          advance st;
+          advance st;
+          advance st;
+          let a = expr st env in
+          expect st RPAREN "')'";
+          match (peek st).kind with
+          | TIMES ->
+              advance st;
+              PSigma (a, poly st (x :: env))
+          | ARROW ->
+              advance st;
+              PPi (a, poly st (x :: env))
+          | _ -> err st "expected '×' or '→' after a polynomial's binder")
+      | _ ->
+          advance st;
+          let f = poly st env in
+          expect st RPAREN "')'";
+          f)
+  | _ -> err st "expected a polynomial"
+
+(* ----- signatures ----- *)
+(* At a use, the entries of a data declaration are parsed in the
+   current environment: Nova names resolve against env and the
+   external binders, ToS names against the entries before and the
+   internal binders. *)
+and signature_of st env (name : string) : P.t signature * string list =
+  let d = Hashtbl.find st.datas name in
+  let saved = (st.pos, st.block, st.block_tok) in
+  let entries, names =
+    List.fold_left
+      (fun (acc, names) (n, start) ->
+        st.pos <- start;
+        st.block <- st.toks.(start).col;
+        st.block_tok <- start;
+        ignore (ident st);
+        expect st COLON "':'";
+        let k = qty st env names in
+        (k :: acc, n :: names))
+      ([], []) d.dentries
+  in
+  let p, b, bt = saved in
+  st.pos <- p;
+  st.block <- b;
+  st.block_tok <- bt;
+  ({ level = d.dlevel; entries }, names)
+
+and qty st env tos : P.t qty =
+  match (peek st).kind with
+  | ID "U" ->
+      advance st;
+      QU
+  | ID "El" -> (
+      advance st;
+      let t = qtm st env tos in
+      match (peek st).kind with
+      | ARROW2 when continues st ->
+          advance st;
+          QInt (t, qty st env ("_" :: tos))
+      | _ -> QEl t)
+  | LPAREN
+    when match ((peek_at st 1).kind, (peek_at st 2).kind) with
+         | ID _, COLON -> true
+         | _ -> false -> (
+      advance st;
+      let x = ident st in
+      expect st COLON "':'";
+      match (peek st).kind with
+      | ID "El" ->
+          advance st;
+          let t = qtm st env tos in
+          expect st RPAREN "')'";
+          expect st ARROW2 "'⇛'";
+          QInt (t, qty st env (x :: tos))
+      | _ ->
+          let a = expr st env in
+          expect st RPAREN "')'";
+          expect st ARROW2 "'⇛'";
+          QExt (a, qty st (x :: env) tos))
+  | ID x when List.mem x tos -> (
+      (* a bare ToS term: El 𝕥, an equation code included *)
+      let t = qtm st env tos in
+      match (peek st).kind with
+      | ARROW2 when continues st ->
+          advance st;
+          QInt (t, qty st env ("_" :: tos))
+      | _ -> QEl t)
+  | _ ->
+      let a = expr st env in
+      expect st ARROW2 "'⇛'";
+      QExt (a, qty st ("_" :: env) tos)
+
+and is_tos_name tos = function ID x -> List.mem x tos | _ -> false
+
+and qtm st env tos : P.t qtm =
+  let l = qapp st env tos in
+  if (peek st).kind = EQUIV && continues st then (
+    advance st;
+    QEq (l, qapp st env tos))
+  else l
+
+and qapp st env tos : P.t qtm =
+  let head =
+    match (peek st).kind with
+    | ID x when List.mem x tos ->
+        advance st;
+        QVar (Option.get (index_of x tos))
+    | LAM ->
+        advance st;
+        let x = ident st in
+        expect st DOT "'.'";
+        QLam (qtm st (x :: env) tos)
+    | LPAREN ->
+        advance st;
+        let t = qtm st env tos in
+        expect st RPAREN "')'";
+        t
+    | _ -> err st "expected a ToS term"
+  in
+  let rec loop h =
+    if not (starts_atom st) then h
+    else
+      match (peek st).kind with
+      | ID x when List.mem x tos ->
+          advance st;
+          loop (QApp (h, QVar (Option.get (index_of x tos))))
+      | LPAREN when is_tos_name tos (peek_at st 1).kind ->
+          advance st;
+          let u = qtm st env tos in
+          expect st RPAREN "')'";
+          loop (QApp (h, u))
+      | _ -> loop (QAppExt (h, atom st env))
+  in
+  loop head
+
+(* NAME.entry[args], NAME.entry-elim sorts d̄… [indices] w *)
+and qiit_form st env sp (name : string) : P.t =
+  expect st DOT "'.' after a data name";
+  let entry =
+    match (peek st).kind with
+    | ID e ->
+        advance st;
+        e
+    | _ -> err st "expected an entry of the data declaration"
+  in
+  let sg, names = signature_of st env name in
+  let n = List.length names in
+  let index e =
+    match index_of e names with
+    | Some i -> i
+    | None -> err st (name ^ " has no entry " ^ e)
+  in
+  let suffix = "-elim" in
+  let ls = String.length suffix and le = String.length entry in
+  if le > ls && String.sub entry (le - ls) ls = suffix then (
+    let s = index (String.sub entry 0 (le - ls)) in
+    let n_sorts =
+      List.length
+        (List.filter
+           (fun k ->
+             match k with
+             | QU | QExt (_, _) | QInt (_, _) -> is_sort_entry k
+             | QEl _ -> false)
+           sg.entries)
+    in
+    let rec many k f acc =
+      if k = 0 then List.rev acc else many (k - 1) f (f () :: acc)
+    in
+    let sorts = many n_sorts (fun () -> sort_slot st sp) [] in
+    let ds = many n (fun () -> slot st env sp 0) [] in
+    (* the index spine may stand on an argument line of its own *)
+    if (peek st).kind = LBRACK && not (same_line st) then
+      ignore (arg_column st sp);
+    let es = spine_args ~line:true st env in
+    let w = slot st env sp 0 in
+    P.QElim (sg, s, sorts, List.rev ds, es, w))
+  else
+    let i = index entry in
+    let es = spine_args st env in
+    if is_sort_entry (List.nth sg.entries i) then P.QSort (sg, i, es)
+    else P.QCon (sg, i, es)
+
+and is_sort_entry : P.t qty -> bool = function
+  | QU -> true
+  | QEl _ -> false
+  | QExt (_, k) | QInt (_, k) -> is_sort_entry k
+
+and sort_slot st sp =
+  let t = peek st in
+  if (not (same_line st)) && not (arg_line st sp) then err st "expected a sort";
+  match t.kind with
+  | ID x -> (
+      match sort_of_id x with
+      | Some u ->
+          advance st;
+          u
+      | None -> err st "expected a sort")
+  | _ -> err st "expected a sort"
 
 (* A binder argument (x₁ … xₙ. e) with exactly n names; n = 0 is an
    atom. *)
@@ -406,9 +710,9 @@ and bound st env n : P.t =
     expect st RPAREN "')'";
     e)
 
-and spine_args st env : P.t list =
+and spine_args ?(line = false) st env : P.t list =
   (* [e₀, …, eₙ] in order; returned as a snoc list *)
-  if (peek st).kind = LBRACK && same_line st then (
+  if (peek st).kind = LBRACK && (same_line st || line) then (
     advance st;
     let rec items acc =
       if (peek st).kind = RBRACK then (
@@ -560,6 +864,38 @@ and corners st env closer what wrap : P.t =
 
 (* ----- items ----- *)
 
+(* data NAME : 𝕌ℓ, then one entry `name : qty` per indented line; the
+   entries are recorded as token ranges and parsed at each use *)
+let data_decl st : unit =
+  advance st;
+  let name = ident st in
+  expect st COLON "':'";
+  let level =
+    match (peek st).kind with
+    | ID x -> (
+        match sort_of_id x with
+        | Some (U l) ->
+            advance st;
+            l
+        | _ -> err st "a data declaration names a universe level")
+    | _ -> err st "a data declaration names a universe level"
+  in
+  let rec entries acc =
+    let t = peek st in
+    if t.kind <> EOF && t.col > 1 then (
+      let start = st.pos in
+      let n = ident st in
+      expect st COLON "':'";
+      (* skip the entry's tokens: up to the next line at or left of its column *)
+      while (peek st).kind <> EOF && (same_line st || (peek st).col > t.col) do
+        advance st
+      done;
+      entries ((n, start) :: acc))
+    else List.rev acc
+  in
+  let dentries = entries [] in
+  Hashtbl.replace st.datas name { dlevel = level; dentries }
+
 let item st : item =
   let t = peek st in
   if t.col <> 1 then
@@ -607,8 +943,23 @@ let items (src : string) : item list =
         cur_indent := t.col);
       indent.(i) <- !cur_indent)
     toks;
-  let st = { toks; indent; pos = 0; block = 1; block_tok = -1; squash = 0 } in
+  let st =
+    {
+      datas = Hashtbl.create 8;
+      toks;
+      indent;
+      pos = 0;
+      block = 1;
+      block_tok = -1;
+      squash = 0;
+    }
+  in
   let rec loop acc =
-    if (peek st).kind = EOF then List.rev acc else loop (item st :: acc)
+    match (peek st).kind with
+    | EOF -> List.rev acc
+    | ID "data" ->
+        data_decl st;
+        loop acc
+    | _ -> loop (item st :: acc)
   in
   loop []

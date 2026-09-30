@@ -34,9 +34,11 @@ let () =
   check "exchange"
     (List.map (Subst.var xi) [ 0; 1; 2; 3 ] = [ Var 1; Var 2; Var 0; Var 3 ]);
   (* pieces of a signature sit under the grammar's Nova binders *)
-  let sg = [ QExt (Var 0, QEl (QAppExt (QVar 0, Var 0))) ] in
+  let sg =
+    { level = 0; entries = [ QExt (Var 0, QEl (QAppExt (QVar 0, Var 0))) ] }
+  in
   check "signature pieces under external binder"
-    (Subst.signature (Subst.wk 1) sg
+    ((Subst.signature (Subst.wk 1) sg).entries
     = [ QExt (Var 1, QEl (QAppExt (QVar 0, Var 0))) ]);
 
   (* --- β --- *)

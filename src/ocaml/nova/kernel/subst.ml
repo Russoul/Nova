@@ -83,5 +83,7 @@ and apply s t =
 and at_depth s d t = apply (lift_n d s) t
 and poly s p = map_poly (at_depth s) 0 p
 and signature s sg = map_signature (at_depth s) 0 sg
+and qty s k = map_qty (at_depth s) 0 k
+and qtm s t = map_qtm (at_depth s) 0 t
 
 let weaken n t = if n = 0 then t else apply (wk n) t

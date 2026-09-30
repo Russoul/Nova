@@ -72,7 +72,11 @@ type tm =
   (* QIITs: the signature is carried literally; 𝕤 and 𝕔 are ToS
      indices into it, counted like ⬡ᵢ *)
   | QSort of tm signature * int * tm list (* 𝒮.𝕤 ē *)
-  | QCon of tm signature * int * tm list (* 𝒮.𝕔 θ *)
+  | QCon of tm signature * int * tm list
+    (* 𝒮.𝕔 θ, always SATURATED: θ is the constructor's whole arity. The
+         spine judgement admits nothing shorter, ι builds it under exactly
+         its arity's λs, and its type is a sort, so nothing applies it
+         further; a partial constructor is not a term. *)
   | QElim of tm signature * int * tm list * tm list * tm
 (* 𝒮.𝕤-elim m̄ ē w: the methods, one per point entry in signature
    order; the index spine; the scrutinee *)
@@ -88,8 +92,9 @@ and 'a poly =
   | PPi of 'a * 'a poly (* a → 𝔽, 𝔽 under a *)
 
 (* The theory of signatures, generic in its Nova pieces. A signature is
-   a closed ToS context Φ ▷ 𝔄, a snoc list; ⬡ᵢ counts from its end. *)
-and 'a signature = 'a qty list
+   a closed ToS context Φ ▷ 𝔄 checked at a LEVEL, its bound; the
+   entries are a snoc list and ⬡ᵢ counts from its end. *)
+and 'a signature = { level : int; entries : 'a qty list }
 
 and 'a qty =
   | QU (* U *)
@@ -130,4 +135,4 @@ let rec map_qty (f : int -> 'a -> 'b) (d : int) : 'a qty -> 'b qty = function
 
 let map_signature (f : int -> 'a -> 'b) (d : int) (s : 'a signature) :
     'b signature =
-  List.map (map_qty f d) s
+  { level = s.level; entries = List.map (map_qty f d) s.entries }

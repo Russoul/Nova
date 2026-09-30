@@ -4,8 +4,11 @@
    equations, as the rules write them. A pattern input is matched after
    weak-head β only; a stuck head is a rejection, never an unfolding.
 
-   This iteration covers the structural fragment; the ν and QIIT forms
-   reject. *)
+   ν: the polynomial judgement infers the least level; corec, out, the
+   η leaf and coinduction after the document. QIITs: a surface signature
+   is checked to a core one (its Nova pieces elaborated, two-sided), the
+   readings of Qiit supply the types, and the three forms dispatch on
+   the entry's kind. *)
 
 open Core
 module P = Proof
@@ -228,11 +231,91 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
       let hyp = Eq (Var 0, Subst.weaken 1 a1, Subst.weaken 1 ty) in
       let b0, b1, bty = infer st (hyp :: ty :: ctx) b in
       (Let (a0, b0), Let (a1, b1), Subst.apply (Subst.inst [ Star; a1 ]) bty)
-  (* ------ ν, QIITs: the second iteration ------ *)
-  | P.Nu _ | P.Out _ | P.Corec _ | P.EtaNu _ ->
-      reject "ν: not implemented in this iteration"
-  | P.QSort _ | P.QCon _ | P.QElim _ ->
-      reject "QIIT: not implemented in this iteration"
+  (* ------ ν ------ *)
+  | P.Nu phi ->
+      let f0, f1, l = poly_eq st ctx phi in
+      (Nu f0, Nu f1, Sort (U l))
+  | P.Out a -> (
+      let t0, t1, t = infer st ctx a in
+      match whnf st t with
+      | Nu p -> (Out t0, Out t1, Poly.fill p (Nu p))
+      | _ -> reject "out: the type is not a ν-type")
+  | P.Corec (phi, a, body, chi) ->
+      let p, l = poly1 st ctx phi in
+      let carrier =
+        within "corec: the carrier" (fun () -> check1 st ctx (Sort (U l)) a)
+      in
+      let f0, f1 =
+        within "corec: the coalgebra" (fun () ->
+            check st (carrier :: ctx)
+              (Subst.weaken 1 (Poly.fill p carrier))
+              body)
+      in
+      let x0, x1 = check st ctx carrier chi in
+      (Corec (p, f0, x0), Corec (p, f1, x1), Nu p)
+  | P.EtaNu (phi, a, body, h, alpha, chi) ->
+      let p, l = poly1 st ctx phi in
+      let carrier =
+        within "ην: the carrier" (fun () -> check1 st ctx (Sort (U l)) a)
+      in
+      let ctx' = carrier :: ctx in
+      let f =
+        within "ην: the coalgebra" (fun () ->
+            check1 st ctx' (Subst.weaken 1 (Poly.fill p carrier)) body)
+      in
+      let hh =
+        within "ην: the candidate" (fun () ->
+            check1 st ctx' (Subst.weaken 1 (Nu p)) h)
+      in
+      let o0, o1 =
+        within "ην: the commutation" (fun () ->
+            check st ctx' (Subst.weaken 1 (Poly.fill p (Nu p))) alpha)
+      in
+      need_conv st "ην: the commutation's left side and out h" o0 (Out hh);
+      need_conv st "ην: the commutation's right side and the coalgebra's image"
+        o1
+        (Poly.map (Subst.poly (Subst.wk 1) p) (Subst.weaken 1 (Lam hh)) f);
+      let x = check1 st ctx carrier chi in
+      (Subst.apply (Subst.single x) hh, Corec (p, f, x), Nu p)
+  (* ------ QIITs ------ *)
+  | P.QSort (sg, s, es) ->
+      let sg0, sg1 = sig_eq st ctx sg in
+      if not (Tos.is_sort sg1 s) then reject "𝒮.𝕤: the entry is not a sort";
+      let e0, e1 = spine st ctx (Qiit.arity_at_iota sg1 s) es in
+      (QSort (sg0, s, e0), QSort (sg1, s, e1), Sort (U sg1.level))
+  | P.QCon (sg, c, es) -> (
+      let sg0, sg1 = sig_eq st ctx sg in
+      match snd (Tos.arity (Tos.entry sg1 c)) with
+      | Tos.KPoint _ ->
+          let e0, e1 = spine st ctx (Qiit.arity_at_iota sg1 c) es in
+          ( QCon (sg0, c, e0),
+            QCon (sg1, c, e1),
+            whnf st (Qiit.con_type sg1 c e1) )
+      | Tos.KEq _ ->
+          (* the path leaf: the imposed equation *)
+          need_conv_signature st sg0 sg1;
+          let e = spine1 st ctx (Qiit.arity_at_iota sg1 c) es in
+          Qiit.path sg1 c e
+      | Tos.KSort -> reject "𝒮.𝕔: the entry is a sort")
+  | P.QElim (sg, s, sorts, ds, es, w) ->
+      let sg0, sg1 = sig_eq st ctx sg in
+      need_conv_signature st sg0 sg1;
+      if not (Tos.is_sort sg1 s) then reject "𝒮.𝕤-elim: the entry is not a sort";
+      let d0, d1 =
+        within "𝒮.𝕤-elim: the displayed spine" (fun () ->
+            spine st ctx (Qiit.disp_tele_at_iota sg1 sorts) ds)
+      in
+      List.iteri
+        (fun i (a, b) ->
+          if Tos.is_sort sg1 i then
+            need_conv st "𝒮.𝕤-elim: a motive's sides" a b)
+        (List.combine d0 d1);
+      let e0, e1 = spine st ctx (Qiit.arity_at_iota sg1 s) es in
+      let w0, w1 = check st ctx (QSort (sg1, s, e1)) w in
+      let ms0 = Qiit.methods sg1 d0 and ms1 = Qiit.methods sg1 d1 in
+      ( QElim (sg1, s, ms0, e0, w0),
+        QElim (sg1, s, ms1, e1, w1),
+        Qiit.elim_type sg1 s d1 e1 w1 ms1 )
   (* ------ forms that only check ------ *)
   | P.Lam _ | P.Pair _ | P.Inl _ | P.Inr _ | P.Class _ | P.QuotEq _
   | P.ZeroElim _ | P.Unit | P.Z | P.S _ | P.Squash _ | P.Irrel _ | P.Lift _
@@ -354,8 +437,32 @@ and check st (ctx : ctx) (ty : tm) (p : P.t) : tm * tm =
       ignore (as_sigma st "η×" ty);
       let p = check1 st ctx ty pi in
       (p, Pair (Fst p, Snd p))
-  (* ------ ν: the second iteration ------ *)
-  | P.Coind _ -> reject "ν: not implemented in this iteration"
+  (* ------ ν: coinduction ------ *)
+  | P.Coind (a, b, r, p, q) ->
+      let poly =
+        match whnf st ty with
+        | Nu p -> p
+        | _ -> reject "coind: the type is not a ν-type"
+      in
+      let nu = Nu poly in
+      let t0 = check1 st ctx nu a in
+      let t1 = check1 st ctx nu b in
+      let ctx_r = Subst.weaken 1 nu :: nu :: ctx in
+      let rel =
+        within "coind: the relation" (fun () -> check1 st ctx_r (Sort Omega) r)
+      in
+      ignore
+        (within "coind: the endpoints" (fun () ->
+             check st ctx (Subst.apply (Subst.inst [ t1; t0 ]) rel) p));
+      let ctx_q = rel :: ctx_r in
+      let rel' = Subst.apply (Subst.lift_n 2 (Subst.wk 3)) rel in
+      let goal =
+        Poly.relator
+          (Subst.poly (Subst.wk 3) poly)
+          rel' (Out (Var 2)) (Out (Var 1))
+      in
+      ignore (within "coind: the closure" (fun () -> check st ctx_q goal q));
+      (t0, t1)
   (* ------ THE SILENT SWITCH: everything else synthesises ------ *)
   | _ ->
       let t0, t1, t = infer st ctx p in
@@ -391,6 +498,116 @@ and as_quot st what t =
   match whnf st t with
   | Quot (a, r) -> (a, r)
   | _ -> reject "%s: the type is not a quotient" what
+
+(* Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ: the least level is the join of the sorts the
+   embedded codes infer. *)
+and poly_eq st ctx (phi : P.t poly) : tm poly * tm poly * int =
+  match phi with
+  | PX -> (PX, PX, 0)
+  | PK a ->
+      let a0, a1, u = infer_sort st "K: the code" ctx a in
+      (PK a0, PK a1, level u)
+  | PProd (f, g) ->
+      let f0, f1, l = poly_eq st ctx f in
+      let g0, g1, l' = poly_eq st ctx g in
+      (PProd (f0, g0), PProd (f1, g1), max l l')
+  | PSum (f, g) ->
+      let f0, f1, l = poly_eq st ctx f in
+      let g0, g1, l' = poly_eq st ctx g in
+      (PSum (f0, g0), PSum (f1, g1), max l l')
+  | PSigma (a, f) ->
+      let a0, a1, u = infer_sort st "×: the code" ctx a in
+      let f0, f1, l = poly_eq st (a1 :: ctx) f in
+      (PSigma (a0, f0), PSigma (a1, f1), max (level u) l)
+  | PPi (a, f) ->
+      let a0, a1, u = infer_sort st "→: the code" ctx a in
+      let f0, f1, l = poly_eq st (a1 :: ctx) f in
+      (PPi (a0, f0), PPi (a1, f1), max (level u) l)
+
+and poly1 st ctx phi =
+  let f0, f1, l = poly_eq st ctx phi in
+  if not (Beta.conv_poly st.fuel f0 f1) then
+    reject "the sides of a one-sided polynomial do not agree";
+  (f1, l)
+
+(* ----- signatures: Γ ⊦ [ϑ] 𝒮₀ ≐ 𝒮₁ qsig ℓ ----- *)
+
+and need_conv_signature st a b =
+  if not (Beta.conv_signature st.fuel a b) then
+    reject "the two signatures do not agree"
+
+(* phi: the ToS context so far, its entries over ctx (side 1) *)
+and sig_eq st ctx (sg : P.t signature) : tm signature * tm signature =
+  let l = sg.level in
+  let e0, e1, _ =
+    List.fold_left
+      (fun (acc0, acc1, phi) e ->
+        let k0, k1 =
+          within "a signature entry" (fun () -> qty_eq st ctx l phi e)
+        in
+        (k0 :: acc0, k1 :: acc1, k1 :: phi))
+      ([], [], []) (List.rev sg.entries)
+  in
+  ({ level = l; entries = e0 }, { level = l; entries = e1 })
+
+and qty_eq st ctx l (phi : tm qty list) (k : P.t qty) : tm qty * tm qty =
+  match k with
+  | QU -> (QU, QU)
+  | QEl t ->
+      let t0, t1 = qtm_check st ctx l phi QU t in
+      (QEl t0, QEl t1)
+  | QExt (a, k) ->
+      let a0, a1 =
+        within "an external domain" (fun () -> check st ctx (Sort (U l)) a)
+      in
+      let phi' = List.map (Subst.qty (Subst.wk 1)) phi in
+      let k0, k1 = qty_eq st (a1 :: ctx) l phi' k in
+      (QExt (a0, k0), QExt (a1, k1))
+  | QInt (t, k) ->
+      let t0, t1 = qtm_check st ctx l phi QU t in
+      let k0, k1 = qty_eq st ctx l (QEl t1 :: phi) k in
+      (QInt (t0, k0), QInt (t1, k1))
+
+and qtm_infer st ctx l phi (t : P.t qtm) : tm qtm * tm qtm * tm qty =
+  match t with
+  | QVar i -> (QVar i, QVar i, Tos.lookup phi i)
+  | QAppExt (t, a) -> (
+      let t0, t1, k = qtm_infer st ctx l phi t in
+      match k with
+      | QExt (dom, k') ->
+          let a0, a1 = check st ctx dom a in
+          (QAppExt (t0, a0), QAppExt (t1, a1), Subst.qty (Subst.single a1) k')
+      | _ -> reject "ToS application: the head's type is not an external Π")
+  | QApp (t, u) -> (
+      let t0, t1, k = qtm_infer st ctx l phi t in
+      match k with
+      | QInt (c, k') ->
+          let u0, u1 = qtm_check st ctx l phi (QEl c) u in
+          (QApp (t0, u0), QApp (t1, u1), Tos.subst_qty 0 0 u1 k')
+      | _ -> reject "ToS application: the head's type is not an internal Π")
+  | QLam _ -> reject "a ToS λ only checks"
+  | QEq _ -> reject "an equation code only checks, at U"
+
+and qtm_check st ctx l phi (k : tm qty) (t : P.t qtm) : tm qtm * tm qtm =
+  match (t, k) with
+  | QLam body, QExt (dom, k') ->
+      let phi' = List.map (Subst.qty (Subst.wk 1)) phi in
+      let b0, b1 = qtm_check st (dom :: ctx) l phi' k' body in
+      (QLam b0, QLam b1)
+  | QLam _, _ -> reject "a ToS λ against a type that is not an external Π"
+  | QEq (a, b), QU -> (
+      let a0, a1, ka = qtm_infer st ctx l phi a in
+      match ka with
+      | QEl u ->
+          let b0, b1 = qtm_check st ctx l phi (QEl u) b in
+          (QEq (a0, b0), QEq (a1, b1))
+      | _ -> reject "an equation code's sides must be elements")
+  | QEq _, _ -> reject "an equation code against a type that is not U"
+  | _ ->
+      let t0, t1, k' = qtm_infer st ctx l phi t in
+      if not (Beta.conv_qty st.fuel k k') then
+        reject "a ToS term's synthesised and expected types do not agree";
+      (t0, t1)
 
 (* Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ Δ: entrywise at the type instantiated by ē₁'s
    prefix. Telescopes and spines are snoc lists; the fold runs from

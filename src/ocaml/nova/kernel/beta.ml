@@ -65,17 +65,39 @@ let rec whnf f t =
       whnf f (Subst.apply (Subst.inst [ Star; a ]) b)
   | Out t -> (
       match whnf f t with
-      | Corec _ -> reject "ν-β: not implemented in this iteration"
+      | Corec (p, g, x) ->
+          step f;
+          (* out (corec 𝔽 f x) ⇝ map_𝔽 hᵉˡ (f[id, x]), hᵉˡ the corecursor as
+             a function *)
+          let h =
+            Lam
+              (Corec
+                 ( Subst.poly (Subst.wk 1) p,
+                   Subst.apply (Subst.lift (Subst.wk 1)) g,
+                   Var 0 ))
+          in
+          whnf f (Poly.map p h (Subst.apply (Subst.single x) g))
       | t' -> Out t')
   | QElim (sg, i, ms, es, w) -> (
       match whnf f w with
-      | QCon _ -> reject "QIIT-β: not implemented in this iteration"
+      | QCon (sg', c, theta)
+        when conv_signature f sg sg' && Qiit.sort_of_point sg c = i ->
+          step f;
+          (* 𝒮.𝕤-elim m̄ ī (𝒮.𝕔 θ) ⇝ m_𝕔 θᴰ *)
+          let n_points = List.length ms in
+          let m =
+            match List.nth_opt ms (n_points - 1 - Tos.point_position sg c) with
+            | Some m -> m
+            | None -> reject "QIIT-β: no method for the constructor"
+          in
+          let theta_d = Qiit.disp_spine sg c theta ms in
+          whnf f (List.fold_left (fun g a -> App (g, a)) m (List.rev theta_d))
       | w' -> QElim (sg, i, ms, es, w'))
   | _ -> t
 
 (* Full β-conversion: whnf both sides, then compare the heads and
    recurse into the parts. No η anywhere — the η's are proof leaves. *)
-let rec conv f t u =
+and conv f t u =
   match (whnf f t, whnf f u) with
   | Var i, Var j -> i = j
   | Item (x, es), Item (y, es') -> x = y && convs f es es'
@@ -131,7 +153,9 @@ and conv_poly f p q =
   | _ -> false
 
 and conv_signature f sg sg' =
-  List.length sg = List.length sg' && List.for_all2 (conv_qty f) sg sg'
+  sg.level = sg'.level
+  && List.length sg.entries = List.length sg'.entries
+  && List.for_all2 (conv_qty f) sg.entries sg'.entries
 
 and conv_qty f k k' =
   match (k, k') with
