@@ -16,7 +16,6 @@ interact with it directly.
 ```
 pack build nova.ipkg              # once per source change
 build/exec/nova elab file.nova    # check one file
-./test.sh                         # full suite (golden tests + corpus)
 ```
 
 A file is ACCEPTED iff the run ends with `Accepted.` (zero obligations).
@@ -52,38 +51,65 @@ stays blocked until the definiens is supplied.
 
 ## How discharge works (the key mental model)
 
-Every accepted item whose type is an equation (possibly under Π-binders)
-enters the lemma store E and becomes a discharge candidate for
-EVERYTHING BELOW it. The engine applies candidates in three ways:
+The engine places NO lemma by matching (docs/NovaStrategy.txt: the
+engine is a deterministic translator, never an author-substitute). A
+site — a ⋆, a chain step, a conversion between an inferred and an
+expected type — closes by the STATED TIER, in this fixed order:
 
-- WHOLE-EQUATION MATCH: the goal (or its flip) matches a candidate's
-  sides under one consistent first-order instantiation; unbound
-  parameters must carry ≡ (or 𝟙 / Prf) types whose instances discharge
-  as side conditions. This is how PERMUTATIVE lemmas (commutativity,
-  exchange) and hypothesis-conditional lemmas fire. **A parameter that
-  occurs in NEITHER side can never be bound** — a candidate carries no
-  type slot, so a lemma whose parameter appears only in the equation's
-  type is unusable and its goal comes back verbatim, unhinted (B-21).
-- CONGRUENCE DESCENT: one deterministic descent through the two sides'
-  common structure, each child discharged by the above. Together with
-  whole-equation match this covers most goals, which is why the
-  group/ring modules cite no rewrite at all.
-- REWRITING, only if licensed: oriented, size-decreasing/non-permutative
-  candidates are used as left-to-right rules at any subterm — but ONLY
-  when the site cites `hyp.rw` or `<lemma>.rw`. A plain citation does
-  NOT make a lemma a rewrite rule (B-22). Reach for `.rw` when the redex
-  sits under a different head, where congruence cannot descend.
-- TRANSITIVITY HOPS: a candidate may rewrite one side wholesale, with a
-  small depth budget.
+- tier 0: the sides are α-identical; tier ½: they join under
+  computation (β, the eliminators' ι, let) with no unfolding.
+- the LICENSED δ-JOIN: the sides unfolded under the site's `using`
+  licences alone (`<def>.eq` anywhere, `<def>.unfold` at type heads,
+  `pi.eta`/`sigma.eta`) and compared.
+- the CLOSURE OVER THE FACTS IN SCOPE: rewriting by them (left to
+  right as stated, at any position, interleaved with the licensed
+  unfoldings), matching them whole (a quantified fact at its
+  instance), hopping along chain links.
+- the TYPE-DIRECTED closings: proof irrelevance at a proposition, a
+  class equation by the quotient witness from a proof of the relation,
+  η at Π/Σ under its licence, injections at their summand.
+- the CONGRUENCE DESCENT through the two sides' common structure,
+  each child closed by the above.
 
-Matching is first-order and up to El-decoding (`El ℕc ≜ ℕ`), so a
-GENERIC lemma discharges its instantiated goals: prove `swapG : (a : 𝕌)
-… ∈ El (Bag a)` once and every `Bag ℕ` instance follows.
+WHAT IS A FACT: a hypothesis (quantified ones are instantiated), a
+`let h = e in …` claim, the facts of `p by f₁, …, fₙ`, the witness
+of `quot-elim (a. f) (x x' h. p) q`, a chain link at its step, the
+≡-elim hypothesis, and the statement of the very term you wrote where
+a proposition was expected (`intAddWD … h` where a class equation is
+expected proves it: its statement is the fact). A lemma in Σ is NOT a
+fact: naming it in `using` licenses nothing (`.rw` is gone). To use a
+lemma, STATE ITS INSTANCE where it is used — as the proof itself
+(`zeroPlusId n` in place of a ⋆), as a chain step (`≡⟨ plusComm b a
+⟩`), as a fact of `by` (`⋆ by plusSucId a k, sucMonusSuc (a + k) k,
+ih`), as a witness, or through `trans`/`sym`/`cong` explicitly.
+
+THE FORMS, from most to least natural:
+- `p` alone: the proof, accepted at the goal by its own statement.
+- `p by f₁, …, fₙ`: the proof under facts; `⋆ by f, g` is the trivial
+  proof by two facts. The facts are inferred in order (each may use
+  an earlier one), the proof is checked under them. `by` is the
+  loosest form: parenthesize it inside a pair or an argument.
+- `quot-elim (a. f) (x x' h. p) q`: the case's well-definedness as the
+  witness p under two representatives and the relation instance — a
+  proof of the relation or of the class equation.
+- `let h = e in p`: the named form of `by`, for a fact used under an
+  eliminator's binders or stated in a type.
+
+THE CONTRACT (the two limits you will meet):
+- Rewriting is ORIENTED: a hypothesis in scope rewrites its left side
+  to its right whether or not the goal wanted it. If `h : class a ≡
+  class b` misdirects a step about `class a`, state that step as a
+  lemma of its own, outside h's scope.
+- A spine solves its blanks from the EXPECTED type before it reads its
+  arguments. A fact used inside `eqToId _ _ (…)`-style spines may need
+  its sides spelled so that its statement, not the goal, reaches the
+  switch.
+A site the tier does not close is reported as an obligation with the
+facts in its context (their binders are named `fact`/`wit`), and a
+`hint:` naming the `.eq` citations that would close it by unfolding.
 
 Consequences:
-- ORDER MATTERS. A lemma helps only items after it. Discharge an
-  obligation by adding a def ABOVE the failing item.
-- Candidates are stored normalized as of their acceptance point.
+- ORDER MATTERS only for names: a lemma helps once it is defined above.
 - An obligation assumed once is not re-reported, but it is NOT proven —
   check the final count, not the noise.
 
@@ -91,9 +117,11 @@ Consequences:
 
 1. Read obligation [1]. State it verbatim as a def: binders become
    Π-arguments, the equation becomes the ≡-type.
-2. Try `x = λx. … ⋆` first — β + already-stored lemmas may close it
-   (⋆ is the proof of EVERY proposition, equations included; there is
-   no Refl).
+2. Try `x = λx. … ⋆` first — computation, the cited unfoldings and the
+   hypotheses in scope may close it (⋆ is the proof of EVERY
+   proposition, equations included; there is no Refl). If a lemma is
+   needed, write its instance: `lemma a b` as the proof, or
+   `⋆ by lemma a b, ih` when several facts combine.
 3. Otherwise prove by induction with an eliminator and an ≡-typed
    motive (PARENTHESIZE the motive: `(k. Z + k ≡ k ∈ ℕ)` — equality
    types don't parse bare in binder-body positions):
@@ -129,7 +157,7 @@ data [a : 𝕌]                      -- QIIT signature: entries as an indented b
   Bag : U                         --   (see below)
   nil : El Bag
 ```
-LAYOUT is significant (docs/NovaElaboration.txt, Layout): an item's
+LAYOUT is significant: an item's
 continuation lines are indented; a line indented deeper than the line
 above whose first token begins a term is ONE MORE ARGUMENT of the spine
 above it, parenthesis-free — so an eliminator lays out as
@@ -330,7 +358,6 @@ data [a : 𝕌] [r : El a → El a → Ω]
 
 - `docs/NovaFoundation.txt` — the theory, sole source of truth; every
   rule is named and those names are cited in code comments.
-- `docs/NovaElaboration.txt` — surface syntax and the discharge engine.
 - `docs/NovaKernel.txt` — certificates and approximations (A1–A6).
 - `docs/NovaPipeline.txt` — the trust architecture.
 - `src/nova/` — the corpus, a TREE whose directories ARE namespace

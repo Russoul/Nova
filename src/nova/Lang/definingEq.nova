@@ -15,7 +15,7 @@ plus (S m) n = S (plus m n)
 
 -- the generated clause lemmas are ordinary accepted lemmas: an
 -- induction cites plusZ/plusS silently, through E's lemma source
-plusZr : (n : ℕ) → plus n Z ≡ n using (Lang.definingEq.plusZ, plus.eq)
+plusZr : (n : ℕ) → plus n Z ≡ n using (plus.eq)
 plusZr = λn. ℕ-elim ⋆ (k ih. ⋆) n
 
 -- the uniqueness lemma is the recursor's universal property: any

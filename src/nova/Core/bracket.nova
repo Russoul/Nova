@@ -135,7 +135,7 @@ Fib n = (m : ℕ) × Id _ m n
 -- every element of Fib n is (n , refl): reflect the index equation
 -- first, then uip finishes at the reflected type
 fibCanon : {n : ℕ} (u : Fib n) → u ≡ (n, refl ℕ n)
-  using (Fib.unfold, hyp.rw, sigma.eta, Core.id.Id.unfold, Core.id.Id.eq)
+  using (Fib.unfold, sigma.eta, Core.id.Id.unfold, Core.id.Id.eq)
 fibCanon =
   λn u. let h = idToEq _ _ _ (u .π₂)
             pairext {ℕ} {λm. Id _ m n} {_} {n, refl ℕ n} h (idCanon (u .π₂) h)

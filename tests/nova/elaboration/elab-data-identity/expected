@@ -1,5 +1,0 @@
-defined data (P, mkP)
-defined data (P2, mkP2)
-defined coerce
-defined same
-Accepted.

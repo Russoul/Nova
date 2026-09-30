@@ -72,8 +72,7 @@ mapFuseObsEq =
 
 -- the tail of an iterate is the iterate of the image, observationally
 iterShiftObsEq : {a : 𝕌} (f : a → a) (x : a) → obsEq (tl (iterate f x)) (iterate f (f x))
-  using (hyp.rw,
-    Codata.stream.iterate.eq,
+  using (Codata.stream.iterate.eq,
     Codata.stream.stream.eq,
     Codata.stream.tl.eq,
     Codata.streamEq.obsEq.unfold)

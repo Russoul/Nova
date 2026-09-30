@@ -1,4 +1,0 @@
--- the eliminated variable is not in the body's context: naming it is a
--- resolution error, reported where it is eliminated
-gone : (p : ℕ × ℕ) → ℕ
-gone = λp. sigma-elim (a b. p .π₁) p

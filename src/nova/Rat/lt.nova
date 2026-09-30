@@ -153,6 +153,7 @@ ltQTrichotomy : (x y : Q) → x < y ⊎ Id _ x y ⊎ y < x
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq)
 ltQTrichotomy =
   λx y. ⊎-elim

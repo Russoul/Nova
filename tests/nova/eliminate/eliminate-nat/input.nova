@@ -1,6 +1,0 @@
--- The common case: nothing after the eliminated variable depends on
--- it, so the motive is the one the elaborator RECOVERS and none is
--- written — the canonical spelling the distiller elides to anyway
--- (docs/NovaElaboration.txt, In-place elimination).
-f : (n : ℕ) → ℕ
-f = λn. ?goal

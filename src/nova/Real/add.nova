@@ -45,6 +45,7 @@ leQBoundDblL : (m n : ℕ) → rBound (dbl m) n ≤ rBound m n
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.qInvNat.eq,
     Real.rBound.eq)
@@ -74,6 +75,7 @@ addReg : {f g : ℕ → Q} → Regular f → Regular g → Regular (addSeq f g)
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.Regular.unfold,
     Real.rBound.eq,
@@ -126,6 +128,7 @@ rAddWDInner : (x : RSeq) {y y' : RSeq} → REq y y' → REq (rAdd x y) (rAdd x y
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.REq.unfold,
     Real.RSeq.unfold,
@@ -158,6 +161,7 @@ rAddComm : {x y : RSeq} → rAdd x y ≡ rAdd y x
   using (Rat.half.dbl.eq,
     Rat.frac.ratAdd.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Real.RSeq.unfold,
     Real.Regular.unfold,
     Real.add.addSeq.eq,
@@ -171,42 +175,40 @@ rAddWDOuterCls : {x x' c : RSeq} (h : REq x x') → class (rAdd x c) ≡ class (
   using (Real.Real.unfold)
 rAddWDOuterCls = wdOuterOfComm rAdd (rAddComm {}) rAddWDInnerCls
 
--- ...in the quot-elim shape the elaborator asks for
-rAddWDOuter : (x x' : RSeq)
-  (h : REq x x')
-  (v : Real)
-  → quot-elim (w. Real) (q. class (rAdd x q)) v ≡ quot-elim (q. class (rAdd x' q)) v
-  using (rAddWDInnerCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
-rAddWDOuter =
-  λx x' h v. quot-elim
-    w. quot-elim (z. Real) (q. class (rAdd x q)) w ≡ quot-elim (q. class (rAdd x' q)) w
-    c. rAddWDOuterCls h
-    v
+-- the descended operation, one argument at a time: its
+-- well-definedness in the right argument stated once, here, as the
+-- local claim the eliminator reads
+rAddL : RSeq → Real → Real using (Real.Real.unfold)
+rAddL = λx v. quot-elim (q. class (rAdd x q)) (q q' h. rAddWDInnerCls x _ _ h) v
+
+-- the outer half as the descent asks for it: the two left operations
+-- agree on every element of the quotient
+rAddWDOuter : (x x' : RSeq) (h : REq x x') (v : Real) → rAddL x v ≡ rAddL x' v
+  using (Real.Real.unfold, Real.add.rAddL.eq)
+rAddWDOuter = λx x' h v. quot-elim (c. rAddWDOuterCls {x} {x'} {c} h) v
 
 infixl 6 +
-+ : Real → Real → Real
-  using (rAddWDInnerCls,
-    rAddWDOuter,
-    Real.REq.unfold,
-    Real.RSeq.unfold,
-    Real.Real.unfold,
-    Real.Regular.unfold)
-(+) = λu v. quot-elim (p. quot-elim (q. class (rAdd p q)) v) u
++ : Real → Real → Real using (Real.Real.unfold)
+(+) = λu v. quot-elim (p. rAddL p v) (p p' h. rAddWDOuter _ _ h v) u
 
 realAddCls : (x y : RSeq) → class x + class y ≡ class (rAdd x y)
-  using (Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold, Real.add.rAdd.eq, Real.add.+.eq)
+  using (Real.RSeq.unfold,
+    Real.Real.unfold,
+    Real.Regular.unfold,
+    Real.add.rAdd.eq,
+    Real.add.+.eq,
+    Real.add.rAddL.eq)
 realAddCls = λx y. ⋆
 
 -- ===== the laws that hold pointwise =====
 realAddComm : (u v : Real) → u + v ≡ v + u
-  using (Real.REq.unfold,
-    Real.RSeq.unfold,
-    Real.Real.unfold,
-    Real.Regular.unfold,
-    Real.add.realAddCls)
+  using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
 realAddComm =
   λu v. quot-elim
-    p. quot-elim (q. cong (λw. Real) (λw. class w) {rAdd p q} {rAdd q p} rAddComm) v
+    p. quot-elim
+      q. cong (λw. Real) (λw. class w) {rAdd p q} {rAdd q p} rAddComm
+        by realAddCls p q, realAddCls q p
+      v
     u
 
 -- ℚ embeds as a homomorphism: a constant sequence samples to itself
@@ -214,12 +216,14 @@ realAddOfQ : (p q : Q) → realOfQ p + realOfQ q ≡ realOfQ (p + q)
   using (Rat.frac.ratAdd.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Real.RSeq.unfold,
     Real.constReg.eq,
     Real.realOfQ.eq,
     Real.add.addSeq.eq,
     Real.add.rAdd.eq,
     Real.add.+.eq,
+    Real.add.rAddL.eq,
     Real.neg.seqOf.eq)
 realAddOfQ =
   λp q. realEqOfSeqEq (rAdd ((λn. p), constReg) ((λn. q), constReg)) ((λn. p + q), constReg) (λn. ⋆)
@@ -235,6 +239,7 @@ realAddNegR : (u : Real) → u + realNeg u ≡ realZero
     Rat.order.≤.eq,
     Rat.Q.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qAddNegR.eq,
     Rat.qNeg.eq,
     Rat.qZero.eq,
@@ -252,6 +257,7 @@ realAddNegR : (u : Real) → u + realNeg u ≡ realZero
     Real.add.addSeq.eq,
     Real.add.rAdd.eq,
     Real.add.+.eq,
+    Real.add.rAddL.eq,
     Real.neg.negSeq.eq,
     Real.neg.rNeg.eq,
     Real.neg.realNeg.eq,
@@ -321,6 +327,7 @@ realAddAssoc : (u v w : Real) → u + v + w ≡ u + (v + w)
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.REq.unfold,
     Real.RSeq.unfold,
@@ -331,6 +338,7 @@ realAddAssoc : (u v w : Real) → u + v + w ≡ u + (v + w)
     Real.add.addSeq.eq,
     Real.add.rAdd.eq,
     Real.add.+.eq,
+    Real.add.rAddL.eq,
     Real.neg.seqOf.eq)
 realAddAssoc =
   λu v w. quot-elim

@@ -1,4 +1,0 @@
-double : ℕ → ℕ
-double = λlofo. ℕ-elim (mn. ℕ) Z (pk ihq. S (S ihq)) lofo
-four : ℕ
-four = double (double (S (S Z)))

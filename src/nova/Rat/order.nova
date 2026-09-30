@@ -7,7 +7,7 @@
 import Natural (+, *, plusComm, plusAssoc, swapLeft, zeroPlusId, plusZeroId)
 import Int (Int, intZero, intNeg, intNegZero)
 import Int.add (+)
-import Int.mul (*, intMulComm, intMulAssoc, intMulZeroL, intMulZeroR)
+import Int.mul (*, intMulComm, intMulAssoc, intMulZeroL, intMulZeroR, intMulNegL)
 import Rat.frac (NZ, nzPos, nzNeg, nzToInt, nzMul, Rat, mkRat, num, den, denInt, ratNeg, ratZero, ratAdd, intScale)
 import Rat (Q, RatR, qcls, +, qNeg, qZero, qAddComm, qAddAssoc, qAddZeroL, qAddZeroR, qAddNegL, qAddNegR, qNegNeg, nzToIntMul, *, qMulComm, qMulZeroL, qDistribR, ratMul, intScaleIsMul)
 import Int.nonZero (nzOfInt, nzToIntNonZero, intNoZeroDiv)
@@ -217,6 +217,7 @@ ratSgnWD : (p q : Rat) → RatR p q → ratSgn p ≡ ratSgn q
   using (Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -262,13 +263,12 @@ ratSgnWD =
 -- the sign of a rational: quot-elim, well-defined by ratSgnWD
 sgnQ : Q → Sign
   using (Int.Int.unfold,
-    ratSgnWD,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.order.Sign.unfold,
     Rat.Q.unfold,
     Rat.RatR.unfold)
-sgnQ = λu. quot-elim (p. ratSgn p) u
+sgnQ = λu. quot-elim (p. ratSgn p) (p p' h. ratSgnWD _ _ h) u
 
 sgnQCls : (p : Rat) → sgnQ (qcls p) ≡ ratSgn p
   using (Int.Int.unfold,
@@ -281,31 +281,27 @@ sgnQCls : (p : Rat) → sgnQ (qcls p) ≡ ratSgn p
 sgnQCls = λp. ⋆
 
 sgnQZero : sgnQ qZero ≡ sZero
-  using (intMulZeroL.rw,
-    intSgnZero.rw,
-    Rat.frac.denInt.eq,
+  using (Rat.frac.denInt.eq,
     Rat.frac.mkRat.eq,
     Rat.frac.num.eq,
     Rat.frac.ratOfInt.eq,
     Rat.frac.ratZero.eq,
     Rat.order.Sign.unfold,
     Rat.order.ratSgn.eq,
-    Rat.qZero.eq,
-    sgnQCls.rw)
-sgnQZero = ⋆
+    Rat.qZero.eq)
+sgnQZero =
+  trans
+    _
+    _
+    _
+    sgnQCls ratZero
+    trans _ _ _ (cong (λu. Sign) (λu. intSgn u) (intMulZeroL (denInt ratZero))) intSgnZero
 
 -- ===== negation and the sign flip =====
 -- (−z)·w ≡ −(z·w): both sides compute on classes to plusComm-related
 -- pairs
-intMulNegL : {z w : Int} → intNeg z * w ≡ intNeg (z * w)
-  using (Int.effective.intRRefl,
-    Int.Int.unfold,
-    Int.mul.distribBackR,
-    Int.mul.intMulNegL,
-    Int.mul.sum4Distrib,
-    plusAssoc,
-    Rat.frac.plusSwapRight)
-intMulNegL = λz w. quot-elim (u. quot-elim (v. ⋆) w) z
+intMulNegL : {z w : Int} → intNeg z * w ≡ intNeg (z * w) using (Int.Int.unfold)
+intMulNegL = λz w. quot-elim (u. quot-elim (v. intMulNegL _ _) w) z
 
 -- negating flips the decided sign, shape by shape
 intSgnNegNz : {e : NZ} → intSgn (intNeg (nzToInt e)) ≡ sgnFlip (nzSgn e)
@@ -458,6 +454,7 @@ sgnQNegFlip : {u : Q} → sgnQ (qNeg u) ≡ sgnFlip (sgnQ u)
     Int.Int.unfold,
     Int.intNeg.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -570,19 +567,19 @@ sIsPos : Sign → 𝕌 using (Rat.order.Sign.unfold)
 sIsPos = λs. ⊎-elim (u. 𝟘) (v. ⊎-elim (u. 𝟙) (u. 𝟘) v) s
 
 sZeroNotNeg : (sZero ≡ sNeg) → 𝟘
-  using (Rat.order.sIsNeg.unfold, Rat.order.sNeg.unfold, Rat.order.sZero.unfold)
+  using (Rat.order.sIsNeg.eq, Rat.order.sNeg.eq, Rat.order.sZero.eq, Rat.order.Sign.unfold)
 sZeroNotNeg = λh. transport sIsNeg (sym _ _ h) ()
 
 sPosNotNeg : (sPos ≡ sNeg) → 𝟘
-  using (Rat.order.sIsNeg.unfold, Rat.order.sNeg.unfold, Rat.order.sPos.unfold)
+  using (Rat.order.sIsNeg.eq, Rat.order.sNeg.eq, Rat.order.sPos.eq, Rat.order.Sign.unfold)
 sPosNotNeg = λh. transport sIsNeg (sym _ _ h) ()
 
 sZeroNotPos : (sZero ≡ sPos) → 𝟘
-  using (Rat.order.sIsPos.unfold, Rat.order.sPos.unfold, Rat.order.sZero.unfold)
+  using (Rat.order.sIsPos.eq, Rat.order.sPos.eq, Rat.order.sZero.eq, Rat.order.Sign.unfold)
 sZeroNotPos = λh. transport sIsPos (sym _ _ h) ()
 
 sNegNotPos : (sNeg ≡ sPos) → 𝟘
-  using (Rat.order.sIsPos.unfold, Rat.order.sNeg.unfold, Rat.order.sPos.unfold)
+  using (Rat.order.sIsPos.eq, Rat.order.sNeg.eq, Rat.order.sPos.eq, Rat.order.Sign.unfold)
 sNegNotPos = λh. transport sIsPos (sym _ _ h) ()
 
 -- ===== views: a sign verdict names the integer's shape =====
@@ -699,6 +696,7 @@ intSgnPosAdd : {a b : Int} → (intSgn a ≡ sPos) → (intSgn b ≡ sPos) → i
     Int.Int.unfold,
     Int.intZero.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.classPairEta.eq,
     Int.normalize.normPair.eq,
     Natural.+.eq,
@@ -748,11 +746,7 @@ ratSgnIs = λp. ⋆
 ratCrossPosL : {p : Rat}
   (q : Rat)
   → (ratSgn p ≡ sPos) → intSgn (intScale (den q) (num p) * nzToInt (nzMul (den p) (den q))) ≡ sPos
-  using (Int.Int.unfold,
-    ratSgnIs.rw,
-    Rat.frac.NZ.unfold,
-    Rat.frac.Rat.unfold,
-    Rat.order.Sign.unfold)
+  using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold, Rat.order.Sign.unfold)
 ratCrossPosL =
   λp q hp. trans
     _
@@ -778,16 +772,17 @@ ratCrossPosL =
           num p * nzToInt (den q) * (nzToInt (den p) * nzToInt (den q))
         ≡⟨ mulPairSwap (num p) (nzToInt (den q)) (nzToInt (den p)) (nzToInt (den q)) ⟩
           num p * nzToInt (den p) * (nzToInt (den q) * nzToInt (den q))
-    trans _ _ sPos (intSgnMulSq (num p * nzToInt (den p)) (den q)) hp
+    trans
+      _
+      _
+      _
+      intSgnMulSq (num p * nzToInt (den p)) (den q)
+      trans _ _ _ (sym _ _ (ratSgnIs p)) hp
 
 ratCrossPosR : (p : Rat)
   {q : Rat}
   → (ratSgn q ≡ sPos) → intSgn (intScale (den p) (num q) * nzToInt (nzMul (den p) (den q))) ≡ sPos
-  using (Int.Int.unfold,
-    ratSgnIs.rw,
-    Rat.frac.NZ.unfold,
-    Rat.frac.Rat.unfold,
-    Rat.order.Sign.unfold)
+  using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold, Rat.order.Sign.unfold)
 ratCrossPosR =
   λp q hq. trans
     _
@@ -813,7 +808,12 @@ ratCrossPosR =
           num q * nzToInt (den p) * (nzToInt (den p) * nzToInt (den q))
         ≡⟨ mulPairSwapR (num q) (nzToInt (den p)) (nzToInt (den p)) (nzToInt (den q)) ⟩
           num q * nzToInt (den q) * (nzToInt (den p) * nzToInt (den p))
-    trans _ _ sPos (intSgnMulSq (num q * nzToInt (den q)) (den p)) hq
+    trans
+      _
+      _
+      _
+      intSgnMulSq (num q * nzToInt (den q)) (den p)
+      trans _ _ _ (sym _ _ (ratSgnIs q)) hq
 
 -- positive fractions add to a positive fraction
 ratAddPos : {p q : Rat} → (ratSgn p ≡ sPos) → (ratSgn q ≡ sPos) → ratSgn (ratAdd p q) ≡ sPos
@@ -821,7 +821,9 @@ ratAddPos : {p q : Rat} → (ratSgn p ≡ sPos) → (ratSgn q ≡ sPos) → ratS
     Int.Int.unfold,
     Int.intNeg.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -863,7 +865,9 @@ sgnQAddPos : (u v : Q) → (sgnQ u ≡ sPos) → (sgnQ v ≡ sPos) → sgnQ (u +
     Int.Int.eq,
     Int.Int.unfold,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -883,7 +887,8 @@ sgnQAddPos : (u v : Q) → (sgnQ u ≡ sPos) → (sgnQ v ≡ sPos) → sgnQ (u +
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.RatR.unfold,
-    Rat.+.eq)
+    Rat.+.eq,
+    Rat.qAddL.eq)
 sgnQAddPos = λu v. quot-elim (p. quot-elim (q. λhp hq. ratAddPos hp hq) v) u
 
 -- a zero sign names the zero class
@@ -900,6 +905,7 @@ sgnQZeroView : (u : Q) → (sgnQ u ≡ sZero) → u ≡ qZero
     Int.Int.unfold,
     Int.intZero.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Int.mul.intMulCong2.eq,
     Int.mul.intMulOneR.eq,
     Int.mul.intMulZeroL.eq,
@@ -1097,28 +1103,28 @@ ratSgnMulIs = λp q. ⋆
 -- positive fractions multiply to a positive fraction: interchange
 -- num·num · den·den into (num·den)·(num·den)
 ratMulPos : {p q : Rat} → (ratSgn p ≡ sPos) → (ratSgn q ≡ sPos) → ratSgn (ratMul p q) ≡ sPos
-  using (Int.Int.unfold,
-    ratSgnIs.rw,
-    ratSgnMulIs,
-    Rat.frac.NZ.unfold,
-    Rat.frac.Rat.unfold,
-    Rat.order.Sign.unfold)
+  using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold, Rat.order.Sign.unfold)
 ratMulPos =
   λp q hp hq. trans
     _
-    intSgn (num p * nzToInt (den p) * (num q * nzToInt (den q)))
     _
-    cong
-      λv. Sign
-      λv. intSgn v
-      {num p * num q * nzToInt (nzMul (den p) (den q))}
-      {num p * nzToInt (den p) * (num q * nzToInt (den q))}
-      num p * num q * nzToInt (nzMul (den p) (den q))
-        ≡⟨ cong (λv. Int) (λv. num p * num q * v) (nzToIntMul (den p) (den q)) ⟩
-          num p * num q * (nzToInt (den p) * nzToInt (den q))
-        ≡⟨ mulPairSwap (num p) (num q) (nzToInt (den p)) (nzToInt (den q)) ⟩
-          num p * nzToInt (den p) * (num q * nzToInt (den q))
-    intSgnPosMul hp hq
+    _
+    ratSgnMulIs p q
+    trans
+      _
+      _
+      _
+      cong
+        λv. Sign
+        λv. intSgn v
+        {num p * num q * nzToInt (nzMul (den p) (den q))}
+        {num p * nzToInt (den p) * (num q * nzToInt (den q))}
+        num p * num q * nzToInt (nzMul (den p) (den q))
+          ≡⟨ cong (λv. Int) (λv. num p * num q * v) (nzToIntMul (den p) (den q)) ⟩
+            num p * num q * (nzToInt (den p) * nzToInt (den q))
+          ≡⟨ mulPairSwap (num p) (num q) (nzToInt (den p)) (nzToInt (den q)) ⟩
+            num p * nzToInt (den p) * (num q * nzToInt (den q))
+      intSgnPosMul (trans _ _ _ (sym _ _ (ratSgnIs p)) hp) (trans _ _ _ (sym _ _ (ratSgnIs q)) hq)
 
 sgnQMulPos : {u v : Q} → (sgnQ u ≡ sPos) → (sgnQ v ≡ sPos) → sgnQ (u * v) ≡ sPos
   using (Core.equality.cong.eq,
@@ -1126,6 +1132,7 @@ sgnQMulPos : {u v : Q} → (sgnQ u ≡ sPos) → (sgnQ v ≡ sPos) → sgnQ (u *
     Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -1143,6 +1150,7 @@ sgnQMulPos : {u v : Q} → (sgnQ u ≡ sPos) → (sgnQ v ≡ sPos) → sgnQ (u *
     Rat.Q.unfold,
     Rat.RatR.unfold,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.ratMul.eq)
 sgnQMulPos = λu v. quot-elim (p. quot-elim (q. λhp hq. ratMulPos hp hq) v) u
 

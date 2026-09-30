@@ -1,16 +1,24 @@
-.PHONY: build install test normalize clean
+.PHONY: build dev test promote ci clean
 
 build:
-	pack build nova.ipkg
+	dune build
 
-install:
-	pack install-app nova.ipkg
+# The local dev loop: build, then the spec-rules check.
+dev: build
+	python3 tools/render-specs.py --check > /dev/null
 
+# The unit tests and the golden tests of the kernel.
 test:
-	./test.sh
+	dune test
 
-normalize:
-	./normalize-corpus.sh
+# Rewrite the golden tests' expected outputs from the current binary;
+# review the diff before committing.
+promote: build
+	bash tests/kernel/run.sh _build/default/src/ocaml/bin/main.exe --promote tests/kernel
+
+# Every flake check.
+ci:
+	nix flake check
 
 clean:
-	rm -rf build
+	dune clean

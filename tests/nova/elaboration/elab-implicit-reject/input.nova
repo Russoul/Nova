@@ -1,4 +1,0 @@
-id2 : {A : 𝕌} (a : A) → A
-id2 = λA. λa. a
-bad : ℕ
-bad = let g = id2 (λx. x) in Z

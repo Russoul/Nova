@@ -169,8 +169,11 @@ nZScale =
         ≡⟨ cong (λw. Int) (λw. a * w) (idToEq _ _ _ (u .π₂)) ⟩ a * x
         ≡⟨ sym _ _ (intRmul a x) ⟩ rmul _ intCommRing a x
 
-nZIsIdeal : (n : Int) → IsIdeal _ intCommRing (nZ n) using (intRaddGroup.rw)
-nZIsIdeal = λn. idIntro (nZIsSubgroup n) (nZScale n)
+nZIsIdeal : (n : Int) → IsIdeal _ intCommRing (nZ n)
+nZIsIdeal =
+  λn. idIntro
+    transportP (λg. IsSubgroup g (nZ n)) (sym _ _ intRaddGroup) (nZIsSubgroup n)
+    nZScale n
 
 -- ℤ/nℤ, as a commutative ring
 intModRing : (n : Int) → IsCommRing (IntMod n)

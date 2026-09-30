@@ -1,8 +1,0 @@
-module nat:
-defined plus
-defined plusZeroId
-defined zeroPlusId
-defined two
-defined useQualified
-defined needsLemma
-Accepted.

@@ -40,6 +40,7 @@ rseqEqAt : {x y : RSeq} → (seqOf x ≡ seqOf y) → x ≡ y
     Rat.order.sgnQ.eq,
     Rat.Q.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.RSeq.unfold,
     Real.Regular.eq,

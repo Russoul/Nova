@@ -9,7 +9,7 @@
 -- well-definedness obligation arises, and nothing has to be erased.
 -- ===== the view =====
 
-import Natural (+, *, zeroMult, multSucId, sucPlus, plusComm)
+import Natural (+, *, zeroMult, multSucId, sucPlus, plusComm, plusZeroId, zeroPlusId)
 import Int (Int, IntR, intZero, intOne)
 import Int.mul (*, intMulCong2, classPairEta)
 import Natural.eq (zNotS)
@@ -24,13 +24,7 @@ import Core.equality (trans, sym, cong)
 nzOfPairD : (a b : ℕ)
   (hab : a * b ≡ Z)
   → ((e : NZ) × nzToInt e ≡ class (a, b)) ⊎ (class (a, b) ≡ intZero)
-  using (Int.Int.unfold,
-    Int.intZero.eq,
-    Rat.frac.nzNeg.eq,
-    Rat.frac.nzPos.eq,
-    Rat.frac.nzToInt.eq,
-    sucPlus,
-    zeroMult)
+  using (Int.Int.unfold, Int.intZero.eq, Rat.frac.nzNeg.eq, Rat.frac.nzPos.eq, Rat.frac.nzToInt.eq)
 nzOfPairD =
   λa. ℕ-elim
     λb. ℕ-elim (λhab. inj₂ ⋆) (j ihb. λhab. inj₁ (nzNeg j, ⋆)) b
@@ -47,14 +41,14 @@ nzOfIntAt : {z : Int}
   (hz : class p ≡ z)
   (hab : p .π₁ * p .π₂ ≡ Z)
   → ((e : NZ) × nzToInt e ≡ z) ⊎ (z ≡ intZero)
-  using (classPairEta, Int.Int.unfold)
+  using (Int.Int.unfold)
 nzOfIntAt =
   λz p hz hab. ⊎-elim
     u. inj₁ (u .π₁, trans _ _ _ (u .π₂) (trans _ _ _ (classPairEta p) hz))
     u. inj₂ (trans _ _ _ (sym _ _ (trans _ _ _ (classPairEta p) hz)) u)
     nzOfPairD _ _ hab
 
-nzOfInt : (z : Int) → ((e : NZ) × nzToInt e ≡ z) ⊎ (z ≡ intZero) using (intCanonClass)
+nzOfInt : (z : Int) → ((e : NZ) × nzToInt e ≡ z) ⊎ (z ≡ intZero)
 nzOfInt = λz. nzOfIntAt _ (intCanonClass z) (intCanonProdZero z)
 
 -- ===== the image of NZ misses zero =====
@@ -72,14 +66,15 @@ nzToIntNonZero : (e : NZ) → ¬ (nzToInt e ≡ intZero)
   using (Int.IntR.eq,
     Int.IntR.unfold,
     Int.intZero.eq,
-    Natural.plusZeroId,
-    Natural.zeroPlusId,
     Core.prop.¬.unfold,
     Core.prop.⊃.unfold,
     Rat.frac.NZ.unfold,
     Rat.frac.nzToInt.eq)
 nzToIntNonZero =
-  λe. ⊎-elim (n. intNeqOfNotRel (λr. zNotS (sym (S n) Z r))) (n. intNeqOfNotRel (λr. zNotS {n} r)) e
+  λe. ⊎-elim
+    n. intNeqOfNotRel (λr. zNotS {n} (sym (S n) Z r by plusZeroId (S n), zeroPlusId Z))
+    n. intNeqOfNotRel (λr. zNotS {n} (r by zeroPlusId Z, plusZeroId (S n)))
+    e
 
 -- ===== ℤ has no zero divisors =====
 --

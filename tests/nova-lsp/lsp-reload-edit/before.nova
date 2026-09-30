@@ -1,4 +1,0 @@
-f : ℕ
-f = Z
-g : f ≡ Z ∈ ℕ using (f.eq)
-g = ⋆

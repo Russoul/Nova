@@ -1,6 +1,0 @@
--- nf of a definition unfolds signature references and fully
--- resolves a ℕ-elim chain (2 + 2 = 4)
-plus : ℕ → ℕ → ℕ
-plus = λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-four : ℕ
-four = plus (S (S Z)) (S (S Z))

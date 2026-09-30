@@ -38,7 +38,7 @@ reflectSquash = λA a b h. ⋆
 
 -- ty-quot-cong: quotients by iff-equal Ω relations are the SAME type,
 -- so a variable of one moves to the other with no coercion.
-quotIff : (A : 𝕌) (v : A / (n m. ∥𝟙∥)) → A / (n m. Z ≡ Z) using (propext)
+quotIff : (A : 𝕌) (v : A / (n m. ∥𝟙∥)) → A / (n m. Z ≡ Z)
 quotIff = λA v. v
 
 -- Impredicative connectives (Ω section, docs/NovaFoundation.txt): ⊤, ⊥,

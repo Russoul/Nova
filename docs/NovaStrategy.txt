@@ -1,0 +1,563 @@
+////////// NovaStrategy.txt — natural proofs, and the author–engine–kernel division //////////
+
+////////// Purpose //////////
+
+This file states Nova's strategic goal — that proving in Nova be the
+pen-and-paper proof, formal but natural — and the division of labour
+that realises it: three roles, AUTHOR, ENGINE and KERNEL, each with
+one job and a precise criterion for what it must never do. The other
+specs say how each piece works (docs/NovaFoundation.txt the theory,
+docs/NovaKernel.txt the reader, docs/NovaElaboration.txt the
+elaborator, docs/NovaPipeline.txt the trust story); this one says
+what each piece IS, so that the
+division survives the work on the pieces. The last section is the
+AUDIT: a mechanical check (check-roles.sh) and a checklist of
+judgement questions, to be run from time to time against the tree.
+
+////////// The goal: natural proofs //////////
+
+A pen-and-paper proof, when it is fully formal, has a definite shape.
+
+  * Every object introduced carries its type at the point of
+    introduction: "let f : A → B", "take n : ℕ".
+  * Every claim carries its statement: "we show a = b", "note that
+    P(n) holds for all n".
+  * Uses carry nothing. An application f x, a projection, a
+    computation step, a "hence" is written bare; the reader looks
+    the types up from what was introduced and fills in the step.
+  * The reader RE-DERIVES, constantly — but only what needs no
+    choice: normalization, definitional unfolding the text licensed,
+    the consequence of facts already on the page. The reader never
+    reconstructs a choice the author made silently, because a
+    well-written proof states its choices: which lemma at which
+    instance, what is inducted on and what is proved about it, which
+    occurrence is rewritten when it matters.
+  * Gaps are bounded and choice-free: "clearly", "by a routine
+    calculation" mean the reader can close the gap deterministically.
+  * Nothing of the reader's work is kept. Once convinced, the reader
+    forgets the trace; the text is the artifact.
+
+In the vocabulary of type theory: a natural proof is Church-style at
+binders and claims, and Curry-style at uses. Neither the fully
+annotated term nor the bare computational term is the natural proof.
+The annotated term is the READER'S TRACE — what the reader builds
+while checking, the derivation. The bare term is what a natural
+proof's DEFINITIONS look like: a signature, then an unannotated
+body, the signature being the annotation at the binder. Nova's item
+shape — `name : T` then `name = …` — is already that at top level.
+
+The goal is to recurse that shape into proofs: a proof is a sequence
+of local claims, each a statement with a justification, plus
+induction and case statements that name their motive and their
+hypotheses; the bodies of justifications are bare; every choice that
+needs thought is in the text; and the reader builds the derivation
+from the text with no reconstruction.
+
+The measure of progress is a single question: WHEN A FILE IS
+ACCEPTED, WHAT HAD TO BE RECONSTRUCTED THAT THE AUTHOR KNEW? Every
+reconstruction — a motive recovered under an untyped unfolding, a
+position typed by trial, a lemma found by search, a direction
+guessed — is a choice the text did not record and a place the
+proof is not yet natural. The target is zero.
+
+////////// The three roles //////////
+
+The criterion that separates them is TRUST: which component's bug can
+make a false theorem accepted. Exactly one can.
+
+AUTHOR — the person or the AI writing the file. The author makes
+every choice that needs thought: which lemma, at which instance,
+what to induct on and what to prove about it, what to unfold, which
+occurrence when it matters, what to name. The author is not
+deterministic and is paid once, at authoring. The author's medium
+is the SURFACE: statements and definitions in the layout discipline
+of docs/NovaElaboration.txt. The author never writes a certificate,
+a path, a motive the kernel can infer, or anything the surface
+cannot say.
+
+ENGINE — the elaborator and its discharge library (Nova.Elaboration
+and its submodules, Nova.Compute, Nova.Eliminate, Nova.Implicitize,
+Nova.Recovery). The engine is a DETERMINISTIC FUNCTION from the
+source file and the accepted signature to derivations in the
+kernel's grammar. Its job is to make the implicit explicit: scoping
+and layout, implicit arguments, unification solutions, the
+congruence path to an occurrence the author stated, the chain
+through stated middles, the motives it can infer, and the
+choice-free tier — normalization under β, licensed δ, and the
+consequence of the facts in scope. Its output is checked, so it may
+be clever, slow or wrong, and none of that touches soundness. What
+it must not do is INVENT A CHOICE: where the text leaves one open,
+it reports (an obligation, a question), it does not guess. The
+engine's determinism is what makes the file alone determine
+acceptance (docs/NovaPipeline.txt).
+
+KERNEL — Nova.Kernel with Nova.Kernel.Syntax, Nova.Kernel.Subst,
+Nova.Kernel.QIIT and Nova.Kernel.Derivation. The kernel is a
+function from a signature, a context, a derivation and a goal to a
+verdict. Its input language is the derivation grammar
+(docs/NovaKernel.txt §2), designed so that every choice is explicit
+— motives on eliminators, which link of a chain states, the path to
+a rewritten position, the direction of a one-way leaf — and
+therefore so that the kernel has ONE READING per derivation and
+never searches, retries or guesses. It owns one normalizer, the
+β join, and the accepted signature Σ, whose entries only its entry
+points construct. It reads no surface syntax and calls nothing
+outside itself. The kernel is the definition of acceptance, and the
+only component whose bugs are unsound; together with the printer's
+round trip (docs/NovaPerfectSurface.txt), which ties the accepted
+erasure back to the text the author wrote, it is the trusted base.
+
+////////// What each role must never do //////////
+
+  AUTHOR                  ENGINE                    KERNEL
+  ------------------      ----------------------    ----------------------
+  write a certificate,    invent a choice the       search, retry, or
+  a path, a budget, an    text does not record      choose between
+  occurrence the kernel   (guess a motive, a        readings; guess a type
+  could resolve           position's type, a        at a position
+                          lemma, a direction)
+  be replayed (replay     be believed (what it      read surface syntax;
+  never calls the         assumes enters Σ marked   depend on the engine,
+  author)                 and is never read; the    the evaluator, or the
+                          verdict is the kernel's)  environment
+  depend on which run     rescue a kernel           unfold a definition
+  (the file alone         rejection by trying       except at a δ leaf the
+  determines acceptance)  another derivation        derivation names, or a
+                                                    δ-all leaf
+                          keep evidence beyond      store what it read
+                          the run (derivations      (evidence is transient:
+                          are regenerated)          Σ keeps erasures and
+                                                    the derivations it
+                                                    itself accepted)
+
+Two consequences worth stating. An engine bug is INCOMPLETENESS (a
+true item stands as an obligation) or a REJECTED DERIVATION (an
+engine defect, reported as such), never unsoundness; the engine's
+correctness is a quality property. A kernel bug is the only kind
+that matters for trust, which is why the kernel is small, reads a
+fixed grammar rule by rule against docs/NovaFoundation.txt, and is
+the only component with that obligation.
+
+////////// How the division is realised today //////////
+
+There is ONE signature, the kernel's, and it is owned by
+construction: the entry type is abstract, its constructors private
+to the kernel module, so an ADMITTED entry can only be the one an
+entry point returned (kCheckDefDrv, kCheckTyDefDrv) — the engine
+extends Σ with it at kernelAccept. What the engine assumes — an
+item not admitted (its derivations kept for display and re-use),
+an open obligation, a hole, a written declaration — enters through
+assumeDef/assumeDecl, MARKED as assumed and never read; admission
+reads the admitted entries alone, so a reference to an assumed
+entry is an unknown name (the engine's missing dependency). A
+signature is CLOSED when it has no assumed entry; a file is
+accepted iff its Σ is. The engine's eager equation checks
+(kCheckEqDrv, over the whole Σ, holes included) are early
+diagnostics and the audit's canary, not the verdict: the same
+derivations are re-read inside the item's body when the item is
+admitted.
+
+The kernel reads derivations only (docs/NovaKernel.txt): the readings
+⇒, ⇐, ▷, →, one dispatcher with one reading per shape, one
+normalizer, the substitution function, and the entry points. It has
+no search, no evaluator but its own β join, no environment read, no
+effect, and no import outside itself and the base libraries. Its
+canaries and dumps are the engine's: the whnf canary walks the
+derivations the engine emits after the kernel accepted them, and a
+rejected item's derivations are appended to the verdict by the
+engine (both under NOVA_DRV=1).
+
+The engine writes derivations directly as it elaborates and as it
+discharges (docs/NovaPipeline.txt); there is no certificate language
+between it and the kernel. Re-derivation of bare terms — a builder
+of derivations for terms the elaborator produced without one — is
+the engine's (Nova.Elaboration.Rederive), not the kernel's.
+
+Evidence is transient: derivations live for the run. Σ keeps each
+entry's erasures with the derivations the kernel itself read, and
+nothing the engine built enters the kernel's Σ unread.
+
+////////// Where today digresses, and what closes each gap //////////
+
+The engine WAS two things fused: the translator above, and an
+AUTHOR-SUBSTITUTE — the candidate search, speculative rewriting to
+depth, hop chaining, the choice of what to unfold and where. Those
+were choices the source did not record, so the engine re-invented
+them every run — the origin of every reconstruction the measure
+counted, and of the blurred line between engine and kernel (a
+component that invents choices feels like a prover). The gap closed
+from the source side (the engine programme below, 2026-09-25/26):
+every choice is now a statement in the text — a local claim, a chain
+step, an explicit trans/sym/cong, a named left operation with its
+well-definedness claim — and the engine's discharge is the stated
+tier alone: computation, the licensed unfoldings, the type-directed
+closings, the congruence descent and the closure over the facts in
+scope. No Σ-lemma is placed by matching; there is no candidate store,
+no depth, no rewrite licence, no search mode (check E3). The surface
+forms are `p by f₁, …, fₙ` and `let` for the facts, the witness slot
+of the quotient eliminator, and eliminator motives.
+
+Smaller digressions, recorded so the audit can see them:
+
+  * The core-syntax parser (Nova.CoreParser, for the tests, the
+    distiller and the LSP) once lived in the kernel's namespace; it
+    is not part of the reader and no kernel module imports it.
+
+////////// The audit //////////
+
+The audit is run from time to time — after a phase of work on any
+component, and at least whenever a module boundary or a Σ site
+changes — and consists of a MECHANICAL check and a JUDGEMENT
+checklist. The mechanical half is `./check-roles.sh` (a flake check
+and a Makefile target), which enforces what can be read off the
+tree:
+
+  K1  The kernel closure. The kernel modules import only each other
+      and the base libraries (Data.*, Control.*, Prelude). No engine
+      module, no evaluator, no parser, no diagnostics hooks.
+  K2  No escape hatches in the kernel: no believe_me, assert_total,
+      assert_smaller, unsafePerformIO, %foreign, prim__, getEnv, or
+      timing calls. The one allowed form is an assert_total around a
+      deliberate crash: an input the theory rules out is answered by
+      stopping, never by a fabricated value, and a crash is no
+      verdict.
+  K3  No backtracking in the kernel: kOrElse and <|> are not used
+      in kernel modules; every kCatch in the kernel re-raises (its
+      handler is a kerr).
+  K4  The kernel's entry points are the only exported kCheck*
+      functions, and they return the signature entry they admit.
+  S1  Σ owned by construction: the entry constructors are private
+      to the kernel module (the type checker guards it; the audit
+      greps for the names), the engine keeps one signature, and the
+      admitting entry points are called inside kernelAccept only,
+      whose admitted entry is what the mirror sites extend Σ with.
+  S2  The engine cannot construct an admitted entry: its only
+      constructors, assumeDef/assumeDecl, mark the entry assumed.
+  E1  Every engine site that extends Σ is the mirror of an admission
+      (the admitted entry, or an assumed definition when the item was
+      not clean) or an assumption site — obligation, hole, written
+      declaration — each counted as open (a file with any is not
+      accepted).
+  E2  No engine module is imported by a kernel module (the dual of
+      K1, stated for the engine's namespace).
+
+The judgement half is a list of questions, answered by reading the
+recent changes (the skill `/roles-audit` walks them):
+
+  J1  Did the kernel gain a reading that depends on anything but the
+      derivation's shape and the given side — a retry, a second
+      route, an "if this fails try that", a heuristic order?
+  J2  Did the kernel gain a normalizer, or a δ step outside a leaf
+      the derivation names?
+  J3  Did the engine gain a rescue: a kernel rejection followed by
+      another attempt, a rewritten derivation, a fallback route?
+  J4  Did the engine gain a guess: a type, a motive, a position, a
+      direction chosen by trial, by a whitelist, or by "what usually
+      works"? Is each such site an obligation or a question instead?
+  J5  Did anything become environment-dependent in a way that can
+      change a verdict (a NOVA_* flag read on the verdict path)?
+  J6  Did evidence start to persist — a derivation cached across
+      runs, a certificate stored in the corpus, a file whose
+      acceptance depends on something outside it?
+  J7  Did the author's surface gain a construct that is a certificate
+      in surface clothing — a path, a budget, an nth-occurrence — at
+      a site where a statement would do?
+  J8  Did the count of reconstructions go up? (The audit lines: 0
+      REPLAY-FAIL, 0 PROOF-FAIL, 0 CHAIN-COMP over the corpus; any
+      new "re-derive", "recover", "reconstruct" in the engine is a
+      choice the source should carry.)
+
+A "yes" to any of J1–J7 is a digression to be reverted or recorded
+here as a known gap with the plan that closes it. J8 is the measure.
+
+////////// The kernel programme: the trusted reader //////////
+
+What the kernel still does that a trusted reader should not, and the
+order it is taken in (2026-09-25). The test that sorts the items is
+whether a change alters WHICH DERIVATIONS THE KERNEL ACCEPTS. Items
+that do not are taken standalone, the corpus green throughout. Items
+that shrink acceptance are taken ADDITIVELY and paired with the
+engine change that inhabits them: the kernel accepts the stricter
+form beside the old one, an audit line counts the old form as the
+engine migrates, and the old form is deleted at zero. The kernel
+never leads the engine by more than one additive step, because the
+corpus replay is the only large-scale evidence that the engine can
+inhabit the grammar.
+
+Tranche 1 — acceptance-preserving, standalone:
+
+  [x] 1. Σ owned by construction. SigEntry abstract (read-only
+         accessors, constructors private to the kernel module); an
+         admitted entry is only what an entry point returned; the
+         engine's constructors assumeDef/assumeDecl MARK an entry
+         assumed (an item not admitted, an obligation, a hole, a
+         written declaration); admission reads the admitted entries
+         alone (sigAdmitted); sigClosed = no assumed entry. The
+         engine's second signature folded into the kernel's. (An
+         assumption entry point that READS the assumed type's
+         derivation waits on contexts-as-derivations, like item 2's
+         bare form: the engine cannot yet supply the derivations.)
+  [x] 2. The equation entry point takes the telescope and the type
+         as derivations (as the definition entry point does); the
+         sides stay bare — compared, not trusted. The engine supplies
+         them from ITS OWN derivations first — an item-local registry
+         (ElabSt.tyDrvs) of the type derivations it built, keyed by
+         the bare context and type: every elaborated type, a let's
+         unfolding hypothesis (structural: ☐₀ ≡ e ∈ A from the
+         definiens' derivations), a λ's domain peeled off the expected
+         type's derivation — and from the re-derivation bridge
+         otherwise (the type as written, else its β-normal form, a
+         β-equal derivation every consumer compares under β). An entry
+         neither supplies fails the check as an engine defect. The
+         transitional bare form existed for one commit (86 fallback
+         sites) and is gone. The registry is the first step of
+         contexts carrying their derivations: it holds what the
+         elaborator knew and dropped, looked up, never guessed.
+  [x] 5. No effects, no oracle in the reader: the whnf canary and
+         the error dump move to the engine (which calls the exported
+         whnf after acceptance); the let node carries its binding's
+         type derivation so the derivation-level whnf needs no
+         oracle; the Nova.Profile import goes.
+  [x] 7. The trusted interface written down (docs/NovaKernel.txt
+         §11: the trusted interface and the library, the latter
+         expected to shrink); the backtracking combinators
+         kOrElse/kTry left the kernel module.
+  [x] 8. Nova.Kernel.Parser (a core-syntax parser for the tests, the
+         distiller and the LSP) leaves the kernel's namespace.
+
+Tranche 2 — acceptance-shrinking, additive, each paired with the
+engine (typed unfolding: the engine carries derivations):
+
+  [x] 3. No bare-term typing in the reader: the fallback that typed a
+         rewritten head off the SIDE (inferHead in headOfMT, 375 uses
+         at 84 items, every one at a head the engine wrote as refl) is
+         gone — the engine writes the typed neutral at every head
+         (headD; the QIIT emitter's coherence conversion); the prop
+         test is by shape alone, a neutral never a prop unless a
+         derivation states it (the prop-flavoured eliminator's
+         irrelevance leaves now carry the motive instance's
+         derivation); inferHead deleted from the kernel, the builder
+         has its own (rdInferHead). Taken in two steps, each measured
+         on the corpus with the fallback turned into an error first.
+  [-] 4. No δ-all leaf — RE-SCOPED 2026-09-25, after the measurement.
+         The typed version was built (every licensed occurrence a δ
+         leaf at its path inside the node skeleton of its position,
+         the engine's rounds and the builder's δ bridge both typed;
+         kept in the git stash "item 4 experiment") and run over the
+         corpus: 41 modules lose acceptance, because a δ leaf under an
+         eliminator's branch needs what only the elaboration had — a
+         quotient elimination's well-definedness proof at a non-prop
+         motive for the congruence (a proof obligation, not a choice
+         the text records), the motives of nested eliminations — and
+         re-deriving those is search. The δ-all leaf is therefore kept
+         and reclassified: it is a COMPUTATION leaf on the erasure,
+         like the β join — unfolding the named definitions anywhere
+         in a well-formed side is definitional equality by the
+         congruence rules, and the choice it records (which names) is
+         explicit. It is not a trust gap; it was listed as an
+         explicitness gap, and that gap is the engine's (a position
+         unfolded without its type is where motives were lost), which
+         the engine's typed head-path exposure already closes where it
+         matters. Reopen only when the engine carries the derivations
+         of the terms it unfolds (a definition's stored body
+         derivation aligned with its unfolding).
+  [ ] 6. Chains state their middles: the computed-middle transitivity
+         and the classifiers that plan its reading (runnable,
+         dirable, oneWay, the stated-link fallbacks) retired once the
+         engine always writes the middle it computed. Optional; the
+         largest simplification of the trusted base available.
+         ATTEMPTED 2026-09-27 and suspended; blocked on engine step
+         5. (a) The middle re-derived by the bridge fails at the
+         first module: a computed middle (the unfolding of plus)
+         contains a motive-less eliminator applied to an argument,
+         which no re-derivation recovers — the lost-motive limit,
+         removed only when the engine carries derivations (step 5).
+         (b) Without stated middles the planners cannot go: a reader
+         that runs every derivation from its left side alone breaks
+         the engine's own licence leaf (pL⁻¹ ; base ; pR states
+         through its second link); keeping both directions and
+         deleting the classifiers re-grew them one corpus site at a
+         time — a type-directed first link needs the far side, a δ
+         skeleton at a chain's end is read backward and decomposes
+         only from the left, a stating far link must supply the
+         middle, "can run from one side alone" is a property of the
+         whole subtree, and the fallbacks' order matters (inferring a
+         conversion link runs its proof one-sided where the two-sided
+         reading succeeds). The reachable residue — no side probing,
+         nodes one-way uniformly, dSynth/dCheckable of a chain
+         through either link — keeps three chain rules and a shape
+         predicate the size of dDirable. Not worth a kernel change.
+         Retake after step 5, when every middle is a derivation by
+         construction.
+
+After the review of 2026-09-25 (is the kernel complete enough to
+proceed to the engine?), two additive items:
+
+  [x] 9. Assumptions READ. kAssumeDecl / kAssumeDef read an
+         assumption's telescope and type derivations against the
+         whole Σ before marking the entry assumed, so every entry of
+         Σ is a well-formed statement — an admitted one read whole, an
+         assumed one read at its statement. The engine enters
+         obligations, holes, written declarations and non-admitted
+         items through them; the raw unread constructors remain as
+         the counted fallback (ASSUME-UNREAD). A statement is entered
+         read only when EVERY piece of it derives — a piece the bridge
+         cannot rebuild leaves the statement unread with the engine's
+         spelling, never a leaf standing in (the kernel would read a
+         different statement). Counts on 2026-09-25: 0 over the
+         corpus; 7 over the test suite, every one an obligation whose
+         well-formedness depends on a synthetic hole's solution held
+         in the engine's constraint store, not in Σ — honest unreads.
+  [ ] 10. Readings return type derivations. The honest form is the
+         reader over DERIVATION-TYPED contexts and types: Ctx entries
+         carry their derivations, the type flowing down is a
+         derivation, every type the reader computes (a motive
+         instance, a codomain, a let body's type) is a substD of read
+         derivations, and a conversion's target is a formation node
+         (the target derivation transported along the proof). It needs
+         the derivation-level whnf on types complete (the QIIT
+         eliminator's contraction: the signature's reflection on
+         derivations) and the engine's library calls to supply
+         telescopes (the registry). A rewrite of the reader's core
+         (~3000 lines), taken as one atomic step with the corpus green
+         at the end, or as a parallel derivation-typed reader; NOT a
+         cheap node ("the type of this element derivation" as a
+         formation step is sound but has no erasure, and would leak
+         into carriers). The engine does not need it yet: the registry
+         and the bridge supply every context and type derivation over
+         the corpus with zero fallbacks. Deferred until an engine
+         consumer appears.
+
+////////// The engine programme: from search to statements //////////
+
+The engine's remaining author-substitute is the discharge search:
+at a site the text does not close, it instantiates a lemma the
+`using` clause licenses, at an occurrence and in a direction of its
+choosing, chained through middles of its own. The programme replaces
+that with statements in the text, measured site by site.
+
+  [x] 1. THE MEASURE. `NOVA_NOSEARCH=measure` runs every discharge on
+         the STATED forms first — tiers 0/1, the licensed unfoldings,
+         the type-directed closings, the congruence descent, and
+         candidates the text states at the site: hypotheses in scope,
+         chain links, the ≡-elim hypothesis — and only then the full
+         engine, counting each site only the search closes
+         (SEARCH-NEEDED, with the proof it found). `NOVA_NOSEARCH=1`
+         is the strict form: the stated run is the whole engine. On
+         2026-09-25 the debt is 252 sites in 163 items (121 at a ⋆,
+         80 quotient well-definedness cases, 42 type conversions, 6
+         implicit-spine types, 3 chain steps): 128 are one lemma
+         instance at the root (with or without unfolding), 80 are
+         well-definedness by one lemma, the rest place lemmas at
+         positions or chain several. The count must only go down.
+  [x] 2. THE STATED FORMS. A local claim states an instance and puts
+         it in scope as a hypothesis — today the surface's own
+         `let h = e in …` (or `let h : a ≡ b ∈ A = e in …`), the
+         element e a lemma applied, a hypothesis, a proof; the core's
+         let of a proof, which the engine's hypothesis source reads.
+         The stated tier is then CLOSURE OVER THE FACTS IN SCOPE
+         (hypotheses, local claims, chain links, the ≡-elim
+         hypothesis): rewriting by them to normal form at every
+         position, in either direction, and chaining through them —
+         deterministic, like δ-all; never a Σ-lemma instantiated by
+         matching. A ⋆ whose proof is one instance at the root is
+         simply that instance. `p by f₁, …, fₙ` IS the `have … by …`
+         form (2026-09-27); `let` remains its named twin. The
+         well-definedness proof of a quotient elimination has its slot
+         at the eliminator since 2026-09-26: `quot-elim (a. f) (x x' h.
+         p) q` states the witness alone, the eliminator fixing the
+         binders, the relation and the sides (the 25 restated
+         telescopes of the `let wd` form are gone; the printer prints
+         the surface AST, so the derivation-borne witness round-trips).
+         The same day, the same rule at EVERY checking position
+         (e-switch-fact): a proof written where a proposition is
+         expected proves it when the proposition closes by the facts in
+         scope with the proof's statement among them — so `let claim =
+         p in ⋆` is simply `p` (45 sites), a chain link is reflected
+         from its derivation (an ascribed ⋆ links), and a claim that
+         merely renames a hypothesis is gone. Several facts at one
+         site are `p by f₁, …, fₙ` (e-by, 2026-09-27): the proof
+         under its facts, the facts inferred and the proof checked
+         under them, `⋆ by …` the trivial proof by facts — 65 sites;
+         eight more eliminators took their witness. (A pair was tried
+         first and dropped: its last component had to be the proof,
+         which a tuple does not say, and a pair is data elsewhere.)
+         What remains of `let claim` is a fact stated in a TYPE (the
+         vector sample's length equations) or a claim used under an
+         eliminator's binders.
+  [x] 3. MIGRATE BY THE COUNT, item by item, until the strict run
+         accepts the corpus. tools/migrate-stated.py writes the
+         mechanical part from the measure's audit (a root instance
+         replaces its ⋆; placed or chained instances become local
+         claims at the site's span; every file verified by
+         elaboration). 2026-09-25: 252 → 43 (36 ⋆ instances, 139
+         claim-wrapped sites, 15 quantified well-definedness claims,
+         the stated tier's closure, the stated run's own candidate
+         set, a let inferring when its body does). The residue was the
+         AUTHOR'S, in a few shapes: the quotient-structure items (ℤ,
+         ℚ, ℝ, quotient groups and rings) wrote raw quotient
+         eliminations in their TYPES and motives, so a
+         well-definedness proof was owed wherever the type was formed
+         — the natural form names the operation once (`intAddL a :
+         Int → Int`, `rAddL x : Real → Real`, `qMulL g x`, its
+         well-definedness the local claim at the definition) and
+         states equations between named operations; instances used
+         at a hypothesis's type (the explicit `trans _ _ _ (sym _ _
+         (lemma …)) h`, not a claim beside a hypothesis that rewrites
+         the same term the other way); chains of several facts at one
+         site (a calculational chain, or nested trans); a proof stated
+         at a definition's name where the node needs the shape the
+         name hides (a lemma of its own, outside the hypothesis that
+         would rewrite it: clsRelRefl). 2026-09-26: 0 sites —
+         NOVA_NOSEARCH=1 accepts the corpus. Two engine changes were
+         needed on the way, both to the STATED tier's own proofs (a
+         rejection by the kernel is the engine's bug, never the
+         author's): the licensed δ-join is its own tier before the
+         closure over the facts in scope (the closure rewrites by
+         orientation and can carry a side past the join an unfolding
+         alone reaches), and the ≡-congruence is one node with its
+         three children (irrelevance leaves cannot be chain links).
+         The stated run is now the engine's FIRST route in every mode;
+         the search is the fallback the measure counts.
+  [x] 3′. DELETE THE SEARCH. Done 2026-09-26, as behaviour: the
+         stated run IS the engine (withStated has no fallback), the
+         `.rw` licences are refused (`hyp.rw` too — hypotheses are
+         facts in scope, licence-free), the Σ-lemma hops are gone from
+         the stated run, the lemma-placing hint (`closes with X`) is
+         gone (the `.eq`-citation hint stays: choice-free), the
+         `NOVA_NOSEARCH`/`NOVA_DJOIN` switches and the migration tool's
+         audit line are gone, the corpus and the golden tests cite no
+         `.rw`. The witness tier of the clausal expansion states its
+         clause lemmas at the uniqueness proof's cases (local claims of
+         the Σ references) — the one place the emitter had relied on
+         the search; a witness clause whose equation holds only by a
+         lemma's instance has no form to state it yet (an open surface
+         decision, docs/NovaElaboration.txt, Defining equations —
+         SCOPES). And as code, the same day: the `statedOnly` flag and
+         its branches, the Σ-lemma candidate store (`lemmas`, `candCs`…,
+         addLemma at admission, the module archive of lemmas), the
+         discharge `scope` of a `⋆ using` (a using clause is licences
+         only: `.eq`, `.unfold`, `pi.eta`, `sigma.eta` — a bare lemma
+         name is an error), the `rw:` markers, the global-store mode.
+         The candidate machinery that remains serves the facts in scope
+         (hypotheses, local claims, chain links) and the chain's depth
+         budget. check-roles E3 keeps it deleted. Known engine bug met
+         on the way: a local claim of a
+         Σ-lemma whose statement is an equation BETWEEN PROOFS (Core.id's
+         idToEqBetaEq) is rejected by the kernel at the let (the
+         claim's type normalized by irrelevance) — not yet fixed, not
+         hit by the corpus.
+  [x] 4. Well-definedness as a claim (the 80 sites), by the same form:
+         the named left operation's local claim, the outer half a
+         lemma over it (3 above).
+  [ ] 5. Contexts carrying derivations outright, replacing the
+         registry, once the engine's shape is settled.
+
+////////// Relation to the other documents //////////
+
+  docs/NovaFoundation.txt   the theory the kernel reads against
+  docs/NovaKernel.txt       the kernel: grammar, readings, entry points
+  docs/NovaElaboration.txt  the engine's surface and elaborator
+  docs/NovaPipeline.txt     the trust boundary and the artifact
+  docs/NovaPerfectSurface.txt  the printer's round trip (statement fidelity)
+  this file                 the roles, and the audit that keeps them

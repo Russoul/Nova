@@ -83,7 +83,6 @@ mapIdBisim = λa s. obsEqBisim (mapIdObsEq s)
 -- every observational result below it to a judgemental equation.
 bisimReflect : {a : 𝕌} {s t : stream a} → bisim s t → s ≡ t
   using (bisim.eq,
-    hyp.rw,
     Codata.stream.hd.eq,
     Codata.stream.stream.eq,
     Codata.stream.stream.unfold,

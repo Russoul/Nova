@@ -1,4 +1,0 @@
--- neither eliminated variable is in the proof's context: naming one is
--- a resolution error, reported where they are eliminated
-gone : (x : ℕ) (w : x ≡ Z) → ℕ
-gone = λx. λw. ≡-elim x x w

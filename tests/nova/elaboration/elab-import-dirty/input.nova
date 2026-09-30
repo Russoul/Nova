@@ -1,3 +1,0 @@
-import dirty (plus)
-two : ℕ
-two = plus (S Z) (S Z)

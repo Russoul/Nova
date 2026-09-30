@@ -1,0 +1,7 @@
+accepted unsq (h : ∥ℕ∥) : ∥ℕ∥ := ⋆
+accepted unit-irrel (a : 𝟙) (b : 𝟙) : ☐1 ≡ ☐0 ∈ 𝟙 := ⋆
+accepted pe (p : Ω) (q : Ω) (f : ☐1 → ☐1) (g : ☐1 → ☐3) : ☐3 ≡ ☐2 ∈ Ω := ⋆
+accepted let-hyp : ℕ := let (S Z) (.. S Z)
+accepted absurd (e : 𝟘) : Z ≡ S Z ∈ ℕ := 𝟘-elim ☐0
+accepted hyp-serves (p : Ω) (h : ☐0) (k : ☐1) : ☐1 ≡ ☐0 ∈ ☐2 := ⋆
+exit 0

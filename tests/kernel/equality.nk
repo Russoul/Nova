@@ -1,0 +1,58 @@
+-- Core/equality.nova: the combinators of an extensional theory. Items
+-- are POLYMORPHIC through their telescopes: (A : 𝕌0) is an entry like
+-- any other, and a dependent telescope is checked entry by entry.
+
+sym (A : 𝕌0) (a : A) (b : A) (h : a ≡ b ∈ A) : b ≡ a ∈ A :=
+  ⌜⌞h⌟⁻¹ : A⌝
+
+trans (A : 𝕌0) (a : A) (b : A) (c : A) (ab : a ≡ b ∈ A) (bc : b ≡ c ∈ A) : a ≡ c ∈ A :=
+  reify
+    ⌞ab⌟
+      ; ⌞bc⌟
+      : A
+
+-- coercion along a universe equation: the element itself, converted
+coe (A : 𝕌0) (B : 𝕌0) (h : A ≡ B ∈ 𝕌0) (a : A) : B := conv a ⌞h⌟
+
+-- transport: P a ≐ P b is the congruence P ⌞h⌟, a type equation
+transport (A : 𝕌0) (P : A → 𝕌0) (a : A) (b : A) (h : a ≡ b ∈ A) (p : P a) : P b :=
+  conv p
+    P ⌞h⌟
+
+-- dependent congruence: application to a reflected hypothesis
+-- (the statement itself converts f v to B w across the hypothesis)
+cong (A : 𝕌0) (B : A → 𝕌0) (f : (x : A) → B x) (v : A) (w : A) (h : v ≡ w ∈ A)
+     : (conv (f v) (B ⌞h⌟)) ≡ f w ∈ B w :=
+  ⌜f ⌞h⌟⌝
+
+-- proofs of a proposition are irrelevant: any proof equals the minted ⋆
+irr (A : 𝕌0) (v : A) (u : A) (p : v ≡ u ∈ A) : p ≡ (⌜⌞p⌟⌝) ∈ (v ≡ u ∈ A) :=
+  reify
+    prop-irrel (v ≡ u ∈ A) p
+      ⌜⌞p⌟⌝
+
+-- Σ-η at a dependent pair, and componentwise equality: the second
+-- components live at different instances of B until h1 is reflected
+paireta (A : 𝕌0) (B : A → 𝕌0) (p : (a : A) × B a) : (p .π₁, p .π₂) ≡ p ∈ ((a : A) × B a) :=
+  ⌜η× p⁻¹ : (a : A) × B a⌝
+
+pairext (A : 𝕌0) (B : A → 𝕌0) (x : (a : A) × B a) (y : (a : A) × B a)
+        (h1 : x .π₁ ≡ y .π₁ ∈ A)
+        (h2 : (conv (x .π₂) (B ⌞h1⌟)) ≡ y .π₂ ∈ B (y .π₁))
+        : x ≡ y ∈ ((a : A) × B a) :=
+  reify
+    η× x
+      ; (⌞h1⌟, ⌞h2⌟)
+      ; η× y⁻¹
+      : (a : A) × B a
+
+-- function extensionality is DERIVED from the η leaf, as the document says
+ext (A : 𝕌0) (B : 𝕌0) (f : A → B) (g : A → B) (h : (x : A) → f x ≡ g x ∈ B) : f ≡ g ∈ (A → B) :=
+  reify
+    η→ f
+      ; (λx. ⌞h x⌟)
+      ; η→ g⁻¹
+      : A → B
+
+-- dependent application substitutes into the codomain
+apply (A : 𝕌0) (B : A → 𝕌0) (f : (x : A) → B x) (a : A) : B a := f a

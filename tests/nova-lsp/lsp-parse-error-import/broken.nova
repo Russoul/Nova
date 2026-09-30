@@ -1,4 +1,0 @@
-dep : ℕ
-dep = Z
-bad : ℕ
-bad = S S ((

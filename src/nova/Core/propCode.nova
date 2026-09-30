@@ -42,8 +42,8 @@ impConst : (r p q : Ω) → r → p ⊃ r ≡ q ⊃ r
 impConst = λr p q h. propExt (λu. impIntro {q} {r} (λv. h)) (λu. impIntro {p} {r} (λv. h))
 
 -- effectivity, along  n ↦ ¬(n ≡ Z) ⊃ r
-effMap : (r : Ω) → (ℕ / (x y. r)) → Ω using (impConst)
-effMap = λr v. quot-elim (n. ¬ (n ≡ Z) ⊃ r) v
+effMap : (r : Ω) → (ℕ / (x y. r)) → Ω
+effMap = λr v. quot-elim (n. ¬ (n ≡ Z) ⊃ r) (n n' h. impConst _ (¬ (n ≡ Z)) (¬ (n' ≡ Z)) h) v
 
 effZero : {r : Ω} → effMap r (class Z) using (effMap.eq, Core.prop.¬.eq)
 effZero = λr. impIntro {¬ (Z ≡ Z)} {r} (λh. absurdP r (impApply h ⋆))

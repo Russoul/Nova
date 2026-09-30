@@ -30,16 +30,16 @@ iterate = λa f x. corec (s : a. s, f s) x
 
 -- β-lemmas: one el-nu-beta step each (plus pairing/projections)
 hdCons : {a : 𝕌} (x : a) (s : stream a) → hd (cons x s) ≡ x
-  using (cons.eq, hd.eq, hyp.rw, Codata.stream.eq, Codata.stream.stream.unfold)
+  using (cons.eq, hd.eq, Codata.stream.eq, Codata.stream.stream.unfold)
 hdCons = λa x s. ⋆
 
-hdIterate : {a : 𝕌} (f : a → a) (x : a) → hd (iterate f x) ≡ x using (hd.eq, hyp.rw, iterate.eq)
+hdIterate : {a : 𝕌} (f : a → a) (x : a) → hd (iterate f x) ≡ x using (hd.eq, iterate.eq)
 hdIterate = λa f x. ⋆
 
 -- two observation steps: the tail of an iterate is the iterate of the
 -- image — hd ∘ tl commutes with one application of f
 hdTlIterate : {a : 𝕌} (f : a → a) (x : a) → hd (tl (iterate f x)) ≡ f x
-  using (hd.eq, hyp.rw, iterate.eq, tl.eq)
+  using (hd.eq, iterate.eq, tl.eq)
 hdTlIterate = λa f x. ⋆
 
 -- the head under one cons-then-tail: reaches the stored tail's head
@@ -55,11 +55,11 @@ map = λa b f t. corec (s : stream a. f (hd s), tl s) t
 -- map commutes with the observations — the finite-depth shadow of
 -- the (η-needing) map-fusion laws, closed by pure computation
 hdMap : {a b : 𝕌} (f : a → b) (t : stream a) → hd (map f t) ≡ f (hd t)
-  using (hd.eq, hyp.rw, map.eq, Codata.stream.eq, Codata.stream.stream.unfold)
+  using (hd.eq, map.eq, Codata.stream.eq, Codata.stream.stream.unfold)
 hdMap = λa b f t. ⋆
 
 hdTlMap : {a b : 𝕌} (f : a → b) (t : stream a) → hd (tl (map f t)) ≡ f (hd (tl t))
-  using (hd.eq, hyp.rw, map.eq, Codata.stream.eq, Codata.stream.stream.unfold, tl.eq)
+  using (hd.eq, map.eq, Codata.stream.eq, Codata.stream.stream.unfold, tl.eq)
 hdTlMap = λa b f t. ⋆
 
 -- With coinduction dischargeable (el-nu-coind; `coind`), the
@@ -67,10 +67,12 @@ hdTlMap = λa b f t. ⋆
 -- stream — by coinduction with a GRAPH invariant: u is v's image
 -- under the one-step machine, for SOME v.
 tlCons : {a : 𝕌} (x : a) (s : stream a) → tl (cons x s) ≡ s
-  using (cons.eq, hyp.rw, Codata.stream.eq, Codata.stream.stream.unfold, tl.eq)
+  using (cons.eq, Codata.stream.eq, Codata.stream.stream.unfold, tl.eq)
 tlCons =
   λa x s. coind
     u v. ∥(w : stream a)
       × (u ≡ corec (p : a × stream a. p .π₁, out (p .π₂)) (out w) ∈ stream a) × (v ≡ w ∈ stream a)∥
     ⋆ (s, ⋆, ⋆)
-    u v h. squash-elim h (w. ⋆ (⋆, ⋆ (out (w .π₁) .π₂, ⋆, ⋆)))
+    u v h. squash-elim
+      h
+      w. ⋆ ((w .π₂ .π₂ by w .π₂ .π₁), ⋆ (out (w .π₁) .π₂, w .π₂ .π₁, w .π₂ .π₂))

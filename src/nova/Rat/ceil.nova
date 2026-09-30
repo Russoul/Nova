@@ -11,7 +11,7 @@
 -- to a bound on both factors, and a bound has to be a natural computed
 -- from a rational by something the quotient respects.
 
-import Natural (+, *, plusZeroId, zeroPlusId, plusComm, sucPlus, multComm)
+import Natural (+, *, plusZeroId, zeroPlusId, plusComm, sucPlus, multComm, multZeroId)
 import Natural.order (≤, leRefl, leZero, leTrans, lePlusMonoR, leMultMonoR)
 import Natural.div (divN, modN, divModEq, modLe, divNUnique, leDivSuc)
 import Int (Int, intZero, intOne, intNeg)
@@ -24,7 +24,7 @@ import Rat (Q, qcls, RatR, dInt, clsEqOfRel, +, qNeg, qZero, qAddZeroL, qNegNeg,
 import Rat.order (Sign, sZero, sPos, sNeg, sgnQ, intSgn, intSgnZero, intSgnNz, nzSgn, NonNegS, ≤, leQTrans, intSgnNeg, intSgnPos, sgnQNegFlip, sgnFlip)
 import Rat.bound (Bnd, leQNegFlip, nonNegIsProp, nonNegNotNeg, bndIsProp, bndOfBothLe, leQIsProp, qNegZeroQ)
 import Rat.abs (qAbs, bndAbs, sgnQNegOfNeg)
-import Rat.nat (qOfNat, nonNegSgnOfLe, leQOfNat)
+import Rat.nat (qOfNat, nonNegSgnOfLe, leQOfNat, qOfNatZero)
 import Rat.arch (qPosDenView, PosDenView, leQUnsquash)
 import Int.nonZero (nzOfInt)
 import Core.equality (trans, sym, cong, transport, transportP)
@@ -41,6 +41,7 @@ crossAbs : (p p' : Rat)
   using (Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -88,6 +89,7 @@ qFloorWD : {N : Int}
     Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.den.eq,
     Rat.frac.mkRat.eq,
@@ -113,7 +115,6 @@ qFloorRepWD = λp p' h. qFloorWD h
 
 qFloor : Q → ℕ
   using (Int.Int.unfold,
-    qFloorRepWD,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -122,7 +123,7 @@ qFloor : Q → ℕ
     Rat.RatR.eq,
     Rat.RatR.unfold,
     Rat.dInt.eq)
-qFloor = λu. quot-elim (p. divN (intMag (p .π₁)) (nzMag (p .π₂))) u
+qFloor = λu. quot-elim (p. divN (intMag (p .π₁)) (nzMag (p .π₂))) (p p' h. qFloorRepWD _ _ h) u
 
 qNatBound : Q → ℕ
 qNatBound = λu. S (qFloor u)
@@ -250,6 +251,7 @@ sgnQFracPos : {N : Int} {b : ℕ} → sgnQ (qcls (mkRat N (nzPos b))) ≡ intSgn
     Int.nonZero.nzOfIntAt.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.denInt.eq,
     Rat.frac.mkRat.eq,
     Rat.frac.num.eq,
@@ -270,10 +272,8 @@ sgnQFracPos = λN b. intSgnMulPos
 intOfNatMagNonNeg : {z : Int} → NonNegS (intSgn z) → intOfNat (intMag z) ≡ z
   using (Int.abs.nzMag.eq,
     Int.order.intOfNat.eq,
-    Int.order.intOfNatZero,
     Int.Int.unfold,
     Int.intZero.eq,
-    Rat.half.nzPosInt,
     Rat.frac.NZ.unfold,
     Rat.frac.nzNeg.eq,
     Rat.frac.nzPos.eq,
@@ -333,9 +333,7 @@ qDiffNatFrac : {m b K : ℕ}
     Int.Int.unfold,
     Int.intNeg.eq,
     Int.add.+.eq,
-    Natural.multZeroId.rw,
-    plusComm,
-    plusZeroId.rw,
+    Int.add.intAddL.eq,
     Rat.nat.qOfNat.eq,
     Rat.frac.den.eq,
     Rat.frac.intScale.eq,
@@ -350,9 +348,9 @@ qDiffNatFrac : {m b K : ℕ}
     Rat.frac.ratNeg.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
-    Rat.qcls.eq,
-    zeroPlusId.rw)
+    Rat.qcls.eq)
 qDiffNatFrac =
   λm b K. trans
     _
@@ -374,7 +372,7 @@ qDiffNatFrac =
         {nzMul nzOne (nzPos b)}
         {nzPos b}
         nzMulOneL
-      ⋆
+      ⋆ by multZeroId (S b), zeroPlusId m, plusZeroId (S b * K)
 
 leQFracOfNat : {m b K : ℕ} → m ≤ K * S b → qcls (mkRat (intOfNat m) (nzPos b)) ≤ qOfNat K
   using (Core.id.Id.unfold,
@@ -403,8 +401,8 @@ leQFracOfNat =
 
 -- ===== the bound really bounds =====
 leQZeroNat : (K : ℕ) → qZero ≤ qOfNat K
-  using (Rat.nat.qOfNatZero, Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold)
-leQZeroNat = λK. transport (λw. w ≤ qOfNat K) {qOfNat Z} {qZero} ⋆ (leQOfNat (leZero K))
+  using (Rat.order.≤.unfold, Rat.order.NonNegS.unfold, Rat.Q.unfold)
+leQZeroNat = λK. transport (λw. w ≤ qOfNat K) {qOfNat Z} {qZero} qOfNatZero (leQOfNat (leZero K))
 
 -- at a positive denominator: nonnegative numerators land on the
 -- division estimate, negative ones are below zero and so below it too
@@ -419,7 +417,9 @@ leQBoundPos : {M : Int}
     Int.Int.unfold,
     Int.intNeg.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Natural.div.divN.eq,
     Natural.div.dmAux.eq,
     Natural.div.natCase.eq,
@@ -448,6 +448,7 @@ leQBoundPos : {M : Int}
     Rat.order.sgnFlip.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Rat.qcls.eq)
 leQBoundPos =
@@ -551,6 +552,7 @@ leQBoundSq : (u : Q) → ∥u ≤ qOfNat (qNatBound u)∥
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Rat.qcls.eq)
 leQBoundSq =
@@ -576,7 +578,6 @@ qNatBoundNeg : {u : Q} → qNatBound (qNeg u) ≡ qNatBound u
     Natural.div.divN.eq,
     Natural.div.dmAux.eq,
     Natural.div.natCase.eq,
-    Core.prop.irrel,
     Rat.ceil.qFloor.eq,
     Rat.ceil.qNatBound.eq,
     Rat.frac.NZ.unfold,

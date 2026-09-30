@@ -39,7 +39,7 @@ import Core.equality (trans, sym, cong, transport, transportP)
 
 qInvQuarter : {j : ℕ}
   → qInvNat (qtr j) + qInvNat (qtr j) + (qInvNat (qtr j) + qInvNat (qtr j)) ≡ qInvNat j
-  using (Rat.half.dbl.eq, Rat.+.eq, Real.qInvNat.eq, Real.eq.qtr.eq)
+  using (Rat.half.dbl.eq, Rat.+.eq, Rat.qAddL.eq, Real.qInvNat.eq, Real.eq.qtr.eq)
 qInvQuarter =
   λj. trans
     _
@@ -75,6 +75,7 @@ leQQuarterSum : (m n : ℕ)
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.qInvNat.eq,
     Real.rBound.eq,
@@ -129,6 +130,7 @@ limReg : {x : ℕ → RSeq} → RegSeqR x → Regular (limSeq x)
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.RSeq.unfold,
     Real.Regular.unfold,
@@ -193,6 +195,7 @@ limClose : (x : ℕ → RSeq)
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.RSeq.unfold,
     Real.qInvNat.eq,
@@ -235,7 +238,8 @@ realLimClose : (x : ℕ → RSeq)
     Real.complete.realLim.eq,
     Real.complete.rLim.eq,
     Real.neg.seqOf.eq,
-    Real.order.≤.eq)
+    Real.order.≤.eq,
+    Real.order.rleL.eq)
 realLimClose =
   λx h n. transportP
     {Real}
@@ -266,6 +270,7 @@ regSeqRSound : (x : ℕ → RSeq)
     Real.Regular.unfold,
     Real.realOfQ.eq,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.complete.RegSeqR.unfold)
 regSeqRSound =
   λx h m n. transportP

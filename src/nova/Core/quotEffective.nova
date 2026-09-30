@@ -51,18 +51,22 @@ clsRelWd =
 
 -- the descent itself: quot-elim at the CONSTANT MOTIVE Ω. clsRelWd
 -- above discharges its well-definedness obligation
-clsRel : {A : 𝕌} (r : A → A → Ω) (a : A) → (A / (u v. r u v)) → Ω using (clsRelWd)
-clsRel = λA r a q. quot-elim (x. rClosure r a x) q
+clsRel : {A : 𝕌} (r : A → A → Ω) (a : A) → (A / (u v. r u v)) → Ω
+clsRel = λA r a q. quot-elim (x. rClosure r a x) (x x' h. clsRelWd {A} r a h) q
 
 -- ⟹ : EFFECTIVITY. clsRel a (class a) ≜ r⁺ a a holds by reflexivity of
 -- the closure, and the class equation transports it to b — el-quot-beta
 -- on both ends, congruence in between
+clsRelRefl : {A : 𝕌} (r : A → A → Ω) (a : A) → clsRel r a (class a)
+  using (Core.quotEffective.clsRel.eq)
+clsRelRefl = λA r a. rClosureRefl r a
+
 effective : {A : 𝕌}
   (r : A → A → Ω)
   (a b : A)
   → (class a ≡ class b ∈ A / (u v. r u v)) → rClosure r a b
-  using (Core.prop.rClosure.eq, Core.prop.rClosure.unfold, Core.quotEffective.clsRel.eq)
-effective = λA r a b h. transportP (clsRel r a) h (rClosureRefl r a)
+  using (Core.quotEffective.clsRel.eq)
+effective = λA r a b h. transportP (clsRel r a) h (clsRelRefl r a)
 
 -- the characterization: quotient equality is exactly r⁺
 classEqIff : {A : 𝕌}
@@ -98,7 +102,7 @@ natEq : ℕ → ℕ → Ω
 natEq = λx y. x ≡ y
 
 natEqEffective : {a b : ℕ} → (class a ≡ class b ∈ ℕ / (u v. natEq u v)) → a ≡ b
-  using (hyp.rw, Core.quotEffective.natEq.eq, Core.quotEffective.natEq.unfold)
+  using (Core.quotEffective.natEq.eq, Core.quotEffective.natEq.unfold)
 natEqEffective = effectiveAtEquiv natEq (λx. ⋆) (λx y z h1 h2. ⋆) (λx y h. ⋆)
 
 -- and the refutation, kept as evidence: at the successor graph — not an
@@ -117,8 +121,8 @@ sgHop1 = ⋆
 sgMid : class (S Z) ≡ class 2 ∈ SG using (Core.quotEffective.SG.unfold)
 sgMid = ⋆
 
-sgHop2 : class Z ≡ class 2 ∈ SG using (Core.quotEffective.SG.unfold, sgHop1, sgMid)
+sgHop2 : class Z ≡ class 2 ∈ SG using (Core.quotEffective.SG.unfold)
 sgHop2 = trans _ _ _ sgHop1 sgMid
 
-sgBack : class (S Z) ≡ class Z ∈ SG using (Core.quotEffective.SG.unfold, sgHop1)
-sgBack = ⋆
+sgBack : class (S Z) ≡ class Z ∈ SG using (Core.quotEffective.SG.unfold)
+sgBack = sgHop1

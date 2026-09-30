@@ -60,13 +60,13 @@ natDiffRel : (a b k : ℕ) → (a + k ≡ b) → k + a ≡ b
 natDiffRel = λa b k h. trans _ _ _ (plusComm a k) h
 
 natDiffClass : {a b k : ℕ} → (a + k ≡ b) → intOfNat k ≡ class (b, a)
-  using (Int.order.intOfNat.eq, Int.Int.unfold, natDiffRel, zeroPlusId.rw)
-natDiffClass = λa b k h. ⋆
+  using (Int.order.intOfNat.eq, Int.Int.unfold)
+natDiffClass = λa b k h. zeroPlusId b by natDiffRel _ _ _ h
 
 -- effectivity of the ℤ quotient reads the two verdicts back as ℕ facts
 natEqOfClassZero : {a b : ℕ} → (class (b, a) ≡ intZero) → b ≡ a
-  using (Int.Int.unfold, Int.IntR.eq, Int.intZero.eq, Natural.plusZeroId)
-natEqOfClassZero = λa b h. intEffective h
+  using (Int.Int.unfold, Int.IntR.eq, Int.intZero.eq)
+natEqOfClassZero = λa b h. intEffective h by plusZeroId b, plusZeroId a
 
 natSucOfClassPos : {a b j : ℕ} → (class (S j, Z) ≡ class (b, a) ∈ Int) → a + S j ≡ b
   using (Int.Int.unfold, Int.IntR.eq)
@@ -99,13 +99,7 @@ leOfNonNegSgn =
 -- the difference of the two embeddings, computed
 qOfNatDiffNum : {a b : ℕ}
   → intScale nzOne (intOfNat b) + intScale nzOne (intNeg (intOfNat a)) ≡ class (b, a)
-  using (Int.order.intOfNat.eq,
-    Int.Int.unfold,
-    Int.intNeg.eq,
-    Int.add.+.eq,
-    plusComm,
-    plusZeroId.rw,
-    zeroPlusId.rw)
+  using (Int.order.intOfNat.eq, Int.Int.unfold, Int.intNeg.eq, Int.add.+.eq, Int.add.intAddL.eq)
 qOfNatDiffNum =
   λa b. trans
     _
@@ -127,7 +121,7 @@ qOfNatDiffNum =
         {intScale nzOne (intNeg (intOfNat a))}
         {intNeg (intOfNat a)}
         intScaleOne
-    ⋆
+    plusZeroId b by zeroPlusId a
 
 sgnQOfNatDiff : (a b : ℕ) → sgnQ (qOfNat b + qNeg (qOfNat a)) ≡ intSgn (class (b, a))
   using (Int.eq.classNormPairEq.eq,
@@ -145,8 +139,10 @@ sgnQOfNatDiff : (a b : ℕ) → sgnQ (qOfNat b + qNeg (qOfNat a)) ≡ intSgn (cl
     Int.intOne.eq,
     Int.intZero.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.classPairEta.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Int.normalize.normPair.eq,
     Natural.*.eq,
     Natural.+.eq,
@@ -173,6 +169,7 @@ sgnQOfNatDiff : (a b : ℕ) → sgnQ (qOfNat b + qNeg (qOfNat a)) ≡ intSgn (cl
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Rat.qcls.eq)
 sgnQOfNatDiff =
@@ -205,6 +202,7 @@ qOfNatAdd : (a b : ℕ) → qOfNat a + qOfNat b ≡ qOfNat (a + b)
   using (Int.order.intOfNat.eq,
     Int.intNeg.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Natural.*.eq,
     Natural.+.eq,
     Rat.nat.qOfNat.eq,
@@ -218,6 +216,7 @@ qOfNatAdd : (a b : ℕ) → qOfNat a + qOfNat b ≡ qOfNat (a + b)
     Rat.frac.nzPos.eq,
     Rat.frac.ratAdd.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qcls.eq)
 qOfNatAdd =
   λa b. trans

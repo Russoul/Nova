@@ -1,6 +1,0 @@
--- a Σ VALUE is data: nf recurses into BOTH components (contrast the
--- asymmetric Σ-code case, eval-sigma-code)
-plus : ℕ → ℕ → ℕ
-plus = λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-pair : ℕ × ℕ
-pair = (plus (S (S Z)) (S (S Z)) , Z)

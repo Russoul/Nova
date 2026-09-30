@@ -53,5 +53,5 @@ paireta : {A : 𝕌} {B : A → 𝕌} (p : (a : A) × B a) → (p .π₁, p .π�
 paireta = λA B p. ⋆
 
 pairext : {A : 𝕌} {B : A → 𝕌} {x y : (a : A) × B a} → (x .π₁ ≡ y .π₁) → (x .π₂ ≡ y .π₂) → x ≡ y
-  using (sigma.eta, hyp.rw)
+  using (sigma.eta)
 pairext = λA B x y h1 h2. trans _ _ _ (trans _ _ (y .π₁, y .π₂) (sym _ _ (paireta x)) ⋆) (paireta y)

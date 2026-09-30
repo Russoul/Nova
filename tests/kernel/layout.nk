@@ -1,0 +1,48 @@
+-- layout: an indented line that begins a term is one more argument of
+-- the innermost open spine, and a line may hold what a parenthesis may
+-- hold — a whole term, an ascription, or a binder abstraction. The
+-- corpus idiom itself is in the other files; here the rules' corners.
+
+plus (n : ℕ) (m : ℕ) : ℕ :=
+  ℕ-elim 𝕌0
+    _. ℕ
+    n
+    k ih. S ih
+    m
+
+-- slots may mix same-line and argument-line placement, and a
+-- parenthesised binder may stand on an argument line
+pred (n : ℕ) : ℕ :=
+  ℕ-elim 𝕌0 (_. ℕ) Z
+    (k ih. k)
+    n
+
+-- an argument of an argument: a deeper line belongs to the inner spine
+apply-twice (f : ℕ → ℕ) (x : ℕ) : ℕ :=
+  f
+    f
+      x
+
+-- a λ body extends over the argument lines that follow it
+twice : (ℕ → ℕ) → ℕ → ℕ :=
+  λf x. f
+    f x
+
+-- a chain's links and its ascription continue past the line that
+-- opens it; a form's argument line carries a chain of its own
+plusSucId (n : ℕ) (m : ℕ) : plus[n, S m] ≡ S plus[n, m] ∈ ℕ :=
+  reify
+    δ plus[n, S m]
+      ; S
+          δ plus[n, m]⁻¹
+      : ℕ
+
+-- a continuation line leading with an operator continues the
+-- construct above it; a type may start on the line after its colon
+long-type :
+    (A : 𝕌0)
+    → (B : A → 𝕌0)
+    → (f : (x : A) → B x)
+    → (a : A)
+    → B a :=
+  λA B f a. f a

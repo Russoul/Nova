@@ -1,0 +1,26 @@
+-- every construct of the proof language, INLINE: parenthesised slots
+-- and one-line chains. syntax-block.nk spells the same items with
+-- layout; the runner requires the two outputs to coincide.
+
+plus (n : ℕ) (m : ℕ) : ℕ := ℕ-elim 𝕌0 (_. ℕ) n (k ih. S ih) m
+sum-case (s : ℕ ⊎ 𝟙) : ℕ := ⊎-elim 𝕌0 (_. ℕ) (a. a) (b. Z) s
+Q : 𝕌0 := ℕ / (x y. ∥𝟙∥)
+q-const (q : Q) : ℕ := quot-elim 𝕌0 (_. ℕ) (x. Z) (x y h. Z) (conv q (δ Q) : ℕ / (x y. ∥𝟙∥))
+unsq (h : ∥ℕ∥) : ∥𝟙∥ := unsquash ∥𝟙∥ (n. squash ()) h
+pe (p : Ω) (q : Ω) (f : p → q) (g : q → p) : p ≡ q ∈ Ω := ⌜propext p q (x. f x) (y. g y)⌝
+restr (A : 𝕌0) (B : 𝕌0) (h : lift A ≡ lift B ∈ 𝕌1) : A ≡ B ∈ 𝕌0 := ⌜restrict A B ⌞h⌟ : 𝕌0⌝
+pirr (p : Ω) (h : p) (k : p) : h ≡ k ∈ p := ⌜prop-irrel p h k⌝
+uirr (a : 𝟙) (b : 𝟙) : a ≡ b ∈ 𝟙 := ⌜irrel a b : 𝟙⌝
+qeq : class Z ≡ class (S Z) ∈ (ℕ / (x y. ∥𝟙∥)) := ⌜quot-eq Z (S Z) (squash ()) : ℕ / (x y. ∥𝟙∥)⌝
+coe (A : 𝕌0) (B : 𝕌0) (h : A ≡ B ∈ 𝕌0) (a : A) : B := conv a ⌞h⌟
+chain (n : ℕ) : plus[n, S Z] ≡ S plus[n, Z] ∈ ℕ := ⌜δ plus[n, S Z] ; S (δ plus[n, Z]⁻¹) : ℕ⌝
+lam-app : ℕ := (λx. x : ℕ → ℕ) Z
+pair-proj : ℕ := ((Z, S Z) : ℕ × ℕ) .π₂
+let-in : ℕ := let x h := (S Z : ℕ) in ⌞h⌟
+absurd (e : 𝟘) : ℕ := 𝟘-elim e
+eta (f : ℕ → ℕ) : f ≡ (λx. f x) ∈ (ℕ → ℕ) := ⌜η→ f : ℕ → ℕ⌝
+eta-pair (p : ℕ × ℕ) : p ≡ (p .π₁, p .π₂) ∈ (ℕ × ℕ) := ⌜η× p : ℕ × ℕ⌝
+formers : 𝕌1 := ((A : 𝕌0) → A → A) × (ℕ ⊎ 𝟙) × (ℕ / (x y. ∥𝟙∥)) × (Z ≡ Z ∈ ℕ)
+inj : ℕ ⊎ 𝟙 := inj₁ (S Z)
+lifted : 𝕌1 := lift ℕ
+sym-app (n : ℕ) (h : plus[n, Z] ≡ n ∈ ℕ) : n ≡ plus[n, Z] ∈ ℕ := ⌜⌞h⌟⁻¹ : ℕ⌝

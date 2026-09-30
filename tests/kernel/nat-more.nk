@@ -1,0 +1,71 @@
+-- Natural.nova's equational theory: lemmas by unfolding and by
+-- induction, then REUSED through item references with spines
+
+plus (n : ℕ) (m : ℕ) : ℕ :=
+  ℕ-elim 𝕌0
+    _. ℕ
+    n
+    k ih. S ih
+    m
+
+plusZeroId (n : ℕ) : plus[n, Z] ≡ n ∈ ℕ := ⌜δ plus[n, Z] : ℕ⌝
+
+-- both sides unfold: the right side is spelled with its own δ leaf
+plusSucId (n : ℕ) (m : ℕ) : plus[n, S m] ≡ S plus[n, m] ∈ ℕ :=
+  reify
+    δ plus[n, S m]
+      ; S (δ plus[n, m]⁻¹)
+      : ℕ
+
+zeroPlusId (n : ℕ) : plus[Z, n] ≡ n ∈ ℕ :=
+  ℕ-elim Ω
+    k. plus[Z, k] ≡ k ∈ ℕ
+    ⌜δ plus[Z, Z] : ℕ⌝
+    k ih. reify
+      δ plus[Z, S k]
+        ; S (δ plus[Z, k]⁻¹ ; ⌞ih⌟)
+        : ℕ
+    n
+
+sucPlus (n : ℕ) (m : ℕ) : plus[S n, m] ≡ S plus[n, m] ∈ ℕ :=
+  ℕ-elim Ω
+    k. plus[S n, k] ≡ S plus[n, k] ∈ ℕ
+    ⌜δ plus[S n, Z] ; S (δ plus[n, Z]⁻¹) : ℕ⌝
+    k ih. reify
+      δ plus[S n, S k]
+        ; S (δ plus[S n, k]⁻¹ ; ⌞ih⌟)
+        ; S (⌞plusSucId[n, k]⌟⁻¹)
+        : ℕ
+    m
+
+-- commutativity, the corpus's proof: induction on m, each step a
+-- chain of reflected lemmas — every middle is syntactic
+plusComm (n : ℕ) (m : ℕ) : plus[m, n] ≡ plus[n, m] ∈ ℕ :=
+  ℕ-elim Ω
+    k. plus[k, n] ≡ plus[n, k] ∈ ℕ
+    ⌜⌞zeroPlusId[n]⌟ ; ⌞plusZeroId[n]⌟⁻¹ : ℕ⌝
+    k ih. reify
+      ⌞sucPlus[k, n]⌟
+        ; S ⌞ih⌟
+        ; ⌞plusSucId[n, k]⌟⁻¹
+        : ℕ
+    m
+
+-- S is injective through its retraction pred: a congruence of an item
+-- applied to the reflected hypothesis, computed at both ends
+pred (n : ℕ) : ℕ :=
+  ℕ-elim 𝕌0
+    _. ℕ
+    Z
+    k ih. k
+    n
+
+sucInj (n : ℕ) (m : ℕ) (h : S n ≡ S m ∈ ℕ) : n ≡ m ∈ ℕ :=
+  reify
+    δ pred[S n]⁻¹
+      ; pred[⌞h⌟]
+      ; δ pred[S m]
+      : ℕ
+
+-- an item applied to the wrong number of arguments
+arity : ℕ := plus[Z]

@@ -1,8 +1,0 @@
-input.nova:2:1: error: def +: an operator-named item requires a [name] override on every clause
-2 | + : ℕ → ℕ → ℕ
-  | ^^^^^^^^^^^^^
-declared + [+1 declaration]
-open declarations (1):
-  [+] ⊢ ? : ℕ → ℕ → ℕ
-      at: input.nova:2:1: def +
-Error: 1 item failed to elaborate

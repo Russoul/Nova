@@ -53,10 +53,9 @@ qOneNotZeroD : Id _ qOne qZero → 𝟘
     Int.intOne.eq,
     Int.intZero.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Natural.*.eq,
     Natural.+.eq,
-    Natural.plusZeroId,
-    Natural.zeroPlusId,
     Rat.frac.den.eq,
     Rat.frac.mkRat.eq,
     Rat.frac.num.eq,
@@ -93,7 +92,9 @@ ratField : IsField Q
     Rat.Q.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.qOne.eq,
     Rat.qZero.eq)
 ratField =
