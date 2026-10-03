@@ -5,6 +5,7 @@
 Γ ctx                     // Γ is a well-formed context
 Σ ⊢ I item                // the item I extends the signature Σ (the entry points)
 Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ        // polynomial equation proof at level ℓ, synthesising both sides
+Γ ⊦ [ᾱ] Δ₀ ≐ Δ₁ tel ℓ         // telescope equation proof, synthesising both sides and the LEAST level ℓ
 
 // NOTATION. A proof written with ONE side, Γ ⊦ [α] a ⇐ A (likewise ⇒),
 // means Γ ⊦ [α] a₀ ≐ a₁ ⇐ A with a₀ ≡β a₁ (the join is checked), and a
@@ -26,7 +27,7 @@
 // * A non-linear metavariable occurrence, or a former pattern (A → B, A × B,
 //   t₀ ≡ t₁ ∈ T, …) in an input position, means equality modulo substitution
 //   and β — weak-head β for a pattern, full β for a comparison. "β" is every
-//   computation rule: β, the ι-rules, let-β, ν-β, QIIT-β. NEVER δ:
+//   computation rule: β, the ι-rules, let-β, record-β, ν-β, QIIT-β. NEVER δ:
 //   definitions unfold only through the proof former δ x. Every comparison
 //   runs under a FUEL budget (equality reflection makes β-normalisation of a
 //   well-typed term diverge under an inconsistent hypothesis); exhaustion is
@@ -118,6 +119,29 @@
 Γ ⊦ [β] b₀ ≐ b₁ ⇐ B[id, a₁]
 -----------------------------------------
 Γ ⊦ [α, β] (a₀, b₀) ≐ (a₁, b₁) ⇐ A × B
+
+// ------ record type ------
+// Rec l̄ Δ: a telescope Δ = · ▷ A₀ ▷ … ▷ Aₙ₋₁ over Γ with a LABEL per
+// entry, l̄ = l₀ … lₙ₋₁ (telescopes, spines, Δ∥ᵢ and X[ē]: the notation
+// of the QIIT section). A label is INERT — compared syntactically, never
+// bound, never substituted for — so a record's body is an ordinary
+// spine of Δ and its proof an ordinary spine proof. The formation rule
+// is with the other formers (𝕌-type), η with the leaves.
+
+Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ Δ
+---------------------------------------------- // el-rec-i. The labels are the TYPE's, in its order: a
+Γ ⊦ [⟨l̄ ↪ ᾱ⟩] ⟨l̄ ↪ ē₀⟩ ≐ ⟨l̄ ↪ ē₁⟩ ⇐ Rec l̄ Δ     //   literal at another label list is rejected, never
+                                               //   permuted. Distinctness and the lengths are the
+                                               //   input type's; the spine fixes |ᾱ| = |Δ|
+
+Γ ⊦ [ρ] r₀ ≐ r₁ ⇒ Rec l̄ Δ      l = lᵢ
+---------------------------------------------------- // el-rec-e. l ∉ l̄ is rejection. The type is Δ's entry
+Γ ⊦ [ρ .l] r₀.l ≐ r₁.l ⇒ Δ∥ᵢ[id, r₁.l₀ … r₁.lᵢ₋₁]     //   at l, instantiated by r₁'s projections at the
+                                                     //   earlier labels — a spine entry's type, the
+                                                     //   record standing for its own components
+
+// COMPUTATION is el-rec-beta, inside "modulo β": ⟨l̄ ↪ ē⟩.lᵢ ⇝ eᵢ, by
+// lookup of the label in the literal. No type is consulted.
 
 // ------- (⊎)-type ---------
 
@@ -219,6 +243,25 @@ U a sort
 Γ ▷ A₁ ⊦ [β] B₀ ≐ B₁ ⇒ U₂
 --------------------------------------------------- // a product of propositions is a small TYPE,
 Γ ⊦ [α × β] (A₀ × B₀) ≐ (A₁ × B₁) ⇒ 𝕌(|U₁| ⊔ |U₂|)   //   not a proposition: p ∧ q is ∥p × q∥
+
+// A telescope is compared entry by entry, each entry a type equation
+// over the RIGHT-hand entries before it, and INFERS its least level: the
+// join of the sorts its entries infer, 0 at the empty telescope (|Ω| = 0:
+// a proposition costs nothing). This is the foundation's Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ
+// at the least such ℓ; a higher one is reached at the former, by lift.
+
+Γ ⊦ [·] · ≐ · tel 0
+
+Γ ⊦ [ᾱ] Δ₀ ≐ Δ₁ tel ℓ
+Γ · Δ₁ ⊦ [β] A₀ ≐ A₁ ⇒ U
+---------------------------------------------
+Γ ⊦ [ᾱ, β] Δ₀ ▷ A₀ ≐ Δ₁ ▷ A₁ tel (ℓ ⊔ |U|)
+
+l̄ distinct      |l̄| = |ᾱ|
+Γ ⊦ [ᾱ] Δ₀ ≐ Δ₁ tel ℓ
+--------------------------------------- // ty-rec in full: ONE label list on both sides. A record
+Γ ⊦ [Rec l̄ ᾱ] Rec l̄ Δ₀ ≐ Rec l̄ Δ₁ ⇒ 𝕌ℓ    //   is at the level of its telescope; a record of
+                                        //   propositions is a small TYPE, as a product is
 
 Γ ⊦ [α] A₀ ≐ A₁ ⇒ U₁
 Γ ⊦ [β] B₀ ≐ B₁ ⇒ U₂
@@ -345,7 +388,8 @@ a₁ ≡β a₁'
 // --- Leaves: η ---
 // The η's are LEAVES; extensionality is derived:
 //   ext(g₀, g₁, α) ≜ (η→ g₀)⁻¹ ; λ α ; η→ g₁     for Γ ▷ A ⊦ [α] g₀[↑] ☐₀ ≐ g₁[↑] ☐₀ ⇐ B
-//   likewise at pairs through η× and [α, β].
+//   likewise at pairs through η× and [α, β], and at records through
+//   ηRec and ⟨l̄ ↪ ᾱ⟩.
 
 Γ ⊦ [φ] f ⇐ A → B
 ------------------------------------ // el-pi-eta
@@ -355,11 +399,15 @@ a₁ ≡β a₁'
 ------------------------------------- // el-sigma-eta
 Γ ⊦ [η× π] p ≐ (p .π₁, p .π₂) ⇐ A × B
 
+Γ ⊦ [ρ] r ⇐ Rec l̄ Δ
+--------------------------------------------------- // el-rec-eta, l̄ = l₀ … lₙ₋₁. At the empty record
+Γ ⊦ [ηRec ρ] r ≐ ⟨l̄ ↪ r.l₀, …, r.lₙ₋₁⟩ ⇐ Rec l̄ Δ    //   every element is ⟨⟩: a unit type, by this leaf
+
 // Uniqueness of ℕ-elim, ⊎-elim and quot-elim (el-nat-eta, el-sum-eta,
 // el-quot-eta) gets NO leaf: it is proved by elimination into the
 // equality type and reflected, as the corpus does today.
 
-// No injectivity selectors, for now.
+// No injectivity selectors, for now (ty-rec-inj included).
 
 // ======= polynomials and ν ======
 // The polynomial 𝔽 is CARRIED by the core (ν 𝔽, corec 𝔽 f x): β reads
