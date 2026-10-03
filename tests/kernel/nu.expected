@@ -1,6 +1,6 @@
 accepted hd (t : ν (K ℕ × 𝕏)) : ℕ := (out ☐0) .π₁
 accepted tl (t : ν (K ℕ × 𝕏)) : ν (K ℕ × 𝕏) := (out ☐0) .π₂
-accepted cons (x : ℕ) (s : ν (K ℕ × 𝕏)) : ν (K ℕ × 𝕏) := corec (K ℕ × 𝕏) (. (☐0 .π₁, out ☐0 .π₂)) (☐1, ☐0)
+accepted cons (x : ℕ) (s : ν (K ℕ × 𝕏)) : ν (K ℕ × 𝕏) := corec (K ℕ × 𝕏) (. (☐0 .π₁, out (☐0 .π₂))) (☐1, ☐0)
 accepted iterate (f : ℕ → ℕ) (x : ℕ) : ν (K ℕ × 𝕏) := corec (K ℕ × 𝕏) (. (☐0, ☐2 ☐0)) ☐0
 accepted hdCons (x : ℕ) (s : ν (K ℕ × 𝕏)) : hd[cons[☐1, ☐0]] ≡ ☐1 ∈ ℕ := ⋆
 accepted hdIterate (f : ℕ → ℕ) (x : ℕ) : hd[iterate[☐1, ☐0]] ≡ ☐0 ∈ ℕ := ⋆

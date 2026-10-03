@@ -1,0 +1,101 @@
+-- the record forms in BLOCK layout: the items of records-inline.nk,
+-- an entry or a field per argument line. The runner requires the two
+-- outputs to coincide.
+
+plus (n : ℕ) (m : ℕ) : ℕ :=
+  ℕ-elim 𝕌₀
+    _. ℕ
+    n
+    k ih. S ih
+    m
+
+Magma : 𝕌₁ :=
+  Rec
+    carrier : 𝕌₀
+    unit : carrier
+    op : carrier → carrier → carrier
+
+-- the type of an item as a block, the definiens after it
+nat-magma :
+  Rec
+    carrier : 𝕌₀
+    unit : carrier
+    op : carrier → carrier → carrier
+  :=
+  record
+    carrier ↪ ℕ
+    unit ↪ Z
+    op ↪ λa b. plus[a, b]
+
+keyword-form : Rec (x : ℕ) (y : ℕ) :=
+  record
+    x ↪ Z
+    y ↪ S Z
+
+-- a block inside a block; a field's value on its own line; a bracket
+-- spread over lines
+nested :
+  Rec
+    inner :
+      Rec
+        x : ℕ
+        y : ℕ
+    more : Rec (z : ℕ)
+  :=
+  record
+    inner ↪
+      record
+        x ↪ Z
+        y ↪ S Z
+    more ↪ ⟨z ↪
+              S (S Z)⟩
+
+dependent :
+  Rec
+    A : 𝕌₀
+    a : A
+    h : a ≡ a ∈ A
+  :=
+  record
+    A ↪ ℕ
+    a ↪ Z
+    h ↪
+      reify
+        Z : ℕ
+
+empty-type : 𝕌₀ :=
+  Rec
+
+empty : Rec :=
+  record
+
+-- entries on the head's line, then on argument lines, parenthesised or bare
+mixed : 𝕌₀ :=
+  Rec (a : ℕ)
+    b : ℕ
+    (c : a ≡ b ∈ ℕ)
+
+-- a projection on a deeper line continues the spine above it
+project (f : ℕ → Rec (x : ℕ → ℕ)) : ℕ :=
+  f
+    Z
+    .x
+    S Z
+
+eta (r : Rec (x : ℕ) (y : ℕ)) : r ≡ ⟨x ↪ r .x, y ↪ r .y⟩ ∈ Rec (x : ℕ) (y : ℕ) :=
+  reify
+    ηRec r : Rec (x : ℕ) (y : ℕ)
+
+ext (r : Rec (x : ℕ)) (s : Rec (x : ℕ)) (hx : r .x ≡ s .x ∈ ℕ) : r ≡ s ∈ Rec (x : ℕ) :=
+  reify
+    ηRec r
+      ; record
+          x ↪ reflect hx
+      ; (ηRec s)⁻¹
+      : Rec (x : ℕ)
+
+in-binder : ℕ → Rec (x : ℕ) (h : x ≡ x ∈ ℕ) :=
+  λn.
+    record
+      x ↪ n
+      h ↪ ⌜n : ℕ⌝

@@ -1,26 +1,26 @@
 -- ⊎: injections check, the eliminator names its sort and synthesises
--- at the motive's instance; a type-valued elimination lands in 𝕌1
+-- at the motive's instance; a type-valued elimination lands in 𝕌₁
 
-isLeft (s : ℕ ⊎ 𝟙) : 𝕌0 :=
-  ⊎-elim 𝕌1
-    _. 𝕌0
+isLeft (s : ℕ ⊎ 𝟙) : 𝕌₀ :=
+  ⊎-elim 𝕌₁
+    _. 𝕌₀
     a. 𝟙
     b. 𝟘
     s
 
-isLeft-inl : isLeft[inj₁ Z] ≡ 𝟙 ∈ 𝕌0 := ⌜δ isLeft[inj₁ Z] : 𝕌0⌝
-isLeft-inr : isLeft[inj₂ ()] ≡ 𝟘 ∈ 𝕌0 := ⌜δ isLeft[inj₂ ()] : 𝕌0⌝
+isLeft-inl : isLeft[inj₁ Z] ≡ 𝟙 ∈ 𝕌₀ := ⌜δ isLeft[inj₁ Z] : 𝕌₀⌝
+isLeft-inr : isLeft[inj₂ ()] ≡ 𝟘 ∈ 𝕌₀ := ⌜δ isLeft[inj₂ ()] : 𝕌₀⌝
 
 -- a scrutinee that only checks must be annotated
 elim-inj : ℕ :=
-  ⊎-elim 𝕌0
+  ⊎-elim 𝕌₀
     _. ℕ
     a. a
     b. Z
     inj₁ (S Z)
 
 elim-inj-annot : ℕ :=
-  ⊎-elim 𝕌0
+  ⊎-elim 𝕌₀
     _. ℕ
     a. a
     b. Z
@@ -42,9 +42,9 @@ dep-cases (s : ℕ ⊎ 𝟙) : s ≡ s ∈ (ℕ ⊎ 𝟙) :=
     s
 
 -- 𝟘 eliminates into a type as well as into an element
-absurd-ty (e : 𝟘) : 𝕌0 := 𝟘-elim e
+absurd-ty (e : 𝟘) : 𝕌₀ := 𝟘-elim e
 absurd-at-omega (e : 𝟘) : Ω := 𝟘-elim e
 
 -- the sort of a sum is the join of its summands' sorts
-sum-small : 𝕌0 := ℕ ⊎ 𝟙
-sum-with-prop : 𝕌0 := ℕ ⊎ (Z ≡ Z ∈ ℕ)
+sum-small : 𝕌₀ := ℕ ⊎ 𝟙
+sum-with-prop : 𝕌₀ := ℕ ⊎ (Z ≡ Z ∈ ℕ)

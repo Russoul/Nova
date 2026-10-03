@@ -1,10 +1,10 @@
 accepted prop : Ω := ℕ → Z ≡ Z ∈ ℕ
-accepted fam : 𝕌1 := ℕ → 𝕌0
-accepted fam-up : 𝕌2 := fam
+accepted fam : 𝕌₁ := ℕ → 𝕌₀
+accepted fam-up : 𝕌₂ := fam
 rejected fam-down (line 6): the definiens: lift: the source sort is not below the target
-accepted omega1 : 𝕌1 := Ω
+accepted omega1 : 𝕌₁ := Ω
 rejected omega0 (line 8): the definiens: the synthesised and the expected type do not agree
-accepted pair-of-props : 𝕌0 := Z ≡ Z ∈ ℕ × Z ≡ Z ∈ ℕ
-accepted sum-level : 𝕌1 := ℕ ⊎ 𝕌0
-accepted prop-as-code : 𝕌0 := Z ≡ Z ∈ ℕ
+accepted pair-of-props : 𝕌₀ := Z ≡ Z ∈ ℕ × Z ≡ Z ∈ ℕ
+accepted sum-level : 𝕌₁ := ℕ ⊎ 𝕌₀
+accepted prop-as-code : 𝕌₀ := Z ≡ Z ∈ ℕ
 exit 1

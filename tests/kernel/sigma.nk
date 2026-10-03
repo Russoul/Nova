@@ -1,7 +1,7 @@
 -- Σ: a subset type as a dependent pair, its projections and their
 -- computation; the sort of a product is the join, never Ω
 
-Zeros : 𝕌0 := (n : ℕ) × (n ≡ Z ∈ ℕ)
+Zeros : 𝕌₀ := (n : ℕ) × (n ≡ Z ∈ ℕ)
 zero-witness : (n : ℕ) × (n ≡ Z ∈ ℕ) := (Z, ⌜Z : ℕ⌝)
 first : ℕ := zero-witness .π₁
 second : zero-witness .π₁ ≡ Z ∈ ℕ := zero-witness .π₂
@@ -9,7 +9,7 @@ first-is-Z : zero-witness .π₁ ≡ Z ∈ ℕ := ⌜δ zero-witness .π₁ : �
 
 -- the same element at the item Zeros: converted across Zeros' unfolding,
 -- and projected only after converting back
-at-Zeros : Zeros := conv zero-witness (δ Zeros⁻¹ : 𝕌0)
+at-Zeros : Zeros := conv zero-witness (δ Zeros⁻¹ : 𝕌₀)
 first-at-Zeros : ℕ := (conv at-Zeros (δ Zeros) : (n : ℕ) × (n ≡ Z ∈ ℕ)) .π₁
 first-at-Zeros-stuck : ℕ := at-Zeros .π₁
 
@@ -18,5 +18,5 @@ not-a-pair : ℕ := (Z, Z)
 not-a-sigma : ℕ := (Z : ℕ) .π₁
 
 -- products of propositions are small types, not propositions
-prod-of-props : 𝕌0 := (Z ≡ Z ∈ ℕ) × (Z ≡ Z ∈ ℕ)
+prod-of-props : 𝕌₀ := (Z ≡ Z ∈ ℕ) × (Z ≡ Z ∈ ℕ)
 prod-of-props-at-omega : Ω := (Z ≡ Z ∈ ℕ) × (Z ≡ Z ∈ ℕ)

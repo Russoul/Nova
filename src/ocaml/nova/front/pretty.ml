@@ -4,7 +4,18 @@
 
 open Core
 
-let sort = function Omega -> "Ω" | U l -> "𝕌" ^ string_of_int l
+(* a universe level is written in subscript digits, as it is read *)
+let subscript (n : int) : string =
+  String.concat ""
+    (List.map
+       (fun c ->
+         let b = Buffer.create 4 in
+         Buffer.add_utf_8_uchar b
+           (Uchar.of_int (0x2080 + Char.code c - Char.code '0'));
+         Buffer.contents b)
+       (List.of_seq (String.to_seq (string_of_int n))))
+
+let sort = function Omega -> "Ω" | U l -> "𝕌" ^ subscript l
 
 (* precedence: 0 arrow/chain-free, 1 product, 2 equation, 3 application, 4 atom *)
 let rec go (p : int) (t : tm) : string =
@@ -22,8 +33,22 @@ let rec go (p : int) (t : tm) : string =
   | App (f, a) -> paren 3 (go 3 f ^ " " ^ go 4 a)
   | Sigma (a, b) -> paren 1 (go 2 a ^ " × " ^ go 1 b)
   | Pair (a, b) -> "(" ^ go 0 a ^ ", " ^ go 0 b ^ ")"
-  | Fst e -> go 4 e ^ " .π₁"
-  | Snd e -> go 4 e ^ " .π₂"
+  | Fst e -> paren 3 (postfix_head e ^ " .π₁")
+  | Snd e -> paren 3 (postfix_head e ^ " .π₂")
+  | Rec ([], _) -> "Rec"
+  | Rec (ls, d) ->
+      (* in the telescope's order; an entry under the ones before it *)
+      paren 3
+        ("Rec "
+        ^ String.concat " "
+            (List.rev
+               (List.map2 (fun l a -> "(" ^ l ^ " : " ^ go 0 a ^ ")") ls d)))
+  | Record (ls, es) ->
+      "⟨"
+      ^ String.concat ", "
+          (List.rev (List.map2 (fun l e -> l ^ " ↪ " ^ go 0 e) ls es))
+      ^ "⟩"
+  | Field (e, l) -> paren 3 (postfix_head e ^ " ." ^ l)
   | Sum (a, b) -> paren 1 (go 2 a ^ " ⊎ " ^ go 2 b)
   | Inl a -> app "inj₁" [ a ]
   | Inr a -> app "inj₂" [ a ]
@@ -56,6 +81,12 @@ let rec go (p : int) (t : tm) : string =
       paren 3
         (short sg ^ ".⬡" ^ string_of_int i ^ "-elim" ^ spine ms ^ spine es ^ " "
        ^ go 4 w)
+
+(* What a projection is applied to. A postfix applies to the whole
+   spine before it, so a projection in argument position is
+   parenthesised (by its own paren 3), and a chain r .a .b is not. *)
+and postfix_head e =
+  match e with Field _ | Fst _ | Snd _ -> go 3 e | _ -> go 4 e
 
 and spine es =
   if es = [] then ""

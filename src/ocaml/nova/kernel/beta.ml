@@ -1,6 +1,6 @@
 (* β, and nothing else: the computation rules the checker runs under a
    FUEL budget (docs/NovaKernel.txt, CONVENTIONS). β proper, the
-   ι-rules of ⊎, /, ℕ, let-β, ν-β and QIIT-β; never δ — an item
+   ι-rules of ⊎, /, ℕ, let-β, record-β, ν-β and QIIT-β; never δ — an item
    reference is stuck. Exhaustion is rejection, so every comparison
    terminates. *)
 
@@ -34,6 +34,18 @@ let rec whnf f t =
           step f;
           whnf f b
       | p' -> Snd p')
+  | Field (r, l) -> (
+      (* el-rec-beta: ⟨l̄ ↪ ē⟩.l ⇝ the component at l, by lookup in the
+         literal; no type is consulted. A label the literal lacks is
+         stuck. *)
+      match whnf f r with
+      | Record (ls, es) as r' -> (
+          match component ls es l with
+          | Some e ->
+              step f;
+              whnf f e
+          | None -> Field (r', l))
+      | r' -> Field (r', l))
   | SumElim (l, r, t) -> (
       match whnf f t with
       | Inl a ->
@@ -95,6 +107,13 @@ let rec whnf f t =
       | w' -> QElim (sg, i, ms, es, w'))
   | _ -> t
 
+(* (l̄ ↪ ē)(l): the component at a label, the two lists read in
+   parallel *)
+and component ls es l =
+  match (ls, es) with
+  | l' :: ls', e :: es' -> if l' = l then Some e else component ls' es' l
+  | _ -> None
+
 (* Full β-conversion: whnf both sides, then compare the heads and
    recurse into the parts. No η anywhere — the η's are proof leaves. *)
 and conv f t u =
@@ -109,6 +128,10 @@ and conv f t u =
   | App (g, a), App (g', a') -> conv f g g' && conv f a a'
   | Pair (a, b), Pair (a', b') -> conv f a a' && conv f b b'
   | Fst p, Fst p' | Snd p, Snd p' -> conv f p p'
+  (* records: ONE label list, compared as syntax *)
+  | Rec (ls, d), Rec (ls', d') -> ls = ls' && convs f d d'
+  | Record (ls, es), Record (ls', es') -> ls = ls' && convs f es es'
+  | Field (r, l), Field (r', l') -> l = l' && conv f r r'
   | Inl a, Inl a' | Inr a, Inr a' -> conv f a a'
   | SumElim (l, r, t), SumElim (l', r', t') ->
       conv f l l' && conv f r r' && conv f t t'

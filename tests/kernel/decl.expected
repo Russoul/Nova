@@ -1,4 +1,4 @@
-accepted A : 𝕌0
+accepted A : 𝕌₀
 accepted a : A
 accepted f : A → A
 accepted ax : a ≡ f a ∈ A

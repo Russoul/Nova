@@ -1,24 +1,25 @@
-accepted u0 : 𝕌1 := 𝕌0
-accepted u1 : 𝕌2 := 𝕌1
+accepted u0 : 𝕌₁ := 𝕌₀
+accepted u1 : 𝕌₂ := 𝕌₁
 rejected u0-not-u0 (line 6): the definiens: the synthesised and the expected type do not agree
-accepted u0-lifted : 𝕌2 := 𝕌0
+accepted u0-lifted : 𝕌₂ := 𝕌₀
 rejected u0-lifted-twice (line 8): the definiens: this proof only checks; annotate it to synthesise
-accepted u0-lifted-twice-annot : 𝕌3 := 𝕌0
-accepted poly-id-ty : 𝕌1 := 𝕌0 → ☐0 → ☐1
-accepted poly-id-ty-large : 𝕌2 := 𝕌1 → ☐0 → ☐1
+accepted u0-lifted-twice-annot : 𝕌₃ := 𝕌₀
+accepted poly-id-ty : 𝕌₁ := 𝕌₀ → ☐0 → ☐1
+accepted poly-id-ty-large : 𝕌₂ := 𝕌₁ → ☐0 → ☐1
 rejected poly-id-ty-too-small (line 14): the definiens: the synthesised and the expected type do not agree
-accepted pair-of-universes : 𝕌1 := 𝕌0 × 𝕌0
-accepted family-of-large : 𝕌2 := ℕ → 𝕌1
-accepted sigma-large : 𝕌2 := 𝕌1 × ☐0
+accepted pair-of-universes : 𝕌₁ := 𝕌₀ × 𝕌₀
+accepted family-of-large : 𝕌₂ := ℕ → 𝕌₁
+accepted sigma-large : 𝕌₂ := 𝕌₁ × ☐0
 rejected unlifted (line 20): a context entry: the synthesised and the expected type do not agree
-accepted poly-id (A : 𝕌0) (x : ☐0) : ☐1 := ☐0
-accepted poly-id-at-large : 𝕌2 := 𝕌0 → ☐0 → ☐1
+accepted poly-id (A : 𝕌₀) (x : ☐0) : ☐1 := ☐0
+accepted poly-id-at-large : 𝕌₂ := 𝕌₀ → ☐0 → ☐1
 rejected props-as-family (line 28): the definiens: the synthesised and the expected type do not agree
-accepted props-as-family-ok (f : ℕ → Ω) : ℕ → 𝕌0 := λ. ☐1 ☐0
-accepted const-prop (p : Ω) : ℕ → 𝕌0 := λ. ☐1
-accepted restr (A : 𝕌0) (B : 𝕌0) (h : ☐1 ≡ ☐0 ∈ 𝕌1) : ☐2 ≡ ☐1 ∈ 𝕌0 := ⋆
-accepted restr-props (p : Ω) (q : Ω) (h : ☐1 ≡ ☐0 ∈ 𝕌0) : ☐2 ≡ ☐1 ∈ Ω := ⋆
+accepted props-as-family-ok (f : ℕ → Ω) : ℕ → 𝕌₀ := λ. ☐1 ☐0
+accepted const-prop (p : Ω) : ℕ → 𝕌₀ := λ. ☐1
+accepted restr (A : 𝕌₀) (B : 𝕌₀) (h : ☐1 ≡ ☐0 ∈ 𝕌₁) : ☐2 ≡ ☐1 ∈ 𝕌₀ := ⋆
+accepted restr-props (p : Ω) (q : Ω) (h : ☐1 ≡ ☐0 ∈ 𝕌₀) : ☐2 ≡ ☐1 ∈ Ω := ⋆
 rejected restr-wrong-way (line 41): the definiens: restrict: the target sort is not below the source
 rejected restr-not-a-code (line 44): the definiens: restrict: the right witness: the synthesised and the expected type do not agree
-accepted lift-eq (A : 𝕌0) (B : 𝕌0) (h : ☐1 ≡ ☐0 ∈ 𝕌0) : ☐2 ≡ ☐1 ∈ 𝕌1 := ⋆
+accepted lift-eq (A : 𝕌₀) (B : 𝕌₀) (h : ☐1 ≡ ☐0 ∈ 𝕌₀) : ☐2 ≡ ☐1 ∈ 𝕌₁ := ⋆
+rejected plain-digit (line 51): the type: unknown item '𝕌0'
 exit 1

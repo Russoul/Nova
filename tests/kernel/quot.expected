@@ -1,4 +1,4 @@
-accepted Q : 𝕌0 := ℕ / (.. ∥𝟙∥)
+accepted Q : 𝕌₀ := ℕ / (.. ∥𝟙∥)
 accepted const (q : Q) : ℕ := quot-elim (. Z) ☐0
 rejected rep (line 14): the definiens: quot-elim: the well-definedness proof's right side and f do not agree
 accepted q-prop (q : Q) : ∥𝟙∥ := quot-elim (. ⋆) ☐0

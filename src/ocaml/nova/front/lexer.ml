@@ -1,6 +1,6 @@
 (* The lexer of the proof language. Hand-written over UTF-8 code
-   points, so the Unicode of docs/NovaKernel.txt lexes directly; every
-   symbol has an ASCII spelling beside it. Identifiers may contain '-'
+   points, so the Unicode of docs/NovaKernel.txt lexes directly. Each
+   symbol has ONE spelling, the document's. Identifiers may contain '-'
    (ℕ-elim, quot-eq, two-is-SSZ), so keywords are identifiers the
    parser recognises. *)
 
@@ -14,24 +14,32 @@ type kind =
   | DOT
   | COLON
   | SEMI
-  | ARROW (* → -> *)
-  | TIMES (* × * *)
-  | SUM (* ⊎ + *)
+  | ARROW (* → *)
+  | TIMES (* × *)
+  | SUM (* ⊎ *)
   | SLASH
-  | EQUIV (* ≡ == *)
-  | MEMBER (* ∈ @ *)
-  | LAM (* λ \ *)
-  | BAR2 (* ∥ || *)
-  | INV (* ⁻¹ ^-1 *)
+  | EQUIV (* ≡ *)
+  | MEMBER (* ∈ *)
+  | LAM (* λ *)
+  | BAR2 (* ∥ *)
+  | INV (* ⁻¹ *)
   | DEF (* := *)
   | UNIT (* () *)
-  | PROJ1 (* .π₁ .1 *)
-  | PROJ2 (* .π₂ .2 *)
-  | ARROW2 (* ⇛ =>> *)
-  | LQUOTE (* ⌜ [| *)
-  | RQUOTE (* ⌝ |] *)
-  | LUNQUOTE (* ⌞ (| *)
-  | RUNQUOTE (* ⌟ |) *)
+  | PROJ1 (* .π₁ *)
+  | PROJ2 (* .π₂ *)
+  | ARROW2 (* ⇛ *)
+  | LQUOTE (* ⌜ *)
+  | RQUOTE (* ⌝ *)
+  | LUNQUOTE (* ⌞ *)
+  | RUNQUOTE (* ⌟ *)
+  | LANGLE (* ⟨ *)
+  | RANGLE (* ⟩ *)
+  | MAPSTO (* ↪ *)
+  | FIELD of string
+    (* .l, a record projection: the dot glued to the label and NOT glued
+       to an identifier before it — r .l, (f x).l. A binder's dot
+       (λx. e) is followed by a space, a data entry's (Bag.ins) is glued
+       on both sides; both stay DOT. *)
   | EOF
 
 type tok = { kind : kind; line : int; col : int }
@@ -87,6 +95,8 @@ let symbol = function
   | 0x2225 (* ∥ *)
   | 0x207B (* ⁻ *)
   | 0x231C | 0x231D | 0x231E | 0x231F (* ⌜ ⌝ ⌞ ⌟ *)
+  | 0x27E8 | 0x27E9 (* ⟨ ⟩ *)
+  | 0x21AA (* ↪ *)
   | 0x21DB (* ⇛ *) ->
       true
   | _ -> false
@@ -159,20 +169,7 @@ let tokenize (src : string) : tok list =
         i := !i + 2
       in
       if two 0x28 0x29 then two_ UNIT
-      else if cp !i = 0x3D && cp (!i + 1) = 0x3E && cp (!i + 2) = 0x3E then (
-        emit start ARROW2;
-        i := !i + 3)
-      else if two 0x5B 0x7C then two_ LQUOTE
-      else if two 0x7C 0x5D then two_ RQUOTE
-      else if two 0x28 0x7C then two_ LUNQUOTE
-      else if two 0x7C 0x29 then two_ RUNQUOTE
-      else if two 0x2D 0x3E then two_ ARROW
-      else if two 0x3D 0x3D then two_ EQUIV
-      else if two 0x7C 0x7C then two_ BAR2
       else if two 0x3A 0x3D then two_ DEF
-      else if cp !i = 0x5E && cp (!i + 1) = 0x2D && cp (!i + 2) = 0x31 then (
-        emit start INV;
-        i := !i + 3)
       else if two 0x207B 0xB9 then two_ INV
       else if cp !i = 0x2E && cp (!i + 1) = 0x3C0 && cp (!i + 2) = 0x2081 then (
         emit start PROJ1;
@@ -180,8 +177,23 @@ let tokenize (src : string) : tok list =
       else if cp !i = 0x2E && cp (!i + 1) = 0x3C0 && cp (!i + 2) = 0x2082 then (
         emit start PROJ2;
         i := !i + 3)
-      else if two 0x2E 0x31 && not (is_id_cont (cp (!i + 2))) then two_ PROJ1
-      else if two 0x2E 0x32 && not (is_id_cont (cp (!i + 2))) then two_ PROJ2
+      else if
+        c = 0x2E
+        && is_id_start (cp (!i + 1))
+        && not (!i > 0 && is_id_cont (cp (!i - 1)))
+      then begin
+        (* .l: a record projection *)
+        let j = ref (!i + 2) in
+        let continue = ref true in
+        while !continue do
+          if is_id_cont (cp !j) then incr j
+          else if cp !j = 0x2D && is_id_cont (cp (!j + 1)) then j := !j + 2
+          else continue := false
+        done;
+        emit start
+          (FIELD (encode (List.init (!j - !i - 1) (fun k -> cp (!i + 1 + k)))));
+        i := !j
+      end
       else if c = 0x228E && cp (!i + 1) = 0x2D then begin
         (* ⊎-elim *)
         let j = ref (!i + 2) in
@@ -202,18 +214,21 @@ let tokenize (src : string) : tok list =
         | 0x3A -> one COLON
         | 0x3B -> one SEMI
         | 0x2192 -> one ARROW
-        | 0xD7 | 0x2A -> one TIMES
-        | 0x228E | 0x2B -> one SUM
+        | 0xD7 -> one TIMES
+        | 0x228E -> one SUM
         | 0x2F -> one SLASH
         | 0x2261 -> one EQUIV
-        | 0x2208 | 0x40 -> one MEMBER
-        | 0x3BB | 0x5C -> one LAM
+        | 0x2208 -> one MEMBER
+        | 0x3BB -> one LAM
         | 0x2225 -> one BAR2
         | 0x21DB -> one ARROW2
         | 0x231C -> one LQUOTE
         | 0x231D -> one RQUOTE
         | 0x231E -> one LUNQUOTE
         | 0x231F -> one RUNQUOTE
+        | 0x27E8 -> one LANGLE
+        | 0x27E9 -> one RANGLE
+        | 0x21AA -> one MAPSTO
         | _ -> err !i (Printf.sprintf "unexpected character U+%04X" c)
     end
   done;

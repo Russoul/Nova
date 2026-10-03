@@ -1,10 +1,10 @@
 -- quotients: a scrutinee whose type is an item is stuck until exposed
 
-Q : 𝕌0 := ℕ / (x y. ∥𝟙∥)
+Q : 𝕌₀ := ℕ / (x y. ∥𝟙∥)
 
--- expose Q, then eliminate at 𝕌0: the constant function is well defined
+-- expose Q, then eliminate at 𝕌₀: the constant function is well defined
 const (q : Q) : ℕ :=
-  quot-elim 𝕌0
+  quot-elim 𝕌₀
     _. ℕ
     x. Z
     x y h. Z
@@ -12,7 +12,7 @@ const (q : Q) : ℕ :=
 
 -- the representative is not
 rep (q : Q) : ℕ :=
-  quot-elim 𝕌0
+  quot-elim 𝕌₀
     _. ℕ
     x. x
     x y h. x
@@ -28,7 +28,7 @@ q-prop (q : Q) : ∥𝟙∥ :=
 
 -- without exposing, the eliminator sees an item
 stuck (q : Q) : ℕ :=
-  quot-elim 𝕌0
+  quot-elim 𝕌₀
     _. ℕ
     x. Z
     x y h. Z
@@ -39,8 +39,8 @@ same : class Z ≡ class (S Z) ∈ (ℕ / (x y. ∥𝟙∥)) :=
   ⌜quot-eq Z (S Z) (squash ()) : ℕ / (x y. ∥𝟙∥)⌝
 
 -- and stated at Q, where every class must be converted across Q's unfolding
-same-at-Q : (conv (class Z) (δ Q⁻¹ : 𝕌0)) ≡ (conv (class (S Z)) (δ Q⁻¹ : 𝕌0)) ∈ Q :=
-  ⌜conv (quot-eq Z (S Z) (squash ())) (δ Q⁻¹ : 𝕌0) : Q⌝
+same-at-Q : (conv (class Z) (δ Q⁻¹ : 𝕌₀)) ≡ (conv (class (S Z)) (δ Q⁻¹ : 𝕌₀)) ∈ Q :=
+  ⌜conv (quot-eq Z (S Z) (squash ())) (δ Q⁻¹ : 𝕌₀) : Q⌝
 
 -- a class against the item Q is stuck
 class-at-Q : class Z ≡ class Z ∈ Q := ⌜class Z : Q⌝

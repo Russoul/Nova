@@ -126,7 +126,10 @@
 // of the QIIT section). A label is INERT — compared syntactically, never
 // bound, never substituted for — so a record's body is an ordinary
 // spine of Δ and its proof an ordinary spine proof. The formation rule
-// is with the other formers (𝕌-type), η with the leaves.
+// is with the other formers (𝕌-type), η with the leaves. In the concrete
+// syntax a label doubles as the binder name of its entry, a projection
+// is the postfix ρ .l, and the record has two spellings: ⟨l ↪ α, …⟩
+// inline and the keyword record, a field per line, in block layout.
 
 Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ Δ
 ---------------------------------------------- // el-rec-i. The labels are the TYPE's, in its order: a

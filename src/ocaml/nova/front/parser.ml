@@ -11,17 +11,24 @@
      arrow  ::= prod ['→' arrow]                     (x : A) → B binds x
      prod   ::= eq ['×' prod | '⊎' prod | '/' (x y. expr)]
      eq     ::= app ['≡' app '∈' app]
-     app    ::= (form | atom) (atom | '.π₁' | '.π₂' | '⁻¹' | ⟪arg⟫)*
+     app    ::= (form | atom) (atom | '.π₁' | '.π₂' | '.l' | '⁻¹' | ⟪arg⟫)*
                                      a postfix applies to the whole spine before it:
-                                     f x .π₁ is (f x) .π₁, reflect h⁻¹ is (reflect h)⁻¹
+                                     f x .π₁ is (f x) .π₁, reflect h⁻¹ is (reflect h)⁻¹;
+                                     r .l projects a record at the label l
      atom   ::= NAME ['[' expr, … ']'] | 'δ' NAME ['[' … ']'] | sort
               | '(' expr ')' | '(' expr ',' expr ')' | '(' expr ':' expr ')'
               | '⌜' expr [':' expr] '⌝'        inline reify: the equation as a proposition
               | '⌞' expr [':' expr] '⌟'        inline reflect: the proposition as its equation
               | 'λ' NAME+ '.' expr | '∥' expr '∥' | 'let' NAME NAME ':=' expr 'in' expr
+              | '⟨' [l '↪' expr (',' l '↪' expr)*] '⟩'    inline record
      form   ::= keyword slots, a binder slot written (x y. expr) or ⟪x y. expr⟫;
                 a form is a spine head: it may take further arguments;
                 reify α and reflect α are the block spellings of the corners
+     records:   Rec (l : A) (l′ : B) …       the record type; a label BINDS in the
+                                             entries after it (named here, a
+                                             nameless telescope in the kernel)
+                record (l ↪ a) (l′ ↪ b) …    the record, the block spelling of ⟨…⟩
+                on argument lines the entries are bare:  l : A  and  l ↪ a
 
    LAYOUT. The file is a block at column 1: an item starts there and
    its other lines are indented. Inside, three rules:
@@ -125,37 +132,31 @@ let rec index_of x = function
   | y :: rest -> if x = y then Some 0 else Option.map succ (index_of x rest)
 
 let subscript_digit c =
-  if c >= 0x30 && c <= 0x39 then Some (c - 0x30)
-  else if c >= 0x2080 && c <= 0x2089 then Some (c - 0x2080)
-  else None
+  if c >= 0x2080 && c <= 0x2089 then Some (c - 0x2080) else None
 
+(* Ω, or 𝕌 followed by its level in SUBSCRIPT digits: 𝕌₀, 𝕌₁₂ *)
 let sort_of_id (s : string) : sort option =
   let cps = Array.to_list (Array.map (fun (c, _, _) -> c) (Lexer.decode s)) in
+  let digits = function
+    | [] -> None
+    | ds ->
+        List.fold_left
+          (fun acc d ->
+            match (acc, subscript_digit d) with
+            | Some n, Some k -> Some ((n * 10) + k)
+            | _ -> None)
+          (Some 0) ds
+  in
   match cps with
   | [ 0x3A9 ] -> Some Omega
-  | _ -> (
-      if s = "Omega" then Some Omega
-      else
-        let digits = function
-          | [] -> None
-          | ds ->
-              List.fold_left
-                (fun acc d ->
-                  match (acc, subscript_digit d) with
-                  | Some n, Some k -> Some ((n * 10) + k)
-                  | _ -> None)
-                (Some 0) ds
-        in
-        match cps with
-        | 0x1D54C :: ds | 0x55 :: ds -> Option.map (fun l -> U l) (digits ds)
-        | _ -> None)
+  | 0x1D54C :: ds -> Option.map (fun l -> U l) (digits ds)
+  | _ -> None
 
 let is_form = function
-  | "reify" | "reflect" | "lift" | "S" | "class" | "squash" | "inj₁" | "inj1"
-  | "inj₂" | "inj2" | "𝟘-elim" | "Void-elim" | "η→" | "eta->" | "η×" | "eta*"
-  | "conv" | "irrel" | "quot-eq" | "prop-irrel" | "restrict" | "unsquash"
-  | "propext" | "ℕ-elim" | "Nat-elim" | "⊎-elim" | "Sum-elim" | "quot-elim"
-  | "ν" | "nu" | "out" | "corec" | "ην" | "eta-nu" | "coind" ->
+  | "reify" | "reflect" | "lift" | "S" | "class" | "squash" | "inj₁" | "inj₂"
+  | "𝟘-elim" | "η→" | "η×" | "conv" | "irrel" | "quot-eq" | "prop-irrel"
+  | "restrict" | "unsquash" | "propext" | "ℕ-elim" | "⊎-elim" | "quot-elim"
+  | "ν" | "out" | "corec" | "ην" | "coind" | "Rec" | "record" | "ηRec" ->
       true
   | _ -> false
 
@@ -163,31 +164,21 @@ let is_form = function
 let is_keyword s =
   is_form s
   || List.mem s
-       [
-         "let";
-         "in";
-         "δ";
-         "delta";
-         "𝟘";
-         "Void";
-         "𝟙";
-         "Unit";
-         "ℕ";
-         "Nat";
-         "Z";
-         "𝕏";
-         "K";
-         "U";
-         "El";
-         "data";
-       ]
+       [ "let"; "in"; "δ"; "𝟘"; "𝟙"; "ℕ"; "Z"; "𝕏"; "K"; "U"; "El"; "data" ]
   || Option.is_some (sort_of_id s)
+
+(* A record label: a name that is not a keyword. *)
+let label st =
+  let t = peek st in
+  let l = ident st in
+  if is_keyword l then err_at t (l ^ " is a keyword; it cannot be a label");
+  l
 
 (* Can this token begin a term? *)
 let term_initial st (t : tok) =
   match t.kind with
   | ID "in" -> false
-  | ID _ | LPAREN | UNIT | LAM | LQUOTE | LUNQUOTE -> true
+  | ID _ | LPAREN | UNIT | LAM | LQUOTE | LUNQUOTE | LANGLE -> true
   | BAR2 -> st.squash = 0
   | _ -> false
 
@@ -301,6 +292,20 @@ and app st env =
     | INV when continues st ->
         advance st;
         loop (P.Sym h)
+    | FIELD l when continues st ->
+        advance st;
+        loop (P.Field (h, l))
+    | DOT
+      when same_line st
+           &&
+           let d = peek st and n = peek_at st 1 in
+           match n.kind with
+           | ID _ -> n.line = d.line && n.col = d.col + 1
+           | _ -> false ->
+        err st
+          "a '.' glued to the name before it: a record projection is written \
+           with a space before the dot (r .l), and a data entry needs a \
+           declared data name"
     | _ ->
         if starts_atom st then loop (P.App (h, atom st env))
         else if arg_line st sp then loop (P.App (h, block_arg st env))
@@ -365,11 +370,14 @@ and form st env sp s : P.t =
   | "S" -> P.S (a ())
   | "class" -> P.Class (a ())
   | "squash" -> P.Squash (a ())
-  | "inj₁" | "inj1" -> P.Inl (a ())
-  | "inj₂" | "inj2" -> P.Inr (a ())
-  | "𝟘-elim" | "Void-elim" -> P.ZeroElim (a ())
-  | "η→" | "eta->" -> P.EtaPi (a ())
-  | "η×" | "eta*" -> P.EtaSigma (a ())
+  | "inj₁" -> P.Inl (a ())
+  | "inj₂" -> P.Inr (a ())
+  | "𝟘-elim" -> P.ZeroElim (a ())
+  | "η→" -> P.EtaPi (a ())
+  | "η×" -> P.EtaSigma (a ())
+  | "ηRec" -> P.EtaRec (a ())
+  | "Rec" -> P.Rec (rec_entries st env sp)
+  | "record" -> P.Record (record_fields st env sp)
   | "conv" ->
       let x = a () in
       let y = a () in
@@ -404,14 +412,14 @@ and form st env sp s : P.t =
       let g = b 1 in
       let i = b 1 in
       P.Propext (r, t, g, i)
-  | "ℕ-elim" | "Nat-elim" ->
+  | "ℕ-elim" ->
       let u = sort () in
       let m = b 1 in
       let z = a () in
       let s = b 2 in
       let t = a () in
       P.NatElim (u, m, z, s, t)
-  | "⊎-elim" | "Sum-elim" ->
+  | "⊎-elim" ->
       let u = sort () in
       let m = b 1 in
       let l = b 1 in
@@ -425,7 +433,7 @@ and form st env sp s : P.t =
       let w = b 3 in
       let q = a () in
       P.QuotElim (u, m, f, w, q)
-  | "ν" | "nu" -> P.Nu (poly st env)
+  | "ν" -> P.Nu (poly st env)
   | "out" -> P.Out (a ())
   | "corec" ->
       let f = poly st env in
@@ -433,7 +441,7 @@ and form st env sp s : P.t =
       ignore x;
       let seed = a () in
       P.Corec (f, carrier, body, seed)
-  | "ην" | "eta-nu" ->
+  | "ην" ->
       let f = poly st env in
       let _, carrier, body = carrier_binder st env sp in
       let h = b 1 in
@@ -448,6 +456,72 @@ and form st env sp s : P.t =
       let q = b 3 in
       P.Coind (t0, t1, r, p, q)
   | _ -> err st ("not a form: " ^ s)
+
+(* The entries of Rec: (l : A) on the head's line, or l : A on an
+   argument line. A label binds in the entries after it. A snoc list. *)
+and rec_entries st env sp : (name * P.t) list =
+  let entry env' =
+    let l = label st in
+    expect st COLON "':' after a record label";
+    let a = expr st env' in
+    (l, a)
+  in
+  let rec loop env' acc =
+    if same_line st then
+      match ((peek st).kind, (peek_at st 1).kind, (peek_at st 2).kind) with
+      | LPAREN, ID _, COLON ->
+          let l, a = parenthesised st (fun () -> entry env') in
+          loop (l :: env') ((l, a) :: acc)
+      | _ -> acc
+    else if arg_line st sp then
+      let l, a =
+        with_block st (peek st).col (fun () ->
+            if (peek st).kind = LPAREN then
+              parenthesised st (fun () -> entry env')
+            else entry env')
+      in
+      loop (l :: env') ((l, a) :: acc)
+    else acc
+  in
+  loop env []
+
+(* The fields of record: (l ↪ e) on the head's line, or l ↪ e on an
+   argument line. A snoc list. *)
+and record_fields st env sp : (name * P.t) list =
+  let rec loop acc =
+    if same_line st then
+      match ((peek st).kind, (peek_at st 1).kind, (peek_at st 2).kind) with
+      | LPAREN, ID _, MAPSTO ->
+          loop (parenthesised st (fun () -> record_field st env) :: acc)
+      | _ -> acc
+    else if arg_line st sp then
+      let f =
+        with_block st (peek st).col (fun () ->
+            if (peek st).kind = LPAREN then
+              parenthesised st (fun () -> record_field st env)
+            else record_field st env)
+      in
+      loop (f :: acc)
+    else acc
+  in
+  loop []
+
+and record_field st env : name * P.t =
+  let l = label st in
+  expect st MAPSTO "'↪' after a record label";
+  let e = expr st env in
+  (l, e)
+
+(* '(' … ')' around f, a ∥ inside opening afresh *)
+and parenthesised : 'a. state -> (unit -> 'a) -> 'a =
+ fun st f ->
+  expect st LPAREN "'('";
+  let saved = st.squash in
+  st.squash <- 0;
+  let r = f () in
+  st.squash <- saved;
+  expect st RPAREN "')'";
+  r
 
 (* corec's carrier binder (s : a. e): the name, the carrier, the body
    under the name; parenthesised, or bare on an argument line *)
@@ -493,7 +567,7 @@ and pprod st env : P.t poly =
 
 and patom st env : P.t poly =
   match (peek st).kind with
-  | ID ("𝕏" | "X") ->
+  | ID "𝕏" ->
       advance st;
       PX
   | ID "K" ->
@@ -812,6 +886,29 @@ and atom st env : P.t =
       st.squash <- saved;
       expect st BAR2 "'∥'";
       P.SquashTy e
+  | LANGLE ->
+      (* ⟨l ↪ e, …⟩: the inline record *)
+      advance st;
+      let saved = st.squash in
+      st.squash <- 0;
+      let rec fields acc =
+        if (peek st).kind = RANGLE then (
+          advance st;
+          acc)
+        else
+          let acc = record_field st env :: acc in
+          match (peek st).kind with
+          | COMMA ->
+              advance st;
+              fields acc
+          | RANGLE ->
+              advance st;
+              acc
+          | _ -> err st "expected ',' or '⟩'"
+      in
+      let fs = fields [] in
+      st.squash <- saved;
+      P.Record fs
   | LQUOTE -> corners st env RQUOTE "'⌝'" (fun e -> P.Refl e)
   | LUNQUOTE -> corners st env RUNQUOTE "'⌟'" (fun e -> P.Reflect e)
   | ID s -> (
@@ -827,13 +924,13 @@ and atom st env : P.t =
           | _ -> err st "expected 'in'");
           let b = expr st (h :: x :: env) in
           P.Let (a, b)
-      | "δ" | "delta" ->
+      | "δ" ->
           let x = ident st in
           P.Delta (x, spine_args st env)
       | "in" -> err st "'in' closes a let; it is not a name"
-      | "𝟘" | "Void" -> P.Zero
-      | "𝟙" | "Unit" -> P.One
-      | "ℕ" | "Nat" -> P.Nat
+      | "𝟘" -> P.Zero
+      | "𝟙" -> P.One
+      | "ℕ" -> P.Nat
       | "Z" -> P.Z
       | _ -> (
           match sort_of_id s with

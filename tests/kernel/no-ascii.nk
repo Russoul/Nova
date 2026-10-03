@@ -1,0 +1,2 @@
+-- each symbol has ONE spelling: an ASCII stand-in is not lexed
+f : ℕ -> ℕ := λn. n

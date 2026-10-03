@@ -2,7 +2,7 @@
 -- it; the hypothesis rewrites inside the body, and let-β computes
 
 plus (n : ℕ) (m : ℕ) : ℕ :=
-  ℕ-elim 𝕌0
+  ℕ-elim 𝕌₀
     _. ℕ
     n
     k ih. S ih

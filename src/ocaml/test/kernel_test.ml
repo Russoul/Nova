@@ -60,6 +60,50 @@ let () =
     | exception Reject "fuel exhausted" -> true
     | _ -> false);
 
+  (* --- records --- *)
+  (* a telescope entry sits under the entries before it: in
+     Rec (a : ℕ) (b : ☐0 ≡ ☐1 ∈ ℕ) the entry b sees a as ☐0 and the
+     context's ☐0 as ☐1 *)
+  let r = Rec ([ "b"; "a" ], [ Eq (Var 0, Var 1, Nat); Nat ]) in
+  check "telescope: instantiation passes under the earlier entries"
+    (Subst.apply (Subst.single Z) r
+    = Rec ([ "b"; "a" ], [ Eq (Var 0, Z, Nat); Nat ]));
+  check "telescope: weakening skips the earlier entries"
+    (Subst.weaken 1 r = Rec ([ "b"; "a" ], [ Eq (Var 0, Var 2, Nat); Nat ]));
+  check "record and projection: substitution is componentwise"
+    (Subst.apply (Subst.single Z)
+       (Field (Record ([ "y"; "x" ], [ Var 0; Var 1 ]), "x"))
+    = Field (Record ([ "y"; "x" ], [ Z; Var 0 ]), "x"));
+  let lit = Record ([ "y"; "x" ], [ S Z; Z ]) in
+  check "record-β: by lookup of the label"
+    (whnf (Field (lit, "x")) = Z && whnf (Field (lit, "y")) = S Z);
+  check "record-β: stuck at a label the literal lacks"
+    (whnf (Field (lit, "z")) = Field (lit, "z"));
+  check "record-β: stuck at a variable"
+    (whnf (Field (Var 0, "x")) = Field (Var 0, "x"));
+  check "record-β: the record itself is reduced first"
+    (conv (Field (App (Lam (Var 0), lit), "y")) (S Z));
+  check "records: components compared modulo β"
+    (conv
+       (Record ([ "x" ], [ App (Lam (Var 0), Z) ]))
+       (Record ([ "x" ], [ Z ])));
+  check "record types: labels are compared as syntax"
+    (not (conv (Rec ([ "x" ], [ Nat ])) (Rec ([ "y" ], [ Nat ]))));
+  check "record types: the order of labels matters"
+    (not
+       (conv
+          (Rec ([ "y"; "x" ], [ Nat; Nat ]))
+          (Rec ([ "x"; "y" ], [ Nat; Nat ]))));
+  check "record types: entries compared modulo β"
+    (conv (Rec ([ "x" ], [ App (Lam (Var 0), Nat) ])) (Rec ([ "x" ], [ Nat ])));
+  check "a record type is not its Σ chain"
+    (not (conv (Rec ([ "x" ], [ Nat ])) (Sigma (Nat, One))));
+  check "the empty record type is not 𝟙" (not (conv (Rec ([], [])) One));
+  check "projections: the label is compared"
+    (not (conv (Field (Var 0, "x")) (Field (Var 0, "y"))));
+  check "no η for records"
+    (not (conv (Record ([ "x" ], [ Field (Var 0, "x") ])) (Var 0)));
+
   (* --- the checker --- *)
   let module P = Proof in
   let sg = ref Sig.empty in

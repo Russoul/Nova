@@ -17,6 +17,11 @@ type t =
   | Snd of t (* α .π₂ *)
   | Pair of t * t (* [α, β] *)
   | Sigma of t * t (* α × β *)
+  (* records: label and proof per entry, a SNOC list *)
+  | Rec of (name * t) list
+    (* Rec l̄ ᾱ: each entry proof over the entries before it *)
+  | Record of (name * t) list (* ⟨l̄ ↪ ᾱ⟩ *)
+  | Field of t * name (* ρ .l *)
   (* ⊎ *)
   | Inl of t
   | Inr of t
@@ -64,6 +69,7 @@ type t =
   (* η *)
   | EtaPi of t (* η→ φ *)
   | EtaSigma of t (* η× π *)
+  | EtaRec of t (* ηRec ρ *)
   (* ν *)
   | Nu of t poly (* ν φ *)
   | Out of t

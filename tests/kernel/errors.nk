@@ -23,6 +23,6 @@ eta-not-pi : ℕ := (η→ Z ; Z)
 context-not-a-type (x : (Z : ℕ)) : ℕ := Z
 type-not-a-type : (Z : ℕ) := Z
 var-out-of-scope : ℕ := (λx. y : ℕ → ℕ) Z
-pi-domain-not-a-type : 𝕌0 := (Z : ℕ) → ℕ
+pi-domain-not-a-type : 𝕌₀ := (Z : ℕ) → ℕ
 eq-type-not-a-type : Ω := Z ≡ Z ∈ (Z : ℕ)
 refl-needs-synthesis : Z ≡ Z ∈ ℕ := ⌜Z⌝

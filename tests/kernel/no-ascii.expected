@@ -1,0 +1,2 @@
+no-ascii.nk:2:7: unexpected character U+002D
+exit 2

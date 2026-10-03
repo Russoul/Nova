@@ -1,7 +1,7 @@
 -- declarations: assumed types, elements, functions and equations,
 -- used like any item; a declaration has no definiens to unfold
 
-A : 𝕌0
+A : 𝕌₀
 a : A
 f : A → A
 ax : a ≡ f a ∈ A
@@ -18,4 +18,4 @@ h : p
 h-serves : h ≡ h ∈ p := ⌜prop-irrel p h h⌝
 
 -- an item may not be declared twice
-A : 𝕌0
+A : 𝕌₀

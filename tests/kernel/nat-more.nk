@@ -2,7 +2,7 @@
 -- induction, then REUSED through item references with spines
 
 plus (n : ℕ) (m : ℕ) : ℕ :=
-  ℕ-elim 𝕌0
+  ℕ-elim 𝕌₀
     _. ℕ
     n
     k ih. S ih
@@ -54,7 +54,7 @@ plusComm (n : ℕ) (m : ℕ) : plus[m, n] ≡ plus[n, m] ∈ ℕ :=
 -- S is injective through its retraction pred: a congruence of an item
 -- applied to the reflected hypothesis, computed at both ends
 pred (n : ℕ) : ℕ :=
-  ℕ-elim 𝕌0
+  ℕ-elim 𝕌₀
     _. ℕ
     Z
     k ih. k

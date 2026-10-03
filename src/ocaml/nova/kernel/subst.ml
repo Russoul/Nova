@@ -45,6 +45,9 @@ and apply s t =
   | Pair (a, b) -> Pair (apply s a, apply s b)
   | Fst p -> Fst (apply s p)
   | Snd p -> Snd (apply s p)
+  | Rec (ls, d) -> Rec (ls, tele s d)
+  | Record (ls, es) -> Record (ls, List.map (apply s) es)
+  | Field (t, l) -> Field (apply s t, l)
   | Sum (a, b) -> Sum (apply s a, apply s b)
   | Inl a -> Inl (apply s a)
   | Inr b -> Inr (apply s b)
@@ -77,6 +80,12 @@ and apply s t =
           List.map (apply s) ms,
           List.map (apply s) es,
           apply s w )
+
+(* Δ[σ]: a telescope is a snoc list, and its entry at list position k
+   sits under the n - 1 - k entries before it. *)
+and tele s d =
+  let n = List.length d in
+  List.mapi (fun k a -> apply (lift_n (n - 1 - k) s) a) d
 
 (* The embedded Nova pieces of a polynomial or a signature sit under
    the Nova binders the grammar opened above them. *)

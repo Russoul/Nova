@@ -38,6 +38,13 @@ type tm =
   | Pair of tm * tm
   | Fst of tm
   | Snd of tm
+  (* records: a telescope with a label per entry. Labels and telescope
+     are parallel SNOC lists — the head is the newest entry — and the
+     entry at depth d (d entries before it) is under those d binders.
+     A label is inert: compared as a string, never bound. *)
+  | Rec of name list * tm list (* Rec l̄ Δ *)
+  | Record of name list * tm list (* ⟨l̄ ↪ ē⟩: a spine of Δ, labelled *)
+  | Field of tm * name (* t.l *)
   (* ⊎ *)
   | Sum of tm * tm
   | Inl of tm

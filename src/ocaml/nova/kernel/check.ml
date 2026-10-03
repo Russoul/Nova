@@ -72,6 +72,26 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
       let a0, a1, u = infer_sort st "Σ: the first component" ctx a in
       let b0, b1, u' = infer_sort st "Σ: the second component" (a1 :: ctx) b in
       (Sigma (a0, b0), Sigma (a1, b1), Sort (join_sorts u u'))
+  (* ------ records ------ *)
+  | P.Rec entries ->
+      (* ty-rec in full: ONE label list on both sides, distinct; the
+         record is at the level of its telescope *)
+      let ls = List.map fst entries in
+      distinct "Rec" ls;
+      let d0, d1, l = tele_eq st ctx (List.map snd entries) in
+      (Rec (ls, d0), Rec (ls, d1), Sort (U l))
+  | P.Field (rho, l) ->
+      (* el-rec-e: Δ's entry at l over r₁'s projections at the earlier
+         labels *)
+      let r0, r1, t = infer st ctx rho in
+      let ls, d = as_rec st ("." ^ l) t in
+      let entry, earlier =
+        match field ls d l with
+        | Some x -> x
+        | None -> reject ".%s: the record type has no such label" l
+      in
+      let projs = List.map (fun l' -> Field (r1, l')) earlier in
+      (Field (r0, l), Field (r1, l), Subst.apply (Subst.inst projs) entry)
   (* ------ ⊎ ------ *)
   | P.Sum (a, b) ->
       let a0, a1, u = infer_sort st "⊎: the left summand" ctx a in
@@ -320,7 +340,7 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
   | P.Lam _ | P.Pair _ | P.Inl _ | P.Inr _ | P.Class _ | P.QuotEq _
   | P.ZeroElim _ | P.Unit | P.Z | P.S _ | P.Squash _ | P.Irrel _ | P.Lift _
   | P.Restrict _ | P.Conv _ | P.Trans _ | P.Sym _ | P.EtaPi _ | P.EtaSigma _
-  | P.Coind _ ->
+  | P.Record _ | P.EtaRec _ | P.Coind _ ->
       reject "this proof only checks; annotate it to synthesise"
 
 and check st (ctx : ctx) (ty : tm) (p : P.t) : tm * tm =
@@ -340,6 +360,17 @@ and check st (ctx : ctx) (ty : tm) (p : P.t) : tm * tm =
       let a0, a1 = check st ctx dom a in
       let b0, b1 = check st ctx (Subst.apply (Subst.single a1) cod) b in
       (Pair (a0, b0), Pair (a1, b1))
+  (* ------ records ------ *)
+  | P.Record fields ->
+      (* el-rec-i: the labels are the TYPE's, in its order; the body is
+         a spine of its telescope *)
+      let ls, d = as_rec st "record" ty in
+      let given = List.map fst fields in
+      if given <> ls then
+        reject "record: the labels are%s, the type's are%s" (labels given)
+          (labels ls);
+      let e0, e1 = spine st ctx d (List.map snd fields) in
+      (Record (ls, e0), Record (ls, e1))
   (* ------ ⊎ ------ *)
   | P.Inl a ->
       let dom, _ = as_sum st "inj₁" ty in
@@ -437,6 +468,11 @@ and check st (ctx : ctx) (ty : tm) (p : P.t) : tm * tm =
       ignore (as_sigma st "η×" ty);
       let p = check1 st ctx ty pi in
       (p, Pair (Fst p, Snd p))
+  | P.EtaRec rho ->
+      (* el-rec-eta: the element is the record of its projections *)
+      let ls, _ = as_rec st "ηRec" ty in
+      let r = check1 st ctx ty rho in
+      (r, Record (ls, List.map (fun l -> Field (r, l)) ls))
   (* ------ ν: coinduction ------ *)
   | P.Coind (a, b, r, p, q) ->
       let poly =
@@ -488,6 +524,38 @@ and as_sigma st what t =
   match whnf st t with
   | Sigma (a, b) -> (a, b)
   | _ -> reject "%s: the type is not a Σ-type" what
+
+and as_rec st what t =
+  match whnf st t with
+  | Rec (ls, d) -> (ls, d)
+  | _ -> reject "%s: the type is not a record type" what
+
+(* The entry of Δ at a label, with the labels before it (a snoc list,
+   the nearest first): what instantiates the entry. *)
+and field ls d l =
+  match (ls, d) with
+  | l' :: ls', a :: d' -> if l' = l then Some (a, ls') else field ls' d' l
+  | _ -> None
+
+and labels ls =
+  if ls = [] then " none" else " " ^ String.concat " " (List.rev ls)
+
+and distinct what ls =
+  match ls with
+  | [] -> ()
+  | l :: rest ->
+      if List.mem l rest then reject "%s: the label %s is repeated" what l;
+      distinct what rest
+
+(* Γ ⊦ [ᾱ] Δ₀ ≐ Δ₁ tel ℓ: entry by entry from the deepest, each a type
+   equation over the RIGHT-hand entries before it; the least level is
+   the join of the sorts the entries infer, 0 at the empty telescope. *)
+and tele_eq st ctx (ps : P.t list) : tm list * tm list * int =
+  List.fold_left
+    (fun (acc0, acc1, l) p ->
+      let a0, a1, u = infer_sort st "a telescope entry" (acc1 @ ctx) p in
+      (a0 :: acc0, a1 :: acc1, max l (level u)))
+    ([], [], 0) (List.rev ps)
 
 and as_sum st what t =
   match whnf st t with

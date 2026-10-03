@@ -1,26 +1,28 @@
 -- every construct of the proof language, in BLOCK layout: the items
 -- of syntax-inline.nk, slot by slot on argument lines, chains on
 -- continuation lines. The runner requires the two outputs to coincide.
+-- (The record forms have their own pair, records-inline.nk and
+-- records-block.nk.)
 
 plus (n : ℕ) (m : ℕ) : ℕ :=
-  ℕ-elim 𝕌0
+  ℕ-elim 𝕌₀
     _. ℕ
     n
     k ih. S ih
     m
 
 sum-case (s : ℕ ⊎ 𝟙) : ℕ :=
-  ⊎-elim 𝕌0
+  ⊎-elim 𝕌₀
     _. ℕ
     a. a
     b. Z
     s
 
-Q : 𝕌0 :=
+Q : 𝕌₀ :=
   ℕ / (x y. ∥𝟙∥)
 
 q-const (q : Q) : ℕ :=
-  quot-elim 𝕌0
+  quot-elim 𝕌₀
     _. ℕ
     x. Z
     x y h. Z
@@ -37,11 +39,11 @@ pe (p : Ω) (q : Ω) (f : p → q) (g : q → p) : p ≡ q ∈ Ω :=
       x. f x
       y. g y
 
-restr (A : 𝕌0) (B : 𝕌0) (h : lift A ≡ lift B ∈ 𝕌1) : A ≡ B ∈ 𝕌0 :=
+restr (A : 𝕌₀) (B : 𝕌₀) (h : lift A ≡ lift B ∈ 𝕌₁) : A ≡ B ∈ 𝕌₀ :=
   reify
     restrict A B
       ⌞h⌟
-      : 𝕌0
+      : 𝕌₀
 
 pirr (p : Ω) (h : p) (k : p) : h ≡ k ∈ p :=
   ⌜prop-irrel p h k⌝
@@ -52,7 +54,7 @@ uirr (a : 𝟙) (b : 𝟙) : a ≡ b ∈ 𝟙 :=
 qeq : class Z ≡ class (S Z) ∈ (ℕ / (x y. ∥𝟙∥)) :=
   ⌜quot-eq Z (S Z) (squash ()) : ℕ / (x y. ∥𝟙∥)⌝
 
-coe (A : 𝕌0) (B : 𝕌0) (h : A ≡ B ∈ 𝕌0) (a : A) : B :=
+coe (A : 𝕌₀) (B : 𝕌₀) (h : A ≡ B ∈ 𝕌₀) (a : A) : B :=
   conv a
     ⌞h⌟
 
@@ -84,8 +86,8 @@ eta (f : ℕ → ℕ) : f ≡ (λx. f x) ∈ (ℕ → ℕ) :=
 eta-pair (p : ℕ × ℕ) : p ≡ (p .π₁, p .π₂) ∈ (ℕ × ℕ) :=
   ⌜η× p : ℕ × ℕ⌝
 
-formers : 𝕌1 :=
-  ((A : 𝕌0) → A → A)
+formers : 𝕌₁ :=
+  ((A : 𝕌₀) → A → A)
     × (ℕ ⊎ 𝟙)
     × (ℕ / (x y. ∥𝟙∥))
     × (Z ≡ Z ∈ ℕ)
@@ -94,7 +96,7 @@ inj : ℕ ⊎ 𝟙 :=
   inj₁
     S Z
 
-lifted : 𝕌1 :=
+lifted : 𝕌₁ :=
   lift
     ℕ
 

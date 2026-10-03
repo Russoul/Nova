@@ -1,7 +1,7 @@
 -- ℕ: plus by recursion on its second argument, and facts by unfolding
 
 plus (n : ℕ) (m : ℕ) : ℕ :=
-  ℕ-elim 𝕌0
+  ℕ-elim 𝕌₀
     _. ℕ
     n
     k ih. S ih
