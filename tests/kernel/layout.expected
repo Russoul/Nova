@@ -1,7 +1,7 @@
-accepted plus (n : ℕ) (m : ℕ) : ℕ := ℕ-elim ☐1 (.. S ☐0) ☐0
-accepted pred (n : ℕ) : ℕ := ℕ-elim Z (.. ☐1) ☐0
-accepted apply-twice (f : ℕ → ℕ) (x : ℕ) : ℕ := ☐1 (☐1 ☐0)
-accepted twice : (ℕ → ℕ) → ℕ → ℕ := λ. λ. ☐1 (☐1 ☐0)
-accepted plusSucId (n : ℕ) (m : ℕ) : plus[☐1, S ☐0] ≡ S plus[☐1, ☐0] ∈ ℕ := ⋆
-accepted long-type : 𝕌₀ → (☐0 → 𝕌₀) → (☐1 → ☐1 ☐0) → ☐2 → ☐2 ☐0 := λ. λ. λ. λ. ☐1 ☐0
+accepted plus (n : ℕ) (m : ℕ) : ℕ := ℕ-elim ☐₁ (.. S ☐₀) ☐₀
+accepted pred (n : ℕ) : ℕ := ℕ-elim Z (.. ☐₁) ☐₀
+accepted apply-twice (f : ℕ → ℕ) (x : ℕ) : ℕ := ☐₁ (☐₁ ☐₀)
+accepted twice : (ℕ → ℕ) → ℕ → ℕ := λ. λ. ☐₁ (☐₁ ☐₀)
+accepted plusSucId (n : ℕ) (m : ℕ) : plus[☐₁, S ☐₀] ≡ S plus[☐₁, ☐₀] ∈ ℕ := ⋆
+accepted long-type : 𝕌₀ → (☐₀ → 𝕌₀) → (☐₁ → ☐₁ ☐₀) → ☐₂ → ☐₂ ☐₀ := λ. λ. λ. λ. ☐₁ ☐₀
 exit 0

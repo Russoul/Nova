@@ -43,7 +43,7 @@ let rec subst_qty c d u = function
 let lookup (phi : tm qty list) i =
   match List.nth_opt phi i with
   | Some k -> shift_qty 0 (i + 1) k
-  | None -> reject "⬡%d: no such ToS variable" i
+  | None -> reject "⬡%s: no such ToS variable" (subscript i)
 
 (* A binder of an arity, and the kind of an entry. *)
 type binder = BExt of tm | BInt of tm qtm (* the domain's code *)
@@ -114,7 +114,7 @@ let entries_in_order (sg : tm signature) : (int * tm qty list * tm qty) list =
 let entry (sg : tm signature) i =
   match List.nth_opt sg.entries i with
   | Some e -> e
-  | None -> reject "the signature has no entry ⬡%d" i
+  | None -> reject "the signature has no entry ⬡%s" (subscript i)
 
 let n_entries (sg : tm signature) = List.length sg.entries
 

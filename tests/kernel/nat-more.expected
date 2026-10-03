@@ -1,10 +1,10 @@
-accepted plus (n : ℕ) (m : ℕ) : ℕ := ℕ-elim ☐1 (.. S ☐0) ☐0
-accepted plusZeroId (n : ℕ) : plus[☐0, Z] ≡ ☐0 ∈ ℕ := ⋆
-accepted plusSucId (n : ℕ) (m : ℕ) : plus[☐1, S ☐0] ≡ S plus[☐1, ☐0] ∈ ℕ := ⋆
-accepted zeroPlusId (n : ℕ) : plus[Z, ☐0] ≡ ☐0 ∈ ℕ := ℕ-elim ⋆ (.. ⋆) ☐0
-accepted sucPlus (n : ℕ) (m : ℕ) : plus[S ☐1, ☐0] ≡ S plus[☐1, ☐0] ∈ ℕ := ℕ-elim ⋆ (.. ⋆) ☐0
-accepted plusComm (n : ℕ) (m : ℕ) : plus[☐0, ☐1] ≡ plus[☐1, ☐0] ∈ ℕ := ℕ-elim ⋆ (.. ⋆) ☐0
-accepted pred (n : ℕ) : ℕ := ℕ-elim Z (.. ☐1) ☐0
-accepted sucInj (n : ℕ) (m : ℕ) (h : S ☐1 ≡ S ☐0 ∈ ℕ) : ☐2 ≡ ☐1 ∈ ℕ := ⋆
+accepted plus (n : ℕ) (m : ℕ) : ℕ := ℕ-elim ☐₁ (.. S ☐₀) ☐₀
+accepted plusZeroId (n : ℕ) : plus[☐₀, Z] ≡ ☐₀ ∈ ℕ := ⋆
+accepted plusSucId (n : ℕ) (m : ℕ) : plus[☐₁, S ☐₀] ≡ S plus[☐₁, ☐₀] ∈ ℕ := ⋆
+accepted zeroPlusId (n : ℕ) : plus[Z, ☐₀] ≡ ☐₀ ∈ ℕ := ℕ-elim ⋆ (.. ⋆) ☐₀
+accepted sucPlus (n : ℕ) (m : ℕ) : plus[S ☐₁, ☐₀] ≡ S plus[☐₁, ☐₀] ∈ ℕ := ℕ-elim ⋆ (.. ⋆) ☐₀
+accepted plusComm (n : ℕ) (m : ℕ) : plus[☐₀, ☐₁] ≡ plus[☐₁, ☐₀] ∈ ℕ := ℕ-elim ⋆ (.. ⋆) ☐₀
+accepted pred (n : ℕ) : ℕ := ℕ-elim Z (.. ☐₁) ☐₀
+accepted sucInj (n : ℕ) (m : ℕ) (h : S ☐₁ ≡ S ☐₀ ∈ ℕ) : ☐₂ ≡ ☐₁ ∈ ℕ := ⋆
 rejected arity (line 71): the definiens: spine: 1 arguments against a telescope of 2
 exit 1

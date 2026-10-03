@@ -31,7 +31,7 @@ let within what f = try f () with Reject msg -> reject "%s: %s" what msg
 let lookup (ctx : ctx) i =
   match List.nth_opt ctx i with
   | Some a -> Subst.weaken (i + 1) a
-  | None -> reject "☐%d: no such variable" i
+  | None -> reject "☐%s: no such variable" (subscript i)
 
 let as_sort st what t =
   match whnf st t with

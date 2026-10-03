@@ -11,6 +11,15 @@ exception Reject of string
 
 let reject fmt = Printf.ksprintf (fun s -> raise (Reject s)) fmt
 
+(* A number in SUBSCRIPT digits — how an index (☐₀, ⬡₂) and a universe
+   level (𝕌₁) are written, in reports as in the document. *)
+let subscript (n : int) : string =
+  let digits = [| "₀"; "₁"; "₂"; "₃"; "₄"; "₅"; "₆"; "₇"; "₈"; "₉" |] in
+  String.concat ""
+    (List.map
+       (fun c -> digits.(Char.code c - Char.code '0'))
+       (List.of_seq (String.to_seq (string_of_int n))))
+
 type sort = Omega | U of int
 
 (* |Ω| = 0, |𝕌ℓ| = ℓ *)

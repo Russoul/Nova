@@ -1,7 +1,7 @@
 accepted Q : 𝕌₀ := ℕ / (.. ∥𝟙∥)
-accepted const (q : Q) : ℕ := quot-elim (. Z) ☐0
+accepted const (q : Q) : ℕ := quot-elim (. Z) ☐₀
 rejected rep (line 14): the definiens: quot-elim: the well-definedness proof's right side and f do not agree
-accepted q-prop (q : Q) : ∥𝟙∥ := quot-elim (. ⋆) ☐0
+accepted q-prop (q : Q) : ∥𝟙∥ := quot-elim (. ⋆) ☐₀
 rejected stuck (line 30): the definiens: quot-elim: the scrutinee's type is not a quotient
 accepted same : class Z ≡ class (S Z) ∈ (ℕ / (.. ∥𝟙∥)) := ⋆
 accepted same-at-Q : class Z ≡ class (S Z) ∈ Q := ⋆

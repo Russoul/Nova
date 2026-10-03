@@ -1,19 +1,9 @@
 (* A printer for core terms, for reports and golden outputs. De Bruijn
-   indices print as ☐i; a part under binders prints as (. e), (.. e),
-   one dot per binder. *)
+   indices print as ☐ᵢ, the index in subscript digits like every index
+   and level; a part under binders prints as (. e), (.. e), one dot per
+   binder. *)
 
 open Core
-
-(* a universe level is written in subscript digits, as it is read *)
-let subscript (n : int) : string =
-  String.concat ""
-    (List.map
-       (fun c ->
-         let b = Buffer.create 4 in
-         Buffer.add_utf_8_uchar b
-           (Uchar.of_int (0x2080 + Char.code c - Char.code '0'));
-         Buffer.contents b)
-       (List.of_seq (String.to_seq (string_of_int n))))
 
 let sort = function Omega -> "Ω" | U l -> "𝕌" ^ subscript l
 
@@ -25,7 +15,7 @@ let rec go (p : int) (t : tm) : string =
     paren 3 (String.concat " " (head :: List.map (go 4) parts))
   in
   match t with
-  | Var i -> "☐" ^ string_of_int i
+  | Var i -> "☐" ^ subscript i
   | Item (x, []) -> x
   | Item (x, es) -> x ^ "[" ^ String.concat ", " (List.rev_map (go 0) es) ^ "]"
   | Pi (a, b) -> paren 0 (go 1 a ^ " → " ^ go 0 b)
@@ -75,11 +65,11 @@ let rec go (p : int) (t : tm) : string =
   | Out e -> app "out" [ e ]
   | Corec (f, g, x) ->
       paren 3 ("corec " ^ poly 4 f ^ " " ^ under 1 g ^ " " ^ go 4 x)
-  | QSort (sg, i, es) -> paren 3 (short sg ^ ".⬡" ^ string_of_int i ^ spine es)
-  | QCon (sg, i, es) -> paren 3 (short sg ^ ".⬡" ^ string_of_int i ^ spine es)
+  | QSort (sg, i, es) -> paren 3 (short sg ^ ".⬡" ^ subscript i ^ spine es)
+  | QCon (sg, i, es) -> paren 3 (short sg ^ ".⬡" ^ subscript i ^ spine es)
   | QElim (sg, i, ms, es, w) ->
       paren 3
-        (short sg ^ ".⬡" ^ string_of_int i ^ "-elim" ^ spine ms ^ spine es ^ " "
+        (short sg ^ ".⬡" ^ subscript i ^ "-elim" ^ spine ms ^ spine es ^ " "
        ^ go 4 w)
 
 (* What a projection is applied to. A postfix applies to the whole
@@ -102,16 +92,14 @@ and poly p (f : tm poly) : string =
   | PSigma (a, f) -> paren 1 (go 2 a ^ " × (. " ^ poly 0 f ^ ")")
   | PPi (a, f) -> paren 0 (go 1 a ^ " → (. " ^ poly 0 f ^ ")")
 
-(* a carried signature, by its size and level *)
+(* a carried signature, by its size and the universe of its level *)
 and short (sg : tm signature) : string =
-  "⟨"
-  ^ string_of_int (List.length sg.entries)
-  ^ "@" ^ string_of_int sg.level ^ "⟩"
+  "⟨" ^ string_of_int (List.length sg.entries) ^ "@" ^ sort (U sg.level) ^ "⟩"
 
 and signature (sg : tm signature) : string =
   "⟨"
   ^ String.concat " ▷ " (List.rev_map qty sg.entries)
-  ^ "⟩@" ^ string_of_int sg.level
+  ^ "⟩@" ^ sort (U sg.level)
 
 and qty = function
   | QU -> "U"
@@ -120,7 +108,7 @@ and qty = function
   | QInt (t, k) -> "El " ^ qtm t ^ " ⇛ " ^ qty k
 
 and qtm = function
-  | QVar i -> "⬡" ^ string_of_int i
+  | QVar i -> "⬡" ^ subscript i
   | QAppExt (t, a) -> "(" ^ qtm t ^ " " ^ go 4 a ^ ")"
   | QApp (t, u) -> "(" ^ qtm t ^ " " ^ qtm u ^ ")"
   | QLam t -> "(λ " ^ qtm t ^ ")"

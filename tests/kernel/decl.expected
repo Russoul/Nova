@@ -5,7 +5,7 @@ accepted ax : a ≡ f a ∈ A
 accepted fa : A := f a
 accepted use-ax : f a ≡ f (f a) ∈ A := ⋆
 rejected no-delta (line 11): the definiens: δ: 'A' is a declaration, it has no definiens
-accepted twice : A → A := λ. f (f ☐0)
+accepted twice : A → A := λ. f (f ☐₀)
 accepted twice-a : twice a ≡ f (f a) ∈ A := ⋆
 accepted p : Ω
 accepted h : p
