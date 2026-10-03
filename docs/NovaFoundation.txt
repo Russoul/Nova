@@ -1,6 +1,6 @@
 ////////// Preface //////////
 
-#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ let → × ⊎ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S ⋆ class inj₁ inj₂ ⌊ ⌋ ⟦ ⟧ ᴰ ι ξ 𝟘-elim ℕ-elim quot-elim squash-elim ⊎-elim -elim qctx qty qsig ctx tel norm sig nf qpath ν 𝕏 K out corec poly map Rec ⟨ ⟩ ↪ distinct
+#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ let → × ⊎ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S ⋆ class inj₁ inj₂ ⌊ ⌋ ⟦ ⟧ ᴰ ι ξ 𝟘-elim ℕ-elim quot-elim squash-elim ⊎-elim -elim qctx qty qsig ctx tel norm sig nf qpath ν 𝕏 K out corec poly map Rec ⟨ ⟩ ↪ distinct ⌈ ⌉
 #! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕝 𝕣 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎 𝔽 𝔾
 #! highlight nova: Γ Δ Ξ Σ σ τ δ θ latin
 #! highlight meta: 𝒞 φ
@@ -117,7 +117,8 @@
 #    constructors), the sorts 𝒮.𝕤 ē as types, their constructors 𝒮.𝕔 θ,
 #    the imposed path equations, and a dependent eliminator 𝒮.𝕤-elim with
 #    its computation and uniqueness laws. Every rule is stated against a
-#    signature (no Σ-entry; 𝒮 is carried by the formers). This subsumes ℕ,
+#    signature 𝒮 carried by the formers — written out, or a REFERENCE
+#    x[e˲] to a signature defined once in Σ (sig-qsig). This subsumes ℕ,
 #    (⊎) and (/) (each a one- or two-line signature), including indexed
 #    inductive types
 #    and quotient inductive types as special cases; its equation
@@ -138,8 +139,9 @@
 # signature identifier
 x ::= <signature-entry-identifier>
 
-# signature context — TWO entry kinds; type definitions and type
-# declarations are the A = 𝕌ℓ instances. There is no constraint kind:
+# signature context — TWO entry kinds for terms (type definitions and
+# type declarations are their A = 𝕌ℓ instances) and one for QIIT
+# signatures. There is no constraint kind:
 # an assumed equation is a
 # HOLE at the equation's prop — a declaration at (a₀ ≡ a₁ ∈ A),
 # read back through el-reflect and closed by INSTANTIATION with ⋆
@@ -147,6 +149,12 @@ x ::= <signature-entry-identifier>
 Σ ::= ε
     | Σ (Γ ⊦ x ≔ a : A)     # definition
     | Σ (Γ ⊦ x : A)         # declaration (a HOLE — no definiens)
+    | Σ (Γ ⊦ x ≔ 𝒮 qsig ℓ)  # QIIT-signature definition: the signature
+                            #   𝒮 over its parameters Γ, with a level ℓ
+                            #   that bounds it; its references x[e˲]
+                            #   are SIGNATURES, what a QIIT former
+                            #   carries (see "Quotient inductive-
+                            #   inductive types")
 
 # typing context
 Γ ::= ε      # empty typing context
@@ -237,9 +245,10 @@ t, T ::= x [e˲]      # signature reference
     | ⋆              # the canonical proof of a true proposition
     | 𝒮.𝕤 ē          # sort 𝕤 of a QIIT signature 𝒮 at index spine ē —
                      #   a type at the signature's level; 𝒮 is
-                     #   carried in the term, so QIIT equality is
-                     #   structural (see "Quotient inductive-inductive
-                     #   types")
+                     #   carried in the term — a qiit-context written
+                     #   out, or a reference x[e˲] to a signature
+                     #   entry of Σ — so QIIT equality is structural
+                     #   (see "Quotient inductive-inductive types")
     | 𝒮.𝕔 θ          # POINT constructor 𝕔 of 𝒮, SATURATED: θ a full
                      #   argument spine, like every other former
                      #   (equation constructors mint no term: their
@@ -335,6 +344,9 @@ t, T ::= x [e˲]      # signature reference
 #     Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ       pointwise AT 𝕌ℓ (tel-lvl-ext-cong
 #                             defining; Γ ⊦ Δ tel ℓ is Δ ≐ Δ)
 #     Γ ⊦ ē₀ ≐ ē₁ : Δ         pointwise (sp-ext-cong defining)
+#     Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig        of QIIT signatures: by name or by
+#                             content (qsig-eq-ref, qsig-eq-content
+#                             defining; Γ ⊦ 𝒮 qsig is 𝒮 ≐ 𝒮)
 #
 #   THE EQUIVALENCE structure is two RULES, stated once here (the
 #   third, reflexivity, is the notation) —
@@ -364,9 +376,14 @@ t, T ::= x [e˲]      # signature reference
 #   — takes the RIGHT instance (B[id, e₁], Γ ▷ A₁ ⊦ B₀ ≐ B₁; the
 #   left instance's premise is then well-typed by the domain equation
 #   and coercion). Premises that are not typings of a subject part —
-#   side conditions, Σ-membership, level bounds, the carried signature
-#   𝒮, polynomial 𝔽 or label list l̄ (inert syntax, compared for
-#   identity, never doubled), the ToS-zone premises — are unchanged. The diagonal
+#   side conditions, Σ-membership, level bounds, the carried
+#   polynomial 𝔽 or label list l̄ (inert syntax, compared for
+#   identity, never doubled), the ToS-zone premises — are unchanged.
+#   A carried QIIT signature 𝒮 DOES double: its premise Γ ⊦ 𝒮 qsig
+#   becomes the signature equation Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig (by name or by
+#   content — IDENTITY in the QIIT section), a bound 𝒮 ≼ ℓ bounds BOTH
+#   instances, and every other use of 𝒮 in the premises — an entry
+#   𝒮(k), an arity, the initial algebra — takes the RIGHT one. The diagonal
 #   x₀ = x₁ = x recovers the display. Expansion: mechanical, by this
 #   clause. Rules whose conclusion is ALREADY an equation — the
 #   computation rules (≜), the uniqueness rules (η), the irrelevance,
@@ -432,7 +449,9 @@ t, T ::= x [e˲]      # signature reference
   Γ ; Φ ⊦ 𝔄 qty                Γ ⊦ Φ qctx   (qiit-type)
   Γ ; Φ ⊦ 𝕥 : 𝔄                Γ ; Φ ⊦ 𝔄 qty (qiit-term)
   Γ ⊦ ς : Φ₀ ⇒ Φ₁              Γ ⊦ Φ₀ qctx;  Γ ⊦ Φ₁ qctx   (qiit-substitution)
-  Γ ⊦ 𝒮 qsig                   Γ ctx        (QIIT signature; ≜ Γ ⊦ 𝒮 qctx)
+  Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig             Γ ctx        (QIIT signature: a qiit-context written out, or a
+                                            reference x[e˲] to a signature entry of Σ; the
+                                            equation by name or by content; Γ ⊦ 𝒮 qsig is 𝒮 ≐ 𝒮)
   # the eliminator's motives, methods and coherences form an ORDINARY
   # SPINE Γ ⊦ d̄ : ⟦𝒮⟧ᴰ[ι] of the displayed telescope (QIIT section) —
   # they have no judgement form of their own
@@ -441,11 +460,12 @@ t, T ::= x [e˲]      # signature reference
                                signature / polynomial embeds is typed at 𝕌ℓ at
                                its position (ty-qiit, ty-nu)
   # the theory-of-signatures judgements (dual zone Γ ; Φ — Nova zone,
-  # then ToS zone) are defined in the QIIT section; a signature is
-  # nothing but a well-formed qiit-context. Like signatures,
-  # polynomials are inert syntax with no equality judgement of their
-  # own: they are compared structurally, per IDENTITY in each scheme's
-  # section.
+  # then ToS zone) are defined in the QIIT section; a signature is a
+  # well-formed qiit-context, written out or referred to by the name
+  # of its Σ-entry, and signatures have an equation of their own
+  # (IDENTITY in the QIIT section). Polynomials are inert syntax with
+  # no equality judgement: they are compared structurally, per
+  # IDENTITY in their section.
 
 # THE PRESUPPOSITION LEMMA (meta-theorem, by mutual induction on
 # derivations): a derivable judgement has derivably well-formed parts,
@@ -516,8 +536,26 @@ x ∉ Σ
                                     #   ty-univ); retained in the
                                     #   display under its name
 
+Σ Γ ⊦ 𝒮 qsig
+𝒮 ≼ ℓ
+x ∉ Σ
+-------------------------- (sig-qsig)   # a QIIT SIGNATURE, defined once
+Σ (Γ ⊦ x ≔ 𝒮 qsig ℓ) sig                #   over its parameters Γ and
+                                        #   recorded with a level ℓ that
+                                        #   bounds it (any bound; the
+                                        #   record is what a reference
+                                        #   reads its level from)
+
+# A signature entry is referred to as x[e˲] — a SIGNATURE, not a term:
+# what a QIIT former carries in place of the context written out
+# (qsig-ref, in the QIIT section). The definiens is itself a
+# signature, so it may be a context, or a reference to an earlier
+# entry: an alias, or an instance at chosen parameters. The entry has
+# NO declaration form — nothing can be typed against a signature whose
+# entries are not given — so it is always a definition.
+
 # DEFINITIONAL AND OPEN SIGNATURES. A signature is DEFINITIONAL when
-# every entry is a definition (sig-def). A DECLARATION makes it OPEN:
+# every entry is a definition (sig-def, sig-qsig). A DECLARATION makes it OPEN:
 # a hole — a name with a type and no definiens, whose references
 # x[e˲] are STUCK (el-sig-decl below; deliberately no -beta). Type
 # holes are the A = 𝕌ℓ instances. An assumed EQUATION is a hole at the
@@ -1848,9 +1886,14 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # sorts of 𝒮 as types (𝒮.𝕤 ē), their constructors (𝒮.𝕔 θ), the imposed
 # path equations, and a dependent eliminator (𝒮.𝕤-elim) with its
 # computation and uniqueness laws. Every rule is stated AGAINST a
-# signature (⊦ 𝒮 qsig as a premise); a signature is NOT a Σ-entry and
-# mints no names — 𝒮 is carried by the formers themselves (as A / R
-# carries A and R). These are the inductive-inductive quotient types of
+# signature (⊦ 𝒮 qsig as a premise), and 𝒮 is carried by the formers
+# themselves (as A / R carries A and R) — either WRITTEN OUT, a
+# qiit-context in the term, or as a REFERENCE x[e˲] to a signature
+# defined once in Σ (sig-qsig) and instantiated at its parameters. A
+# reference is the practical form: the signature is checked once, its
+# formers are compared by name and spine (IDENTITY below), and a
+# parametrised family — lists over A — has a place for its parameter.
+# These are the inductive-inductive quotient types of
 # Altenkirch–Kaposi. The scheme SUBSUMES ℕ, (⊎) and (/), and covers
 # indexed
 # inductive types (well-founded trees included) and quotient inductive
@@ -1875,7 +1918,14 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # distinguished by the HEAD of their type alone.
 
 #   qiit-context
-    Φ, 𝒮 ::= ⬦ | Φ ▷ 𝔄          # entries are ANONYMOUS
+    Φ ::= ⬦ | Φ ▷ 𝔄             # entries are ANONYMOUS
+
+#   signature — what a FORMER carries and what a Σ-entry defines: a
+#   closed qiit-context, or a reference to a signature entry of Σ at
+#   a normal substitution for its parameters. The ToS judgements
+#   below range over Φ ONLY; a signature reaches them by EVALUATION
+#   (SIGNATURES, after the readings)
+    𝒮 ::= Φ | x[e˲]
 
 #   qiit-type
     𝔄 ::= U                     # the universe of codes
@@ -1912,8 +1962,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #   inductive λ: terms of inductive-Π type arise only as partial
 #   applications, which is all signatures need. The ToS has NO
 #   computation of its own — substitution application is a
-#   META-operation, and signatures are inert syntax, compared per
-#   IDENTITY below.)
+#   META-operation, and signatures are compared per IDENTITY below.)
 #
 # Strict positivity and externality are GRAMMATICAL, by two features
 # working together. First, Π domains are only Nova types or El-codes —
@@ -1982,11 +2031,12 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #     Γ ⊦ ς : Φ₀ ⇒ Φ₁    ς a qiit-substitution
 # The dual zone Γ ; Φ: Γ is the NOVA zone (the ambient context plus
 # all external binders in scope), Φ the ToS zone (declared entries
-# plus inductive binders). There is no separate signature judgement:
-#     Γ ⊦ 𝒮 qsig   ≜   Γ ⊦ 𝒮 qctx
-# — during checking, the growing context Φ IS the signature-so-far, so
-# a later declaration reaches earlier sorts and constructors by
-# qtm-var, with no prefix or ambient-𝒮 device.
+# plus inductive binders). A signature WRITTEN OUT is a closed
+# qiit-context — during checking, the growing context Φ IS the
+# signature-so-far, so a later declaration reaches earlier sorts and
+# constructors by qtm-var, with no prefix or ambient-𝒮 device. The
+# signature judgement Γ ⊦ 𝒮 qsig, over contexts and references alike,
+# is in SIGNATURES below.
 
 Γ ctx
 ------------- (qctx-empty)
@@ -2137,10 +2187,53 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # so that ⟦𝔄⟧ = Π ⟦𝔄⟧ᵗ. ⟦𝔄⟧ᵉ, the iterated Π over the arity; for an
 # El-ended 𝔄 the arity is its binder telescope.
 
+# SIGNATURES — what the formers carry. A signature is a closed
+# qiit-context WRITTEN OUT, or a REFERENCE x[e˲] to a signature entry
+# of Σ, instantiated at its parameters by a normal substitution — the
+# shape a term reference has (el-sig-var).
+
+Γ ⊦ Φ qctx
+-------------- (qsig-ctx)
+Γ ⊦ Φ qsig
+
+(Γ ⊦ x ≔ 𝒮 qsig ℓ) ∈ Σ
+e˲ : Δ ⇒ Γ norm
+------------------------ (qsig-ref)
+Σ Δ ⊦ x[e˲] qsig
+
+# EVALUATION ⌈·⌉ — the CONTENT of a signature, the qiit-context it
+# stands for. A META-OPERATION, like the readings: a context is its
+# own content, a reference the content of its entry's definiens with
+# the parameters substituted in (Nova substitution through ToS
+# syntax):
+#     ⌈Φ⌉      ≜ Φ
+#     ⌈x[e˲]⌉  ≜ ⌈𝒮⌉[e˲]          # (Γ ⊦ x ≔ 𝒮 qsig ℓ) ∈ Σ
+# It terminates — a definiens refers only to entries before its own in
+# Σ — and Γ ⊦ 𝒮 qsig yields Γ ⊦ ⌈𝒮⌉ qctx (a meta-lemma: sig-qsig's
+# premise, then the substitution). Evaluation is NOT an equation of
+# the theory, and no rule unfolds a reference: it is how the
+# META-LEVEL operations reach a signature's entries. Every operation
+# the outer rules perform on 𝒮 is the operation on its content —
+#     𝒮(k) ≜ ⌈𝒮⌉(k)      ⟦𝒮⟧ ≜ ⟦⌈𝒮⌉⟧      ⟦𝒮⟧ᴰ ≜ ⟦⌈𝒮⌉⟧ᴰ
+# and likewise an entry's classification and its arity — while the
+# FORMERS keep 𝒮 as written: the initial algebra of a reference is
+# built from formers AT the reference (ι below), so the types of a
+# named QIIT mention its name and never its entries.
+#
+# THE BOUND of a reference is its entry's record: x[e˲] ≼ ℓ′ when
+# ℓ ≤ ℓ′, ℓ the level the entry records. Nothing is inspected; and
+# then ⌈x[e˲]⌉ ≼ ℓ′ — sig-qsig bounds the definiens by ℓ, a
+# substitution moves no level, and a bound is raised by code-lift.
+#
+# SUBSTITUTION at a reference composes, as at a term reference
+# (el-sub-sig-var): x[e˲][σ] ≜ x[e˲ ∘ σ]. Evaluation commutes with
+# it: ⌈𝒮[σ]⌉ = ⌈𝒮⌉[σ], a raw identity.
+
 # THE INITIAL ALGEBRA ι — the spine Γ ⊦ ι : ⟦𝒮⟧ of the carried
 # formers themselves, entry by entry, each entry the closed λ over its
-# arity (written at the entry's own prefix of 𝒮, ι↾ the prefix of ι
-# before it):
+# arity (written at the entry's own prefix of 𝒮's content, ι↾ the
+# prefix of ι before it; the formers are at 𝒮 AS CARRIED — a
+# reference stays a reference):
 #     ι(𝕤) ≜ λ ⟦𝔎⟧ᵗ[ι↾]. 𝒮.𝕤 δ          # a sort entry 𝒮(𝕤) = 𝔎; δ the bound
 #                                        #   variables, as a Nova spine
 #     ι(𝕔) ≜ λ ⟦𝔄⟧ᵗ[ι↾]. 𝒮.𝕔 δ          # a point entry 𝒮(𝕔) = 𝔄
@@ -2153,12 +2246,34 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # ≐ — ⟦El (𝕤 ī)⟧[ι, θ] β-reduces to 𝒮.𝕤 ⟦ī⟧[ι, θ], and an entry's
 # arity ⟦𝔎⟧ᵗ[ι] is a telescope over Γ.
 
-# IDENTITY (structural). 𝒮.𝕤 ē carries the signature 𝒮; two QIIT types
-# are equal exactly when their signatures, sorts (positions), and
-# indices are — homogeneous with every other former. The signature is
-# compared INTENSIONALLY, and the NAMELESS discipline makes that
-# comparison PLAIN STRUCTURAL EQUALITY of indexed syntax — there are
-# no names, so there is no α to quotient by; like universe codes. The
+# IDENTITY (structural, with a pathway by name). 𝒮.𝕤 ē carries the
+# signature 𝒮; two QIIT types are equal exactly when their signatures,
+# sorts (positions), and indices are — homogeneous with every other
+# former. Signatures have an EQUATION of their own,
+# Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig — a META-DEFINITION over the one judgement, like
+# the context and telescope equations, Γ ⊦ 𝒮 qsig its diagonal —
+# reached by TWO PATHWAYS:
+
+(Γ ⊦ x ≔ 𝒮 qsig ℓ) ∈ Σ
+e˲₀ ≐ e˲₁ : Δ ⇒ Γ norm
+------------------------------ (qsig-eq-ref)       # BY NAME: one entry, equal
+Σ Δ ⊦ x[e˲₀] ≐ x[e˲₁] qsig                         #   spines — nothing is evaluated
+
+Γ ⊦ 𝒮₀ qsig
+Γ ⊦ 𝒮₁ qsig
+Γ ⊦ ⌈𝒮₀⌉ ≐ ⌈𝒮₁⌉ qctx
+------------------------------ (qsig-eq-content)   # BY CONTENT: both sides
+Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig                                   #   evaluated, the contexts compared
+
+# The equation of qiit-contexts, Γ ⊦ Φ₀ ≐ Φ₁ qctx, is the
+# COMPONENTWISE comparison: both well-formed, entry by entry the SAME
+# indexed ToS syntax, and their embedded Nova pieces equal (≐) — a
+# domain at its universe, an argument at its domain, each over the
+# right-hand side's binders. The ToS structure is compared
+# INTENSIONALLY, and the NAMELESS discipline makes that comparison
+# PLAIN STRUCTURAL EQUALITY of indexed syntax — there are no names, so
+# there is no α to quotient by; like universe codes. It is stated by
+# that meta-recursion rather than spelled per former. The
 # inductive-inductive self-reference is a BOUND reference (a ⬡-index)
 # inside the finite signature, so the comparison is finite and
 # iso-recursive — it never unfolds the fixpoint into its carrier, and
@@ -2168,11 +2283,28 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # semantic one is the commitment the code-injectivity block already
 # makes: models collapsing structurally-distinct types are excluded.)
 #
-# A NAME for a QIIT is an ordinary definition x ≔ 𝒮.𝕤 : 𝕌ℓ (which
-# unfolds, el-sig-beta). Comparing two uses of the same name is then the
-# ordinary rigid-rigid-before-δ discipline — try the name, compare
-# substitutions, unfold only on mismatch — nothing QIIT-specific, and it
-# keeps the common case cheap without any bespoke rule. Consequently the
+# THE TWO PATHWAYS. By-name is ADMISSIBLE from by-content — the
+# contents ⌈𝒮⌉[e˲₀] and ⌈𝒮⌉[e˲₁] are equal piece by piece, by
+# el-sub-cong — so the relation is by-content's, a partial
+# equivalence. By-name is stated because it decides the common case —
+# two uses of ONE name — on the syntax, without evaluating either
+# side: the rigid-rigid-before-unfolding discipline, as a rule.
+# By-content is what makes a name TRANSPARENT: a named QIIT equals the
+# QIIT written out with the same entries, two entries with the same
+# content name the same types, and an alias (Γ ⊦ x ≔ y[e˲] qsig ℓ) is
+# an abbreviation. It is the pathway to take when the names differ.
+#
+# META-LEMMA. Equal signatures have equal entries, arities and
+# readings, positionwise — by content this is the comparison itself
+# (a reading is a recursion on the syntax compared), by name it is
+# tel-sub-cong on the entry's arity — and their initial algebras are
+# equal spines, by the formers' own congruence along the signature.
+# This is what types the LEFT instance of a doubled former at the
+# RIGHT instance's arity.
+#
+# A NAME for a QIIT is therefore its Σ-entry: the signature is
+# checked once, and every sort, constructor and eliminator of it is a
+# former at x[e˲]. Consequently the
 # theory is UNIFORMLY structural, QIITs included, so (/) is a genuine
 # instance — A / R is 𝒮.𝕢 · for
 #     𝒮 = ( 𝕢 : U ; cls : (x : A) ⇛ El 𝕢 ;
@@ -2236,24 +2368,27 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 
 # CONGRUENCE AND INJECTIVITY. ≐ is congruent at the QIIT formers as
 # at every former, by THE DOUBLING CONVENTION applied to ty-qiit and
-# el-qiit-intro (the carried 𝒮 is inert and is not doubled); the full
-# forms are displayed because their premises live at the arity — entry
-# i's type instantiated by the RIGHT spine's prefix, the sp-ext-cong
-# discipline — and because the sources cite them. Injectivity: a
-# universe's equality is STRUCTURAL and a signature is inert syntax,
-# so equal saturated sort types have equal spines, indexwise — the
-# ty-pi-inj block, extended to the QIIT former (at level 0 the
+# el-qiit-intro: the carried 𝒮 doubles through the signature equation
+# (IDENTITY above), a bound bounding both instances. The full forms
+# are displayed because their premises live at the arity — the RIGHT
+# signature's, entry i's type instantiated by the RIGHT spine's
+# prefix, the sp-ext-cong discipline — and because the sources cite
+# them. Injectivity: a universe's equality is STRUCTURAL, so equal
+# saturated sort types at ONE signature have equal spines, indexwise
+# — the ty-pi-inj block, extended to the QIIT former (at level 0 the
 # code-pi-inj block; the name is historical).
 
-Γ ⊦ 𝒮 qsig      𝒮 ≼ ℓ      Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ   (entrywise; Eᵢ is entry i of
-                           ⟦𝒮(𝕤)⟧ᵗ[ι], instantiated by ē₁'s prefix)
+Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig      𝒮₀ ≼ ℓ      𝒮₁ ≼ ℓ
+Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ   (entrywise; Eᵢ is entry i of ⟦𝒮₁(𝕤)⟧ᵗ[ι₁], instantiated
+                     by ē₁'s prefix; ι₁ the initial algebra of 𝒮₁)
 ------------------------------------------------------------- (ty-qiit-cong)   # ty-qiit in full
-Γ ⊦ 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ : 𝕌ℓ
+Γ ⊦ 𝒮₀.𝕤 ē₀ ≐ 𝒮₁.𝕤 ē₁ : 𝕌ℓ
 
-Γ ⊦ 𝒮 qsig      Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ   (entrywise at a point
-                constructor's arity ⟦𝒮(𝕔)⟧ᵗ[ι], same discipline)
+Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig
+Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ   (entrywise at a point constructor's arity
+                     ⟦𝒮₁(𝕔)⟧ᵗ[ι₁], same discipline)
 ------------------------------------------------------------- (el-qiit-intro-cong)   # el-qiit-intro in full
-Γ ⊦ 𝒮.𝕔 ē₀ ≐ 𝒮.𝕔 ē₁ : ⟦El (𝕤 ī)⟧[ι, ē₁]
+Γ ⊦ 𝒮₀.𝕔 ē₀ ≐ 𝒮₁.𝕔 ē₁ : ⟦El (𝕤 ī)⟧[ι₁, ē₁]
 
 Γ ⊦ 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ : 𝕌ℓ     e₀ⱼ = e₁ⱼ for j < i  (structurally)
 ------------------------------------------------------------- (code-qiit-inj)
@@ -2378,12 +2513,14 @@ for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, ending in El (𝕤 ī);
 #     (𝒮.𝕤-elim m̄ ē w)[σ] ≜ 𝒮[σ].𝕤-elim m̄[σ] ē[σ] w[σ]
 # where 𝒮[σ] is the ToS substitution meta-operation (defined with the
 # grammar above): σ on every embedded Nova piece, lifted over the
-# external binders in scope; inductive variables untouched. (The
-# reading commutes with it: ⟦𝒮[σ]⟧ = ⟦𝒮⟧[σ].)
+# external binders in scope; inductive variables untouched; at a
+# reference it composes, x[e˲][σ] ≜ x[e˲ ∘ σ]. (The reading commutes
+# with it: ⟦𝒮[σ]⟧ = ⟦𝒮⟧[σ].)
 
 # CONGRUENCE and INJECTIVITY are STRUCTURAL: equal QIIT types/codes have
-# equal signatures, sort positions, and index spines, and conversely —
-# the signature compared componentwise (entry by entry; qiit-types and
+# equal signatures (Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig, IDENTITY above), sort positions,
+# and index spines, and conversely — the signature compared by name,
+# or by content componentwise (entry by entry; qiit-types and
 # qiit-terms as plain indexed syntax — nameless, no α — their embedded
 # Nova pieces by the existing congruence/injectivity rules). Stated by
 # that meta-recursion rather than spelled per entry, and sound by the
@@ -2738,8 +2875,9 @@ e˲ : Γ₁ ⇒ Γ norm
 # observation step, and a uniqueness law (η) that IS the coinduction
 # principle. The polarity is Π's, not ℕ's: canonical forms are
 # corec-headed, out forces lazily, and elements are compared by
-# observation. Like a QIIT signature, 𝔽 is not a Σ-entry and mints
-# no names — it is carried by the formers and compared structurally.
+# observation. Like a QIIT signature written out, 𝔽 is carried by the
+# formers and compared structurally; unlike one, it has no Σ-entry and
+# mints no names.
 #
 # THE EXTENSIONAL PAYOFF, dual to the QIIT section's: uniqueness of
 # the corecursor is a plain judgemental rule. In intensional
