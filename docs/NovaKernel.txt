@@ -73,8 +73,9 @@
 
 // ------ The entry points: contexts, items, the signature Σ ------
 // Σ is a list of ITEMS, each closed over its own telescope Δ:
-//   (Δ ⊦ x : T) ∈ Σ        a DECLARATION (an assumption, a hole, a lemma's statement)
-//   (Δ ⊦ x ≔ t : T) ∈ Σ    a DEFINITION
+//   (Δ ⊦ x : T) ∈ Σ           a DECLARATION (an assumption, a hole, a lemma's statement)
+//   (Δ ⊦ x ≔ t : T) ∈ Σ       a DEFINITION
+//   (Δ ⊦ x ≔ Φ qsig ℓ) ∈ Σ    a QIIT SIGNATURE: a qiit-context Φ over its parameters Δ, at its level ℓ
 // Every rule below is relative to Σ. The checker is entered one item
 // at a time, each read against the whole of Σ before it; an accepted
 // item is appended, and nothing else ever extends Σ.
@@ -92,6 +93,11 @@
 Σ ⊢ (Δ ⊦ x ≔ t : T) item                  //   right side is the definiens the kernel records (a plain
                                           //   term is its own proof; a lemma is a definition of ⋆ at an
                                           //   equation type, its proof a reify …)
+
+Δ ctx      Δ ⊦ Φ qctx ℓ
+------------------------------ // a QIIT signature (sig-qsig): a qiit-context, checked ONCE, here, at the
+Σ ⊢ (Δ ⊦ x ≔ Φ qsig ℓ) item    //   level ℓ it names. A former of it carries the NAME x and a spine for Δ
+                               //   (the QIIT section); no core term contains a qiit-context
 
 
 // ------ Π-type -------
@@ -468,24 +474,29 @@ a₁ ≡β a₁'
                                                              //   kept as the leaf the corpus writes
 
 // ===== COVERAGE: QIITs =====
-// A signature 𝒮 is CARRIED by the core (𝒮.𝕤 ē, 𝒮.𝕔 θ, 𝒮.𝕤-elim m̄ ē w):
-// QIIT equality is structural on it and β reads it (el-qiit-beta
-// recurses by the constructor's arity). It is WRITTEN in the theory of
-// signatures below — the grammar is the positivity guarantee, and β
-// reads constructor arities off it — and it is TYPED through its
-// reading as a Nova telescope, ⟦𝒮⟧, over the ALGEBRA CONTEXT Γ · ⟦𝒮⟧:
-// an algebra is a spine of that telescope; the initial algebra ι is the
-// spine of the formers themselves; the eliminator's motives, methods
-// and coherences are ONE spine of the displayed telescope ⟦𝒮⟧ᴰ over ι;
-// the eliminator's type and its β are substitutions. Nothing about the
-// ToS is trusted beyond the readings ⟦_⟧ and _ᴰ and the displayed spine
-// θᴰ, each defined by recursion on the grammar and landing in Nova
-// syntax the rules above already read. The eliminator's core carries
-// the METHODS only: motives, coherences and the sorts Ū the motives
-// land in are SURFACE, as ℕ-elim's A and U are.
+// A signature is a qiit-context Φ, DEFINED ONCE as an item
+// (Δ ⊦ x ≔ Φ qsig ℓ) of Σ over its parameters Δ. A core term carries the
+// item's NAME and a spine for its parameters, never a context:
+// x[p̄].𝕤 ē, x[p̄].𝕔 θ, x[p̄].𝕤-elim m̄ ē w. QIIT equality is NOMINAL — one
+// item at equal spines, the foundation's qsig-eq-ref — which is
+// conservative and incomplete (THE FRAGMENT, at the end); β reads the
+// item (el-qiit-beta recurses by the constructor's arity). A context is
+// WRITTEN in the theory of signatures below — the grammar is the
+// positivity guarantee, and β reads constructor arities off it — and it
+// is TYPED through its reading as a Nova telescope, ⟦Φ⟧, over the
+// ALGEBRA CONTEXT Δ · ⟦Φ⟧: an algebra is a spine of that telescope; the
+// initial algebra ι is the spine of the formers themselves; the
+// eliminator's motives, methods and coherences are ONE spine of the
+// displayed telescope ⟦Φ⟧ᴰ over ι; the eliminator's type and its β are
+// substitutions. Nothing about the ToS is trusted beyond the readings
+// ⟦_⟧ and _ᴰ and the displayed spine θᴰ, each defined by recursion on
+// the grammar and landing in Nova syntax the rules above already read.
+// The eliminator's core carries the METHODS only: motives, coherences
+// and the sorts Ū the motives land in are SURFACE, as ℕ-elim's A and U
+// are.
 // A signature is checked AT A LEVEL ℓ, its BOUND: every Nova type it
 // embeds at 𝕌ℓ (a proposition included, by Ω ≤ 𝕌₀ ≤ 𝕌ℓ), its sorts
-// types at 𝕌ℓ, ⟦𝒮⟧ a telescope with sort entries at 𝕌ℓ₊₁. One bound
+// types at 𝕌ℓ, ⟦Φ⟧ a telescope with sort entries at 𝕌ℓ₊₁. One bound
 // serves every sort. The former SMALLNESS condition ("every external
 // domain at 𝕌 or at Ω, tried in turn") is gone: one check at 𝕌ℓ, no
 // universe guessed.
@@ -502,19 +513,17 @@ X[ē]                     // X over Γ · Δ instantiated by the spine: X[(id, �
 
 // --- The theory of signatures (surface = core: nameless indexed syntax) ---
 
-Φ, 𝒮 ::= ⬦ | Φ ▷ 𝔄                       // a signature is a closed qiit-context
+Φ ::= ⬦ | Φ ▷ 𝔄                          // a qiit-context; a SIGNATURE is a closed one, the definiens of an item
 𝔄 ::= U | El 𝕥 | A ⇛ 𝔄 | El 𝕥 ⇛ 𝔄        // A a Nova type; ⇛ binds a Nova / a ToS variable
 𝕥 ::= ⬡ᵢ | 𝕥 t | 𝕥 𝕥 | λ 𝕥 | 𝕥 ≡ 𝕥        // t a Nova term; the equation code at the sides' common sort
 
-Γ ⊦ Φ qctx ℓ           // Given core Γ, check surface Φ at level ℓ (elaborating its Nova pieces)
+Γ ⊦ Φ qctx ℓ           // Given core Γ, check surface Φ at level ℓ (elaborating its Nova pieces). Run ONCE per
+                       //   signature, at its item (the entry points). An embedded Nova piece is a ONE-SIDED
+                       //   proof: its sides β-join and the right one is recorded. There is NO equation of
+                       //   contexts: two formers are compared by the name of their item and its spine
 Γ ; Φ ⊦ 𝔄 qty ℓ
 Γ ; Φ ⊦ 𝕥 ⇒ 𝔄          // ToS terms INFER: they are variables and application chains
 Γ ; Φ ⊦ 𝕥 ⇐ 𝔄
-Γ ⊦ 𝒮 qsig ℓ  ≜  Γ ⊦ 𝒮 qctx ℓ
-Γ ⊦ [ϑ] 𝒮₀ ≐ 𝒮₁ qsig ℓ  // signature equation: 𝒮 with each embedded Nova piece replaced by a proof
-                        //   (a type piece by an equation at 𝕌ℓ, a term piece by a proof at its type);
-                        //   the ToS structure itself is compared syntactically — no α, no β
-                        //   (likewise [ψ] 𝔄₀ ≐ 𝔄₁ qty ℓ, [θ] 𝕥₀ ≐ 𝕥₁ qtm)
 
 Γ ⊦ ⬦ qctx ℓ         Γ ⊦ Φ qctx ℓ      Γ ; Φ ⊦ 𝔄 qty ℓ              Γ ⊦ Φ qctx ℓ
                      ----------------------------------              -----------------
@@ -568,22 +577,29 @@ X[ē]                     // X over Γ · Δ instantiated by the spine: X[(id, �
 ⟦D₁ ⇛ … ⇛ Dₙ ⇛ E⟧ᵉ  = ⟦E⟧                            // over Γ · ⟦Φ⟧ · ⟦𝔄⟧ᵗ
 // so that ⟦𝔄⟧ = Π ⟦𝔄⟧ᵗ. ⟦𝔄⟧ᵉ, the iterated Π over the arity.
 
-// An ALGEBRA of 𝒮 over Γ is a spine Γ ⊦ ā ⇐ ⟦𝒮⟧. The INITIAL algebra
-// Γ ⊦ ι ⇐ ⟦𝒮⟧ is the spine of the carried formers, entry by entry:
-ι(𝕤)  = λ ⟦𝔎⟧ᵗ. 𝒮.𝕤 (the bound variables)             // for a sort entry 𝒮(𝕤) = 𝔎
-ι(𝕔)  = λ ⟦𝔄⟧ᵗ. 𝒮.𝕔 (the bound variables)             // for a point entry 𝒮(𝕔) = 𝔄
-ι(𝕔)  = λ ⟦𝔄⟧ᵗ. ⋆                                    // for an equation entry: its end is a proposition
-// Every type below is stated in the algebra context and instantiated
-// at ι by substitution; X[ι] is X[(id, ι)], and X[ι, θ] extends it by
-// a further spine.
+// A FORMER names an item (Δ ⊦ x ≔ Φ qsig ℓ) ∈ Σ and instantiates its
+// parameters by a spine Γ ⊦ p̄ ⇐ Δ. The readings are taken of Φ over Δ,
+// the item's own context, and a former's types are their INSTANCES, by
+// substitution. (The foundation's content of the reference, ⌈x[p̄]⌉, is
+// Φ[p̄], and a reading commutes with the substitution.) An ALGEBRA of x
+// at p̄ over Γ is a spine Γ ⊦ ā ⇐ ⟦Φ⟧[p̄]. The INITIAL algebra
+// Γ ⊦ ι ⇐ ⟦Φ⟧[p̄] is the spine of the formers at x[p̄], entry by entry
+// (p̄ weakened under the λs):
+ι(𝕤)  = λ ⟦𝔎⟧ᵗ[p̄, ι]. x[p̄].𝕤 (the bound variables)    // for a sort entry Φ(𝕤) = 𝔎
+ι(𝕔)  = λ ⟦𝔄⟧ᵗ[p̄, ι]. x[p̄].𝕔 (the bound variables)    // for a point entry Φ(𝕔) = 𝔄
+ι(𝕔)  = λ ⟦𝔄⟧ᵗ[p̄, ι]. ⋆                              // for an equation entry: its end is a proposition
+// Every type below is stated in the algebra context Δ · ⟦Φ⟧ and
+// instantiated at the parameters and the initial algebra by
+// substitution: X[p̄, ι] is X[(id, p̄, ι)], and X[p̄, ι, θ] extends it by a
+// further spine.
 
 // --- The displayed reading _ᴰ: motives, methods, coherences as one telescope ---
-// Over the algebra context, for target sorts Ū (one per sort of 𝒮 —
+// Over the algebra context, for target sorts Ū (one per sort of Φ —
 // the sort the sort's motive lands in; the foundation's target levels
 // ℓ̄′, with Ω reached by cumulativity), a
 // ToS type 𝔄 with algebra value x : ⟦𝔄⟧ has the displayed type 𝔄ᴰ x, and
 // a ToS term 𝕥 : 𝔄 has the displayed term 𝕥ᴰ : 𝔄ᴰ ⟦𝕥⟧ — Nova types and
-// terms over Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ, the displayed variable ☐ᵢᴰ of ⬡ᵢ bound in
+// terms over Γ · ⟦Φ⟧ · ⟦Φ⟧ᴰ, the displayed variable ☐ᵢᴰ of ⬡ᵢ bound in
 // the displayed telescope:
 
 ⟦⬦⟧ᴰ         = ·
@@ -610,68 +626,81 @@ Uᴰ X                = X → U_𝕤                           // a MOTIVE over 
 (λ 𝕥)ᴰ              = λ a. 𝕥ᴰ[ξ]
 (𝕥 ≡ 𝕥′)ᴰ p         = (𝕥ᴰ ≡ 𝕥′ᴰ ∈ 𝕦ᴰ ⟦𝕥′⟧)             // a COHERENCE: by reflection of p, ⟦𝕥⟧ ≐ ⟦𝕥′⟧, so both
                                                         //   displayed sides sit at one type; a proposition
-// So ⟦𝒮⟧ᴰ[ι] is the telescope of the eliminator's SURFACE arguments in
+// So ⟦Φ⟧ᴰ[p̄, ι] is the telescope of the eliminator's SURFACE arguments in
 // signature order — motives at the sort entries, methods at the point
-// entries, coherences at the equation entries — and Γ ⊦ d̄ ⇐ ⟦𝒮⟧ᴰ[ι]
+// entries, coherences at the equation entries — and Γ ⊦ d̄ ⇐ ⟦Φ⟧ᴰ[p̄, ι]
 // is all of them at once. d̄(𝕤) names the motive entry for sort 𝕤, d̄(𝕔)
 // the method entry for point 𝕔, m̄ the point entries (what the core
 // keeps). The current document's 𝔄ᴰ⟨e⟩, 𝔄ᴰᵗ, ⟦𝕥⟧ and θ⟨φ⟩ are these
-// definitions; ⌊𝔎⌋ᵗ is ⟦𝔎⟧ᵗ[ι].
+// definitions; ⌊𝔎⌋ᵗ is ⟦𝔎⟧ᵗ[p̄, ι].
 
 // --- The outer formers ---
+// Each names an item (Δ ⊦ x ≔ Φ qsig ℓ) ∈ Σ. A sort and a point
+// constructor are congruent in the parameter spine — NOMINAL equality:
+// one item, equal spines — and their types are instances at the RIGHT
+// spine, as every type is built from the right side. The eliminator and
+// the path leaf are at ONE spine. ι is the initial algebra at the spine
+// the types are instantiated by.
 
-Γ ⊦ 𝒮 qsig ℓ      𝒮(𝕤) = 𝔎      Γ ⊦ ē ⇐ ⟦𝔎⟧ᵗ[ι]
---------------------------------------------------- // ty-qiit and code-qiit as one rule: a sort is a
-Γ ⊦ 𝒮.𝕤 ē ⇒ 𝕌ℓ                                      //   type at the signature's bound
+(Δ ⊦ x ≔ Φ qsig ℓ) ∈ Σ      Γ ⊦ [π̄] p̄₀ ≐ p̄₁ ⇐ Δ
+Φ(𝕤) = 𝔎      Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ ⟦𝔎⟧ᵗ[p̄₁, ι]
+---------------------------------------------------- // ty-qiit in full (ty-qiit-cong, by qsig-eq-ref): a sort is
+Γ ⊦ [x[π̄].𝕤 ᾱ] x[p̄₀].𝕤 ē₀ ≐ x[p̄₁].𝕤 ē₁ ⇒ 𝕌ℓ          //   a type at the level its item records. The spine equation
+                                                    //   is at the arity instantiated by ē₁'s prefix
 
-Γ ⊦ 𝒮 qsig ℓ      𝒮(𝕔) = 𝔄  (ending in El 𝕥)      Γ ⊦ θ ⇐ ⟦𝔄⟧ᵗ[ι]
-------------------------------------------------------------------- // el-qiit-intro, SATURATED
-Γ ⊦ 𝒮.𝕔 θ ⇒ ⟦𝕥⟧[ι, θ]
+(Δ ⊦ x ≔ Φ qsig ℓ) ∈ Σ      Γ ⊦ [π̄] p̄₀ ≐ p̄₁ ⇐ Δ
+Φ(𝕔) = 𝔄  (ending in El 𝕥)      Γ ⊦ [ᾱ] θ₀ ≐ θ₁ ⇐ ⟦𝔄⟧ᵗ[p̄₁, ι]
+------------------------------------------------------------ // el-qiit-intro in full, SATURATED
+Γ ⊦ [x[π̄].𝕔 ᾱ] x[p̄₀].𝕔 θ₀ ≐ x[p̄₁].𝕔 θ₁ ⇒ ⟦𝕥⟧[p̄₁, ι, θ₁]
 
-Γ ⊦ 𝒮 qsig ℓ      Ū sorts, one per sort of 𝒮
-Γ ⊦ d̄ ⇐ ⟦𝒮⟧ᴰ[ι]                                   // motives, methods, coherences: ONE spine of the displayed
-𝒮(𝕤) = 𝔎      Γ ⊦ ē ⇐ ⟦𝔎⟧ᵗ[ι]      Γ ⊦ w ⇐ 𝒮.𝕤 ē    //   telescope over the initial algebra; a coherence entry
---------------------------------------------------- //   is a proposition (irrel at U_𝕤 = Ω, a proof otherwise)
-Γ ⊦ 𝒮.𝕤-elim Ū d̄ ē w ⇒ d̄(𝕤) ēᴰ w                     // core: 𝒮.𝕤-elim m̄ ē w, m̄ the point entries of d̄; ēᴰ the
-                                                    //   DISPLAYED SPINE of the indices (COMPUTATION below)
+(Δ ⊦ x ≔ Φ qsig ℓ) ∈ Σ      Γ ⊦ p̄ ⇐ Δ      Ū sorts, one per sort of Φ
+Γ ⊦ [δ̄] d̄₀ ≐ d̄₁ ⇐ ⟦Φ⟧ᴰ[p̄, ι]                        // motives, methods, coherences: ONE spine of the displayed
+Φ(𝕤) = 𝔎      Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ ⟦𝔎⟧ᵗ[p̄, ι]           //   telescope over the initial algebra. Entrywise: the motive
+Γ ⊦ [κ] w₀ ≐ w₁ ⇐ x[p̄].𝕤 ē₁                         //   entries reflexive (the two eliminators share their
+--------------------------------------------------- //   motives), the method entries proper equations, a
+Γ ⊦ [x[p̄].𝕤-elim Ū δ̄ ᾱ κ]                           //   coherence entry a proposition (irrel at U_𝕤 = Ω, a proof
+    x[p̄].𝕤-elim m̄₀ ē₀ w₀ ≐ x[p̄].𝕤-elim m̄₁ ē₁ w₁     //   otherwise). Core: x[p̄].𝕤-elim m̄ ē w, m̄ the point entries
+    ⇒ d̄₁(𝕤) ē₁ᴰ w₁                                  //   of d̄; ēᴰ the DISPLAYED SPINE of the indices (COMPUTATION
+                                                    //   below). ONE spine p̄: across equal spines, go through
+                                                    //   the sort's congruence and conversion
 
 // COMPUTATION is el-qiit-beta, inside "modulo β": at a constructor
-// 𝒮(𝕔) = 𝔄 with arguments Γ ⊦ θ ⇐ ⟦𝔄⟧ᵗ[ι],
-//   𝒮.𝕤-elim m̄ ⟦ī⟧[ι, θ] (𝒮.𝕔 θ)  ⇝  m_𝕔 θᴰ
-// where Γ ⊦ θᴰ ⇐ ⟦𝔄⟧ᵗᴰ[ι, d̄] is the DISPLAYED SPINE of θ (likewise ēᴰ
-// of an index spine Γ ⊦ ē ⇐ ⟦𝔎⟧ᵗ[ι] in the eliminator's type): entrywise,
-// an external argument a ↦ a, an internal argument x : 𝒮.𝕤′ ī′ ↦ x,
-// 𝒮.𝕤′-elim m̄ ī′ x (the eliminator itself at the recursive position:
-// the section φᵉˡ), an internal argument at an equation code ↦ x
+// Φ(𝕔) = 𝔄 with arguments Γ ⊦ θ ⇐ ⟦𝔄⟧ᵗ[p̄, ι],
+//   x[p̄].𝕤-elim m̄ ⟦ī⟧[p̄, ι, θ] (x[p̄′].𝕔 θ)  ⇝  m_𝕔 θᴰ
+// when the eliminator and the constructor agree NOMINALLY — one item,
+// the spines p̄ and p̄′ equal modulo β — where Γ ⊦ θᴰ ⇐ ⟦𝔄⟧ᵗᴰ[p̄, ι, d̄] is
+// the DISPLAYED SPINE of θ (likewise ēᴰ of an index spine
+// Γ ⊦ ē ⇐ ⟦𝔎⟧ᵗ[p̄, ι] in the eliminator's type): entrywise, an external
+// argument a ↦ a, an internal argument u : x[p̄].𝕤′ ī′ ↦ u,
+// x[p̄].𝕤′-elim m̄ ī′ u (the eliminator itself at the recursive position:
+// the section φᵉˡ), an internal argument at an equation code ↦ u
 // alone. Equation constructors have no β: their content is the path
 // leaf below.
 
-// --- Leaves and congruences ---
+// --- Leaves ---
 
-Γ ⊦ 𝒮 qsig ℓ      𝒮(𝕔) = 𝔄  (ending in El (𝕝 ≡ 𝕣), the sides at code 𝕦)      Γ ⊦ θ ⇐ ⟦𝔄⟧ᵗ[ι]
------------------------------------------------------------------------------------------- // el-qiit-path: the imposed
-Γ ⊦ [𝒮.𝕔 θ] ⟦𝕝⟧[ι, θ] ≐ ⟦𝕣⟧[ι, θ] ⇒ ⟦𝕦⟧[ι, θ]                                             //   equation, as a proof leaf
-                                                                                            //   (no term is minted: the
-                                                                                            //   prop's element is ⋆)
-
-Γ ⊦ [ϑ] 𝒮₀ ≐ 𝒮₁ qsig ℓ      Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ ⟦𝔎⟧ᵗ[ι]
------------------------------------------------------- // ty-qiit-cong, at the bound. The spine equation is at the
-Γ ⊦ [ϑ.𝕤 ᾱ] 𝒮₀.𝕤 ē₀ ≐ 𝒮₁.𝕤 ē₁ ⇒ 𝕌ℓ                     //   arity instantiated by ē₁'s prefix, as every spine equation
-
-Γ ⊦ [ϑ] 𝒮₀ ≐ 𝒮₁ qsig ℓ      Γ ⊦ [ᾱ] θ₀ ≐ θ₁ ⇐ ⟦𝔄⟧ᵗ[ι]
------------------------------------------------------- // el-qiit-intro-cong
-Γ ⊦ [ϑ.𝕔 ᾱ] 𝒮₀.𝕔 θ₀ ≐ 𝒮₁.𝕔 θ₁ ⇒ ⟦𝕥⟧[ι, θ₁]
-
-Γ ⊦ 𝒮 qsig ℓ      Ū as in the eliminator
-Γ ⊦ [δ̄] d̄₀ ≐ d̄₁ ⇐ ⟦𝒮⟧ᴰ[ι]                          // entrywise: the motive entries reflexive (the two
-Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ ⟦𝔎⟧ᵗ[ι]      Γ ⊦ [κ] w₀ ≐ w₁ ⇐ 𝒮.𝕤 ē₁   //   eliminators share their motives), the method
---------------------------------------------------------------------------------------- //   entries proper equations, the coherence
-Γ ⊦ [𝒮.𝕤-elim Ū δ̄ ᾱ κ] 𝒮.𝕤-elim m̄₀ ē₀ w₀ ≐ 𝒮.𝕤-elim m̄₁ ē₁ w₁ ⇒ d̄₁(𝕤) ē₁ᴰ w₁             //   entries irrel (propositions). Same 𝒮:
-                                                                                       //   across a signature equation ϑ, go
-                                                                                       //   through ϑ.𝕤 ᾱ and conversion
+(Δ ⊦ x ≔ Φ qsig ℓ) ∈ Σ      Γ ⊦ p̄ ⇐ Δ
+Φ(𝕔) = 𝔄  (ending in El (𝕝 ≡ 𝕣), the sides at code 𝕦)      Γ ⊦ θ ⇐ ⟦𝔄⟧ᵗ[p̄, ι]
+------------------------------------------------------------------------------ // el-qiit-path: the imposed
+Γ ⊦ [x[p̄].𝕔 θ] ⟦𝕝⟧[p̄, ι, θ] ≐ ⟦𝕣⟧[p̄, ι, θ] ⇒ ⟦𝕦⟧[p̄, ι, θ]                    //   equation, as a proof leaf (no
+                                                                              //   term is minted: the prop's
+                                                                              //   element is ⋆)
 
 // Uniqueness (el-qiit-eta) gets no leaf, as at ℕ, ⊎ and / (ν's ην is
 // the one exception): the corpus proves it by elimination into the
 // equality type and reflection. No constructor injectivity: equation
 // entries make constructors non-injective in general (quotients); no
 // index selector either, for now.
+
+// THE FRAGMENT. Equality of QIIT formers here is NOMINAL: the same item
+// at equal spines, and nothing else. That is CONSERVATIVE — every
+// equation the kernel accepts is the foundation's by-name pathway,
+// qsig-eq-ref — and INCOMPLETE: the foundation also lets a former carry
+// a signature written out, lets an item be defined by a reference (an
+// alias, an instance), and equates signatures by content. The kernel
+// has none of the three. Its syntax has no signature beside the context
+// an item defines; a core term holds a name and a spine; and two items
+// with the same content are unrelated. What the content pathway would
+// give back is had otherwise: a transparent name for one sort of an
+// instance is an ordinary definition of that sort, unfolded by δ, and a
+// signature under binders is an item over those binders as parameters.
