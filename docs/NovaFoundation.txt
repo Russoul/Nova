@@ -1,7 +1,7 @@
 ////////// Preface //////////
 
-#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ let → × ⊎ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S ⋆ class inj₁ inj₂ ⌊ ⌋ ⟦ ⟧ ᴰ ι ξ 𝟘-elim ℕ-elim quot-elim squash-elim ⊎-elim -elim qctx qty qsig ctx tel norm sig nf qpath ν 𝕏 K out corec poly map
-#! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎 𝔽 𝔾
+#! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ let → × ⊎ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S ⋆ class inj₁ inj₂ ⌊ ⌋ ⟦ ⟧ ᴰ ι ξ 𝟘-elim ℕ-elim quot-elim squash-elim ⊎-elim -elim qctx qty qsig ctx tel norm sig nf qpath ν 𝕏 K out corec poly map Rec ⟨ ⟩ ↪ distinct
+#! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕝 𝕣 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎 𝔽 𝔾
 #! highlight nova: Γ Δ Ξ Σ σ τ δ θ latin
 #! highlight meta: 𝒞 φ
 #! highlight indexed: ☐ ⬡ ‖
@@ -89,6 +89,10 @@
 #  * Natural numbers type: ℕ
 #  * Dependent product type: (→)
 #  * Dependent sum type: (×)
+#  * Record type: Rec l̄ Δ — a telescope with a LABEL per entry; its
+#    elements are labelled spines ⟨l̄ ↪ ē⟩, projected at a label (t.l),
+#    with β by lookup and η. The label list is part of the type's
+#    identity (ty-rec-inj) — see "Record types"
 #  * Non-dependent sum type: (⊎) — the disjoint union, with injections
 #    inj₁/inj₂ and a dependent eliminator ⊎-elim (β on each injection,
 #    uniqueness η in el-nat-eta's style). DEFINABLE as a QIIT (a
@@ -165,12 +169,19 @@ x ::= <signature-entry-identifier>
 # typing context normal substitution
 e˲, t˲, p˲ ::= · | t˲, t
 
+# label — its own syntactic class, disjoint from the signature
+# identifiers x. A label is never bound and never substituted for.
+l ::= <label>
+
+# label list
+l̄ ::= · | l l̄
+
 # term — ONE sort: the type and element grammars of earlier
 # presentations are merged. A term is a TYPE when it is typed at a
 # universe 𝕌ℓ. DISPLAY CONVENTION: the metavariables T, A, B, C range
 # over terms standing in type position, t, a, b, e over terms in
 # element position — one grammar, two reading aids. The formers 𝟘 𝟙 ℕ
-# → × ⊎ / (and the QIIT sorts and ν) are typed at the universe their
+# → × Rec ⊎ / (and the QIIT sorts and ν) are typed at the universe their
 # components sit at, and at every higher one by CUMULATIVITY
 # (code-lift — El is retired); the level-0 instances are the CODES of
 # earlier presentations and keep their code-* names. The Ω-formers ≡
@@ -198,6 +209,11 @@ t, T ::= x [e˲]      # signature reference
     | t , t          # dependent sum type introduction
     | t .π₁          # dependent sum type elimination (1)
     | t .π₂          # dependent sum type elimination (2)
+    | Rec l̄ Δ        # record type: the telescope Δ, a label per entry
+    | ⟨l̄ ↪ ē⟩        # record: a label list and a spine, read in
+                     #   parallel as ⟨l₁ ↪ e₁, …, lₙ ↪ eₙ⟩. The syntax
+                     #   does NOT relate their lengths; el-rec-i does
+    | t.l            # record projection at a label
     | inj₁ t         # non-dependent sum type introduction (left)
     | inj₂ t         # non-dependent sum type introduction (right)
     | ⊎-elim t t t   # non-dependent sum type elimination
@@ -316,6 +332,8 @@ t, T ::= x [e˲]      # signature reference
 #                             σ : Γ ⇒ Δ is σ ≐ σ
 #     e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm  pointwise (sub-norm-ext-cong defining)
 #     Γ ⊦ Δ₀ ≐ Δ₁ tel         pointwise (tel-ext-cong defining)
+#     Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ       pointwise AT 𝕌ℓ (tel-lvl-ext-cong
+#                             defining; Γ ⊦ Δ tel ℓ is Δ ≐ Δ)
 #     Γ ⊦ ē₀ ≐ ē₁ : Δ         pointwise (sp-ext-cong defining)
 #
 #   THE EQUIVALENCE structure is two RULES, stated once here (the
@@ -347,8 +365,8 @@ t, T ::= x [e˲]      # signature reference
 #   left instance's premise is then well-typed by the domain equation
 #   and coercion). Premises that are not typings of a subject part —
 #   side conditions, Σ-membership, level bounds, the carried signature
-#   𝒮 or polynomial 𝔽 (inert syntax, compared for identity, never
-#   doubled), the ToS-zone premises — are unchanged. The diagonal
+#   𝒮, polynomial 𝔽 or label list l̄ (inert syntax, compared for
+#   identity, never doubled), the ToS-zone premises — are unchanged. The diagonal
 #   x₀ = x₁ = x recovers the display. Expansion: mechanical, by this
 #   clause. Rules whose conclusion is ALREADY an equation — the
 #   computation rules (≜), the uniqueness rules (η), the irrelevance,
@@ -406,6 +424,10 @@ t, T ::= x [e˲]      # signature reference
   # diagonals the corresponding well-formedness.
   Γ ⊦ Δ₀ ≐ Δ₁ tel              Γ ctx          (Γ ⊦ Δ tel is Δ ≐ Δ)
   Γ ⊦ ē₀ ≐ ē₁ : Δ              Γ ⊦ Δ tel      (Γ ⊦ ē : Δ is ē ≐ ē)
+  Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ            Γ ⊦ Δ₀ ≐ Δ₁ tel  (pointwise AT 𝕌ℓ; Γ ⊦ Δ tel ℓ is Δ ≐ Δ)
+  l̄ distinct,  |l̄| = |Δ|,  l ∈ l̄
+                               META-LEVEL side conditions on label lists
+                               (records — see "Record types")
   Γ ⊦ Φ qctx                   Γ ctx        (qiit-context)
   Γ ; Φ ⊦ 𝔄 qty                Γ ⊦ Φ qctx   (qiit-type)
   Γ ; Φ ⊦ 𝕥 : 𝔄                Γ ; Φ ⊦ 𝔄 qty (qiit-term)
@@ -435,7 +457,8 @@ t, T ::= x [e˲]      # signature reference
 # components at that former's arities — if Γ ⊦ A → B : 𝕌ℓ then
 # Γ ⊦ A : 𝕌ℓ and Γ ▷ A ⊦ B : 𝕌ℓ, if Γ ⊦ (a₀ ≡ a₁ ∈ A) : Ω then
 # Γ ⊦ a₀ : A and Γ ⊦ a₁ : A, and likewise for ×, ⊎, /, ∥·∥, the QIIT
-# sorts and ν — and, for an EQUATION with a former on either side,
+# sorts and ν; if Γ ⊦ Rec l̄ Δ : 𝕌ℓ then Γ ⊦ Δ tel ℓ, l̄ distinct and
+# |l̄| = |Δ| — and, for an EQUATION with a former on either side,
 # the same for that side (the left- and right-hand forms of the lemma
 # are proved together). The two lemmas are what let a rule omit a
 # premise: el-sigma-e₂ concludes at B[id, t .π₁] from t : A × B alone
@@ -771,6 +794,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #    components (a component at a lower level arrives by code-lift):
 #    the level of 𝟘, 𝟙, ℕ is 0; of a Π, Σ, ⊎, / the level of its
 #    components (the relation slot of / is Ω and contributes nothing);
+#    of a record the level of its telescope (Γ ⊦ Δ tel ℓ, Rules (tel));
 #    of a QIIT sort and a ν-type the level of the signature or
 #    polynomial. Their LEVEL-0 instances are the universe CODES of
 #    earlier presentations and are displayed below under their code-*
@@ -1057,6 +1081,8 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #    motive ℕ (Z left, S Z right) followed by the standard Z ≐ S Z
 #    refutation. The TYPE former ⊎ is injective by rule below, like
 #    every other structural former.
+#  * The RECORD former is injective at ONE label list: ty-rec-inj,
+#    stated with the record rules (see "Record types").
 
 Γ ▷ A₀ ⊦ B₀ : 𝕌ℓ
 Γ ▷ A₁ ⊦ B₁ : 𝕌ℓ
@@ -1159,6 +1185,58 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 σ₀ ≐ σ₁ : Ξ ⇒ Γ
 ---------------------------- (tel-sub-cong)
 Ξ ⊦ Δ₀[σ₀] ≐ Δ₁[σ₁] tel
+
+# TELESCOPES AT A LEVEL — what the record former is formed from (see
+# "Record types"). A META-DEFINITION over the one judgement, as tel
+# is. The equation Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ is POINTWISE AT 𝕌ℓ
+# (tel-lvl-ext-cong is the defining clause), and Γ ⊦ Δ tel ℓ is its
+# diagonal: every entry typed at 𝕌ℓ at its position — a lower entry by
+# code-lift, a proposition by prop-lift and code-lift. Symmetry and
+# transitivity are meta-lemmas, pointwise from el-sym and el-trans.
+
+Γ ctx
+------------- (tel-lvl-empty)
+Γ ⊦ ε tel ℓ
+
+Γ ⊦ A : 𝕌ℓ
+Γ ▷ A ⊦ Δ tel ℓ
+----------------- (tel-lvl-ext)
+Γ ⊦ A ◁ Δ tel ℓ
+
+Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
+Γ ▷ A₁ ⊦ Δ₀ ≐ Δ₁ tel ℓ
+------------------------------- (tel-lvl-ext-cong)   # defining clause of the
+Γ ⊦ A₀ ◁ Δ₀ ≐ A₁ ◁ Δ₁ tel ℓ                          #   pointwise meta-notation
+
+# META-LEMMAS, each entrywise:
+#   * (forget) Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ gives Γ ⊦ Δ₀ ≐ Δ₁ tel — tel-ext-cong asks
+#     an entry equation at SOME level.
+#   * (raise) Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ and ℓ ≤ ℓ′ give Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ′, by
+#     code-lift-eq. The contexts of the later entries are unchanged:
+#     Γ ▷ A records A, not its level.
+#   * (existence) every Γ ⊦ Δ₀ ≐ Δ₁ tel is one at some ℓ — a telescope is
+#     finite; take the greatest of the entry equations' levels and raise.
+#     On the diagonal: every telescope is a telescope at some level.
+#   * (substitution) Γ₁ ⊦ Δ₀ ≐ Δ₁ tel ℓ and σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁ give
+#     Γ₀ ⊦ Δ₀[σ₀] ≐ Δ₁[σ₁] tel ℓ: tel-sub-cong's induction, each entry
+#     el-sub-cong at 𝕌ℓ, and 𝕌ℓ[σ] ≜ 𝕌ℓ — levels are literals, a
+#     substitution moves none. Likewise tel-coe-ctx and tel-eq-coe-ctx
+#     hold at a level.
+#   * (descent) Γ ⊦ Δ₀ ≐ Δ₁ tel with Γ ⊦ Δ₀ tel ℓ and Γ ⊦ Δ₁ tel ℓ give
+#     Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ: an entry equation at a lower level rises by
+#     code-lift-eq, one at a higher level descends by code-restrict, whose
+#     two typing premises are the diagonals (the left entry read over the
+#     right prefix by coercion).
+#
+# The level is IN the equation, so nothing here is a side condition and
+# the doubling convention applies as it stands: ty-rec's premise read in
+# full is the equation at ℓ, and both telescopes at ℓ are its diagonals,
+# by symmetry and transitivity. Equal telescopes need NOT be equal at a
+# level each has: descent asks both diagonals. Under X : 𝕌₁ and
+# h : (X ≡ ℕ ∈ 𝕌₁), X ≐ ℕ as one-entry telescopes at level 1, and ℕ is
+# one at level 0, but X is not — a variable has only its declared type —
+# so Rec (l) X ≐ Rec (l) ℕ holds at 𝕌₁ and not at 𝕌₀, exactly as
+# X → ℕ ≐ ℕ → ℕ does.
 
 ///////// Rules (elem) /////////
 
@@ -1373,35 +1451,35 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ inj₂ b : A ⊎ B
 
 Γ ▷ A ⊎ B ⊦ C : 𝕌ℓ
-Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
-Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
+Γ ▷ A ⊦ u : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ v : C[↑, inj₂ ☐₀]
 Γ ⊦ t : A ⊎ B
 ---------------------------------- (el-sum-e, motive C)
-Γ ⊦ ⊎-elim l r t : C[id, t]
+Γ ⊦ ⊎-elim u v t : C[id, t]
 
 Γ ▷ A ⊎ B ⊦ C : 𝕌ℓ
-Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
-Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
+Γ ▷ A ⊦ u : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ v : C[↑, inj₂ ☐₀]
 Γ ⊦ a : A
 ------------------------------------------------------------ (el-sum-beta₁)
-Γ ⊦ ⊎-elim l r (inj₁ a) ≜ l[id, a] : C[id, inj₁ a]
+Γ ⊦ ⊎-elim u v (inj₁ a) ≜ u[id, a] : C[id, inj₁ a]
 
 Γ ▷ A ⊎ B ⊦ C : 𝕌ℓ
-Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
-Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
+Γ ▷ A ⊦ u : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ v : C[↑, inj₂ ☐₀]
 Γ ⊦ b : B
 ------------------------------------------------------------ (el-sum-beta₂)
-Γ ⊦ ⊎-elim l r (inj₂ b) ≜ r[id, b] : C[id, inj₂ b]
+Γ ⊦ ⊎-elim u v (inj₂ b) ≜ v[id, b] : C[id, inj₂ b]
 
 Γ ▷ A ⊎ B ⊦ C : 𝕌ℓ
 Γ ▷ A ⊎ B ⊦ g : C
-Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
-Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
-Γ ▷ A ⊦ g[↑, inj₁ ☐₀] ≐ l : C[↑, inj₁ ☐₀]
-Γ ▷ B ⊦ g[↑, inj₂ ☐₀] ≐ r : C[↑, inj₂ ☐₀]
+Γ ▷ A ⊦ u : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ v : C[↑, inj₂ ☐₀]
+Γ ▷ A ⊦ g[↑, inj₁ ☐₀] ≐ u : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ g[↑, inj₂ ☐₀] ≐ v : C[↑, inj₂ ☐₀]
 Γ ⊦ t : A ⊎ B
 ------------------------------------------------- (el-sum-eta, motive C)
-Γ ⊦ g[id, t] ≐ ⊎-elim l r t : C[id, t]
+Γ ⊦ g[id, t] ≐ ⊎-elim u v t : C[id, t]
 
 # Corollary (two-candidate form, as at ℕ): two maps out of A ⊎ B that
 # agree on both injections are equal — chain el-sum-eta through the
@@ -1851,7 +1929,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # there are no other entry forms to exclude):
 #     … ⇛ U               a SORT (its Πs are the index arity)
 #     … ⇛ El (𝕤 ī)        a POINT constructor into sort 𝕤
-#     … ⇛ El (l ≡ r)      an EQUATION constructor (imposes l ≐ r)
+#     … ⇛ El (𝕝 ≡ 𝕣)      an EQUATION constructor (imposes 𝕝 ≐ 𝕣)
 #
 # THE READING ⟦·⟧ interprets checked ToS syntax as Nova syntax over
 # the ALGEBRA CONTEXT Γ·⟦Φ⟧ — a signature as a telescope, its entries
@@ -2152,9 +2230,9 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # (e.g. the quotient's R) is simply a binder of 𝔄, instantiated inside
 # θ.
 
-Γ ⊦ 𝒮 qsig      𝒮(𝕔) = 𝔄  (𝔄 ending in El (l ≡ r))      Γ ⊦ θ : ⟦𝔄⟧ᵗ[ι]
+Γ ⊦ 𝒮 qsig      𝒮(𝕔) = 𝔄  (𝔄 ending in El (𝕝 ≡ 𝕣))      Γ ⊦ θ : ⟦𝔄⟧ᵗ[ι]
 --------------------------------------------------------------------------- (el-qiit-path)
-Γ ⊦ ⟦l⟧[ι, θ] ≐ ⟦r⟧[ι, θ] : ⟦𝕦⟧[ι, θ]      # 𝕦 the sides' common code
+Γ ⊦ ⟦𝕝⟧[ι, θ] ≐ ⟦𝕣⟧[ι, θ] : ⟦𝕦⟧[ι, θ]      # 𝕦 the sides' common code
 
 # CONGRUENCE AND INJECTIVITY. ≐ is congruent at the QIIT formers as
 # at every former, by THE DOUBLING CONVENTION applied to ty-qiit and
@@ -2217,7 +2295,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #     (El (𝕤 ī) ⇛ 𝔄)ᴰ f   ≜ Π (x : ⟦𝕤 ī⟧) (xᴰ : (𝕤 ī)ᴰ x). 𝔄ᴰ (f x)   # inductive argument at a
 #                                                                  #   sort: passed with its
 #                                                                  #   induction hypothesis
-#     (El (l ≡ r) ⇛ 𝔄)ᴰ f ≜ Π (x : ⟦l ≡ r⟧). 𝔄ᴰ (f x)               # inductive argument at an
+#     (El (𝕝 ≡ 𝕣) ⇛ 𝔄)ᴰ f ≜ Π (x : ⟦𝕝 ≡ 𝕣⟧). 𝔄ᴰ (f x)               # inductive argument at an
 #                                                                  #   equation code: a proof,
 #                                                                  #   content-free — no
 #                                                                  #   displayed slot
@@ -2253,7 +2331,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #     inductive component x at 𝕤 ī  ↦ x, φ_𝕤 ⟦ī⟧ᴰ_φ x     # value and image; the
 #                                                       #   index spine's own
 #                                                       #   displayed spine first
-#     inductive component x at l ≡ r ↦ x                # a proof: value only
+#     inductive component x at 𝕝 ≡ 𝕣 ↦ x                # a proof: value only
 # Then m θᴰ_φ : (𝕤 ī)ᴰ (𝒮.𝕔 θ) [ι, d̄] for a method m : 𝔄ᴰ ι(𝕔). The
 # section of the eliminator itself is φᵉˡ_𝕤 ≜ 𝒮.𝕤-elim m̄ δ ☐₀.
 
@@ -2511,12 +2589,12 @@ e˲ : Δ ⇒ Γ norm
 Γ₀ ⊦ (inj₂ b)[σ] ≜ inj₂ b[σ] : A[σ] ⊎ B[σ]
 
 Γ ▷ A ⊎ B ⊦ C : 𝕌ℓ
-Γ ▷ A ⊦ l : C[↑, inj₁ ☐₀]
-Γ ▷ B ⊦ r : C[↑, inj₂ ☐₀]
+Γ ▷ A ⊦ u : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ v : C[↑, inj₂ ☐₀]
 Γ ⊦ t : A ⊎ B
 σ : Δ ⇒ Γ
 ------------------------------------------------------------------- (el-sub-sum-e)
-Δ ⊦ (⊎-elim l r t)[σ] ≜ ⊎-elim l[σ⁺] r[σ⁺] t[σ] : C[σ, t[σ]]
+Δ ⊦ (⊎-elim u v t)[σ] ≜ ⊎-elim u[σ⁺] v[σ⁺] t[σ] : C[σ, t[σ]]
 
 Γ₁ ⊦ a₀ : A
 Γ₁ ⊦ a₁ : A
@@ -2971,6 +3049,156 @@ e˲ : Γ₁ ⇒ Γ norm
 ----------------------------------- (sp-sub-cong)
 Γ₀ ⊦ ē₀[σ₀] ≐ ē₁[σ₁] : Δ[σ₁]
 
+///////// Record types (labelled telescopes) /////////
+
+# Rec l̄ Δ is a telescope Δ with a label per entry. The labels are a
+# parallel list — Δ stays an ordinary nameless telescope, so a label
+# never binds and the tel-/sp- machinery of this document is reused as
+# is: a record's body is a SPINE of Δ (sp-empty, sp-ext), its
+# substitution and its equality the spine's (sp-sub, sp-ext-cong).
+
+# SIDE CONDITIONS on label lists — meta-level, context-free.
+
+· distinct
+
+l̄ distinct
+l ∉ l̄
+------------
+l l̄ distinct
+
+# |l̄| = |Δ|: the lists have the same length
+
+# META-DEFINED NOTIONS. (The telescope AT A LEVEL, Γ ⊦ Δ tel ℓ, and its
+# meta-lemmas are in Rules (tel).)
+
+# The component of a body at a label.
+#     (l l̄ ↪ e, ē)(l) ≜ e
+#     (l′ l̄ ↪ e, ē)(l) ≜ (l̄ ↪ ē)(l)                     (l′ ≠ l)
+
+# The spine of projections of t at the labels l̄ = l₁ … lₙ.
+#     t.l̄ ≜ t.l₁, …, t.lₙ
+
+# The TYPE OF THE FIELD l of t. t is FIXED — an element of the record
+# being walked from its start, not of the suffix — and the suffix l̄ ↪ Δ
+# is over Γ, its earlier fields already instantiated at t's projections.
+#     (t / l l̄ ↪ A ◁ Δ)‖ₗ ≜ A
+#     (t / l′ l̄ ↪ A ◁ Δ)‖ₗ ≜ (t / l̄ ↪ Δ[id, t.l′])‖ₗ     (l′ ≠ l)
+# Closed form: for l̄ = l̄′ l l̄″ with l's entry A over Γ·(the entries
+# of l̄′),
+#     (t / l̄ ↪ Δ)‖ₗ ≐ A[id, t.l̄′]
+#
+# META-LEMMA (well-formedness). If Γ ⊦ t : Rec l̄ Δ, Γ ⊦ Δ tel ℓ and
+# l ∈ l̄ then
+#     Γ ⊦ (t / l̄ ↪ Δ)‖ₗ : 𝕌ℓ
+# By induction on the position of l, together with el-rec-e at the
+# earlier labels (each step of the walk uses the typing of t.l′ at the
+# field type the walk has just reached, and the suffix stays a
+# telescope at ℓ — tel ℓ's substitution meta-lemma).
+#
+# META-LEMMA (congruence). If Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ, Γ ⊦ t₀ ≐ t₁ : Rec l̄ Δ₁
+# and l ∈ l̄ then
+#     Γ ⊦ (t₀ / l̄ ↪ Δ₀)‖ₗ ≐ (t₁ / l̄ ↪ Δ₁)‖ₗ : 𝕌ℓ
+# By induction on the position of l, the two walks kept in step: their
+# suffixes stay equal telescopes at ℓ over Γ. At l the field types are
+# the heads of the suffixes, equal at 𝕌ℓ by tel-lvl-ext-cong read
+# backwards. Past an earlier label l′, with heads A₀ ≐ A₁, the suffixes
+# become
+#     Δ₀′[id, t₀.l′] ≐ Δ₁′[id, t₁.l′]
+# by tel ℓ's substitution meta-lemma, from Δ₀′ ≐ Δ₁′ over Γ ▷ A₁ and
+# t₀.l′ ≐ t₁.l′ : A₁ — the FULL (doubled) form of el-rec-e at l′, whose
+# type is the field type the right walk has just reached. The lemma at l
+# thus uses el-rec-e only at EARLIER labels, and gives in return what the
+# doubled el-rec-e needs at l: its left instance t₀.l, typed at
+# (t₀ / l̄ ↪ Δ₁)‖ₗ, is typed at the right instance's (t₁ / l̄ ↪ Δ₁)‖ₗ by
+# coercion.
+# Instances: Δ₀ = Δ₁ is congruence in the element (the doubling of
+# el-rec-e); t₀ = t₁ is congruence in the telescope (an element of
+# Rec l̄ Δ₁ is one of Rec l̄ Δ₀ by ty-rec's full form and coercion, and
+# its field types at the two agree).
+#
+# META-LEMMA (substitution). For σ : Γ₀ ⇒ Γ₁,
+#     (t / l̄ ↪ Δ)‖ₗ[σ] ≐ (t[σ] / l̄ ↪ Δ[σ])‖ₗ
+# by the same induction, from Δ[id, t.l′][σ] ≐ Δ[σ⁺][id, t[σ].l′].
+
+# RULES. The former rules (ty-rec, el-rec-i, el-rec-e) are displayed
+# in their diagonal form and state their congruences by the DOUBLING
+# CONVENTION (the label list is inert, never doubled).
+# Premises are only those from which the conclusion's well-formedness is
+# derivable: Γ ⊦ ē : Δ already gives Γ ⊦ Δ tel, hence Γ ⊦ Δ tel ℓ at some
+# ℓ (existence); Γ ⊦ t : Rec l̄ Δ gives Δ at a level, l̄ distinct and
+# |l̄| = |Δ| by inversion.
+
+Γ ⊦ Δ tel ℓ
+l̄ distinct
+|l̄| = |Δ|
+------------------ (ty-rec)
+Γ ⊦ Rec l̄ Δ : 𝕌ℓ
+
+Γ ⊦ ē : Δ
+l̄ distinct
+|l̄| = |Δ|
+----------------------- (el-rec-i)
+Γ ⊦ ⟨l̄ ↪ ē⟩ : Rec l̄ Δ
+
+Γ ⊦ t : Rec l̄ Δ
+l ∈ l̄
+------------------------- (el-rec-e)
+Γ ⊦ t.l : (t / l̄ ↪ Δ)‖ₗ
+
+# Computation: ONE rule, by lookup. The premises are el-rec-i's — the
+# components typed, as in el-sigma-beta — not the typing of the record:
+# that a typed record has typed components is no lemma of the theory, and
+# the rule must not assert it. The type is el-rec-e's spelling; it agrees
+# with the spine's own typing of the component (sp-ext) by this rule at
+# the earlier labels.
+
+Γ ⊦ ē : Δ
+l̄ distinct
+|l̄| = |Δ|
+l ∈ l̄
+--------------------------------------------------- (el-rec-beta)
+Γ ⊦ ⟨l̄ ↪ ē⟩.l ≜ (l̄ ↪ ē)(l) : (⟨l̄ ↪ ē⟩ / l̄ ↪ Δ)‖ₗ
+
+# Uniqueness, in el-sigma-eta's form and orientation. At l̄ = · this is
+# ⟨⟩ ≐ t : Rec · ε — the empty record is a unit type.
+
+Γ ⊦ t : Rec l̄ Δ
+---------------------------- (el-rec-eta)
+Γ ⊦ ⟨l̄ ↪ t.l̄⟩ ≐ t : Rec l̄ Δ
+
+# Injectivity, at ONE label list: labels are syntax and compare
+# syntactically. That records with different label lists are different
+# types is no-confusion — like Π against Σ, not a rule, and a
+# meta-property of consistent contexts only.
+
+Γ ⊦ Δ₀ tel ℓ
+Γ ⊦ Δ₁ tel ℓ
+Γ ⊦ Rec l̄ Δ₀ ≐ Rec l̄ Δ₁ : 𝕌ℓ
+------------------------------ (ty-rec-inj)
+Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ
+
+# Substitution action (clauses of the one meta-level induction on terms).
+
+Γ₁ ⊦ Δ tel ℓ
+l̄ distinct
+|l̄| = |Δ|
+σ : Γ₀ ⇒ Γ₁
+------------------------------------ (ty-sub-rec)
+Γ₀ ⊦ (Rec l̄ Δ)[σ] ≜ Rec l̄ Δ[σ] : 𝕌ℓ
+
+Γ₁ ⊦ ē : Δ
+l̄ distinct
+|l̄| = |Δ|
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------- (el-sub-record)
+Γ₀ ⊦ ⟨l̄ ↪ ē⟩[σ] ≜ ⟨l̄ ↪ ē[σ]⟩ : Rec l̄ Δ[σ]
+
+Γ₁ ⊦ t : Rec l̄ Δ
+l ∈ l̄
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------------- (el-sub-rec-proj)
+Γ₀ ⊦ (t.l)[σ] ≜ t[σ].l : (t[σ] / l̄ ↪ Δ[σ])‖ₗ
+
 ///////// Rule name scheme /////////
 
 # Names follow <class>-<former>-<kind> uniformly (see Conventions:
@@ -3145,7 +3373,7 @@ e˲ : Γ₁ ⇒ Γ norm
 # a₀ ≐ a₁ : A internalizes as ⋆ : (a₀ ≡ a₁ ∈ A); quot-elim's well-definedness
 # hypothesis and el-nu-coind's closure bind the relation instance
 # directly (▷ R for ▷ Prf R); Σ-holes for assumed equations sit at
-# the bare prop; the ToS reading ⟦El (l ≡ r)⟧ lands on the
+# the bare prop; the ToS reading ⟦El (𝕝 ≡ 𝕣)⟧ lands on the
 # equality prop itself. (Ω did not embed into 𝕌 at this point;
 # smallness was the judgemental disjunction "typed at 𝕌, or typed
 # at Ω" — superseded by THE TOWER below.)

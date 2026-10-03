@@ -128,10 +128,10 @@
 U a sort
 Γ ⊦ [τ] t₀ ≐ t₁ ⇒ A ⊎ B
 Γ ▷ A ⊎ B ⊦ C ⇐ U
-Γ ▷ A ⊦ [λ] l₀ ≐ l₁ ⇐ C[↑, inj₁ ☐₀]
-Γ ▷ B ⊦ [ρ] r₀ ≐ r₁ ⇐ C[↑, inj₂ ☐₀]
+Γ ▷ A ⊦ [λ] u₀ ≐ u₁ ⇐ C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ [ρ] v₀ ≐ v₁ ⇐ C[↑, inj₂ ☐₀]
 --------------------------------------------------------------------
-Γ ⊦ [⊎-elim U C λ ρ τ] ⊎-elim l₀ r₀ t₀ ≐ ⊎-elim l₁ r₁ t₁ ⇒ C[id, t₁]
+Γ ⊦ [⊎-elim U C λ ρ τ] ⊎-elim u₀ v₀ t₀ ≐ ⊎-elim u₁ v₁ t₁ ⇒ C[id, t₁]
 
 // -------- (/)-type ---------
 
@@ -547,7 +547,7 @@ Uᴰ X                = X → U_𝕤                           // a MOTIVE over 
 (A ⇛ 𝔄)ᴰ f          = Π (a : A[↑…]). 𝔄ᴰ (f a)            // external argument: passed through
 (El (𝕤 ī) ⇛ 𝔄)ᴰ f   = Π (x : ⟦𝕤 ī⟧) (xᴰ : (𝕤 ī)ᴰ x). 𝔄ᴰ (f x)  // internal argument at a SORT: passed with its
                                                              //   image (the induction hypothesis)
-(El (l ≡ r) ⇛ 𝔄)ᴰ f = Π (x : ⟦l ≡ r⟧). 𝔄ᴰ (f x)             // internal argument at an EQUATION code: a proof,
+(El (𝕝 ≡ 𝕣) ⇛ 𝔄)ᴰ f = Π (x : ⟦𝕝 ≡ 𝕣⟧). 𝔄ᴰ (f x)             // internal argument at an EQUATION code: a proof,
                                                              //   content-free — no displayed slot (its image
                                                              //   would be a proposition that always holds, by
                                                              //   reflection of x and congruence)
@@ -597,9 +597,9 @@ Uᴰ X                = X → U_𝕤                           // a MOTIVE over 
 
 // --- Leaves and congruences ---
 
-Γ ⊦ 𝒮 qsig ℓ      𝒮(𝕔) = 𝔄  (ending in El (l ≡ r), the sides at code 𝕦)      Γ ⊦ θ ⇐ ⟦𝔄⟧ᵗ[ι]
+Γ ⊦ 𝒮 qsig ℓ      𝒮(𝕔) = 𝔄  (ending in El (𝕝 ≡ 𝕣), the sides at code 𝕦)      Γ ⊦ θ ⇐ ⟦𝔄⟧ᵗ[ι]
 ------------------------------------------------------------------------------------------ // el-qiit-path: the imposed
-Γ ⊦ [𝒮.𝕔 θ] ⟦l⟧[ι, θ] ≐ ⟦r⟧[ι, θ] ⇒ ⟦𝕦⟧[ι, θ]                                             //   equation, as a proof leaf
+Γ ⊦ [𝒮.𝕔 θ] ⟦𝕝⟧[ι, θ] ≐ ⟦𝕣⟧[ι, θ] ⇒ ⟦𝕦⟧[ι, θ]                                             //   equation, as a proof leaf
                                                                                             //   (no term is minted: the
                                                                                             //   prop's element is ⋆)
 
