@@ -3,7 +3,7 @@
 #! highlight keywords: ⊦ : ; , · [ ] ‖ .π₁ .π₂ ∈ ∋ ≐ ≜ ≔ ⇒ ⇐ = ⬡ ⬦ ▷ ◁ ⇛ ⇑ 𝕚𝕕 El U ☐ ε ↑ ∘ ⁺ id λ let → × ⊎ ≡ ∥ / Ω 𝕌 ℕ 𝟘 𝟙 Z S ⋆ class inj₁ inj₂ ⌊ ⌋ ⟦ ⟧ ᴰ ι ξ 𝟘-elim ℕ-elim quot-elim squash-elim ⊎-elim -elim qctx qty qsig ctx tel norm sig nf qpath ν 𝕏 K out corec poly map Rec ⟨ ⟩ ↪ distinct ⌈ ⌉
 #! highlight tos: 𝔄 𝔅 𝕥 𝕦 𝕧 𝕝 𝕣 𝕤 𝕔 𝕜 𝕘 𝕒 𝕓 𝕞 Φ 𝒮 ς 𝔎 𝔽 𝔾
 #! highlight nova: Γ Δ Ξ Σ σ τ δ θ latin
-#! highlight meta: 𝒞 φ
+#! highlight meta: 𝒞 φ 𝒰
 #! highlight indexed: ☐ ⬡ ‖
 # (`#!` lines are HIGHLIGHTING DECLARATIONS read by
 # tools/render-specs.py — the spec declares its own syntax tables:
@@ -266,6 +266,13 @@ t, T ::= x [e˲]      # signature reference
                      #   code, coalgebra body, seed — 𝔽 and the carrier are
                      #   CARRIED, like m̄ at 𝒮.𝕤-elim: el-nu-beta consumes
                      #   map_𝔽, so the redex must be self-contained)
+
+# universe — Ω, or a level of the tower: what a type is typed at.
+# Both are terms above; 𝒰 is only the METAVARIABLE for "either", used
+# where a notion is stated at both alike — the targets of the
+# displayed reading (the QIIT section), and the sorts of the checker
+# (docs/NovaKernel.txt). Its LEVEL is |Ω| ≜ 0, |𝕌ℓ| ≜ ℓ.
+𝒰 ::= Ω | 𝕌ℓ
 
 # (type) telescope
 Δ ::= ε | T ◁ Δ
@@ -2405,12 +2412,20 @@ e˲₀ ≐ e˲₁ : Δ ⇒ Γ norm
 # carries the methods m̄ (the point entries of d̄) alone — β reads them
 # and nothing else; the motives and coherences are premises.
 #
-# THE DISPLAYED READING _ᴰ, relative to TARGET LEVELS ℓ̄′ — one per
-# sort of 𝒮, ℓ′_𝕤 the universe the motive of 𝕤 lands in (Ω-valued
-# motives arriving by Ω ≤ 𝕌₀ ≤ 𝕌ℓ′; the checker names the motive's
-# sort on the eliminator, docs/NovaKernel.txt). Over the DISPLAYED CONTEXT
-# Γ·⟦Φ⟧·⟦Φ⟧ᴰ — the algebra context extended by the displayed
-# telescope — a ToS type 𝔄 with algebra value x : ⟦𝔄⟧ has the
+# THE DISPLAYED READING _ᴰ, relative to TARGETS 𝒰̄ — one per sort of
+# 𝒮, 𝒰_𝕤 the universe the motive of 𝕤 lands in (a 𝒰 of the Syntax: Ω
+# or a 𝕌ℓ′). Ω is a target of its own and NOT the level-0 instance
+# 𝕌₀: cumulativity acts at
+# the root of a type only (THE TOWER), so a motive into Ω is not
+# thereby a motive into 𝕌₀. Nothing is added by it — an Ω-valued
+# motive is, η-expanded, a 𝕌₀-valued one, by prop-lift on its body,
+# and the eliminator at the one is the eliminator at the other, the
+# same term at a type equal by β. It is stated because it is the
+# target an induction into a proposition names, and the one at which
+# every coherence holds by irrelevance (el-prf-prop). (The checker
+# names each target on the eliminator, docs/NovaKernel.txt.) Over the
+# DISPLAYED CONTEXT Γ·⟦Φ⟧·⟦Φ⟧ᴰ — the algebra context extended by the
+# displayed telescope — a ToS type 𝔄 with algebra value x : ⟦𝔄⟧ has the
 # displayed type 𝔄ᴰ x, "x is covered", and a ToS term 𝕥 : 𝔄 has the
 # displayed term 𝕥ᴰ : 𝔄ᴰ ⟦𝕥⟧, its image under the displayed entries;
 # the displayed variable ☐ᵢᴰ of ⬡ᵢ is the entry of ⟦Φ⟧ᴰ at ⬡ᵢ's
@@ -2422,7 +2437,8 @@ e˲₀ ≐ e˲₁ : Δ ⇒ Γ norm
 #                                            #   the telescope re-based over the
 #                                            #   grown algebra context
 #
-#     Uᴰ X                ≜ X → 𝕌ℓ′_𝕤         # a MOTIVE over the carrier of sort 𝕤
+#     Uᴰ X                ≜ X → 𝒰_𝕤           # a MOTIVE over the carrier of sort 𝕤,
+#                                            #   into its target: Ω or a 𝕌ℓ′
 #     (El 𝕥)ᴰ x           ≜ 𝕥ᴰ x              # a METHOD, or a COHERENCE when 𝕥 is an
 #                                            #   equation code (a proposition)
 #     (A ⇛ 𝔄)ᴰ f          ≜ Π (a : A[…]). 𝔄ᴰ (f a)                  # external argument:
@@ -2448,7 +2464,7 @@ e˲₀ ≐ e˲₁ : Δ ⇒ Γ norm
 # scope, as at the reading; the external binders go through ξ as
 # there.) So a sort entry 𝒮(𝕤) = D̄ ⇛ U has the displayed type
 # Π (the arity, each inductive index with its own displayed value).
-# X d̄ → 𝕌ℓ′_𝕤 — a motive over the sort AND the induction hypotheses of
+# X d̄ → 𝒰_𝕤 — a motive over the sort AND the induction hypotheses of
 # its indices (induction-induction: the motive for Ty 𝕘 may depend on
 # Con's motive at 𝕘; a motive that does not is the instance that
 # weakens past them); a point entry has the displayed type of its
@@ -2470,7 +2486,7 @@ e˲₀ ≐ e˲₁ : Δ ⇒ Γ norm
 # Then m θᴰ_φ : (𝕤 ī)ᴰ (𝒮.𝕔 θ) [ι, d̄] for a method m : 𝔄ᴰ ι(𝕔). The
 # section of the eliminator itself is φᵉˡ_𝕤 ≜ 𝒮.𝕤-elim m̄ δ ☐₀.
 
-Γ ⊦ 𝒮 qsig      Γ ⊦ d̄ : ⟦𝒮⟧ᴰ[ι]  (at levels ℓ̄′; m̄ the point entries of d̄)
+Γ ⊦ 𝒮 qsig      Γ ⊦ d̄ : ⟦𝒮⟧ᴰ[ι]  (at targets 𝒰̄; m̄ the point entries of d̄)
 𝒮(𝕤) = 𝔎      Γ ⊦ ē : ⟦𝔎⟧ᵗ[ι]      Γ ⊦ w : 𝒮.𝕤 ē
 --------------------------------------------------------------------- (el-qiit-elim)
 Γ ⊦ 𝒮.𝕤-elim m̄ ē w : d̄(𝕤) ēᴰ_{φᵉˡ} w         # d̄(𝕤) the motive entry: the

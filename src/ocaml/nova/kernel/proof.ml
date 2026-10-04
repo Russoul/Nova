@@ -26,12 +26,12 @@ type t =
   | Inl of t
   | Inr of t
   | Sum of t * t (* α ⊎ β *)
-  | SumElim of sort * t * t * t * t (* ⊎-elim U C λ ρ τ *)
+  | SumElim of sort * t * t * t * t (* ⊎-elim 𝒰 C λ ρ τ *)
   (* quotients *)
   | Class of t
   | QuotEq of t * t * t (* quot-eq α β ρ *)
   | Quot of t * t (* α / ρ *)
-  | QuotElim of sort * t * t * t * t (* quot-elim U B φ ω κ *)
+  | QuotElim of sort * t * t * t * t (* quot-elim 𝒰 B φ ω κ *)
   (* 𝟘, 𝟙, ℕ *)
   | Zero
   | ZeroElim of t
@@ -40,7 +40,7 @@ type t =
   | Nat
   | Z
   | S of t
-  | NatElim of sort * t * t * t * t (* ℕ-elim U A α β τ *)
+  | NatElim of sort * t * t * t * t (* ℕ-elim 𝒰 A α β τ *)
   (* ≡ *)
   | Refl of t
   | Reflect of t
@@ -80,6 +80,6 @@ type t =
   | QSort of t signature * int * t list (* ϑ.𝕤 ᾱ *)
   | QCon of t signature * int * t list (* ϑ.𝕔 ᾱ *)
   | QElim of t signature * int * sort list * t list * t list * t
-(* 𝒮.𝕤-elim Ū δ̄ ᾱ κ: the target sorts, one per sort entry; the whole
+(* 𝒮.𝕤-elim 𝒰̄ δ̄ ᾱ κ: the target sorts, one per sort entry; the whole
    displayed spine (motives, methods, coherences); the index spine;
    the scrutinee *)
