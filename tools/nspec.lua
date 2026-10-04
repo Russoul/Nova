@@ -11,12 +11,15 @@
 --
 -- A formal line with ::= is a grammar production: metavariables on the left,
 -- alternatives split by " | " on the right. In an alternative a category is
--- named by its first metavariable and every other token is literal; ᵢ, ₙ
--- and ⁿ stand for any index. If the grammar has the category J, every other
--- formal line must be a J: judgements on one line are three spaces apart, an
--- indented line continues the one above, and a metavariable keeps one
--- category throughout its rule (outside a rule, throughout its line). `//! kind: names` gives those categories
--- their token kind.
+-- named by its first metavariable and every other token is literal; the
+-- alternative <natural number> is a numeral. A subscript or superscript
+-- reads as the same text full-size (☐ᵢ is ☐ i), except after a
+-- metavariable, where it is part of its name (t₀).
+--
+-- If the grammar has the category J, every other formal line must be a J:
+-- judgements on one line are three spaces apart, an indented line continues
+-- the one above, and a metavariable keeps one category throughout its rule
+-- (outside a rule, throughout its line).
 --
 --   nspec.lua [FILE…]            check; a finding is `path:line:col: message`
 --   nspec.lua --html OUT FILE…   render
@@ -33,9 +36,19 @@ M.colours = {
   keyword = '#f9e2af', -- fixed syntax
   nova = '#5c6370', -- a Nova metavariable: term, context, telescope, …
   level = '#fab387', -- a universe level
-  index = '#fab387', -- an index written as a subscript or superscript
+  index = '#fab387', -- an index: of a variable, of a weakening
   tos = '#53cad4', -- a metavariable of the theory of signatures
   proof = '#cba6f7', -- a proof
+}
+
+-- The kind of a metavariable, by its grammar category (the category's first
+-- metavariable). A category not listed here is left uncoloured.
+M.kinds = {
+  nova = 'x l l̄ 𝒰 𝒰̄ Σ I Γ Δ σ e˲ ē t',
+  level = 'ℓ',
+  index = 'i',
+  tos = '𝕤 𝕔 Φ 𝔄 𝕥 𝔽',
+  proof = 'α ᾱ π̄ φ',
 }
 
 local HERE = debug.getinfo(1, 'S').source:sub(2):match('^(.*)/[^/]*$') or '.'
@@ -83,15 +96,22 @@ local function code(ch)
   return c
 end
 local function mark(c) return c >= 0x300 and c <= 0x36F or c == 0x2F2 end
-local function sub(c) return c >= 0x2080 and c <= 0x209C or c >= 0x1D62 and c <= 0x1D6A or c == 0x2C7C end
-local function sup(c) return c == 0xB2 or c == 0xB3 or c == 0xB9 or c >= 0x2070 and c <= 0x207F end
 local function prime(c) return c == 0x27 or c >= 0x2032 and c <= 0x2034 end
+
+-- subscripts, then superscripts, each before its full-size character
+local SMALL, SUBSCRIPT = {}, {}
+do
+  local subs = '₀0₁1₂2₃3₄4₅5₆6₇7₈8₉9₊+₋-₌=₍(₎)ₐaₑeₒoₓxₕhₖkₗlₘmₙnₚpₛsₜtᵢiᵣrᵤuᵥvⱼj'
+  local sups = '⁰0¹1²2³3⁴4⁵5⁶6⁷7⁸8⁹9⁺+⁻-⁼=⁽(⁾)ⁿnⁱi'
+  for small, full in subs:gmatch('([\194-\244][\128-\191]*)(.)') do SMALL[small], SUBSCRIPT[small] = full, true end
+  for small, full in sups:gmatch('([\194-\244][\128-\191]*)(.)') do SMALL[small] = full end
+end
 local function letter(ch) return #ch == 1 and ch:match('%a') end
 local function alnum(ch) return #ch == 1 and ch:match('%w') end
 
 -- Rule names: el-pi-i, el-sigma-e₁ ------------------------------------------
 
-local function name_char(ch) return alnum(ch) or ch == '-' or ch == '⁼' or ch == 'ᴰ' or sub(code(ch)) and ch:match('^\226\130[\128-\137]$') end
+local function name_char(ch) return alnum(ch) or ch == '-' or ch == '⁼' or ch == 'ᴰ' or ch:match('^\226\130[\128-\137]$') end
 local function is_name(s)
   return s:match('^%l[%l%d]*%-') and not s:match('%u') and not s:match('%-%-') and not s:match('%-$')
 end
@@ -159,34 +179,39 @@ local function lex(s, roots)
   local cs, at = chars(s)
   local toks, i = {}, 1
   while i <= #cs do
-    local ch = cs[i]
-    local c = code(ch)
-    if ch:match('^%s$') then
+    if cs[i]:match('^%s$') then
       i = i + 1
-    elseif sub(c) or sup(c) then
-      local j, class = i, sub(c) and sub or sup
-      while cs[j] and class(code(cs[j])) do j = j + 1 end
-      toks[#toks + 1] = { text = table.concat(cs, '', i, j - 1), index = true, from = at[i], to = at[j] - 1 }
-      i = j
     else
-      local j = i + 1
-      if letter(ch) or ch == '-' and cs[j] and letter(cs[j]) then
-        while cs[j] and (alnum(cs[j]) or cs[j] == '-' and cs[j + 1] and letter(cs[j + 1])) do j = j + 1 end
-      elseif #ch == 1 and ch:match('%d') then
-        while cs[j] and #cs[j] == 1 and cs[j]:match('%d') do j = j + 1 end
+      local small = SMALL[cs[i]] ~= nil
+      -- character k full-size, if it is in this token's script
+      local function full(k)
+        if small then return SMALL[cs[k] or ''] end
+        return cs[k] and not SMALL[cs[k]] and cs[k] or nil
       end
-      while cs[j] and mark(code(cs[j])) do j = j + 1 end
-      local base = table.concat(cs, '', i, j - 1)
+      local j = i + 1
+      if letter(full(i)) or full(i) == '-' and letter(full(j) or '') then
+        while full(j) and (alnum(full(j)) or full(j) == '-' and letter(full(j + 1) or '')) do j = j + 1 end
+      elseif full(i):match('^%d$') then
+        while (full(j) or ''):match('^%d$') do j = j + 1 end
+      end
+      while not small and cs[j] and mark(code(cs[j])) do j = j + 1 end
+      local base = {}
+      for k = i, j - 1 do base[#base + 1] = full(k) end
+      base = table.concat(base)
       local root = roots[base] and base or nil
-      while root and cs[j] and (sub(code(cs[j])) or prime(code(cs[j]))) do j = j + 1 end
-      toks[#toks + 1] = { text = table.concat(cs, '', i, j - 1), root = root, from = at[i], to = at[j] - 1 }
+      while root and not small and cs[j] and (SUBSCRIPT[cs[j]] or prime(code(cs[j]))) do j = j + 1 end
+      toks[#toks + 1] = {
+        text = small and base or table.concat(cs, '', i, j - 1),
+        root = root,
+        number = base:match('^%d+$') and true,
+        from = at[i],
+        to = at[j] - 1,
+      }
       i = j
     end
   end
   return toks
 end
-
-local ANY_INDEX = { ['ᵢ'] = true, ['ₙ'] = true, ['ⁿ'] = true }
 
 -- the productions among the rows: `roots ::= alternative | alternative`
 local function grammar(rows)
@@ -211,7 +236,8 @@ local function grammar(rows)
       cat.member[root], g.roots[root] = true, true
     end
     for alt in (source.rhs .. ' | '):gmatch('(.-)%s|%s') do
-      if alt:match('%S') and not alt:match('^%s*<') then cat.alts[#cat.alts + 1] = alt end
+      if alt:match('^%s*<natural number>%s*$') then cat.number = true
+      elseif alt:match('%S') and not alt:match('^%s*<') then cat.alts[#cat.alts + 1] = alt end
     end
     g.cats[cat.name] = cat
     g.order[#g.order + 1] = cat
@@ -224,11 +250,11 @@ local function grammar(rows)
       cat.prods[#cat.prods + 1] = { id = id, lhs = cat.name, rhs = rhs }
     end
     add({ { var = cat.name } })
+    if cat.number then add({ { number = cat.name } }) end
     for _, alt in ipairs(cat.alts) do
       local rhs = {}
       for _, tok in ipairs(lex(alt, g.roots)) do
         if tok.root == tok.text and g.cats[tok.text] then rhs[#rhs + 1] = { nt = tok.text }
-        elseif tok.index and ANY_INDEX[tok.text] then rhs[#rhs + 1] = { any_index = true }
         else
           rhs[#rhs + 1] = { lit = tok.text }
           g.lits[tok.text] = true
@@ -276,7 +302,7 @@ local function recognise(g, toks, start, pin)
       elseif tok then
         local fits
         if sym.lit then fits = tok.text == sym.lit and (not fixed or fixed == 'lit')
-        elseif sym.any_index then fits = tok.index
+        elseif sym.number then fits = tok.number and (not fixed or fixed == sym.number)
         else fits = tok.root and g.cats[sym.var].member[tok.root] and (not fixed or fixed == sym.var) end
         if fits then add(k + 1, item.prod, item.dot + 1, item.origin) end
       end
@@ -310,16 +336,16 @@ local function judge(g, parts)
     local readings = {} -- fixed syntax first: it is the class shown when both fit
     if g.lits[tok.text] then readings[1] = 'lit' end
     for _, cat in ipairs(g.order) do
-      if tok.root and cat.member[tok.root] then readings[#readings + 1] = cat.name end
+      if tok.root and cat.member[tok.root] or tok.number and cat.number then readings[#readings + 1] = cat.name end
     end
     tok.live = {}
     for _, reading in ipairs(readings) do
-      if #readings == 1 or recognise(g, toks, 'J', { [k] = reading }) then
+      if #readings == 1 and tok.root or recognise(g, toks, 'J', { [k] = reading }) then
         tok.live[reading] = true
         tok.class = tok.class or reading
       end
     end
-    tok.class = tok.class or (tok.index and 'index') or 'lit'
+    tok.class = tok.class or 'lit'
   end
   cache[g.key][key] = result
   return result
@@ -373,6 +399,9 @@ function M.analyse(lines, path)
   local function token(n, from, to, kind) tokens[#tokens + 1] = { n = n, from = from, to = to, kind = kind } end
 
   local prefixes, level, kinds = {}, 0, {}
+  for kind, categories in pairs(M.kinds) do
+    for name in categories:gmatch('%S+') do kinds[table.concat((chars(name)))] = kind end
+  end
   for name in pairs(names) do prefixes[name:match('^[^-]+')] = true end
   for i, row in ipairs(rows) do
     if row.kind == 'head' then
@@ -382,9 +411,6 @@ function M.analyse(lines, path)
       token(row.n, 1, #row.formal, 'heading')
     end
     if row.prose ~= '' then token(row.n, #lines[row.n] - #row.prose + 1, #lines[row.n], 'prose') end
-    local kind, categories = row.prose:match('^//!%s*(%a+):%s*(.*)$')
-    if kind and not M.colours[kind] then report(row.n, 1, 'no token kind ' .. kind) end
-    for name in (kind and categories or ''):gmatch('%S+') do kinds[table.concat((chars(name)))] = kind end
     if row.kind == 'bar' then
       for from, to in row.formal:gmatch('()%-%-%-+()') do token(row.n, from, to - 1, 'bar') end
     end
@@ -426,8 +452,7 @@ function M.analyse(lines, path)
       own = own or tok.text
       local kind = 'keyword'
       if tok.from < left then kind = tok.root and kinds[own]
-      elseif tok.root == tok.text and g.cats[tok.text] then kind = kinds[tok.text]
-      elseif tok.index and ANY_INDEX[tok.text] then kind = 'index' end
+      elseif tok.root == tok.text and g.cats[tok.text] then kind = kinds[tok.text] end
       class = tok.text == '<' or class and tok.text ~= '>' -- <a lexical class>: left plain
       if kind and not class and tok.text ~= '>' then token(row.n, tok.from, tok.to, kind) end
     end
@@ -462,7 +487,7 @@ function M.analyse(lines, path)
             end
           end
         end
-        local kind = tok.class == 'lit' and 'keyword' or tok.class == 'index' and 'index' or kinds[tok.class]
+        local kind = tok.class == 'lit' and 'keyword' or kinds[tok.class]
         if kind then token(n, col, col + tok.to - tok.from, kind) end
       end
     end

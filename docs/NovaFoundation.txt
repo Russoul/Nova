@@ -215,8 +215,9 @@ t, T ::= x [e˲]      # signature reference
     | t .π₂          # dependent sum type elimination (2)
     | Rec l̄ Δ        # record type: the telescope Δ, a label per entry
     | ⟨l̄ ↪ ē⟩        # record: a label list and a spine, read in
-                     #   parallel as ⟨l₁ ↪ e₁, …, lₙ ↪ eₙ⟩. The syntax
-                     #   does NOT relate their lengths; el-rec-i does
+                     #   parallel, each label with the component at its
+                     #   position. The syntax does NOT relate their
+                     #   lengths; el-rec-i does
     | t.l            # record projection at a label
     | inj₁ t         # non-dependent sum type introduction (left)
     | inj₂ t         # non-dependent sum type introduction (right)
@@ -455,6 +456,8 @@ t, T ::= x [e˲]      # signature reference
   𝒮 ≼ ℓ,  𝔽 ≼ ℓ                META-DEFINED level bounds: every Nova type the
                                signature / polynomial embeds is typed at 𝕌ℓ at
                                its position (ty-qiit, ty-nu)
+  𝒰 ≼ 𝒰′                       META-DEFINED order on universes (THE ORDER ON
+                               UNIVERSES, in the type rules)
   # the theory-of-signatures judgements (dual zone Γ ; Φ — Nova zone,
   # then ToS zone) are defined in the QIIT section; a signature is a
   # well-formed qiit-context, written out or referred to by the name
@@ -944,6 +947,21 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ p₀ ≐ p₁ : 𝕌₀
 ----------------- (prop-restrict)
 Γ ⊦ p₀ ≐ p₁ : Ω
+
+# THE ORDER ON UNIVERSES. 𝒰 ≼ 𝒰′ is the order the two cumulativities
+# generate, META-DEFINED by two clauses — Ω below every universe, and
+# the tower by level (ℓ ≤ ℓ′ the order of the natural numbers):
+
+Ω ≼ 𝒰
+𝕌ℓ ≼ 𝕌ℓ′      ℓ ≤ ℓ′
+
+# It is reflexive and transitive, and no 𝕌ℓ is below Ω. Both
+# cumulativities iterate along it — META-LEMMAS, by induction on the
+# clauses, the step out of Ω by the prop- rules and each level by the
+# code- rules:
+#   * (lift) Γ ⊦ a₀ ≐ a₁ : 𝒰 and 𝒰 ≼ 𝒰′ give Γ ⊦ a₀ ≐ a₁ : 𝒰′.
+#   * (restrict) Γ ⊦ a₀ : 𝒰, Γ ⊦ a₁ : 𝒰, 𝒰 ≼ 𝒰′ and Γ ⊦ a₀ ≐ a₁ : 𝒰′
+#     give Γ ⊦ a₀ ≐ a₁ : 𝒰.
 
 Γ ⊦ A : 𝕌ℓ
 Γ ▷ A ▷ A[↑] ⊦ R : Ω
@@ -2140,7 +2158,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 ⟦λ 𝕥⟧_{Γ;Φ}       ≜ λ (⟦𝕥⟧_{Γ ▷ A ; Φ[↑]}[ξ_{Φ,A}])   # A the Π-domain of λ 𝕥's type
 ⟦𝕥₀ ≡ 𝕥₁⟧_{Γ;Φ}   ≜ (⟦𝕥₀⟧_{Γ;Φ} ≡ ⟦𝕥₁⟧_{Γ;Φ} ∈ ⟦𝕦⟧_{Γ;Φ})   # 𝕦 the sides' common code;
                                                     #   a proposition, so a 𝕌₀ code and
-                                                    #   an entry like any other (Ω ≤ 𝕌₀)
+                                                    #   an entry like any other (Ω ≼ 𝕌₀)
 # (A sort or constructor position of 𝒮 occurring in a term is a
 # variable of the algebra context like any other; the SATURATED Nova
 # formers 𝒮.𝕤 ē and 𝒮.𝕔 θ appear only once ι is substituted and the
@@ -3185,8 +3203,9 @@ l l̄ distinct
 #     (l l̄ ↪ e, ē)(l) ≜ e
 #     (l′ l̄ ↪ e, ē)(l) ≜ (l̄ ↪ ē)(l)                     (l′ ≠ l)
 
-# The spine of projections of t at the labels l̄ = l₁ … lₙ.
-#     t.l̄ ≜ t.l₁, …, t.lₙ
+# The spine of projections of t at the labels l̄, by induction on l̄.
+#     t.·     ≜ ·
+#     t.(l l̄) ≜ t.l, t.l̄
 
 # The TYPE OF THE FIELD l of t. t is FIXED — an element of the record
 # being walked from its start, not of the suffix — and the suffix l̄ ↪ Δ

@@ -29,7 +29,7 @@ type sort = Omega | U of int
 (* |Ω| = 0, |𝕌ℓ| = ℓ *)
 let level = function Omega -> 0 | U l -> l
 
-(* Ω ≤ 𝕌₀ ≤ 𝕌₁ ≤ … *)
+(* Ω ≼ 𝕌₀ ≼ 𝕌₁ ≼ … *)
 let sort_le a b =
   match (a, b) with
   | Omega, _ -> true

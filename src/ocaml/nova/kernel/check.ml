@@ -731,7 +731,7 @@ let check_ctx st (ps : P.t list) : ctx =
       a1 :: ctx)
     [] (List.rev ps)
 
-(* Σ ⊢ (Δ ⊦ x : T) item, and Σ ⊢ (Δ ⊦ x ≔ t : T) item: the accepted
+(* Σ ⊦ (Δ ⊦ x : T) item, and Σ ⊦ (Δ ⊦ x ≔ t : T) item: the accepted
    item, to be appended to Σ by the caller. *)
 let check_item ~fuel (sg : Sig.t) ~(params : P.t list) ~(ty : P.t)
     ~(def : P.t option) : Sig.item =

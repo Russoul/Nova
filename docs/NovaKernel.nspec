@@ -5,7 +5,7 @@
 Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ Δ    // spine equation, against a TELESCOPE Δ over Γ: a record's body, a QIIT's arguments (LISTS)
 [ᾱ] e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm  // normal-substitution equation, into a CONTEXT Δ: the arguments of a reference x[e˲] (LISTS)
 Γ ctx                     // Γ is a well-formed context
-Σ ⊢ I item                // the item I extends the signature Σ (the entry points)
+Σ ⊦ I item                // the item I extends the signature Σ (the entry points)
 Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ        // polynomial equation proof at level ℓ, synthesising both sides
 Γ ⊦ [ᾱ] Δ₀ ≐ Δ₁ tel ℓ         // telescope equation proof, synthesising both sides and the LEAST level ℓ
 
@@ -32,37 +32,33 @@
 // kernel's. Everything else is the foundation's Syntax, repeated here until
 // that document is in this format.
 
-//! nova: x l l̄ 𝒰 𝒰̄ Σ I Γ Δ σ e˲ ē t
-//! level: ℓ
-//! tos: 𝕤 𝕔 Φ 𝔄 𝕥 𝔽
-//! proof: α ᾱ φ
-
 x ::= <signature-entry-identifier>
 l ::= <label>
 𝕤 ::= <sort-name>
 𝕔 ::= <constructor-name>
+i ::= <natural number>
 l̄ ::= · | l l̄
-ℓ ::= 0 | ℓ ⊔ ℓ | (ℓ) | |𝒰|
-𝒰 ::= Ω | 𝕌ℓ | 𝕌ᵢ
+ℓ ::= <natural number> | ℓ ⊔ ℓ | (ℓ) | |𝒰|
+𝒰 ::= Ω | 𝕌ℓ
 𝒰̄ ::= · | 𝒰, 𝒰̄
 Σ ::= ε | Σ I
 I ::= (Γ ⊦ x : t) | (Γ ⊦ x ≔ t : t) | (Γ ⊦ x ≔ Φ qsig ℓ)
 Γ, Δ ::= ε | Γ ▷ t
 Δ ::= ε | t ◁ Δ | Δ[σ] | ⟦𝔄⟧ᵗ | ⟦Φ⟧ᴰ
-σ ::= id | ↑ | ↑ⁿ | e˲ | σ, t | σ, ē
-e˲ ::= · | e˲, t | (e˲, t)
-ē, θ, ι, d̄, m̄ ::= · | t, ē | (t, ē) | ēᴰ
+σ ::= id | ↑ | ↑ⁱ | e˲ | σ, t | σ, ē
+e˲ ::= · | e˲, t | (e˲)
+ē, θ, ι, d̄, m̄ ::= · | t, ē | (ē) | ēᴰ | t.l̄
 
 t, a, b, e, f, h, p, q, r, s, u, v, w, x, z, A, B, C, R, T ::= x[e˲]
     | ☐ᵢ | 𝒰 | 𝟘 | 𝟙 | ℕ | ⋆ | () | Z | S t | (t)
     | t → t | t × t | t ⊎ t | t / t | t ≡ t ∈ t | ∥t∥
     | λ t | t t | let t t | t, t | t.π₁ | t.π₂
-    | Rec l̄ Δ | ⟨l̄ ↪ ē⟩ | ⟨l̄ ↪ t.l₀, …, t.lₙ₋₁⟩ | t.l
+    | Rec l̄ Δ | ⟨l̄ ↪ ē⟩ | t.l
     | inj₁ t | inj₂ t | ⊎-elim t t t | 𝟘-elim t | ℕ-elim t t t
     | class t | quot-elim t t
     | x[e˲].𝕤 ē | x[e˲].𝕔 ē | x[e˲].𝕤-elim ē ē t
     | ν 𝔽 | out t | corec 𝔽 t t
-    | t[σ] | Γ‖ᵢ | (t / l̄ ↪ Δ)‖ᵢ | ⌊𝔽⌋(t) | map_𝔽 t t | lift_𝔽(t) | ⟦𝕥⟧ | ē(𝕤) ē t
+    | t[σ] | Γ‖ᵢ | (t / l̄ ↪ Δ)‖ₗ | ⌊𝔽⌋(t) | map_𝔽 t t | lift_𝔽(t) | ⟦𝕥⟧ | ē(𝕤) ē t
 
 𝔽, 𝔾 ::= 𝕏 | K t | 𝔽 × 𝔽 | 𝔽 ⊎ 𝔽 | t × 𝔽 | t → 𝔽
 Φ ::= ⬦ | Φ ▷ 𝔄 | Φ[σ]
@@ -78,23 +74,24 @@ t, a, b, e, f, h, p, q, r, s, u, v, w, x, z, A, B, C, R, T ::= x[e˲]
     | reify α | reflect α | squash α | unsquash α α α
     | irrel α α | prop-irrel α α α | propext α α α α
     | lift α | restrict α α α | conv α α | (α : t)
-    | x ᾱ | δ x e˲ | α ; α | α ⁻¹
+    | x π̄ | δ x e˲ | α ; α | α ⁻¹
     | η→ α | η× α | ηRec α
     | ν φ | out α | corec 𝔽 (s : t. α) α
     | ην 𝔽 (s : t. t) (s. t) α t | coind t t (x y. t) t (x y h. t)
-    | x[ᾱ].𝕤 ᾱ | x[ᾱ].𝕔 ᾱ | x[e˲].𝕤-elim 𝒰̄ ᾱ ᾱ α | x[e˲].𝕔 ē
-ᾱ, π̄, δ̄ ::= · | α, ᾱ | ᾱ, α
+    | x[π̄].𝕤 ᾱ | x[π̄].𝕔 ᾱ | x[e˲].𝕤-elim 𝒰̄ ᾱ ᾱ α | x[e˲].𝕔 ē
+ᾱ, δ̄ ::= · | α, ᾱ
+π̄, ᾱ ::= · | π̄, α
 φ, ψ ::= 𝕏 | K α | φ × φ | φ ⊎ φ | α × φ | α → φ
 
-J ::= Γ ctx | Σ ⊢ I item | I ∈ Σ
+J ::= Γ ctx | Σ ⊦ I item | I ∈ Σ
     | Γ ⊦ [α] t ≐ t ⇒ t | Γ ⊦ [α] t ≐ t ⇐ t
     | Γ ⊦ [α] t ⇒ t | Γ ⊦ [α] t ⇐ t | Γ ⊦ t ⇒ t | Γ ⊦ t ⇐ t
     | Γ ⊦ [ᾱ] ē ≐ ē ⇐ Δ | Γ ⊦ ē ⇐ Δ
-    | [ᾱ] e˲ ≐ e˲ : Γ ⇒ Γ norm | e˲ : Γ ⇒ Γ norm
+    | [π̄] e˲ ≐ e˲ : Γ ⇒ Γ norm | e˲ : Γ ⇒ Γ norm
     | Γ ⊦ [φ] 𝔽 ≐ 𝔽 poly ℓ | Γ ⊦ 𝔽 poly ℓ
     | Γ ⊦ [ᾱ] Δ ≐ Δ tel ℓ
     | l ∈ l̄ | l ≠ l | l̄ distinct | |l̄| = |ᾱ|
-    | 𝒰 sort | 𝒰 ≤ 𝒰 | 𝒰̄ targets Φ
+    | 𝒰 sort | 𝒰 ≼ 𝒰 | 𝒰̄ targets Φ
     | t ≡β t | 𝔄 ≡β 𝔄 | t = t
     | Γ ⊦ Φ qctx ℓ | Γ ; Φ ⊦ 𝔄 qty ℓ | Γ ; Φ ⊦ 𝕥 ⇒ 𝔄 | Γ ; Φ ⊦ 𝕥 ⇐ 𝔄
     | Φ(𝕤) = 𝔄 | Φ(𝕔) = 𝔄 | 𝔄 ends El 𝕥 | 𝔄 ends El (𝕥 ≡ 𝕥) at 𝕥
@@ -130,10 +127,11 @@ J ::= Γ ctx | Σ ⊢ I item | I ∈ Σ
 //   every blow-up the corpus shows is δ, and it now happens on the untrusted
 //   side and is recorded.
 
-// * SORTS ARE CUMULATIVE, Ω ≤ 𝕌₀ ≤ 𝕌₁ ≤ …: a proposition is a small type, a
-//   small type is a large one. Cumulativity enters through exactly two proof
-//   forms, lift and restrict (the modal section) — never silently — and acts
-//   at the ROOT only: A → Ω is not A → 𝕌₀ (write λx. f x). Levels are
+// * SORTS ARE CUMULATIVE, Ω ≼ 𝕌₀ ≼ 𝕌₁ ≼ … (the foundation's order on
+//   universes): a proposition is a small type, a small type is a large one.
+//   Cumulativity enters through exactly two proof forms, lift and restrict
+//   (the modal section) — never silently — and acts at the ROOT only:
+//   A → Ω is not A → 𝕌₀ (write λx. f x). Levels are
 //   literals: no level polymorphism; a statement over (A : 𝕌₀) lives at 𝕌₁.
 //   A former INFERS its least sort (the arithmetic on ℓ ⊔ ℓ′ below) and is
 //   used at any higher one through lift; the checker never guesses a
@@ -142,7 +140,7 @@ J ::= Γ ctx | Σ ⊢ I item | I ∈ Σ
 // * Ω HAS NO CODE BELOW 𝕌₁: Ω ⇒ 𝕌₁ and never Ω ⇒ 𝕌₀, so A → Ω is a 𝕌₁ type
 //   for every A (Cantor stays a theorem; the effective topos refutes Ω : 𝕌₀,
 //   a program cannot tell two propositions apart, while validating every
-//   p : Ω at 𝕌₀). Individual propositions ARE 𝕌₀ codes, by Ω ≤ 𝕌₀. Every
+//   p : Ω at 𝕌₀). Individual propositions ARE 𝕌₀ codes, by Ω ≼ 𝕌₀. Every
 //   𝕌ℓ's equality is thereby MIXED: structural on the formers, extensional
 //   (propext) on the proposition cluster; an equation across the clusters is
 //   underivable by absence.
@@ -171,19 +169,19 @@ J ::= Γ ctx | Σ ⊢ I item | I ∈ Σ
 
 Δ ctx      Δ ⊦ T ⇒ 𝒰
 -------------------------- (sig-decl)
-Σ ⊢ (Δ ⊦ x : T) item
+Σ ⊦ (Δ ⊦ x : T) item
 // A declaration: a statement that is a type at some sort.
 
 Δ ctx      Δ ⊦ T ⇒ 𝒰      Δ ⊦ [α] t ⇐ T
 ----------------------------------------- (sig-def)
-Σ ⊢ (Δ ⊦ x ≔ t : T) item
+Σ ⊦ (Δ ⊦ x ≔ t : T) item
 // A definition: the producer hands over a PROOF α at T; its right side is
 // the definiens the kernel records (a plain term is its own proof; a lemma
 // is a definition of ⋆ at an equation type, its proof a reify …).
 
 Δ ctx      Δ ⊦ Φ qctx ℓ
 ------------------------------ (sig-qsig)
-Σ ⊢ (Δ ⊦ x ≔ Φ qsig ℓ) item
+Σ ⊦ (Δ ⊦ x ≔ Φ qsig ℓ) item
 // A QIIT signature: a qiit-context, checked ONCE, here, at the level ℓ it
 // names. A former of it carries the NAME x and arguments for Δ (the QIIT
 // section); no core term contains a qiit-context.
@@ -501,14 +499,14 @@ T ≡β T'
 // explicit: lift (the sort) and the annotation (⇐ to ⇒, the type).
 
 Γ ⊦ [α] a₀ ≐ a₁ ⇒ 𝒰
-𝒰 ≤ 𝒰′
+𝒰 ≼ 𝒰′
 -------------------------- (code-lift-eq prop-lift-eq)
 Γ ⊦ [lift α] a₀ ≐ a₁ ⇐ 𝒰′
 // The switch at a sort: cumulativity, the target sort READ off the
 // position; on a term, [lift T] T ≐ T ⇐ 𝒰′.
 
 Γ ⊦ [α] a₀ ≐ a₁ ⇒ 𝒰′
-𝒰 ≤ 𝒰′
+𝒰 ≼ 𝒰′
 Γ ⊦ [γ₀] a₀′ ⇐ 𝒰      Γ ⊦ [γ₁] a₁′ ⇐ 𝒰      a₀ ≡β a₀′      a₁ ≡β a₁′
 ------------------------------------------------------------------- (code-restrict prop-restrict)
 Γ ⊦ [restrict γ₀ γ₁ α] a₀ ≐ a₁ ⇐ 𝒰
@@ -536,19 +534,18 @@ T ≡β T'
 
 (Δ ⊦ x ≔ t : T) ∈ Σ
 [ᾱ] e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm
-------------------------------------- (el-sig-var) // el-sig-var in full: the arguments are a NORMAL SUBSTITUTION
-Γ ⊦ [x ᾱ] x[e˲₀] ≐ x[e˲₁] ⇒ T[e˲₁]    //   into the item's context
+------------------------------------- (el-sig-var)
+Γ ⊦ [x ᾱ] x[e˲₀] ≐ x[e˲₁] ⇒ T[e˲₁]
 
 (Δ ⊦ x : T) ∈ Σ
 [ᾱ] e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm
-------------------------------------- (el-sig-decl) // a declaration alike
+------------------------------------- (el-sig-decl)
 Γ ⊦ [x ᾱ] x[e˲₀] ≐ x[e˲₁] ⇒ T[e˲₁]
 
 (Δ ⊦ x ≔ t : T) ∈ Σ
 e˲ : Γ ⇒ Δ norm
------------------------------------ (el-sig-beta)
+----------------------------------- (el-sig-beta) // δ is always manual.
 Γ ⊦ [δ x e˲] x[e˲] ≐ t[e˲] ⇒ T[e˲]
-// δ is always manual.
 
 # Transitivity, symmetry, let
 
@@ -584,9 +581,9 @@ a₁ ≡β a₁'
 
 Γ ⊦ [ρ] r ⇐ Rec l̄ Δ
 --------------------------------------------------- (el-rec-eta)
-Γ ⊦ [ηRec ρ] r ≐ ⟨l̄ ↪ r.l₀, …, r.lₙ₋₁⟩ ⇐ Rec l̄ Δ
-// l̄ = l₀ … lₙ₋₁. At the empty record every element is ⟨⟩: a unit type, by
-// this leaf.
+Γ ⊦ [ηRec ρ] r ≐ ⟨l̄ ↪ r.l̄⟩ ⇐ Rec l̄ Δ
+// r.l̄ is the foundation's spine of projections. At the empty record every
+// element is ⟨⟩: a unit type, by this leaf.
 
 // Uniqueness of ℕ-elim, ⊎-elim and quot-elim (el-nat-eta, el-sum-eta,
 // el-quot-eta) gets NO leaf: it is proved by elimination into the
@@ -685,7 +682,7 @@ a₁ ≡β a₁'
 // are.
 
 // A signature is checked AT A LEVEL ℓ, its BOUND: every Nova type it
-// embeds at 𝕌ℓ (a proposition included, by Ω ≤ 𝕌₀ ≤ 𝕌ℓ), its sorts
+// embeds at 𝕌ℓ (a proposition included, by Ω ≼ 𝕌₀ ≼ 𝕌ℓ), its sorts
 // types at 𝕌ℓ, ⟦Φ⟧ a telescope with sort entries at 𝕌ℓ₊₁. One bound
 // serves every sort: one check at 𝕌ℓ, no universe guessed.
 
