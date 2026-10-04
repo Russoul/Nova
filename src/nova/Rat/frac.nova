@@ -143,7 +143,7 @@ intScaleZero = λd. ⊎-elim (n. ⋆) (n. ⋆) d
 
 -- Adding a scaled zero. Both arguments of intAdd are quot-elim
 -- SCRUTINEE positions, and a rewrite may not land in one unless the
--- subterm is ⇒ᴺ-inferable (NovaKernel.txt §6, the neutral-subterm
+-- subterm is ⇒ᴺ-inferable (NovaKernel.nspec §6, the neutral-subterm
 -- rule) — which a stuck ⊎-elim like `intScale d intZero` is not. So
 -- the ⊎-elim on d is done here, where each branch closes at the ROOT
 -- (a type-determined position) against intAddZeroL/R, and the other

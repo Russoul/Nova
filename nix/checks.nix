@@ -49,4 +49,14 @@ in
       python3 tools/render-specs.py --check
     '';
   };
+
+  # The .nspec specs are well-formed: every rule line is a judgement of
+  # the grammar, and every rule name is the foundation's.
+  spec-format = mkCheck "spec-format" {
+    src = specs;
+    nativeBuildInputs = [ pkgs.luajit ];
+    script = ''
+      luajit tools/nspec.lua
+    '';
+  };
 }

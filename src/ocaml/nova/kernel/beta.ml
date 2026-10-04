@@ -1,5 +1,5 @@
 (* β, and nothing else: the computation rules the checker runs under a
-   FUEL budget (docs/NovaKernel.txt, CONVENTIONS). β proper, the
+   FUEL budget (docs/NovaKernel.nspec, CONVENTIONS). β proper, the
    ι-rules of ⊎, /, ℕ, let-β, record-β, ν-β and QIIT-β; never δ — an item
    reference is stuck. Exhaustion is rejection, so every comparison
    terminates. *)

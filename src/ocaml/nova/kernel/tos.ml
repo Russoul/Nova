@@ -1,6 +1,6 @@
 (* The theory of signatures on CORE signatures: ToS index shifts, ToS
    substitution, the kind and arity of an entry, and type inference of
-   ToS terms (docs/NovaKernel.txt, the QIIT section). A ToS context is
+   ToS terms (docs/NovaKernel.nspec, the QIIT section). A ToS context is
    a snoc list of entries, each over the ones before it; a Nova piece
    inside an entry is over Γ extended by the external binders opened
    above it. *)

@@ -1,5 +1,5 @@
 (* The SURFACE syntax: the proof language, the one input of the checker
-   (docs/NovaKernel.txt). Every node is a proof of an equation; a proof
+   (docs/NovaKernel.nspec). Every node is a proof of an equation; a proof
    with no equational leaf proves a reflexive one, and that is how
    motives, carriers, annotation types and definienda are written. A
    sort named by an eliminator is an input; a polynomial or signature

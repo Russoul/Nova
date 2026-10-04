@@ -13,6 +13,7 @@ in
       op.ocamlformat
       op.utop
       pkgs.python3 # tools/render-specs.py
+      pkgs.luajit # tools/nspec.lua
     ];
 
     # Written to stderr so `nix develop -c ...` output stays clean.

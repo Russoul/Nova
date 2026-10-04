@@ -267,7 +267,7 @@ t, T ::= x [e˲]      # signature reference
 # Both are terms above; 𝒰 is only the METAVARIABLE for "either", used
 # where a notion is stated at both alike — the targets of the
 # displayed reading (the QIIT section), and the sorts of the checker
-# (docs/NovaKernel.txt). Its LEVEL is |Ω| ≜ 0, |𝕌ℓ| ≜ ℓ.
+# (docs/NovaKernel.nspec). Its LEVEL is |Ω| ≜ 0, |𝕌ℓ| ≜ ℓ.
 𝒰 ::= Ω | 𝕌ℓ
 
 # (type) telescope
@@ -413,7 +413,7 @@ t, T ::= x [e˲]      # signature reference
 #   substitution action (sub), and coercion (coe). A -cong name
 #   denotes the FULL (doubled) form of the former rule it is named
 #   after (THE DOUBLING CONVENTION), displayed separately only where
-#   it is cited by name. These names are the ones docs/NovaKernel.txt
+#   it is cited by name. These names are the ones docs/NovaKernel.nspec
 #   and the sources cite; there are no other synonyms.
 
 ///////// Judgement forms and what their derivability yields /////////
@@ -2382,7 +2382,7 @@ e˲₀ ≐ e˲₁ : Δ ⇒ Γ norm
 # same term at a type equal by β. It is stated because it is the
 # target an induction into a proposition names, and the one at which
 # every coherence holds by irrelevance (el-prf-prop). (The checker
-# names each target on the eliminator, docs/NovaKernel.txt.) Over the
+# names each target on the eliminator, docs/NovaKernel.nspec.) Over the
 # DISPLAYED CONTEXT Γ·⟦Φ⟧·⟦Φ⟧ᴰ — the algebra context extended by the
 # displayed telescope — a ToS type 𝔄 with algebra value x : ⟦𝔄⟧ has the
 # displayed type 𝔄ᴰ x, "x is covered", and a ToS term 𝕥 : 𝔄 has the

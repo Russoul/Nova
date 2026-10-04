@@ -7,12 +7,12 @@ derivations that a small trusted kernel reads.
 Written in [OCaml](https://ocaml.org).
 
 See `docs/NovaFoundation.txt` for the theory, `docs/NovaPipeline.txt`
-for the architecture and `docs/NovaKernel.txt` for the kernel rules.
+for the architecture and `docs/NovaKernel.nspec` for the kernel rules.
 Browse the rendered specs and syntax-highlighted `src/nova/*.nova`
 sources online at [russoul.github.io/Nova](https://russoul.github.io/Nova/).
 
 This branch is a fresh start: the kernel and the elaborator are being
-written anew, in OCaml, against `docs/NovaKernel.txt`. The previous
+written anew, in OCaml, against `docs/NovaKernel.nspec`. The previous
 Idris2 pipeline — its elaborator, kernel, language server, golden tests
 and gate scripts — is frozen on the `dev-freeze` branch. The surface
 corpus in `src/nova/` is kept in full as the acceptance target of the

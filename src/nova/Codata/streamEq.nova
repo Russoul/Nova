@@ -3,7 +3,7 @@
 -- bisimilarity, definable TODAY as an Ω-proposition (squash of a Π
 -- over ℕ of equations). Its theory below runs on ℕ-INDUCTION where a
 -- bisimulation proof would use coinduction: el-nu-eta is judgemental
--- in the theory but has no kernel certificate (NovaKernel.txt, A5),
+-- in the theory but has no kernel certificate (NovaKernel.nspec, A5),
 -- so the REFLECTION of obsEq into ≡ is the one statement that stays
 -- out of reach here — everything observational is provable now.
 -- n-fold tail, unfolding head-first: tlN (S n) s ≐ tlN n (tl s)

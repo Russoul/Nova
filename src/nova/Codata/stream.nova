@@ -5,7 +5,7 @@
 -- and tail; corec builds a stream from any coalgebra. Every lemma
 -- below closes by COMPUTATION (el-nu-beta plus projections/⊎-elim):
 -- the uniqueness law el-nu-eta is judgemental in the theory but has
--- no kernel certificate (NovaKernel.txt, A5 — same status as
+-- no kernel certificate (NovaKernel.nspec, A5 — same status as
 -- el-qiit-eta), so bisimulation-shaped equations are out of scope
 -- here; see the deliberate obligation in the test suite.
 

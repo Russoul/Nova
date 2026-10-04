@@ -1,4 +1,4 @@
-(* The readings of a signature (docs/NovaKernel.txt, the QIIT section):
+(* The readings of a signature (docs/NovaKernel.nspec, the QIIT section):
    a signature as a telescope over the algebra context, the arity of
    an entry, the initial algebra ι, the displayed reading over the
    displayed context, and the displayed spine. Each is a function from

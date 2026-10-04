@@ -358,7 +358,7 @@ data [a : 𝕌] [r : El a → El a → Ω]
 
 - `docs/NovaFoundation.txt` — the theory, sole source of truth; every
   rule is named and those names are cited in code comments.
-- `docs/NovaKernel.txt` — certificates and approximations (A1–A6).
+- `docs/NovaKernel.nspec` — certificates and approximations (A1–A6).
 - `docs/NovaPipeline.txt` — the trust architecture.
 - `src/nova/` — the corpus, a TREE whose directories ARE namespace
   segments: a module's dotted name is its path from `src/nova`

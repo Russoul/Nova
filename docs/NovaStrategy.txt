@@ -7,7 +7,7 @@ pen-and-paper proof, formal but natural — and the division of labour
 that realises it: three roles, AUTHOR, ENGINE and KERNEL, each with
 one job and a precise criterion for what it must never do. The other
 specs say how each piece works (docs/NovaFoundation.txt the theory,
-docs/NovaKernel.txt the reader, docs/NovaElaboration.txt the
+docs/NovaKernel.nspec the reader, docs/NovaElaboration.txt the
 elaborator, docs/NovaPipeline.txt the trust story); this one says
 what each piece IS, so that the
 division survives the work on the pieces. The last section is the
@@ -95,7 +95,7 @@ KERNEL — Nova.Kernel with Nova.Kernel.Syntax, Nova.Kernel.Subst,
 Nova.Kernel.QIIT and Nova.Kernel.Derivation. The kernel is a
 function from a signature, a context, a derivation and a goal to a
 verdict. Its input language is the derivation grammar
-(docs/NovaKernel.txt §2), designed so that every choice is explicit
+(docs/NovaKernel.nspec §2), designed so that every choice is explicit
 — motives on eliminators, which link of a chain states, the path to
 a rewritten position, the direction of a one-way leaf — and
 therefore so that the kernel has ONE READING per derivation and
@@ -157,7 +157,7 @@ diagnostics and the audit's canary, not the verdict: the same
 derivations are re-read inside the item's body when the item is
 admitted.
 
-The kernel reads derivations only (docs/NovaKernel.txt): the readings
+The kernel reads derivations only (docs/NovaKernel.nspec): the readings
 ⇒, ⇐, ▷, →, one dispatcher with one reading per shape, one
 normalizer, the substitution function, and the entry points. It has
 no search, no evaluator but its own β join, no environment read, no
@@ -318,7 +318,7 @@ Tranche 1 — acceptance-preserving, standalone:
          whnf after acceptance); the let node carries its binding's
          type derivation so the derivation-level whnf needs no
          oracle; the Nova.Profile import goes.
-  [x] 7. The trusted interface written down (docs/NovaKernel.txt
+  [x] 7. The trusted interface written down (docs/NovaKernel.nspec
          §11: the trusted interface and the library, the latter
          expected to shrink); the backtracking combinators
          kOrElse/kTry left the kernel module.
@@ -556,7 +556,7 @@ that with statements in the text, measured site by site.
 ////////// Relation to the other documents //////////
 
   docs/NovaFoundation.txt   the theory the kernel reads against
-  docs/NovaKernel.txt       the kernel: grammar, readings, entry points
+  docs/NovaKernel.nspec       the kernel: grammar, readings, entry points
   docs/NovaElaboration.txt  the engine's surface and elaborator
   docs/NovaPipeline.txt     the trust boundary and the artifact
   docs/NovaPerfectSurface.txt  the printer's round trip (statement fidelity)

@@ -1,5 +1,5 @@
 (* The signature Σ: the items accepted so far, each closed over its own
-   context (docs/NovaKernel.txt, the entry points). Only the entry
+   context (docs/NovaKernel.nspec, the entry points). Only the entry
    points extend it. *)
 
 open Core

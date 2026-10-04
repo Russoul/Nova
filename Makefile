@@ -1,11 +1,15 @@
 .PHONY: build dev test promote ci clean
 
+# tools/nspec.lua runs under luajit, or under Neovim's own Lua.
+LUA := $(shell command -v luajit >/dev/null 2>&1 && echo luajit || echo nvim -l)
+
 build:
 	dune build
 
-# The local dev loop: build, then the spec-rules check.
+# The local dev loop: build, then the spec checks.
 dev: build
 	python3 tools/render-specs.py --check > /dev/null
+	$(LUA) tools/nspec.lua
 
 # The unit tests and the golden tests of the kernel.
 test:

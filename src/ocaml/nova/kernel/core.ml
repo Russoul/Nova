@@ -1,5 +1,5 @@
 (* The CORE syntax: what the checker produces and compares
-   (docs/NovaKernel.txt). Terms and types are one grammar — a type is a
+   (docs/NovaKernel.nspec). Terms and types are one grammar — a type is a
    term at a sort — in de Bruijn form. Eliminators carry no motive and
    name no sort: those are surface, read by the checker and dropped.
 

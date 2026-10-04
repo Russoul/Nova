@@ -1,5 +1,5 @@
 (* The checker: a surface proof to a core equation, rule by rule after
-   docs/NovaKernel.txt. `infer` is Γ ⊦ [α] t₀ ≐ t₁ ⇒ T, `check` is
+   docs/NovaKernel.nspec. `infer` is Γ ⊦ [α] t₀ ≐ t₁ ⇒ T, `check` is
    Γ ⊦ [α] t₀ ≐ t₁ ⇐ T. Types are built from the RIGHT side of the
    equations, as the rules write them. A pattern input is matched after
    weak-head β only; a stuck head is a rejection, never an unfolding.

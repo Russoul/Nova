@@ -1,5 +1,5 @@
 (* The lexer of the proof language. Hand-written over UTF-8 code
-   points, so the Unicode of docs/NovaKernel.txt lexes directly. Each
+   points, so the Unicode of docs/NovaKernel.nspec lexes directly. Each
    symbol has ONE spelling, the document's. Identifiers may contain '-'
    (ℕ-elim, quot-eq, two-is-SSZ), so keywords are identifiers the
    parser recognises. *)
