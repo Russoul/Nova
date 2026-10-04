@@ -26,11 +26,10 @@
 # precise; canonicity-style consequences are stated as
 # meta-properties where they are used.
 #
-# THERE IS NO TYPE JUDGEMENT. Earlier presentations carried a separate
-# judgement pair Γ ⊦ A type / Γ ⊦ A₀ ≐ A₁ type; both are DISSOLVED
-# into the element judgement at the UNIVERSES — Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ, with
-# Γ ⊦ A : 𝕌ℓ its diagonal — and the type and element grammars are
-# merged into ONE term sort. The universes form a CUMULATIVE TOWER
+# THERE IS NO TYPE JUDGEMENT. A type is an element of a UNIVERSE, and
+# an equation of types is an equation of elements there —
+# Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ, with Γ ⊦ A : 𝕌ℓ its diagonal — and types and
+# elements are ONE term sort. The universes form a CUMULATIVE TOWER
 # 𝕌₀ : 𝕌₁ : 𝕌₂ : … (ℓ a natural-number literal), with the universe of
 # propositions Ω below its bottom: Ω : 𝕌₁, and every proposition a 𝕌₀
 # code (see THE TOWER in the type rules). There is no top: every type
@@ -58,8 +57,7 @@
 # over the one judgement, their well-formedness the diagonal.
 # The setoid model interprets the judgement as the relation and the
 # diagonal as membership, so typing and equality are one relation
-# seen twice, never two. (The DISSOLVED NAMES table at the end of this
-# file maps every retired rule name to its replacement.)
+# seen twice, never two.
 #
 # Semantics is assigned by the SETOID MODEL: a type denotes a
 # structural CODE together with a proof-irrelevant equivalence relation
@@ -141,11 +139,10 @@ x ::= <signature-entry-identifier>
 
 # signature context — TWO entry kinds for terms (type definitions and
 # type declarations are their A = 𝕌ℓ instances) and one for QIIT
-# signatures. There is no constraint kind:
-# an assumed equation is a
-# HOLE at the equation's prop — a declaration at (a₀ ≡ a₁ ∈ A),
-# read back through el-reflect and closed by INSTANTIATION with ⋆
-# (see DEFINITIONAL AND OPEN SIGNATURES)
+# signatures. An assumed equation is a HOLE at the equation's prop —
+# a declaration at (a₀ ≡ a₁ ∈ A), read back through el-reflect and
+# closed by INSTANTIATION with ⋆ (see DEFINITIONAL AND OPEN
+# SIGNATURES)
 Σ ::= ε
     | Σ (Γ ⊦ x ≔ a : A)     # definition
     | Σ (Γ ⊦ x : A)         # declaration (a HOLE — no definiens)
@@ -191,11 +188,10 @@ l̄ ::= · | l l̄
 # element position — one grammar, two reading aids. The formers 𝟘 𝟙 ℕ
 # → × Rec ⊎ / (and the QIIT sorts and ν) are typed at the universe their
 # components sit at, and at every higher one by CUMULATIVITY
-# (code-lift — El is retired); the level-0 instances are the CODES of
-# earlier presentations and keep their code-* names. The Ω-formers ≡
-# and ∥·∥ are typed at Ω (as props) and thence at 𝕌₀ and up, by
-# PROP-CUMULATIVITY (prop-lift — Prf is retired: a proposition IS its
-# type of proofs, and a 𝕌₀ code).
+# (code-lift); their level-0 instances are the CODES, displayed under
+# code-* names. The Ω-formers ≡ and ∥·∥ are typed at Ω (as props) and
+# thence at 𝕌₀ and up, by PROP-CUMULATIVITY (prop-lift: a proposition
+# IS its type of proofs, and a 𝕌₀ code).
 t, T ::= x [e˲]      # signature reference
     | ☐ᵢ             # i-th element in the typing context
     | 𝕌ℓ             # the ℓ-th predicative universe (ℓ a natural-number
@@ -239,9 +235,9 @@ t, T ::= x [e˲]      # signature reference
     | class t        # quotient type introduction
     | quot-elim t t  # quotient type elimination
     | ∥T∥            # squash: proposition from an arbitrary type, of
-                     #   any level — the impredicative step, and with
-                     #   Prf retired the ONE mediator from types to
-                     #   props; a prop and (by prop-lift) a type
+                     #   any level — the impredicative step, and the
+                     #   ONE mediator from types to props; a prop and
+                     #   (by prop-lift) a type
     | ⋆              # the canonical proof of a true proposition
     | 𝒮.𝕤 ē          # sort 𝕤 of a QIIT signature 𝒮 at index spine ē —
                      #   a type at the signature's level; 𝒮 is
@@ -284,10 +280,7 @@ t, T ::= x [e˲]      # signature reference
 
 # The rules below are presented COMPACTLY. Each convention comes with its
 # mechanical expansion, so the fully explicit form of every rule is
-# recoverable without judgement calls. (The previous fully-explicit
-# presentation additionally carried, with every rule, an argument-labelling
-# scheme consumed by the since-removed .rules derivation checker; that
-# interface lives on in git history only.)
+# recoverable without judgement calls.
 #
 # * AMBIENT SIGNATURE. Every judgement is relative to a signature Σ.
 #   The Σ prefix and the premise `Σ sig` are ELIDED everywhere; rules
@@ -362,11 +355,9 @@ t, T ::= x [e˲]      # signature reference
     ---------(el-refl) ---------------(el-sym) --------------------------------(el-trans, via a₁)
     Γ ⊦ a ≐ a : A     Γ ⊦ a₁ ≐ a₀ : A       Γ ⊦ a₀ ≐ a₂ : A
 
-#   (transitivity's middle subject a₁, with its typing, is an input;
-#   ty-refl/-sym/-trans of earlier presentations are the A = 𝕌ℓ
-#   instances). For the meta-defined spellings, refl/sym/trans are
-#   META-LEMMAS, pointwise from these (the former ctx-/sub-/sub-norm-/
-#   tel-/sp- refl/sym/trans instances). Pointwise equality of
+#   (transitivity's middle subject a₁, with its typing, is an input).
+#   For the meta-defined spellings, refl/sym/trans are META-LEMMAS,
+#   pointwise from these. Pointwise equality of
 #   constants and atoms (ε ≐ ε ctx, id ≐ id, ↑ ≐ ↑, · ≐ ·,
 #   x[e˲] ≐ x[e˲], ...) are refl instances and are not stated.
 #
@@ -398,10 +389,10 @@ t, T ::= x [e˲]      # signature reference
 #   are stated exactly as displayed and are NOT doubled; their typing
 #   premises are diagonals. So the congruence of every former is its
 #   own rule read in full, and the master congruence of substitution,
-#   el-sub-cong, is the full form of el-sub. Where a source cites a
-#   congruence by its historical name (ty-pi-cong, code-eq-cong, …)
-#   the full form is displayed under that name beside the rule it
-#   doubles; the name denotes the same rule.
+#   el-sub-cong, is the full form of el-sub. Where a congruence is
+#   cited by a name of its own (ty-pi-cong, code-eq-cong, …) the full
+#   form is displayed under that name beside the rule it doubles; the
+#   name denotes the same rule.
 #
 # * DEFINITIONAL EQUALITY. A rule concluding J ≜ K asserts the
 #   equation J ≐ K and additionally marks it as a computation step,
@@ -413,18 +404,16 @@ t, T ::= x [e˲]      # signature reference
 #   el, tel, sp, poly), EXCEPT that within the element class the
 #   prefix records the conclusion's universe: ty- for conclusions at
 #   a universe 𝕌ℓ (types), code- for the LEVEL-0 instances displayed
-#   under their historical names (codes), el- otherwise. (The ty
-#   judgement class is dissolved into el at the universes; the
-#   prefixes survive as naming conventions precisely so that rule
-#   names are stable across the dissolution and the tower — see
-#   DISSOLVED NAMES at the end.)
+#   under names of their own (codes), el- otherwise. (There is no ty
+#   judgement class: a type is an element of a universe, and the
+#   prefix is a naming convention.)
 #   The former names the connective or constructor, and the kind
 #   distinguishes introduction (i), elimination (e), computation
 #   (beta), uniqueness (eta), congruence (cong), injectivity (inj),
 #   substitution action (sub), and coercion (coe). A -cong name
 #   denotes the FULL (doubled) form of the former rule it is named
 #   after (THE DOUBLING CONVENTION), displayed separately only where
-#   a source cites it. These names are the ones docs/NovaKernel.txt
+#   it is cited by name. These names are the ones docs/NovaKernel.txt
 #   and the sources cite; there are no other synonyms.
 
 ///////// Judgement forms and what their derivability yields /////////
@@ -527,8 +516,8 @@ t, T ::= x [e˲]      # signature reference
 
 Σ Γ ⊦ a : A
 x ∉ Σ
---------------------- (sig-def)     # A = 𝕌ℓ is the TYPE definition —
-Σ (Γ ⊦ x ≔ a : A) sig               #   the former sig-ty-def
+--------------------- (sig-def)     # A = 𝕌ℓ is the TYPE definition
+Σ (Γ ⊦ x ≔ a : A) sig
 
 Σ Γ ⊦ A : 𝕌ℓ
 x ∉ Σ
@@ -538,10 +527,9 @@ x ∉ Σ
 Σ Γ ctx
 x ∉ Σ
 ------------------- (sig-ty-decl)   # the A = 𝕌ℓ declaration (a TYPE
-Σ (Γ ⊦ x : 𝕌ℓ) sig                  #   hole) — now a sig-decl
-                                    #   INSTANCE (Σ Γ ⊦ 𝕌ℓ : 𝕌ℓ₊₁ is
-                                    #   ty-univ); retained in the
-                                    #   display under its name
+Σ (Γ ⊦ x : 𝕌ℓ) sig                  #   hole): the sig-decl INSTANCE
+                                    #   at Σ Γ ⊦ 𝕌ℓ : 𝕌ℓ₊₁ (ty-univ),
+                                    #   displayed under its own name
 
 Σ Γ ⊦ 𝒮 qsig
 𝒮 ≼ ℓ
@@ -568,12 +556,11 @@ x ∉ Σ
 # holes are the A = 𝕌ℓ instances. An assumed EQUATION is a hole at the
 # equation's prop — an entry (Γ ⊦ h : (a₀ ≡ a₁ ∈ A)), A = 𝕌ℓ for a
 # type equation — whose reference h[e˲] yields the instantiated
-# equation by el-reflect: what the retired constraint kind provided
-# through its own rules (sig-eq/el-sig-eq) is one el-reflect away
-# from an ordinary declaration, so the kind is gone. Open signatures
-# are the working states of an elaboration run: the declarations of
-# the run's signature ARE its open proof obligations, and a run is ACCEPTED only once its
-# signature is definitional.
+# equation by el-reflect: an assumed equation is one el-reflect away
+# from an ordinary declaration, and needs no entry kind of its own.
+# Open signatures are the working states of an elaboration run: the
+# declarations of the run's signature ARE its open proof obligations,
+# and a run is ACCEPTED only once its signature is definitional.
 #
 # The canonical-forms semantics below reads over definitional
 # signatures only. An open signature denotes the CLASS of its
@@ -602,9 +589,8 @@ x ∉ Σ
 #   only refines, adding the equations x[e˲] ≜ t[e˲].
 #   DISCHARGING an equation obligation is the prop instance: the hole
 #   h : (a₀ ≡ a₁ ∈ A) fills with ⋆ exactly when the equation is
-#   derivable in its prefix (el-eq-i), the same condition the retired
-#   DISCHARGE meta-theorem demanded of a constraint — one open-entry
-#   kind, one closing move.
+#   derivable in its prefix (el-eq-i) — one open-entry kind, one
+#   closing move.
 #
 # Substitution action is uniform in the entry kind: el-sub-sig-var,
 # stated below for definitions, is adopted verbatim for declarations —
@@ -811,8 +797,8 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 ///////// Rules (types — typing at the universes) /////////
 #
 # THE TOWER. The types are the terms typed at a universe; the rules
-# of this section are the old type-formation and type-equality rules,
-# re-read as element rules whose conclusions sit at 𝕌ℓ. The design in
+# of this section are the type-formation and type-equality rules,
+# stated as element rules whose conclusions sit at 𝕌ℓ. The design in
 # full:
 #
 #  * A CUMULATIVE TOWER 𝕌₀ : 𝕌₁ : 𝕌₂ : … — each universe a type one
@@ -841,26 +827,24 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #    components (the relation slot of / is Ω and contributes nothing);
 #    of a record the level of its telescope (Γ ⊦ Δ tel ℓ, Rules (tel));
 #    of a QIIT sort and a ν-type the level of the signature or
-#    polynomial. Their LEVEL-0 instances are the universe CODES of
-#    earlier presentations and are displayed below under their code-*
-#    names, for the citations; they are the same rules.
-#  * The GENERAL rules of the old type judgement are instances of
-#    the element rules at A = 𝕌ℓ and are not restated: ty-sub,
-#    ty-sub-id, ty-sub-comp are el-sub, el-sub-id, el-sub-comp;
-#    ty-coe-ctx and ty-eq-coe-ctx are el-coe-ctx and el-eq-coe-ctx;
-#    ty-sub-cong(-fix) is el-sub-cong(-fix); ty-sig-var, ty-sig-beta,
-#    ty-sig-decl and ty-sub-sig-var are el-sig-var, el-sig-beta,
-#    el-sig-decl and el-sub-sig-var at an entry whose A is a universe.
-#  * ty-zero-elim (type equality from absurdity) is DERIVABLE and
-#    retired: from Γ ⊦ t : 𝟘, el-zero-e at the type
+#    polynomial. Their LEVEL-0 instances are the universe CODES,
+#    displayed below under code-* names; they are the same rules.
+#  * Types have NO GENERAL rules of their own. Substitution, coercion
+#    along a context equation, the master congruence and the
+#    signature references are the element rules at A = 𝕌ℓ: el-sub,
+#    el-sub-id, el-sub-comp; el-coe-ctx, el-eq-coe-ctx;
+#    el-sub-cong(-fix); and el-sig-var, el-sig-beta, el-sig-decl,
+#    el-sub-sig-var at an entry whose A is a universe.
+#  * Type equality from absurdity needs NO rule, it is DERIVABLE:
+#    from Γ ⊦ t : 𝟘, el-zero-e at the type
 #    (A ≡ B ∈ 𝕌ℓ) — code-eq admits the universes, see the Ω block —
 #    gives 𝟘-elim t : (A ≡ B ∈ 𝕌ℓ), and el-reflect concludes
 #    Γ ⊦ A ≐ B : 𝕌ℓ. (The same derivation gives a ≐ b : C at ANY type
 #    under absurdity — absurdity collapses every equation, type
 #    equations included.)
-#  * NAMING. Rules concluding at a universe keep their ty- prefix
-#    (see NAMES in the conventions): the prefix now reads "typing at
-#    𝕌ℓ", code- "the level-0 display".
+#  * NAMING. A rule concluding at a universe carries the ty- prefix
+#    (see NAMES in the conventions), read "typing at 𝕌ℓ"; code- reads
+#    "the level-0 display".
 
 Γ ctx
 -----------------------
@@ -885,18 +869,14 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 ------------------ (ty-sum)     # non-dependent: B over Γ, not Γ ▷ A
 Γ ⊦ A ⊎ B : 𝕌ℓ
 
-# CUMULATIVITY — El is RETIRED: every element of 𝕌ℓ IS a type of
-# level ℓ+1, by the lift below, and its equality lifts and restricts.
-# The three rules are the invisible remnant of the retired decoding
-# former — code-lift is ty-el, code-lift-eq is ty-el-cong,
-# code-restrict is ty-el-inj — and with nothing left to decode, the
-# ty-el-* computation rules are VACUOUS (each equation's two sides
-# are now one term). code-restrict is MANDATORY, not optional: it is
+# CUMULATIVITY — there is no decoding former: every element of 𝕌ℓ IS
+# a type of level ℓ+1, by the lift below, and its equality lifts and
+# restricts. code-restrict is MANDATORY, not optional: it is
 # what keeps the equality props (a ≡ b ∈ 𝕌ℓ) and (a ≡ b ∈ 𝕌ℓ₊₁)
 # equi-true at level-ℓ types (whence ≐-equal by code-prop-eq), so
 # facts established one level up descend. SEMANTICS: the codes of
 # level ℓ are a sub-collection of those of level ℓ+1 (the setoid
-# model's `el` embedding, now an inclusion); the lift is that inclusion, and
+# model's `el` embedding is an inclusion); the lift is that inclusion, and
 # type equality restricted to the lower image is the lower level's
 # own — exactly code-restrict. Cumulativity acts at the ROOT of a
 # type only: a function into 𝕌ℓ is not thereby a function into 𝕌ℓ₊₁
@@ -916,10 +896,10 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 ----------------- (code-restrict)
 Γ ⊦ a₀ ≐ a₁ : 𝕌ℓ
 
-# PROP-CUMULATIVITY — Prf is RETIRED: a proposition IS its type of
-# proofs, by the lift below, and its equality lifts and restricts —
-# INTO 𝕌₀, the bottom of the tower, whence everywhere by code-lift.
-# prop-lift is ty-prf with the wrapper deleted; prop-restrict is
+# PROP-CUMULATIVITY — there is no proof-type former: a proposition IS
+# its type of proofs, by the lift below, and its equality lifts and
+# restricts — INTO 𝕌₀, the bottom of the tower, whence everywhere by
+# code-lift. prop-restrict is
 # MANDATORY for the same reason code-restrict is (it keeps the props
 # (p ≡ q ∈ Ω) and (p ≡ q ∈ 𝕌₀) equi-true at props, so the ∈-slot
 # stays well-defined). THE ASYMMETRY with the 𝕌 triple, stated
@@ -928,13 +908,13 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # but prop-lift-eq imports PROPOSITIONAL EXTENSIONALITY into 𝕌₀ — on
 # the prop cluster, type equality is mere equivalence (code-prop-eq).
 # Type equality at EVERY universe is thereafter MIXED: structural on
-# the code cluster, extensional on the prop cluster. This is not a
-# new cost of the tower: with the quotient slot Ω-valued, the
-# 𝕌₀-code prf r ≜ Id (ℕ / r̂) (class Z) (class (S Z)) already carried
-# every proposition into 𝕌₀ up to iff (see the impredicativity note
-# in the Ω block), and prf r ≐ prf r′ : 𝕌₀ whenever r ⟺ r′ — the
-# small universe's equality was mixed before the lift made it so
-# directly. prop-lift-eq is PRIMITIVE, not an el-sub-cong instance
+# the code cluster, extensional on the prop cluster. This is no cost
+# of the lift: with the quotient slot Ω-valued, the 𝕌₀-code
+# prf r ≜ Id (ℕ / r̂) (class Z) (class (S Z)) carries every
+# proposition into 𝕌₀ up to iff (see the impredicativity note in the
+# Ω block), and prf r ≐ prf r′ : 𝕌₀ whenever r ⟺ r′ — the small
+# universe's equality is mixed without the lift, which only makes it
+# so directly. prop-lift-eq is PRIMITIVE, not an el-sub-cong instance
 # (the master congruence at ☐₀ over Γ ▷ Ω concludes at Ω, not 𝕌₀ —
 # nothing else lifts the coarse equality). CROSS-CLUSTER equations
 # are underivable by absence: ∥𝟙∥ ≐ 𝟙 : 𝕌₀ has no derivation —
@@ -947,9 +927,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # whose constructor argument is QUOTIENTED by iff — the PER of 𝕌ℓ is
 # constructor-structural on one summand and extensional on the
 # other; no-confusion BETWEEN the summands is the meta-property that
-# refutes cross-cluster equalities. This is the boundary the retired
-# Prf used to spell as a single non-injective former; retiring it
-# moves the carve-out into the universes' own equality. Ω ITSELF has
+# refutes cross-cluster equalities. Ω ITSELF has
 # no 𝕌₀ code (THE TOWER): the lift is of propositions, never of
 # their universe.
 
@@ -985,8 +963,8 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # sort defines t[σ]; the ≜-rules below assert its typings at the
 # universes (their level-0 instances are displayed again as
 # el-sub-code-*, el-sub-atoms), and the Ω-side rules (el-sub-eq,
-# el-sub-squash) its Ω-typings, whence 𝕌₀-typings by prop-lift
-# (ty-prf-sub is dissolved with Prf) — one action, two families of
+# el-sub-squash) its Ω-typings, whence 𝕌₀-typings by prop-lift —
+# one action, two families of
 # well-typedness facts. The general rules (action typing, id, comp)
 # are el-sub, el-sub-id, el-sub-comp at A = 𝕌ℓ — see THE TOWER.
 
@@ -1022,23 +1000,15 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 ---------------------------------------- (ty-sub-quot)
 Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] : 𝕌ℓ
 
-# (ty-sub-sig-var is el-sub-sig-var at a type entry; ty-zero-elim is
-# derivable; ty-coe-ctx, ty-eq-coe-ctx, ty-sub-cong and
-# ty-sub-cong-fix are el-coe-ctx, el-eq-coe-ctx, el-sub-cong and
-# el-sub-cong-fix at A = 𝕌ℓ — see THE TOWER. The former-specific
-# congruences follow.)
-#
 # The four congruences below are the FULL FORMS of ty-pi, ty-sigma,
-# ty-sum and ty-quot (THE DOUBLING CONVENTION), displayed under their
-# historical names because the sources cite them; they are not
-# further rules. They are the downward duals of the ty-*-inj block:
-# together the two families ARE the commitment that type equality is
-# equality of structural codes — on the CODE cluster; the prop
-# cluster's congruence is prop-lift-eq (PROP-CUMULATIVITY), which
-# imports code-prop-eq's extensional equality wholesale, and the
-# retired decoding congruences ty-el-cong and ty-prf-cong are exactly
-# code-lift-eq and prop-lift-eq. (The code-*-cong names denote the
-# level-0 instances; they are no longer displayed.)
+# ty-sum and ty-quot (THE DOUBLING CONVENTION), displayed under names
+# of their own; they are not further rules. They are the downward
+# duals of the ty-*-inj block: together the two families ARE the
+# commitment that type equality is equality of structural codes — on
+# the CODE cluster; the prop cluster's congruence is prop-lift-eq
+# (PROP-CUMULATIVITY), which imports code-prop-eq's extensional
+# equality wholesale. (The code-*-cong names denote the level-0
+# instances; they are not displayed.)
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
 Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕌ℓ
@@ -1106,8 +1076,8 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #  * The PROP cluster (∥-∥ and ≡, lifted by prop-lift) has NO
 #    injectivity rules: Ω is the anti-structural universe, compared
 #    by inhabitation alone (see the Ω block in the element rules) —
-#    with Prf retired this is a property of each universe's own
-#    equality on the prop summand, not of a wrapper. Equality is
+#    a property of each universe's own equality on the prop summand,
+#    not of a wrapper. Equality is
 #    Ω-VALUED, so it
 #    inherits this: there is no eq-injectivity — code-prop-eq makes
 #    (Z ≡ Z ∈ ℕ) ≐ (S Z ≡ S Z ∈ ℕ) : Ω (both true), while the
@@ -1290,8 +1260,8 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ ☐ₙ : Γ‖ₙ                # derivation of ☐ₙ₋₁, ☐ₙ₋₂, ... is required first.
 
 # Universe codes — the LEVEL-0 display of ty-zero/-one/-nat/-pi/
-# -sigma/-sum/-quot (THE TOWER): the same rules at ℓ = 0, under the
-# names the sources cite. 𝕌 abbreviates 𝕌₀.
+# -sigma/-sum/-quot (THE TOWER): the same rules at ℓ = 0, under
+# code-* names. 𝕌 abbreviates 𝕌₀.
 
 Γ ctx
 ---------
@@ -1408,8 +1378,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # whose premise holds by el-pi-beta; conversely the two-candidate form
 # is NOT derivable from it — the step from "equal at the generic
 # argument" to "equal" is exactly ξ's content, so stating η this way
-# is what makes el-lam-cong (ξ) admissible below. The kernel's FEtaPi
-# final replays exactly this form.
+# is what makes el-lam-cong (ξ) admissible below.
 
 Γ ⊦ g₀ : A → B
 Γ ⊦ g₁ : A → B
@@ -1598,7 +1567,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 # forfeits:
 #  * Proof irrelevance is inherited from el-prf-prop — no separate
 #    el-eq-eta is needed, and equality hypotheses never carry data.
-#  * The canonical proof is ⋆ — Refl is RETIRED. This is forced, not
+#  * The canonical proof is ⋆, and there is no other. This is forced, not
 #    stylistic: code-prop-eq + prop-lift-eq + el-ty-coe move proofs
 #    between iff-equal props UNCHANGED (a true equation is ≐-equal to
 #    ∥𝟙∥ at Ω), so every inhabited prop must have literally the same
@@ -1619,8 +1588,8 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #    by prop-lift, so equational content IS storable in a small type
 #    directly — a Σ over a proposition, a positivity witness with its
 #    modulus — with the extensional equality of the prop cluster
-#    riding along (the prf-code quotient trick below, which used to
-#    manufacture such a code, is now the lift itself).
+#    riding along (what the prf-code quotient trick below
+#    manufactures, the lift gives directly).
 #
 # Notes:
 #  * Realizer irrelevance is FORCED, not chosen: code-prop-eq +
@@ -1680,7 +1649,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #      - no 𝕌₀-code for Ω ITSELF blocks Reynolds/Cantor: A → Ω is
 #        one level above A, so no type contains its own powerset.
 #        Individual propositions ARE 𝕌₀ codes (prop-lift), and that
-#        is harmless — it was already so up to iff before the lift:
+#        is harmless — it holds up to iff without the lift:
 #        with Id the QIIT identity family over a small carrier
 #        (Id : (x y : a) ⇛ U ; refl : (x : a) ⇛ El (Id x x)), take
 #        prf r ≜ Id (ℕ / r̂) (class Z) (class (S Z)), a 𝕌₀-code whose
@@ -1743,14 +1712,13 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 #    inhabited, and (a₀ ≡ a₁ ∈ A) is true iff ⟦a₀⟧ ~ ⟦a₁⟧ in ⟦A⟧'s
 #    relation; ∥A∥ ~ ∥B∥ : Ω iff A and B are equi-inhabited.
 #    THE ∈-𝕌ℓ INSTANCE: (A ≡ B ∈ 𝕌ℓ) is true iff ⟦A⟧ and ⟦B⟧ are
-#    EQUAL CODES — the model's type equality at level ℓ (with Prf
-#    retired this PER is MIXED: structural on the code summand, iff
-#    on the prop summand — see PROP-CUMULATIVITY), which is exactly
-#    what el-reflect at 𝕌ℓ reads back. This is the one point where
-#    the dissolution EXTENDS the theory, and it is sound by the same
+#    EQUAL CODES — the model's type equality at level ℓ (a MIXED PER:
+#    structural on the code summand, iff on the prop summand — see
+#    PROP-CUMULATIVITY), which is exactly
+#    what el-reflect at 𝕌ℓ reads back. It is sound by the same
 #    two-layer construction: prop-truth is defined against the full
 #    type system anyway, and code equality of every level is
-#    available at that stage; the new prop's type of proofs is the
+#    available at that stage; this prop's type of proofs is the
 #    same subsingleton as every other, so nothing is storable through
 #    it (no Hurkens vector), and Ω itself has no 𝕌₀ code — the
 #    firewall clauses of the impredicativity note are untouched.
@@ -1800,16 +1768,13 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
                                                 #   are equi-inhabited —
                                                 #   el-squash-i one way,
                                                 #   el-squash-e-prf the
-                                                #   other. NOT a ≜: with
-                                                #   Prf retired the redex
-                                                #   is no longer
+                                                #   other. NOT a ≜: the
+                                                #   redex is not
                                                 #   syntax-directed (its
                                                 #   side condition is a
-                                                #   typing), so the former
-                                                #   code-squash-prf
-                                                #   contraction is demoted
-                                                #   to this equation —
-                                                #   see DISSOLVED NAMES
+                                                #   typing), so this is
+                                                #   an equation and not a
+                                                #   contraction
 
 Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
 Γ ⊦ a₀ ≐ a₁ : A₁
@@ -1817,7 +1782,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 --------------------------------------------- (code-eq-cong) # the full form of
 Γ ⊦ (a₀ ≡ b₀ ∈ A₀) ≐ (a₁ ≡ b₁ ∈ A₁) : Ω                      #   code-eq (THE DOUBLING
                                                              #   CONVENTION), displayed
-                                                             #   for the citations
+                                                             #   under its own name
 
 Γ ▷ p ⊦ s : q[↑]
 Γ ▷ q ⊦ t : p[↑]
@@ -1836,9 +1801,7 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 ------------------------------ (el-eq-i) # INTERNALIZATION — PRIMITIVE:
 Γ ⊦ ⋆ : (a₀ ≡ a₁ ∈ A)                    #   the judgement gives the
                                          #   proposition its canonical
-                                         #   inhabitant (the kernel's
-                                         #   ⋆-at-an-equality checking
-                                         #   replays under this name)
+                                         #   inhabitant
 
 Γ ⊦ s : (a₀ ≡ a₁ ∈ A)
 -------------------------- (el-reflect) # REFLECTION — PRIMITIVE: any
@@ -1867,11 +1830,9 @@ e˲ ≐ t˲ : Γ ⇒ Δ' norm
 Γ ⊦ t₀ : p
 Γ ⊦ t₁ : p
 ----------------------- (el-prf-prop) # proof irrelevance: elements of
-Γ ⊦ t₀ ≐ t₁ : p                       #   a PROPOSITION are equal. The
-                                      #   p : Ω premise replaces the
-                                      #   retired Prf head — it was
-                                      #   always this premise's
-                                      #   syntactic proxy
+Γ ⊦ t₀ ≐ t₁ : p                       #   a PROPOSITION are equal;
+                                      #   propositionhood is the
+                                      #   premise p : Ω
 
 Γ ⊦ s : ∥A∥
 Γ ▷ A ⊦ b₀[↑] ≐ b₁[↑] : B[↑]
@@ -2323,10 +2284,8 @@ e˲₀ ≐ e˲₁ : Δ ⇒ Γ norm
 # is BOUNDED by ℓ, written 𝒮 ≼ ℓ (likewise Φ ≼ ℓ for a prefix), when
 # every Nova type it embeds (the external Π domains, each at its
 # position) is typed at 𝕌ℓ — a proposition included, by prop-lift and
-# code-lift; one bound serves every sort. The former SMALLNESS
-# condition ("typed at 𝕌, or typed at Ω", a judgemental disjunction)
-# is the ℓ = 0 bound, and the disjunction is gone with the lift. The
-# bound is load-bearing exactly as smallness was: with an external
+# code-lift; one bound serves every sort. The bound is LOAD-BEARING:
+# with an external
 # domain one level up — say (a : 𝕌ℓ) — the sort's decoding would
 # contain 𝕌ℓ as a RETRACT (eliminate at constant motive 𝕌ℓ with method
 # a ↦ a), the classic type-in-type collapse; so such a signature is
@@ -2379,11 +2338,11 @@ e˲₀ ≐ e˲₁ : Δ ⇒ Γ norm
 # (IDENTITY above), a bound bounding both instances. The full forms
 # are displayed because their premises live at the arity — the RIGHT
 # signature's, entry i's type instantiated by the RIGHT spine's
-# prefix, the sp-ext-cong discipline — and because the sources cite
-# them. Injectivity: a universe's equality is STRUCTURAL, so equal
+# prefix, the sp-ext-cong discipline. Injectivity: a universe's
+# equality is STRUCTURAL, so equal
 # saturated sort types at ONE signature have equal spines, indexwise
 # — the ty-pi-inj block, extended to the QIIT former (at level 0 the
-# code-pi-inj block; the name is historical).
+# code-pi-inj block).
 
 Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig      𝒮₀ ≼ ℓ      𝒮₁ ≼ ℓ
 Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ   (entrywise; Eᵢ is entry i of ⟦𝒮₁(𝕤)⟧ᵗ[ι₁], instantiated
@@ -2556,7 +2515,7 @@ for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, ending in El (𝕤 ī);
 #     shape whose inductive binders are the subtrees. Because QIIT
 #     equality is structural (IDENTITY above), these are genuine
 #     equalities, not just encodings: ℕ and (/) are kept for
-#     convenience but are now DERIVABLE, each a one-line signature.
+#     convenience but are DERIVABLE, each a one-line signature.
 #     (The levels agree — ℕ's signature embeds no Nova types at all,
 #     so it is bounded by 0, and a quotient's, A : 𝕌ℓ with R : Ω, is
 #     bounded by A's level — so ty-nat/ty-quot at every level are
@@ -2606,8 +2565,7 @@ for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, ending in El (𝕤 ī);
 
 # Signature references. These three rules serve EVERY entry, type
 # entries included: at an A = 𝕌ℓ entry the conclusion index A[e˲]
-# computes to 𝕌ℓ by ty-sub-atoms — the former ty-sig-var,
-# ty-sig-beta, ty-sig-decl are the A = 𝕌ℓ instances.
+# computes to 𝕌ℓ by ty-sub-atoms.
 
 (Γ ⊦ x ≔ a : A) ∈ Σ
 e˲ : Δ ⇒ Γ norm
@@ -2623,8 +2581,7 @@ e˲ : Δ ⇒ Γ norm
 # declaration types its references but never unfolds them (no -beta).
 # An assumed equation needs no rule of its own: it is a hole h at the
 # equation's prop, and el-sig-decl + el-reflect give
-# a₀[e˲] ≐ a₁[e˲] : A[e˲] from the reference h[e˲] — the retired
-# el-sig-eq, derived.
+# a₀[e˲] ≐ a₁[e˲] : A[e˲] from the reference h[e˲].
 
 (Γ ⊦ x : A) ∈ Σ
 e˲ : Δ ⇒ Γ norm
@@ -2634,9 +2591,8 @@ e˲ : Δ ⇒ Γ norm
 # Substitution action: t[σ] is defined by ONE meta-level induction
 # on the term sort — the ≜-equations below together with the
 # type-former clauses in the type rules (ty-sub-*). el-sub, el-sub-id
-# and el-sub-comp below state the general facts for the WHOLE sort:
-# their A = 𝕌ℓ instances are the former ty-sub, ty-sub-id and
-# ty-sub-comp.
+# and el-sub-comp below state the general facts for the WHOLE sort,
+# types included (A = 𝕌ℓ).
 
 Γ₁ ⊦ t : A
 σ : Γ₀ ⇒ Γ₁
@@ -2837,12 +2793,12 @@ e˲ : Γ₁ ⇒ Γ norm
 
 Γ₀ ≐ Γ₁ ctx
 Γ₀ ⊦ a : A
---------------- (el-coe-ctx)     # A = 𝕌ℓ: the former ty-coe-ctx
+--------------- (el-coe-ctx)     # at A = 𝕌ℓ: coercion of a TYPE
 Γ₁ ⊦ a : A
 
 Γ₀ ≐ Γ₁ ctx
 Γ₀ ⊦ a₀ ≐ a₁ : A
--------------------- (el-eq-coe-ctx)   # A = 𝕌ℓ: the former ty-eq-coe-ctx
+-------------------- (el-eq-coe-ctx)   # at A = 𝕌ℓ: of a type equation
 Γ₁ ⊦ a₀ ≐ a₁ : A
 
 # Congruence. By THE DOUBLING CONVENTION (conventions) every former
@@ -3052,7 +3008,7 @@ e˲ : Γ₁ ⇒ Γ norm
 
 # COINDUCTION, RELATIONAL FORM — el-nu-eta's corollary adopted as a
 # rule for the kernel's convenience (the el-squash-e-eq precedent:
-# ADMISSIBLE, kept because the kernel replays it directly). It needs
+# ADMISSIBLE, kept because the kernel checks it directly). It needs
 # one more ≜-meta-operation, the RELATOR lift_𝔽(R) — the relation
 # lifting of a polynomial: for Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ⊦ R : Ω and
 # elements u, v of ⌊𝔽⌋(ν 𝔽)'s decoding (R's base weakens under every
@@ -3091,7 +3047,7 @@ e˲ : Γ₁ ⇒ Γ norm
 # invariant to the tails; both projections commute with out (the
 # second by q's head equations, reflected), so el-nu-eta equates
 # them through the corecursor, and instantiating at (t₀, t₁, p)
-# gives the conclusion. The kernel replays the rule as stated
+# gives the conclusion. The kernel checks the rule as stated
 # instead: the subset-carrier construction is the JUSTIFICATION, not
 # the implementation.
 
@@ -3360,281 +3316,8 @@ l ∈ l̄
 # conclusion's universe — ty- at a universe 𝕌ℓ, code- for the level-0
 # display of the same rules, el- otherwise. The equivalence
 # structure is two RULES for the judgement and the diagonal notation
-# (el-sym, el-trans, el-refl — stated in EQUALITY; ty-refl/-sym/-trans
-# of earlier presentations are their A = 𝕌ℓ instances) and META-LEMMAS
-# for the meta-defined spellings (the former ctx-/sub-/sub-norm-/
-# tel-/sp- refl/sym/trans instances). The poly class has
+# (el-sym, el-trans, el-refl — stated in EQUALITY) and META-LEMMAS
+# for the meta-defined spellings. The poly class has
 # well-formedness rules only (polynomials are inert syntax, no
 # equality of their own). All other names appear verbatim on their
 # rules; there are no synonyms.
-
-///////// DISSOLVED NAMES /////////
-
-# The type judgement's dissolution retires these rule names. Every
-# retired name maps to the rule (or derivation) that replaces it —
-# for the propagation of docs/NovaKernel.txt and the sources, which
-# cite rules by name:
-#
-#   sig-ty-def       sig-def at A = 𝕌ℓ
-#   sig-ty-eq        RETIRED with the constraint kind (below)
-#   sig-ty-decl      sig-decl at A = 𝕌ℓ (an instance since THE TOWER;
-#                    retained in the display)
-#   ty-refl/-sym/-trans   el-refl/-sym/-trans at A = 𝕌ℓ
-#   ty-sub           el-sub at A = 𝕌ℓ (index 𝕌ℓ[σ] ≜ 𝕌ℓ, ty-sub-atoms)
-#   ty-sub-id        el-sub-id at A = 𝕌ℓ
-#   ty-sub-comp      el-sub-comp at A = 𝕌ℓ
-#   ty-coe-ctx       el-coe-ctx at A = 𝕌ℓ
-#   ty-eq-coe-ctx    el-eq-coe-ctx at A = 𝕌ℓ
-#   ty-sub-cong      el-sub-cong at A = 𝕌ℓ
-#   ty-sub-cong-fix  el-sub-cong-fix at A = 𝕌ℓ
-#   ty-sig-var       el-sig-var at an A = 𝕌ℓ entry
-#   ty-sig-beta      el-sig-beta at an A = 𝕌ℓ entry
-#   ty-sig-decl      el-sig-decl at an A = 𝕌ℓ entry
-#   ty-sig-eq        RETIRED with the constraint kind (below)
-#   ty-sub-sig-var   el-sub-sig-var at an A = 𝕌ℓ entry
-#   ty-zero-elim     DERIVABLE: el-zero-e at (A ≡ B ∈ 𝕌ℓ), then
-#                    el-reflect (see THE TOWER)
-#
-# All other ty-* names are RETAINED, denoting the same rules with
-# conclusions now written at a universe 𝕌ℓ: ty-zero/-one/-nat (at
-# 𝕌₀), ty-univ, ty-prop, ty-pi, ty-sigma, ty-sum, ty-quot, the
-# former-specific ty-sub-* substitution actions (ty-sub-atoms,
-# ty-sub-pi/-sigma/-sum/-quot), the ty-*-cong congruences, the
-# ty-*-inj injectivities, ty-qiit, ty-qiit-cong, ty-nu.
-# (ty-prf, ty-prf-sub and ty-prf-cong were retained here until Prf's
-# retirement — see its block below.)
-#
-# The CONSTRAINT KIND's retirement (an assumed equation is a hole at
-# the equation's prop — DEFINITIONAL AND OPEN SIGNATURES) retires:
-#
-#   sig-eq           sig-decl at (a₀ ≡ a₁ ∈ A)
-#   sig-ty-eq        sig-decl at (A₀ ≡ A₁ ∈ 𝕌ℓ)
-#   el-sig-eq        DERIVED: el-reflect at the hole's el-sig-decl
-#                    reference
-#   ty-sig-eq        ditto, at an A = 𝕌ℓ equation
-#   DISCHARGE        the prop instance of INSTANTIATION (fill the
-#                    hole with ⋆ — el-eq-i's condition is exactly the
-#                    constraint's derivability)
-#
-# THE EQUALITY-ONLY PRESENTATION (the typed equation is the one
-# judgement, membership its diagonal, every former rule its own
-# congruence by THE DOUBLING CONVENTION — see EQUALITY and THE
-# DOUBLING CONVENTION in the conventions). It replaces the earlier
-# typing-only presentation, in which Γ ⊦ a₀ ≐ a₁ : A was derived
-# notation for Γ ⊦ ⋆ : (a₀ ≡ a₁ ∈ A) and every congruence was a
-# separate (mostly admissible) rule:
-#
-#   Γ ⊦ a : A        NOTATION for Γ ⊦ a ≐ a : A (was primitive)
-#   Γ ⊦ a₀ ≐ a₁ : A  THE judgement (was notation for a ⋆-typing)
-#   el-refl          the notation read backwards (was a rule)
-#   el-sym, el-trans RULES, unchanged (stated in EQUALITY)
-#   el-eq-i          PRIMITIVE: internalization (was the notation's
-#                    unfolding)
-#   el-reflect       PRIMITIVE: reflection (was admissible; its
-#                    ⋆-canonicity corollary stays admissible)
-#   ctx-refl/-sym/-trans, sub-…, sub-norm-…, tel-…, sp-…
-#                    meta-lemmas (pointwise/extensional), unchanged
-#   ctx-ext-cong, sub-norm-ext-cong, tel-ext-cong, sp-ext-cong
-#                    the meta-notations' DEFINING clauses, unchanged;
-#                    their diagonals are ctx-ext, sub-norm-ext,
-#                    tel-ext, sp-ext
-#   sub-empty-unique, sub-id-empty, sub-eta, sub-id-pre, sub-id-post,
-#   sub-assoc, sub-wk-ext, sub-empty-comp, sub-ext-post,
-#   sub-ext-unique, sub-comp-cong, sub-ext-cong, sub-eq-coe-dom/-cod
-#                    meta-lemmas about the extensional notation
-#                    (statements unchanged, in place)
-#   every <former>-cong name
-#                    the FULL FORM of its former rule — el-lam-cong
-#                    is el-pi-i, el-app-cong el-pi-e, el-pair-cong
-#                    el-sigma-i, el-proj₁/₂-cong el-sigma-e₁/₂,
-#                    el-inj₁/₂-cong el-sum-i₁/₂, el-sum-e-cong
-#                    el-sum-e, el-suc-cong el-nat-s, el-nat-e-cong
-#                    el-nat-e, el-class-cong el-quot-i, el-quot-e-cong
-#                    el-quot-e, el-let-cong el-let, ty-pi/-sigma/-sum/
-#                    -quot-cong ty-pi/-sigma/-sum/-quot,
-#                    code-pi/-sigma/-sum/-quot-cong their level-0
-#                    instances, code-eq-cong code-eq,
-#                    code-squash-cong code-squash, ty-qiit-cong
-#                    ty-qiit, el-qiit-intro-cong el-qiit-intro,
-#                    el-sub-cong el-sub. The "admissible by
-#                    substitution instance" and "admissible via η"
-#                    derivations of the former consolidation are no
-#                    longer needed: a congruence is not derived, it
-#                    is the rule. Displays are kept for el-sub-cong,
-#                    the ty-*-cong four, code-eq-cong, ty-qiit-cong
-#                    and el-qiit-intro-cong (cited); the rest are
-#                    retired as displays, the names retained
-#   el-zero-e-cong   RETAINED as a rule of its own (stronger than a
-#                    congruence: no premise relating the arguments),
-#                    admissible by absurdity
-#   el-pi-eta        RESTATED in the extensional (two-candidate) form
-#                    every other η already takes; the old single-
-#                    candidate form is the instance g₀ ≜ λ (g₁[↑] ☐₀)
-#   binder-crossing instances
-#                    every full form takes the RIGHT instance in type
-#                    slots and binder contexts (Γ ▷ A₁, B[id, e₁],
-#                    ⌊El (𝕤 ī)⌋[ē₁]); the earlier left-instance
-#                    spellings of ty-qiit-cong and el-qiit-intro-cong
-#                    are normalized
-
-# EL'S RETIREMENT (cumulativity replaces the decoding former; the ToS
-# and the polynomial grammar keep their OWN El, which never was the
-# Nova former):
-#
-#   ty-el            code-lift (Γ ⊦ a : 𝕌 ⟹ Γ ⊦ a : 𝕌ℓ)
-#   ty-el-cong       code-lift-eq
-#   ty-el-inj        code-restrict
-#   ty-el-zero/-one/-nat/-pi/-sigma/-sum/-quot, ty-el-qiit, ty-el-nu
-#                    VACUOUS: each decoding equation's two sides are
-#                    now one term
-#   ty-sub-el        gone with the former
-#   ty-zero/-one/-nat
-#                    now ADMISSIBLE (code-lift at code-zero/-one/-nat);
-#                    retained in the grouped display
-#   smallness (code-qiit's side condition)
-#                    "external Π domains are El- or Prf-headed"
-#                    became the judgemental premise "typed at 𝕌, or
-#                    typed at Ω", and is now the level BOUND 𝒮 ≼ ℓ
-#                    (THE TOWER, below)
-
-# PRF'S RETIREMENT (prop-cumulativity replaces the decoding former:
-# a proposition IS its type of proofs — see PROP-CUMULATIVITY in the
-# type rules for the rules and the mixed-equality note):
-#
-#   ty-prf           prop-lift (Γ ⊦ p : Ω ⟹ Γ ⊦ p : 𝕌ℓ)
-#   ty-prf-cong      prop-lift-eq — PRIMITIVE, unlike the admissible
-#                    rule it replaces: it imports code-prop-eq's
-#                    extensional equality into the universes (the
-#                    master congruence at ☐₀ over Γ ▷ Ω concludes at
-#                    Ω, not 𝕌₀)
-#   ty-prf-sub       el-sub-eq / el-sub-squash (the Ω-code actions),
-#                    whence 𝕌₀-typings by prop-lift
-#   code-squash-prf  code-squash-idem, ADMISSIBLE via code-prop-eq —
-#                    the ≜ was syntax-directed only through Prf's
-#                    head, so the contraction is demoted to an
-#                    equation (kernels may keep the ≡-/∥·∥-headed
-#                    instances as fast-path contractions; an
-#                    Ω-neutral under ∥·∥ is stuck)
-#   (there is no ty-prf-inj to map: Prf never had injectivity — that
-#    absence is now the prop summand's deliberately extensional
-#    equality, see the injectivity block's prop-cluster note)
-#
-# RETAINED, restated without the wrapper (statements in place):
-# el-prf-prop (the Prf head becomes the explicit premise p : Ω — it
-# was always that premise's syntactic proxy), el-squash-i,
-# el-squash-e-eq, el-squash-e-prf (explicit q : Ω premise), el-eq-i,
-# el-reflect, el-sub-star (explicit p : Ω premise); the equation
-# a₀ ≐ a₁ : A internalizes as ⋆ : (a₀ ≡ a₁ ∈ A); quot-elim's well-definedness
-# hypothesis and el-nu-coind's closure bind the relation instance
-# directly (▷ R for ▷ Prf R); Σ-holes for assumed equations sit at
-# the bare prop; the ToS reading ⟦El (𝕝 ≡ 𝕣)⟧ lands on the
-# equality prop itself. (Ω did not embed into 𝕌 at this point;
-# smallness was the judgemental disjunction "typed at 𝕌, or typed
-# at Ω" — superseded by THE TOWER below.)
-
-# ALGEBRAS AS TELESCOPES (the QIIT eliminator's data read as Nova
-# telescopes over the algebra context, matching docs/NovaKernel.txt):
-#
-#   ⌊·⌋, ⌊·⌋ᵗ, the walk state 𝑤 = (Γ̂, ρ, υ), the merge ⋈, the
-#   opening ⋉, the ᴰ-state (𝑤 ; π), πᴰ, m(i), d(i)
-#                    GONE: replaced by the READING ⟦·⟧ over the algebra
-#                    context Γ·⟦Φ⟧ (a ToS variable IS the Nova variable
-#                    ☐ᵢ), the EXCHANGE ξ at external binders, the arity
-#                    ⟦𝔄⟧ᵗ, and the INITIAL ALGEBRA ι, a spine of the
-#                    formers; every outer type is X[ι]
-#   refl-arity       the arity telescope ⟦𝔄⟧ᵗ, a meta-definition
-#   refl-qctx        NEW: Γ ⊦ ⟦Φ⟧ tel
-#   refl-qty, refl-qtm
-#                    the reading's typed statements, over Γ·⟦Φ⟧
-#   mot, dalg, eprob, sect, sect-spine, disp-ty, disp-tel, mimg,
-#   𝔄ᴰ⟨e⟩, 𝔄ᴰᵗ, ⟦𝕥⟧ (the method image), θ⟨φ⟩
-#                    GONE as judgement forms and operations: the
-#                    eliminator's motives, methods and coherences are
-#                    ONE SPINE Γ ⊦ d̄ : ⟦𝒮⟧ᴰ[ι] of the DISPLAYED
-#                    telescope (the displayed reading _ᴰ of types and
-#                    terms over Γ·⟦Φ⟧·⟦Φ⟧ᴰ); the section spine is the
-#                    displayed spine θᴰ_φ; coherences are the
-#                    equation-position entries, propositions
-#   ℰ = C̄ ; m̄       the eliminator's term carries the METHODS m̄ only
-#                    (𝒮.𝕤-elim m̄ ē w): β reads them and nothing else;
-#                    motives and coherences are premises, as ℕ-elim's
-#                    motive is — the operational-syntax principle
-#   motives of indexed sorts
-#                    now take the DISPLAYED values of their inductive
-#                    indices (Tyᴰ 𝕘 𝕘ᴰ t): the standard displayed
-#                    algebra; the former motive, over the plain arity,
-#                    is the instance that weakens past them
-#   el-qiit-elim, el-qiit-beta, el-qiit-eta, ty-qiit, code-qiit,
-#   el-qiit-intro, el-qiit-path, ty-qiit-cong, el-qiit-intro-cong,
-#   code-qiit-inj  RETAINED, restated in the reading
-
-# NO PRESUPPOSITIONS (the judgement forms presuppose nothing; the
-# well-formedness of a derivable judgement's parts is the
-# PRESUPPOSITION LEMMA, the well-formedness of a former's components
-# the INVERSION LEMMA — see the conventions and the judgement-form
-# table). Replaces the PRESUPPOSITIONS convention, under which a rule
-# omitted the premises in its "presupposition closure":
-#
-#   presupposition closure
-#                    GONE: a rule shows every premise it has; a
-#                    premise is absent only when the lemmas derive it
-#                    from the others
-#   sub-ext, sub-wk-ext, sub-ext-post, sub-ext-cong, sub-norm-ext,
-#   sub-norm-ext-cong, var-sub-hit, var-sub-miss
-#                    gain the explicit premise Γ ⊦ A : 𝕌ℓ for the
-#                    extension type, which no other premise's
-#                    judgement mentions unsubstituted
-#   every other rule unchanged: its omitted well-formedness premises
-#                    were closure premises the lemmas recover
-#   Σ sig            still ELIDED (AMBIENT SIGNATURE) — an elision,
-#                    not a presupposition
-
-# THE TOWER (the top universe 𝕍 replaced by a cumulative tower of
-# predicative universes 𝕌₀ : 𝕌₁ : …, with Ω : 𝕌₁ and every
-# proposition a 𝕌₀ code — see THE TOWER in the type rules and
-# PROP-CUMULATIVITY):
-#
-#   𝕍                GONE. "A is a type" is Γ ⊦ A : 𝕌ℓ for some ℓ; a
-#                    universe is typed one level up (ty-univ), never
-#                    at its own level, and there is no universe of
-#                    all types. The two-case presupposition row, the
-#                    meta-clause 𝕍[σ] ≜ 𝕍 and the ∈-𝕍 remarks are
-#                    gone with it: 𝕌ℓ[σ] ≜ 𝕌ℓ is a ty-sub-atoms line
-#                    and (A ≡ B ∈ 𝕌ℓ) an ordinary code-eq instance.
-#   ty-univ          𝕌ℓ : 𝕌ℓ₊₁ (was 𝕌 : 𝕌ℓ)
-#   ty-prop          Ω : 𝕌₁ (was Ω : 𝕌ℓ); Ω : 𝕌₀ is deliberately
-#                    ABSENT
-#   code-lift, code-lift-eq, code-restrict
-#                    the step 𝕌ℓ → 𝕌ℓ₊₁ (were 𝕌 → 𝕍), at every level
-#   prop-lift, prop-lift-eq, prop-restrict
-#                    the step Ω → 𝕌₀ (were Ω → 𝕍); the "no
-#                    prop-resize" decision is REVERSED for
-#                    propositions and kept for Ω itself — the
-#                    universes' equality was already mixed through
-#                    the prf-code quotient, so the lift costs nothing
-#                    new (PROP-CUMULATIVITY)
-#   ty-zero/-one/-nat
-#                    PRIMITIVE again, at 𝕌₀ (they were admissible
-#                    through code-lift from the code-* rules; the two
-#                    are now one rule)
-#   code-zero/-one/-nat/-pi/-sigma/-sum/-quot, code-qiit, code-nu,
-#   code-*-cong, code-*-inj, el-sub-code-*, el-sub-atoms
-#                    the LEVEL-0 DISPLAY of ty-zero/-one/-nat/-pi/
-#                    -sigma/-sum/-quot, ty-qiit, ty-nu, ty-*-cong,
-#                    ty-*-inj, ty-sub-*: the same rules at ℓ = 0,
-#                    displayed under their historical names for the
-#                    citations; 𝕌 alone abbreviates 𝕌₀
-#   ty-sum-cong      ADMISSIBLE (a substitution instance over
-#                    Γ ▷ 𝕌ℓ ▷ 𝕌ℓ, which the tower lets a context
-#                    bind); ty-pi/-sigma/-quot-cong stay primitive
-#   𝒮 small          the level BOUND 𝒮 ≼ ℓ (every external domain
-#                    typed at 𝕌ℓ); ty-qiit concludes at 𝕌ℓ,
-#                    code-qiit is the ℓ = 0 display; likewise 𝔽 ≼ ℓ
-#                    for polynomials and ty-nu/code-nu
-#   sig-ty-decl      an INSTANCE of sig-decl (retained in the display)
-#   Γ ▷ 𝕌ℓ           WELL-FORMED: a context binds a variable over the
-#                    types of a level (it could not bind at 𝕍)
-#   levels           LITERALS only — no level variables, no level
-#                    polymorphism; a statement over (A : 𝕌₀) is a 𝕌₁
-#                    type. Cumulativity acts at the root of a type
-#                    only.

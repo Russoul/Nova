@@ -443,7 +443,7 @@ a₁ ≡β a₁'
 
 // Uniqueness of ℕ-elim, ⊎-elim and quot-elim (el-nat-eta, el-sum-eta,
 // el-quot-eta) gets NO leaf: it is proved by elimination into the
-// equality type and reflected, as the corpus does today.
+// equality type and reflected, as the corpus does.
 
 // No injectivity selectors, for now (ty-rec-inj included).
 
@@ -526,9 +526,7 @@ a₁ ≡β a₁'
 // A signature is checked AT A LEVEL ℓ, its BOUND: every Nova type it
 // embeds at 𝕌ℓ (a proposition included, by Ω ≤ 𝕌₀ ≤ 𝕌ℓ), its sorts
 // types at 𝕌ℓ, ⟦Φ⟧ a telescope with sort entries at 𝕌ℓ₊₁. One bound
-// serves every sort. The former SMALLNESS condition ("every external
-// domain at 𝕌 or at Ω, tried in turn") is gone: one check at 𝕌ℓ, no
-// universe guessed.
+// serves every sort: one check at 𝕌ℓ, no universe guessed.
 
 // (Telescopes, spines and the derived snoc the readings build with:
 // LISTS, after the entry points.)
