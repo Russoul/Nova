@@ -11,9 +11,12 @@ let id = { under = []; shift = 0 }
 (* ↑ⁿ *)
 let wk n = { under = []; shift = n }
 
-(* (id, ē): the spine ē instantiates the telescope it is against; ē is
-   a snoc list, its head goes to ☐₀ *)
+(* (id, e˲): a snoc list of terms instantiates the innermost
+   variables, its head going to ☐₀ *)
 let inst es = { under = es; shift = 0 }
+
+(* (id, ē) for a SPINE ē, a cons list: its last entry goes to ☐₀ *)
+let inst_spine es = inst (List.rev es)
 
 (* [id, t] *)
 let single t = inst [ t ]
@@ -81,11 +84,11 @@ and apply s t =
           List.map (apply s) es,
           apply s w )
 
-(* Δ[σ]: a telescope is a snoc list, and its entry at list position k
-   sits under the n - 1 - k entries before it. *)
+(* Δ[σ], by tel-sub: ε[σ] = ε and (A ◁ Δ)[σ] = A[σ] ◁ Δ[σ⁺]. The
+   telescope is a cons list; its entry at position i sits under the i
+   entries before it. *)
 and tele s d =
-  let n = List.length d in
-  List.mapi (fun k a -> apply (lift_n (n - 1 - k) s) a) d
+  match d with [] -> [] | a :: rest -> apply s a :: tele (lift s) rest
 
 (* The embedded Nova pieces of a polynomial or a signature sit under
    the Nova binders the grammar opened above them. *)

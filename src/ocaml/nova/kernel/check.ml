@@ -81,17 +81,15 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
       let d0, d1, l = tele_eq st ctx (List.map snd entries) in
       (Rec (ls, d0), Rec (ls, d1), Sort (U l))
   | P.Field (rho, l) ->
-      (* el-rec-e: Δ's entry at l over r₁'s projections at the earlier
-         labels *)
+      (* el-rec-e: the field type (r₁ / l̄ ↪ Δ)‖ₗ *)
       let r0, r1, t = infer st ctx rho in
       let ls, d = as_rec st ("." ^ l) t in
-      let entry, earlier =
-        match field ls d l with
-        | Some x -> x
+      let ty =
+        match field_type r1 ls d l with
+        | Some a -> a
         | None -> reject ".%s: the record type has no such label" l
       in
-      let projs = List.map (fun l' -> Field (r1, l')) earlier in
-      (Field (r0, l), Field (r1, l), Subst.apply (Subst.inst projs) entry)
+      (Field (r0, l), Field (r1, l), ty)
   (* ------ ⊎ ------ *)
   | P.Sum (a, b) ->
       let a0, a1, u = infer_sort st "⊎: the left summand" ctx a in
@@ -234,7 +232,7 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
   | P.Var i -> (Var i, Var i, lookup ctx i)
   | P.Item (x, ps) ->
       let it = Sig.find st.sg x in
-      let e0, e1 = spine st ctx it.tele ps in
+      let e0, e1 = norm_sub st ctx it.ctx ps in
       (Item (x, e0), Item (x, e1), Subst.apply (Subst.inst e1) it.ty)
   | P.Delta (x, ps) ->
       let it = Sig.find st.sg x in
@@ -243,7 +241,7 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
         | Some t -> t
         | None -> reject "δ: '%s' is a declaration, it has no definiens" x
       in
-      let e = spine1 st ctx it.tele ps in
+      let e = norm_sub1 st ctx it.ctx ps in
       let at = Subst.inst e in
       (Item (x, e), Subst.apply at body, Subst.apply at it.ty)
   | P.Let (a, b) ->
@@ -327,7 +325,7 @@ let rec infer st (ctx : ctx) (p : P.t) : tm * tm * tm =
       in
       List.iteri
         (fun i (a, b) ->
-          if Tos.is_sort sg1 i then
+          if Tos.is_sort sg1 (Tos.n_entries sg1 - 1 - i) then
             need_conv st "𝒮.𝕤-elim: a motive's sides" a b)
         (List.combine d0 d1);
       let e0, e1 = spine st ctx (Qiit.arity_at_iota sg1 s) es in
@@ -530,15 +528,18 @@ and as_rec st what t =
   | Rec (ls, d) -> (ls, d)
   | _ -> reject "%s: the type is not a record type" what
 
-(* The entry of Δ at a label, with the labels before it (a snoc list,
-   the nearest first): what instantiates the entry. *)
-and field ls d l =
+(* (t / l̄ ↪ Δ)‖ₗ, the type of the field l of t: the walk from the first
+   entry, t fixed. At l it is the head; past another label l′ the rest
+   of the telescope is instantiated at t's own projection,
+   (t / l′ l̄ ↪ A ◁ Δ)‖ₗ = (t / l̄ ↪ Δ[id, t.l′])‖ₗ. *)
+and field_type t ls d l =
   match (ls, d) with
-  | l' :: ls', a :: d' -> if l' = l then Some (a, ls') else field ls' d' l
+  | l' :: ls', a :: d' ->
+      if l' = l then Some a
+      else field_type t ls' (Subst.tele (Subst.single (Field (t, l'))) d') l
   | _ -> None
 
-and labels ls =
-  if ls = [] then " none" else " " ^ String.concat " " (List.rev ls)
+and labels ls = if ls = [] then " none" else " " ^ String.concat " " ls
 
 and distinct what ls =
   match ls with
@@ -547,15 +548,16 @@ and distinct what ls =
       if List.mem l rest then reject "%s: the label %s is repeated" what l;
       distinct what rest
 
-(* Γ ⊦ [ᾱ] Δ₀ ≐ Δ₁ tel ℓ: entry by entry from the deepest, each a type
-   equation over the RIGHT-hand entries before it; the least level is
-   the join of the sorts the entries infer, 0 at the empty telescope. *)
+(* Γ ⊦ [ᾱ] Δ₀ ≐ Δ₁ tel ℓ, by tel-lvl-ext-cong: the head a type
+   equation, the rest over the RIGHT-hand head; the least level is the
+   join of the sorts the entries infer, 0 at the empty telescope. *)
 and tele_eq st ctx (ps : P.t list) : tm list * tm list * int =
-  List.fold_left
-    (fun (acc0, acc1, l) p ->
-      let a0, a1, u = infer_sort st "a telescope entry" (acc1 @ ctx) p in
-      (a0 :: acc0, a1 :: acc1, max l (level u)))
-    ([], [], 0) (List.rev ps)
+  match ps with
+  | [] -> ([], [], 0)
+  | p :: rest ->
+      let a0, a1, u = infer_sort st "a telescope entry" ctx p in
+      let d0, d1, l = tele_eq st (a1 :: ctx) rest in
+      (a0 :: d0, a1 :: d1, max (level u) l)
 
 and as_sum st what t =
   match whnf st t with
@@ -677,18 +679,40 @@ and qtm_check st ctx l phi (k : tm qty) (t : P.t qtm) : tm qtm * tm qtm =
         reject "a ToS term's synthesised and expected types do not agree";
       (t0, t1)
 
-(* Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ Δ: entrywise at the type instantiated by ē₁'s
-   prefix. Telescopes and spines are snoc lists; the fold runs from
-   the deepest entry. *)
-and spine st ctx (tele : tm list) (ps : P.t list) : tm list * tm list =
-  if List.length tele <> List.length ps then
-    reject "spine: %d arguments against a telescope of %d" (List.length ps)
-      (List.length tele);
+(* [ᾱ] e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm, the arguments of a reference against the
+   CONTEXT of its item, by sub-norm-ext-cong: a context and a normal
+   substitution are snoc lists, and the entry A of Δ ▷ A is checked at
+   A[e˲₁], e˲₁ the substitution built so far. The fold runs from the
+   deepest entry. *)
+and norm_sub st ctx (delta : ctx) (ps : P.t list) : tm list * tm list =
+  if List.length delta <> List.length ps then
+    reject "a reference: %d arguments against a context of %d" (List.length ps)
+      (List.length delta);
   List.fold_left2
     (fun (acc0, acc1) entry p ->
       let e0, e1 = check st ctx (Subst.apply (Subst.inst acc1) entry) p in
       (e0 :: acc0, e1 :: acc1))
-    ([], []) (List.rev tele) (List.rev ps)
+    ([], []) (List.rev delta) (List.rev ps)
+
+and norm_sub1 st ctx delta ps =
+  let e0, e1 = norm_sub st ctx delta ps in
+  List.iter2 (need_conv st "the sides of a one-sided argument") e0 e1;
+  e1
+
+(* Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ Δ, a SPINE against a telescope over Γ, by
+   sp-ext-cong: the head is checked at the telescope's head, and the
+   rest against the rest instantiated at the RIGHT head, Δ[id, e₁].
+   Telescopes and spines are cons lists. *)
+and spine st ctx (tele : tm list) (ps : P.t list) : tm list * tm list =
+  if List.length tele <> List.length ps then
+    reject "spine: %d arguments against a telescope of %d" (List.length ps)
+      (List.length tele);
+  match (tele, ps) with
+  | a :: rest, p :: ps' ->
+      let e0, e1 = check st ctx a p in
+      let es0, es1 = spine st ctx (Subst.tele (Subst.single e1) rest) ps' in
+      (e0 :: es0, e1 :: es1)
+  | _ -> ([], [])
 
 and spine1 st ctx tele ps =
   let e0, e1 = spine st ctx tele ps in
@@ -709,10 +733,10 @@ let check_ctx st (ps : P.t list) : ctx =
 
 (* Σ ⊢ (Δ ⊦ x : T) item, and Σ ⊢ (Δ ⊦ x ≔ t : T) item: the accepted
    item, to be appended to Σ by the caller. *)
-let check_item ~fuel (sg : Sig.t) ~(tele : P.t list) ~(ty : P.t)
+let check_item ~fuel (sg : Sig.t) ~(params : P.t list) ~(ty : P.t)
     ~(def : P.t option) : Sig.item =
   let st = { sg; fuel = Beta.fuel fuel } in
-  let ctx = check_ctx st tele in
+  let ctx = check_ctx st params in
   let ty0, ty1, _ = infer_sort st "the type" ctx ty in
   need_conv st "the sides of an item's type" ty0 ty1;
   let def =
@@ -720,4 +744,4 @@ let check_item ~fuel (sg : Sig.t) ~(tele : P.t list) ~(ty : P.t)
       (fun p -> within "the definiens" (fun () -> check1 st ctx ty1 p))
       def
   in
-  { Sig.tele = ctx; ty = ty1; def }
+  { Sig.ctx; ty = ty1; def }

@@ -64,17 +64,17 @@ let () =
   (* a telescope entry sits under the entries before it: in
      Rec (a : ℕ) (b : ☐0 ≡ ☐1 ∈ ℕ) the entry b sees a as ☐0 and the
      context's ☐0 as ☐1 *)
-  let r = Rec ([ "b"; "a" ], [ Eq (Var 0, Var 1, Nat); Nat ]) in
+  let r = Rec ([ "a"; "b" ], [ Nat; Eq (Var 0, Var 1, Nat) ]) in
   check "telescope: instantiation passes under the earlier entries"
     (Subst.apply (Subst.single Z) r
-    = Rec ([ "b"; "a" ], [ Eq (Var 0, Z, Nat); Nat ]));
+    = Rec ([ "a"; "b" ], [ Nat; Eq (Var 0, Z, Nat) ]));
   check "telescope: weakening skips the earlier entries"
-    (Subst.weaken 1 r = Rec ([ "b"; "a" ], [ Eq (Var 0, Var 2, Nat); Nat ]));
+    (Subst.weaken 1 r = Rec ([ "a"; "b" ], [ Nat; Eq (Var 0, Var 2, Nat) ]));
   check "record and projection: substitution is componentwise"
     (Subst.apply (Subst.single Z)
-       (Field (Record ([ "y"; "x" ], [ Var 0; Var 1 ]), "x"))
-    = Field (Record ([ "y"; "x" ], [ Z; Var 0 ]), "x"));
-  let lit = Record ([ "y"; "x" ], [ S Z; Z ]) in
+       (Field (Record ([ "x"; "y" ], [ Var 1; Var 0 ]), "x"))
+    = Field (Record ([ "x"; "y" ], [ Var 0; Z ]), "x"));
+  let lit = Record ([ "x"; "y" ], [ Z; S Z ]) in
   check "record-β: by lookup of the label"
     (whnf (Field (lit, "x")) = Z && whnf (Field (lit, "y")) = S Z);
   check "record-β: stuck at a label the literal lacks"
@@ -107,8 +107,8 @@ let () =
   (* --- the checker --- *)
   let module P = Proof in
   let sg = ref Sig.empty in
-  let item name ?(tele = []) ty def =
-    match Check.check_item ~fuel:1000 !sg ~tele ~ty ~def with
+  let item name ?(params = []) ty def =
+    match Check.check_item ~fuel:1000 !sg ~params ~ty ~def with
     | it ->
         sg := Sig.add !sg name it;
         it
@@ -157,12 +157,11 @@ let () =
   (* a hypothesis reflected: (h : n ≡ Z ∈ ℕ) ⊦ S n ≡ S Z, via congruence *)
   let cong =
     item "S-cong"
-      ~tele:[ P.Eq (P.Var 0, P.Z, P.Nat); P.Nat ]
+      ~params:[ P.Eq (P.Var 0, P.Z, P.Nat); P.Nat ]
       (P.Eq (P.S (P.Var 1), P.S P.Z, P.Nat))
       (Some (P.Refl (P.Annot (P.S (P.Reflect (P.Var 0)), P.Nat))))
   in
-  check "reflect + congruence"
-    (cong.def = Some Star && List.length cong.tele = 2);
+  check "reflect + congruence" (cong.def = Some Star && List.length cong.ctx = 2);
   (* the impredicative arrow: ℕ → (Z ≡ Z ∈ ℕ) is a proposition *)
   let prop =
     item "p" (P.Sort Omega) (Some (P.Pi (P.Nat, P.Eq (P.Z, P.Z, P.Nat))))
@@ -201,7 +200,7 @@ let () =
   in
   let const =
     item "const"
-      ~tele:[ P.Item ("Q", []) ]
+      ~params:[ P.Item ("Q", []) ]
       P.Nat
       (Some
          (P.QuotElim
@@ -215,14 +214,14 @@ let () =
   check "quot-elim, constant" (const.def = Some (QuotElim (Z, Var 0)));
   rejects "quot-elim, not well defined" (fun () ->
       item "rep"
-        ~tele:[ P.Item ("Q", []) ]
+        ~params:[ P.Item ("Q", []) ]
         P.Nat
         (Some (P.QuotElim (U 0, P.Nat, P.Var 0, P.Var 2, scrut))));
   (* at Ω the motive is a proposition and well-definedness closes by
      irrelevance: Q ⊦ ∥𝟙∥ by eliminating into Ω *)
   ignore
     (item "q-prop"
-       ~tele:[ P.Item ("Q", []) ]
+       ~params:[ P.Item ("Q", []) ]
        (P.SquashTy P.One)
        (Some
           (P.QuotElim
@@ -234,7 +233,7 @@ let () =
   (* a motive Ω is a 𝕌₁ family, not a proposition *)
   rejects "motive Ω at Ω" (fun () ->
       item "q-fam"
-        ~tele:[ P.Item ("Q", []) ]
+        ~params:[ P.Item ("Q", []) ]
         (P.Sort Omega)
         (Some
            (P.QuotElim
@@ -245,10 +244,10 @@ let () =
                 scrut ))));
   (* squash: from ∥ℕ∥ to ∥ℕ∥ by unsquash, and 𝟙's elements are irrelevant *)
   ignore
-    (item "unsq" ~tele:[ P.SquashTy P.Nat ] (P.SquashTy P.Nat)
+    (item "unsq" ~params:[ P.SquashTy P.Nat ] (P.SquashTy P.Nat)
        (Some (P.Unsquash (P.SquashTy P.Nat, P.Squash (P.Var 0), P.Var 0))));
   ignore
-    (item "unit-irrel" ~tele:[ P.One; P.One ]
+    (item "unit-irrel" ~params:[ P.One; P.One ]
        (P.Eq (P.Var 1, P.Var 0, P.One))
        (Some (P.Refl (P.Annot (P.Irrel (P.Var 1, P.Var 0), P.One)))));
   (* let: the hypothesis names the value *)
@@ -258,7 +257,7 @@ let () =
   (* fuel: 0 + 3 by unfolding plus needs two β and four ι steps *)
   let three = P.S (P.S (P.S P.Z)) in
   let plus_3_0 ~fuel =
-    Check.check_item ~fuel !sg ~tele:[]
+    Check.check_item ~fuel !sg ~params:[]
       ~ty:(P.Eq (P.App (P.App (P.Item ("plus", []), P.Z), three), three, P.Nat))
       ~def:
         (Some

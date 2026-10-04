@@ -3,8 +3,12 @@
    term at a sort — in de Bruijn form. Eliminators carry no motive and
    name no sort: those are surface, read by the checker and dropped.
 
-   Lists standing for contexts, telescopes, spines and signatures are
-   SNOC lists: the head is the newest entry, the one ☐₀ (or ⬡₀) names.
+   TWO list shapes, after the foundation. A context Γ, a normal
+   substitution e˲ (the arguments of a reference x[e˲]), the signature
+   Σ and a qiit-context Φ are SNOC lists: the head is the newest entry,
+   the one ☐₀ (or ⬡₀) names. A telescope Δ, a spine ē against one and a
+   label list l̄ are CONS lists: the head is the FIRST entry, and the
+   entry at position i is under the i entries before it.
    "t under A" means t is over the current context extended by A. *)
 
 exception Reject of string
@@ -37,7 +41,7 @@ type name = string
 type tm =
   (* contextual *)
   | Var of int (* ☐ᵢ *)
-  | Item of name * tm list (* x[ē] *)
+  | Item of name * tm list (* x[e˲]: a normal substitution, snoc *)
   (* Π *)
   | Pi of tm * tm (* A → B, B under A *)
   | Lam of tm
@@ -48,9 +52,9 @@ type tm =
   | Fst of tm
   | Snd of tm
   (* records: a telescope with a label per entry. Labels and telescope
-     are parallel SNOC lists — the head is the newest entry — and the
-     entry at depth d (d entries before it) is under those d binders.
-     A label is inert: compared as a string, never bound. *)
+     are parallel CONS lists — the head is the first entry — and the
+     entry at position i is under the i entries before it. A label is
+     inert: compared as a string, never bound. *)
   | Rec of name list * tm list (* Rec l̄ Δ *)
   | Record of name list * tm list (* ⟨l̄ ↪ ē⟩: a spine of Δ, labelled *)
   | Field of tm * name (* t.l *)
@@ -87,7 +91,7 @@ type tm =
   | Corec of tm poly * tm * tm (* corec 𝔽 f x; f under the carrier *)
   (* QIITs: the signature is carried literally; 𝕤 and 𝕔 are ToS
      indices into it, counted like ⬡ᵢ *)
-  | QSort of tm signature * int * tm list (* 𝒮.𝕤 ē *)
+  | QSort of tm signature * int * tm list (* 𝒮.𝕤 ē, ē a spine (cons) *)
   | QCon of tm signature * int * tm list
     (* 𝒮.𝕔 θ, always SATURATED: θ is the constructor's whole arity. The
          spine judgement admits nothing shorter, ι builds it under exactly
@@ -95,7 +99,7 @@ type tm =
          further; a partial constructor is not a term. *)
   | QElim of tm signature * int * tm list * tm list * tm
 (* 𝒮.𝕤-elim m̄ ē w: the methods, one per point entry in signature
-   order; the index spine; the scrutinee *)
+   order from the first; the index spine; the scrutinee *)
 
 (* A polynomial, generic in its Nova leaves: tm for the core, a proof
    for the surface. *)

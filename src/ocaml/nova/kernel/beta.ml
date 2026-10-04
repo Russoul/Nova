@@ -96,14 +96,13 @@ let rec whnf f t =
         when conv_signature f sg sg' && Qiit.sort_of_point sg c = i ->
           step f;
           (* 𝒮.𝕤-elim m̄ ī (𝒮.𝕔 θ) ⇝ m_𝕔 θᴰ *)
-          let n_points = List.length ms in
           let m =
-            match List.nth_opt ms (n_points - 1 - Tos.point_position sg c) with
+            match List.nth_opt ms (Tos.point_position sg c) with
             | Some m -> m
             | None -> reject "QIIT-β: no method for the constructor"
           in
           let theta_d = Qiit.disp_spine sg c theta ms in
-          whnf f (List.fold_left (fun g a -> App (g, a)) m (List.rev theta_d))
+          whnf f (List.fold_left (fun g a -> App (g, a)) m theta_d)
       | w' -> QElim (sg, i, ms, es, w'))
   | _ -> t
 

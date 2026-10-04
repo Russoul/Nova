@@ -31,12 +31,10 @@ let rec go (p : int) (t : tm) : string =
       paren 3
         ("Rec "
         ^ String.concat " "
-            (List.rev
-               (List.map2 (fun l a -> "(" ^ l ^ " : " ^ go 0 a ^ ")") ls d)))
+            (List.map2 (fun l a -> "(" ^ l ^ " : " ^ go 0 a ^ ")") ls d))
   | Record (ls, es) ->
       "⟨"
-      ^ String.concat ", "
-          (List.rev (List.map2 (fun l e -> l ^ " ↪ " ^ go 0 e) ls es))
+      ^ String.concat ", " (List.map2 (fun l e -> l ^ " ↪ " ^ go 0 e) ls es)
       ^ "⟩"
   | Field (e, l) -> paren 3 (postfix_head e ^ " ." ^ l)
   | Sum (a, b) -> paren 1 (go 2 a ^ " ⊎ " ^ go 2 b)
@@ -78,9 +76,9 @@ let rec go (p : int) (t : tm) : string =
 and postfix_head e =
   match e with Field _ | Fst _ | Snd _ -> go 3 e | _ -> go 4 e
 
+(* a spine, first entry first *)
 and spine es =
-  if es = [] then ""
-  else "[" ^ String.concat ", " (List.rev_map (go 0) es) ^ "]"
+  if es = [] then "" else "[" ^ String.concat ", " (List.map (go 0) es) ^ "]"
 
 and poly p (f : tm poly) : string =
   let paren q s = if p > q then "(" ^ s ^ ")" else s in

@@ -17,7 +17,7 @@ type t =
   | Snd of t (* α .π₂ *)
   | Pair of t * t (* [α, β] *)
   | Sigma of t * t (* α × β *)
-  (* records: label and proof per entry, a SNOC list *)
+  (* records: label and proof per entry, a CONS list — first entry first *)
   | Rec of (name * t) list
     (* Rec l̄ ᾱ: each entry proof over the entries before it *)
   | Record of (name * t) list (* ⟨l̄ ↪ ᾱ⟩ *)
@@ -61,7 +61,7 @@ type t =
   | Annot of t * t (* (α : T) *)
   (* contextual *)
   | Var of int (* ☐ᵢ *)
-  | Item of name * t list (* x ᾱ *)
+  | Item of name * t list (* x ᾱ: a normal substitution's proofs, SNOC *)
   | Delta of name * t list (* δ x ē *)
   | Trans of t * t (* α ; β *)
   | Sym of t (* α ⁻¹ *)

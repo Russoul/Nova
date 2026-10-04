@@ -376,8 +376,8 @@ and form st env sp s : P.t =
   | "η→" -> P.EtaPi (a ())
   | "η×" -> P.EtaSigma (a ())
   | "ηRec" -> P.EtaRec (a ())
-  | "Rec" -> P.Rec (rec_entries st env sp)
-  | "record" -> P.Record (record_fields st env sp)
+  | "Rec" -> P.Rec (List.rev (rec_entries st env sp))
+  | "record" -> P.Record (List.rev (record_fields st env sp))
   | "conv" ->
       let x = a () in
       let y = a () in
@@ -458,7 +458,8 @@ and form st env sp s : P.t =
   | _ -> err st ("not a form: " ^ s)
 
 (* The entries of Rec: (l : A) on the head's line, or l : A on an
-   argument line. A label binds in the entries after it. A snoc list. *)
+   argument line. A label binds in the entries after it. Accumulated
+   newest first; the caller reverses it into the telescope's order. *)
 and rec_entries st env sp : (name * P.t) list =
   let entry env' =
     let l = label st in
@@ -486,7 +487,7 @@ and rec_entries st env sp : (name * P.t) list =
   loop env []
 
 (* The fields of record: (l ↪ e) on the head's line, or l ↪ e on an
-   argument line. A snoc list. *)
+   argument line. Accumulated newest first; the caller reverses it. *)
 and record_fields st env sp : (name * P.t) list =
   let rec loop acc =
     if same_line st then
@@ -748,12 +749,12 @@ and qiit_form st env sp (name : string) : P.t =
     (* the index spine may stand on an argument line of its own *)
     if (peek st).kind = LBRACK && not (same_line st) then
       ignore (arg_column st sp);
-    let es = spine_args ~line:true st env in
+    let es = List.rev (spine_args ~line:true st env) in
     let w = slot st env sp 0 in
-    P.QElim (sg, s, sorts, List.rev ds, es, w))
+    P.QElim (sg, s, sorts, ds, es, w))
   else
     let i = index entry in
-    let es = spine_args st env in
+    let es = List.rev (spine_args st env) in
     if is_sort_entry (List.nth sg.entries i) then P.QSort (sg, i, es)
     else P.QCon (sg, i, es)
 
@@ -785,7 +786,8 @@ and bound st env n : P.t =
     e)
 
 and spine_args ?(line = false) st env : P.t list =
-  (* [e₀, …, eₙ] in order; returned as a snoc list *)
+  (* [e₀, …, eₙ] in order; returned as a snoc list — the shape of a
+     reference's arguments. A spine reverses it. *)
   if (peek st).kind = LBRACK && (same_line st || line) then (
     advance st;
     let rec items acc =
@@ -908,7 +910,7 @@ and atom st env : P.t =
       in
       let fs = fields [] in
       st.squash <- saved;
-      P.Record fs
+      P.Record (List.rev fs)
   | LQUOTE -> corners st env RQUOTE "'⌝'" (fun e -> P.Refl e)
   | LUNQUOTE -> corners st env RUNQUOTE "'⌟'" (fun e -> P.Reflect e)
   | ID s -> (

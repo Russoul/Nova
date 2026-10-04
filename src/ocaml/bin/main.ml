@@ -12,7 +12,7 @@ let print_item (it : Parser.item) (k : Sig.item) =
     List.rev
       (List.mapi
          (fun i (x, _) ->
-           Printf.sprintf " (%s : %s)" x (Pretty.tm (List.nth k.tele i)))
+           Printf.sprintf " (%s : %s)" x (Pretty.tm (List.nth k.ctx i)))
          (List.rev it.params))
   in
   let def = match k.def with Some t -> " := " ^ Pretty.tm t | None -> "" in
@@ -33,8 +33,8 @@ let check_file ~fuel file =
       let sg = ref Sig.empty and status = ref 0 in
       List.iter
         (fun (it : Parser.item) ->
-          let tele = List.rev_map snd it.params in
-          match Check.check_item ~fuel !sg ~tele ~ty:it.ty ~def:it.def with
+          let params = List.rev_map snd it.params in
+          match Check.check_item ~fuel !sg ~params ~ty:it.ty ~def:it.def with
           | k -> (
               match Sig.add !sg it.name k with
               | sg' ->

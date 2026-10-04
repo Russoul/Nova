@@ -114,8 +114,9 @@ let rec read_qty p (k : tm qty) : tm =
   | QExt (a, k) -> Pi (piece p a, read_qty (open_ext p) k)
   | QInt (t, k) -> Pi (read_qtm p t, read_qty (open_int p t) k)
 
-(* the arity telescope of an entry (snoc, each domain over the ones
-   before it), the point past its binders, and its end *)
+(* the arity telescope of an entry, ACCUMULATED from its far end (the
+   foundation's derived snoc: the head is the last domain, each over
+   the ones before it), the point past its binders, and its end *)
 let rec arity_tele p acc (k : tm qty) =
   match k with
   | QExt (a, k) -> arity_tele (open_ext p) (piece p a :: acc) k
@@ -126,7 +127,8 @@ let rec arity_tele p acc (k : tm qty) =
 
 let rec lams n t = if n = 0 then t else Lam (lams (n - 1) t)
 
-(* Γ ⊦ ι ⇐ ⟦𝒮⟧, a snoc list over Γ *)
+(* Γ ⊦ ι ⇐ ⟦𝒮⟧ over Γ, as the SUBSTITUTION it is used as: a snoc list,
+   its head the last entry's. The formers inside take cons spines. *)
 let iota (sg : tm signature) : tm list =
   let n = n_entries sg in
   Tos.entries_in_order sg
@@ -134,7 +136,7 @@ let iota (sg : tm signature) : tm list =
       let bs, kind = Tos.arity e in
       let m = List.length bs in
       let sg' = Subst.signature (Subst.wk m) sg in
-      let spine = List.init m (fun i -> Var i) in
+      let spine = List.init m (fun i -> Var (m - 1 - i)) in
       let i = n - 1 - k in
       lams m
         (match kind with
@@ -143,8 +145,9 @@ let iota (sg : tm signature) : tm list =
         | Tos.KEq _ -> Star))
   |> List.rev
 
-(* X over Γ·⟦Φ⟧·(m binders), instantiated at ι and a spine θ for the
-   binders (θ a snoc list over Γ, |θ| ≤ m: the innermost m - |θ| stay) *)
+(* X over Γ·⟦Φ⟧·(m binders), instantiated at ι and at θ for the first
+   |θ| of the binders (θ over Γ, given as a substitution: a snoc list;
+   |θ| ≤ m, and the innermost m - |θ| binders stay) *)
 let at_iota sg ?(theta = []) ~m x =
   let extra = m - List.length theta in
   Subst.apply (Subst.lift_n extra (Subst.inst (theta @ iota sg))) x
@@ -152,20 +155,24 @@ let at_iota sg ?(theta = []) ~m x =
 (* the prefix length of entry i (counted like ⬡ᵢ) *)
 let prefix_of sg i = n_entries sg - 1 - i
 
-(* the arity telescope of entry i over Γ, at ι: a snoc list *)
+(* the arity telescope of entry i over Γ, at ι: a telescope, from its
+   first domain *)
 let arity_at_iota sg i : tm list =
   let p = start sg ~n_alg:(n_entries sg) ~k:(prefix_of sg i) ~n_disp:0 in
   let doms, _, _ = arity_tele p [] (Tos.entry sg i) in
-  List.mapi (fun j d -> at_iota sg ~m:(List.length doms - 1 - j) d) doms
+  List.rev
+    (List.mapi (fun j d -> at_iota sg ~m:(List.length doms - 1 - j) d) doms)
 
-(* the type of a point constructor 𝒮.𝕔 θ: its end at ι and θ *)
+(* the type of a point constructor 𝒮.𝕔 θ: its end at ι and the spine θ *)
 let con_type sg c (theta : tm list) : tm =
   let p = start sg ~n_alg:(n_entries sg) ~k:(prefix_of sg c) ~n_disp:0 in
   let doms, p', e = arity_tele p [] (Tos.entry sg c) in
-  at_iota sg ~theta ~m:(List.length doms) (read_qty p' e)
+  at_iota sg ~theta:(List.rev theta) ~m:(List.length doms) (read_qty p' e)
 
-(* the path leaf 𝒮.𝕔 θ at an equation entry: the sides and their type *)
+(* the path leaf 𝒮.𝕔 θ at an equation entry, θ a spine: the sides and
+   their type *)
 let path sg c (theta : tm list) : tm * tm * tm =
+  let theta = List.rev theta in
   let p = start sg ~n_alg:(n_entries sg) ~k:(prefix_of sg c) ~n_disp:0 in
   let doms, p', e = arity_tele p [] (Tos.entry sg c) in
   let m = List.length doms in
@@ -238,7 +245,7 @@ let targets sg (sorts : sort list) : sort list =
   then reject "the eliminator names more sorts than the signature has";
   ts
 
-(* ⟦𝒮⟧ᴰ[ι]: the displayed telescope over Γ, a snoc list *)
+(* ⟦𝒮⟧ᴰ[ι]: the displayed telescope over Γ, from its first entry *)
 let disp_tele_at_iota sg (sorts : sort list) : tm list =
   let n = n_entries sg in
   let ts = targets sg sorts in
@@ -249,7 +256,6 @@ let disp_tele_at_iota sg (sorts : sort list) : tm list =
          let d = disp_qty p target e (Var (n - 1)) in
          Subst.apply (Subst.lift_n k (Subst.inst (iota sg))) d)
        ts
-  |> List.rev
 
 (* the arguments of a sort code 𝕤 ī: the head's index and the indices,
    in order *)
@@ -270,17 +276,19 @@ let entry_of p i =
   if e < 0 then reject "an index sort must be an entry of the signature";
   n_entries p.sg - 1 - (p.k - 1 - e)
 
-(* θᴰ: the displayed spine of θ (snoc over Γ) at entry i, with the
-   eliminator's methods ms supplying the images *)
+(* θᴰ: the displayed spine of the spine θ (over Γ) at entry i, with the
+   eliminator's methods ms supplying the images. Built from its far
+   end (acc) and returned from its first entry; prefix is the part of θ
+   already passed, as a substitution (snoc). *)
 let disp_spine sg i (theta : tm list) (ms : tm list) : tm list =
   let p0 = start sg ~n_alg:(n_entries sg) ~k:(prefix_of sg i) ~n_disp:0 in
   let bs, _ = Tos.arity (Tos.entry sg i) in
-  let values = List.rev theta in
+  let values = theta in
   if List.length bs <> List.length values then
     reject "displayed spine: arity mismatch";
   let rec go p acc prefix bs values =
     match (bs, values) with
-    | [], [] -> acc
+    | [], [] -> List.rev acc
     | Tos.BExt _ :: bs, x :: values ->
         go (open_ext p) (x :: acc) (x :: prefix) bs values
     | Tos.BInt t :: bs, x :: values -> (
@@ -291,7 +299,7 @@ let disp_spine sg i (theta : tm list) (ms : tm list) : tm list =
             let s = entry_of p hd in
             let m = List.length prefix in
             let indices =
-              List.rev_map
+              List.map
                 (fun a ->
                   let r =
                     match a with `Ext a -> piece p a | `Tos u -> read_qtm p u
@@ -308,16 +316,19 @@ let disp_spine sg i (theta : tm list) (ms : tm list) : tm list =
 (* the eliminator's type: d̄(𝕤) ēᴰ w *)
 let elim_type sg s (d : tm list) (e : tm list) (w : tm) (ms : tm list) : tm =
   let motive =
-    match List.nth_opt d s with
+    (* d is a spine in signature order; s counts from the end, like ⬡ *)
+    match List.nth_opt d (n_entries sg - 1 - s) with
     | Some m -> m
     | None -> reject "the eliminator's spine is short"
   in
   let ed = disp_spine sg s e ms in
-  App (List.fold_left (fun f a -> App (f, a)) motive (List.rev ed), w)
+  App (List.fold_left (fun f a -> App (f, a)) motive ed, w)
 
-(* the point entries of a spine over ⟦𝒮⟧ᴰ: the methods, a snoc list *)
+(* the point entries of a spine over ⟦𝒮⟧ᴰ: the methods, in signature
+   order *)
 let methods sg (d : tm list) : tm list =
-  List.filteri (fun i _ -> Tos.is_point sg i) d
+  let n = n_entries sg in
+  List.filteri (fun i _ -> Tos.is_point sg (n - 1 - i)) d
 
 (* the sort of a point constructor's end: the entry from the end *)
 let sort_of_point sg c =

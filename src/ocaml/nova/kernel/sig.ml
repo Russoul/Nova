@@ -1,11 +1,11 @@
 (* The signature Σ: the items accepted so far, each closed over its own
-   telescope (docs/NovaKernel.txt, the entry points). Only the entry
+   context (docs/NovaKernel.txt, the entry points). Only the entry
    points extend it. *)
 
 open Core
 
 type item = {
-  tele : tm list; (* Δ, a snoc list of types, each over the ones below *)
+  ctx : tm list; (* Δ, the item's CONTEXT: a snoc list of types *)
   ty : tm; (* T, over Δ *)
   def : tm option; (* t, over Δ: a definition; None for a declaration *)
 }
