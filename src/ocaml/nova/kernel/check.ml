@@ -548,7 +548,7 @@ and distinct what ls =
       if List.mem l rest then reject "%s: the label %s is repeated" what l;
       distinct what rest
 
-(* Γ ⊦ [ᾱ] Δ₀ ≐ Δ₁ tel ℓ, by tel-lvl-ext-cong: the head a type
+(* Γ ⊦ [ᾱ] Δ₀ ≐ Δ₁ tel ℓ, by tel-lvl-ext: the head a type
    equation, the rest over the RIGHT-hand head; the least level is the
    join of the sorts the entries infer, 0 at the empty telescope. *)
 and tele_eq st ctx (ps : P.t list) : tm list * tm list * int =
@@ -680,7 +680,7 @@ and qtm_check st ctx l phi (k : tm qty) (t : P.t qtm) : tm qtm * tm qtm =
       (t0, t1)
 
 (* [ᾱ] e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm, the arguments of a reference against the
-   CONTEXT of its item, by sub-norm-ext-cong: a context and a normal
+   CONTEXT of its item, by sub-norm-ext: a context and a normal
    substitution are snoc lists, and the entry A of Θ ▷ A is checked at
    A[e˲₁], e˲₁ the substitution built so far. The fold runs from the
    deepest entry. *)
@@ -700,7 +700,7 @@ and norm_sub1 st ctx delta ps =
   e1
 
 (* Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ Δ, a SPINE against a telescope over Γ, by
-   sp-ext-cong: the head is checked at the telescope's head, and the
+   sp-ext: the head is checked at the telescope's head, and the
    rest against the rest instantiated at the RIGHT head, Δ[id, e₁].
    Telescopes and spines are cons lists. *)
 and spine st ctx (tele : tm list) (ps : P.t list) : tm list * tm list =

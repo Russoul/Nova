@@ -177,7 +177,7 @@ I ::= (Γ ⊦ x : t) | (Γ ⊦ x ≔ t : t) | (Γ ⊦ x ≔ Φ qsig ℓ)
 
 [ᾱ] e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm
 Γ ⊦ [β] t₀ ≐ t₁ ⇐ A[e˲₁]
----------------------------------------------- (sub-norm-ext-cong)
+---------------------------------------------- (sub-norm-ext)
 [ᾱ, β] (e˲₀, t₀) ≐ (e˲₁, t₁) : Γ ⇒ Θ ▷ A norm
 // The new entry at its type instantiated by the RIGHT substitution built
 // so far.
@@ -187,7 +187,7 @@ I ::= (Γ ⊦ x : t) | (Γ ⊦ x ≔ t : t) | (Γ ⊦ x ≔ Φ qsig ℓ)
 
 Γ ⊦ [α] e₀ ≐ e₁ ⇐ A
 Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ Δ[id, e₁]
----------------------------------------- (sp-ext-cong)
+---------------------------------------- (sp-ext)
 Γ ⊦ [α, ᾱ] (e₀, ē₀) ≐ (e₁, ē₁) ⇐ A ◁ Δ
 // The head at the telescope's head, the rest against the rest
 // instantiated at the RIGHT head.
@@ -373,7 +373,7 @@ I ::= (Γ ⊦ x : t) | (Γ ⊦ x ≔ t : t) | (Γ ⊦ x ≔ Φ qsig ℓ)
 
 Γ ⊦ [α] A₀ ≐ A₁ ⇒ 𝒰
 Γ ▷ A₁ ⊦ [ᾱ] Δ₀ ≐ Δ₁ tel ℓ
---------------------------------------------- (tel-lvl-ext-cong)
+--------------------------------------------- (tel-lvl-ext)
 Γ ⊦ [α, ᾱ] A₀ ◁ Δ₀ ≐ A₁ ◁ Δ₁ tel (|𝒰| ⊔ ℓ)
 // At the least level.
 

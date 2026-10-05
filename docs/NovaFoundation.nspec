@@ -374,7 +374,7 @@ D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | σ ≜ σ | e˲ ≜ e˲ | ē ≜ ē | Φ
 //
 //     Γ₀ ≐ Γ₁ ctx             pointwise: ε ≐ ε, and
 //                             Γ₀ ▷ A₀ ≐ Γ₁ ▷ A₁ iff Γ₀ ≐ Γ₁ ctx and
-//                             Γ₁ ⊦ A₀ ≐ A₁ : 𝕌ℓ (ctx-ext-cong is the
+//                             Γ₁ ⊦ A₀ ≐ A₁ : 𝕌ℓ (ctx-ext is the
 //                             defining clause; Γ ctx is Γ ≐ Γ ctx)
 //     σ₀ ≐ σ₁ : Γ ⇒ Θ         EXTENSIONAL: Γ ⊦ ☐ᵢ[σ₀] ≐ ☐ᵢ[σ₁] : Θ‖ᵢ[σ₁]
 //                             for every i < |Θ| — the substitution
@@ -382,11 +382,11 @@ D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | σ ≜ σ | e˲ ≜ e˲ | ē ≜ ē | Φ
 //                             laws, wk-ext, eta, ...) are then
 //                             META-LEMMAS, by the var-sub-* clauses;
 //                             σ : Γ ⇒ Θ is σ ≐ σ
-//     e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm  pointwise (sub-norm-ext-cong defining)
-//     Γ ⊦ Δ₀ ≐ Δ₁ tel         pointwise (tel-ext-cong defining)
-//     Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ       pointwise AT 𝕌ℓ (tel-lvl-ext-cong
+//     e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm  pointwise (sub-norm-ext defining)
+//     Γ ⊦ Δ₀ ≐ Δ₁ tel         pointwise (tel-ext defining)
+//     Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ       pointwise AT 𝕌ℓ (tel-lvl-ext
 //                             defining; Γ ⊦ Δ tel ℓ is Δ ≐ Δ)
-//     Γ ⊦ ē₀ ≐ ē₁ : Δ         pointwise (sp-ext-cong defining)
+//     Γ ⊦ ē₀ ≐ ē₁ : Δ         pointwise (sp-ext defining)
 //     Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig        of QIIT signatures: by name or by
 //                             content (qsig-eq-ref, qsig-eq-content
 //                             defining; Γ ⊦ 𝒮 qsig is 𝒮 ≐ 𝒮)
@@ -439,11 +439,11 @@ D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | σ ≜ σ | e˲ ≜ e˲ | ē ≜ ē | Φ
 //   extensionality, lift/restrict, coercion and reflection rules —
 //   are stated exactly as displayed and are NOT doubled; their typing
 //   premises are diagonals. So the congruence of every former is its
-//   own rule read in full, and the master congruence of substitution,
-//   el-sub-cong, is the full form of el-sub. Where a congruence is
-//   cited by a name of its own (ty-pi-cong, code-eq-cong, …) the full
-//   form is displayed under that name beside the rule it doubles; the
-//   name denotes the same rule.
+//   own rule read in full. A rule DISPLAYED in full — the type formers
+//   ty-pi, ty-sigma, ty-sum, ty-quot and code-eq, the substitution
+//   rules (el-sub, the master congruence, among them) and the defining
+//   clauses of the pointwise notations — is not displayed a second time
+//   in diagonal form: the diagonal is its instance.
 //
 // * DEFINITIONAL EQUALITY. A rule concluding J ≜ K asserts the
 //   equation J ≐ K and additionally marks it as a computation step,
@@ -462,9 +462,9 @@ D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | σ ≜ σ | e˲ ≜ e˲ | ē ≜ ē | Φ
 //   distinguishes introduction (i), elimination (e), computation
 //   (beta), uniqueness (eta), congruence (cong), injectivity (inj),
 //   substitution action (sub), and coercion (coe). A -cong name
-//   denotes the FULL (doubled) form of the former rule it is named
-//   after (THE DOUBLING CONVENTION), displayed separately only where
-//   it is cited by name. These names are the ones docs/NovaKernel.nspec
+//   denotes the FULL (doubled) form of a former rule that is displayed
+//   in diagonal form (THE DOUBLING CONVENTION); a rule displayed in
+//   full carries the plain name. These names are the ones docs/NovaKernel.nspec
 //   and the sources cite; there are no other synonyms.
 
 # Judgements
@@ -657,13 +657,9 @@ x ∉ Σ
 --------- (ctx-empty)
 ε ctx
 
-Γ ⊦ A : 𝕌ℓ
------------ (ctx-ext)
-Γ ▷ A ctx
-
 Γ₀ ≐ Γ₁ ctx
 Γ₁ ⊦ A₀ ≐ A₁ : 𝕌ℓ
---------------------- (ctx-ext-cong)   // the DEFINING clause of the
+--------------------- (ctx-ext)        // the DEFINING clause of the
 Γ₀ ▷ A₀ ≐ Γ₁ ▷ A₁ ctx                  //   pointwise meta-notation
                                        //   (EQUALITY, conventions)
 
@@ -673,7 +669,7 @@ x ∉ Σ
 // conventions): σ₀ ≐ σ₁ : Γ ⇒ Θ says the variable images agree. The
 // equations of the calculus below (sub-empty-unique, sub-id-empty,
 // sub-eta, sub-id-pre/-post, sub-assoc, sub-wk-ext, sub-empty-comp,
-// sub-ext-post, sub-ext-unique, sub-comp-cong, sub-ext-cong, and the
+// sub-ext-post, sub-ext-unique, sub-comp and sub-ext off the diagonal, and the
 // sub-eq-coe-* transports) are therefore META-LEMMAS, established by
 // the var-sub-* clauses and el-sub-comp/el-sub-id — retained here,
 // statements and names unchanged, because the kernel and the docs
@@ -688,15 +684,15 @@ x ∉ Σ
 σ ≐ · : Γ ⇒ ε
 
 Γ₁ ⊦ A : 𝕌ℓ
-σ : Γ₀ ⇒ Γ₁
-Γ₀ ⊦ t : A[σ]
----------------------- (sub-ext)     // A explicit: no premise's judgement
-(σ, t) : Γ₀ ⇒ Γ₁ ▷ A                 //   mentions it unsubstituted
+σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
+Γ₀ ⊦ t₀ ≐ t₁ : A[σ₁]
+--------------------------------- (sub-ext)   // A explicit: no premise's judgement
+(σ₀, t₀) ≐ (σ₁, t₁) : Γ₀ ⇒ Γ₁ ▷ A             //   mentions it unsubstituted
 
-σ : Γ₀ ⇒ Γ₁
-τ : Γ₁ ⇒ Γ₂
-------------------- (sub-comp) // via Γ₁
-τ ∘ σ : Γ₀ ⇒ Γ₂
+σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
+τ₀ ≐ τ₁ : Γ₁ ⇒ Γ₂
+------------------------------- (sub-comp) // via Γ₁
+τ₀ ∘ σ₀ ≐ τ₁ ∘ σ₁ : Γ₀ ⇒ Γ₂
 
 Γ ctx
 ------------- (sub-id)
@@ -761,17 +757,6 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 //       σ ≐ ↑ ∘ (σ, t) ≐ ↑ ∘ τ
 //       t ≐ ☐₀[σ, t] ≐ ☐₀[τ] ∎
 
-σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
-τ₀ ≐ τ₁ : Γ₁ ⇒ Γ₂
-------------------------------- (sub-comp-cong) // via Γ₁
-τ₀ ∘ σ₀ ≐ τ₁ ∘ σ₁ : Γ₀ ⇒ Γ₂
-
-Γ₁ ⊦ A : 𝕌ℓ
-σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
-Γ₀ ⊦ t₀ ≐ t₁ : A[σ₁]
---------------------------------- (sub-ext-cong)   // sub-ext in full
-(σ₀, t₀) ≐ (σ₁, t₁) : Γ₀ ⇒ Γ₁ ▷ A
-
 Γ₀ ≐ Γ₁ ctx
 σ : Γ₀ ⇒ Θ
 --------------- (sub-coe-dom)
@@ -803,33 +788,22 @@ e˲ : Γ ⇒ ε norm
 e˲ ≐ · : Γ ⇒ ε norm
 
 Γ₁ ⊦ A : 𝕌ℓ
-e˲ : Γ₀ ⇒ Γ₁ norm
-Γ₀ ⊦ t : A[e˲]
------------------------------- (sub-norm-ext)   // A explicit, as at sub-ext
-(e˲, t) : Γ₀ ⇒ Γ₁ ▷ A norm
-
-Γ₁ ⊦ A : 𝕌ℓ
 e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm
 Γ₀ ⊦ t₀ ≐ t₁ : A[e˲₁]
----------------------------------------- (sub-norm-ext-cong)   // defining clause of the
-(e˲₀, t₀) ≐ (e˲₁, t₁) : Γ₀ ⇒ Γ₁ ▷ A norm                       //   pointwise meta-notation
+---------------------------------------- (sub-norm-ext)   // A explicit, as at sub-ext; the defining
+(e˲₀, t₀) ≐ (e˲₁, t₁) : Γ₀ ⇒ Γ₁ ▷ A norm                  //   clause of the pointwise meta-notation
 
 e˲ : Γ₀ ⇒ Γ₁ norm
 ------------------- (sub-norm-embed) // a normal substitution is a substitution
 e˲ : Γ₀ ⇒ Γ₁
 
-e˲ : Γ₀ ⇒ Γ₁ norm
+e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm
 σ : Θ ⇒ Γ₀
------------------------- (sub-norm-comp) // via Γ₀; defined by meta-level induction:
-e˲ ∘ σ : Θ ⇒ Γ₁ norm
+----------------------------------- (sub-norm-comp) // via Γ₀; defined by meta-level induction:
+e˲₀ ∘ σ ≐ e˲₁ ∘ σ : Θ ⇒ Γ₁ norm
 
 · ∘ σ ≜ ·
 (e˲, t) ∘ σ ≜ (e˲ ∘ σ, t[σ])
-
-e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm
-σ : Θ ⇒ Γ₀
------------------------------------ (sub-norm-comp-cong) // via Γ₀
-e˲₀ ∘ σ ≐ e˲₁ ∘ σ : Θ ⇒ Γ₁ norm
 
 Γ₀ ≐ Γ₁ ctx
 e˲ : Γ₀ ⇒ Θ norm
@@ -890,7 +864,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 //    along a context equation, the master congruence and the
 //    signature references are the element rules at A = 𝕌ℓ: el-sub,
 //    el-sub-id, el-sub-comp; el-coe-ctx, el-eq-coe-ctx;
-//    el-sub-cong(-fix); and el-sig-var, el-sig-beta, el-sig-decl,
+//    el-sub-fix; and el-sig-var, el-sig-beta, el-sig-decl,
 //    el-sub-sig-var at an entry whose A is a universe.
 //  * Type equality from absurdity needs NO rule, it is DERIVABLE:
 //    from Γ ⊦ t : 𝟘, el-zero-e at the type
@@ -923,20 +897,20 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 ------------ (ty-prop) // and NOT Γ ⊦ Ω : 𝕌₀ — see THE TOWER
 Γ ⊦ Ω : 𝕌₁
 
-Γ ⊦ A : 𝕌ℓ
-Γ ▷ A ⊦ B : 𝕌ℓ
------------------- (ty-pi)
-Γ ⊦ A → B : 𝕌ℓ
+Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
+Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕌ℓ
+------------------------------- (ty-pi)
+Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ : 𝕌ℓ
 
-Γ ⊦ A : 𝕌ℓ
-Γ ▷ A ⊦ B : 𝕌ℓ
------------------- (ty-sigma)
-Γ ⊦ A × B : 𝕌ℓ
+Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
+Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕌ℓ
+------------------------------- (ty-sigma)
+Γ ⊦ A₀ × B₀ ≐ A₁ × B₁ : 𝕌ℓ
 
-Γ ⊦ A : 𝕌ℓ
-Γ ⊦ B : 𝕌ℓ
------------------- (ty-sum)     // non-dependent: B over Γ, not Γ ▷ A
-Γ ⊦ A ⊎ B : 𝕌ℓ
+Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
+Γ ⊦ B₀ ≐ B₁ : 𝕌ℓ
+------------------------------- (ty-sum)     // non-dependent: B over Γ, not Γ ▷ A
+Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ : 𝕌ℓ
 
 ## Cumulativity
 
@@ -987,7 +961,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 // proposition into 𝕌₀ up to iff (see the impredicativity note in the
 // Ω block), and prf r ≐ prf r′ : 𝕌₀ whenever r ⟺ r′ — the small
 // universe's equality is mixed without the lift, which only makes it
-// so directly. prop-lift-eq is PRIMITIVE, not an el-sub-cong instance
+// so directly. prop-lift-eq is PRIMITIVE, not an el-sub instance
 // (the master congruence at ☐₀ over Γ ▷ Ω concludes at Ω, not 𝕌₀ —
 // nothing else lifts the coarse equality). CROSS-CLUSTER equations
 // are underivable by absence: ∥𝟙∥ ≐ 𝟙 : 𝕌₀ has no derivation —
@@ -1025,7 +999,10 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 // the tower by level (ℓ ≤ ℓ′ the order of the natural numbers):
 
 Ω ≼ 𝒰
-𝕌ℓ ≼ 𝕌ℓ′      ℓ ≤ ℓ′
+
+ℓ ≤ ℓ′
+--------
+𝕌ℓ ≼ 𝕌ℓ′
 
 // It is reflexive and transitive, and no 𝕌ℓ is below Ω. Both
 // cumulativities iterate along it — META-LEMMAS, by induction on the
@@ -1035,10 +1012,10 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 //   * (restrict) Γ ⊦ a₀ : 𝒰, Γ ⊦ a₁ : 𝒰, 𝒰 ≼ 𝒰′ and Γ ⊦ a₀ ≐ a₁ : 𝒰′
 //     give Γ ⊦ a₀ ≐ a₁ : 𝒰.
 
-Γ ⊦ A : 𝕌ℓ
-Γ ▷ A ▷ A[↑] ⊦ R : Ω
------------------------ (ty-quot)   // the relation slot is Ω, at any level of A:
-Γ ⊦ A / R : 𝕌ℓ                      //   a quotient is at the level of its carrier
+Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
+Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
+-------------------------------- (ty-quot)   // the relation slot is Ω, at any level of A:
+Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕌ℓ                   //   a quotient is at the level of its carrier
 
 // Signature references at type entries need no rules of their own:
 // el-sig-var, el-sig-beta and el-sig-decl (in the element rules)
@@ -1090,35 +1067,14 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 ---------------------------------------- (ty-sub-quot)
 Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] : 𝕌ℓ
 
-// The four congruences below are the FULL FORMS of ty-pi, ty-sigma,
-// ty-sum and ty-quot (THE DOUBLING CONVENTION), displayed under names
-// of their own; they are not further rules. They are the downward
+// ty-pi, ty-sigma, ty-sum and ty-quot, stated in full above, are the
+// congruences of the formers. They are the downward
 // duals of the ty-*-inj block: together the two families ARE the
 // commitment that type equality is equality of structural codes — on
 // the CODE cluster; the prop cluster's congruence is prop-lift-eq
 // (PROP-CUMULATIVITY), which imports code-prop-eq's extensional
 // equality wholesale. (The code-*-cong names denote the level-0
 // instances; they are not displayed.)
-
-Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
-Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕌ℓ
-------------------------------- (ty-pi-cong)
-Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ : 𝕌ℓ
-
-Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
-Γ ▷ A₁ ⊦ B₀ ≐ B₁ : 𝕌ℓ
-------------------------------- (ty-sigma-cong)
-Γ ⊦ A₀ × B₀ ≐ A₁ × B₁ : 𝕌ℓ
-
-Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
-Γ ⊦ B₀ ≐ B₁ : 𝕌ℓ
-------------------------------- (ty-sum-cong)
-Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ : 𝕌ℓ
-
-Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
-Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
--------------------------------- (ty-quot-cong)
-Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕌ℓ
 
 # Type constructor injectivity
 //
@@ -1251,20 +1207,15 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 ------------- (tel-empty)
 Γ ⊦ ε tel
 
-Γ ⊦ A : 𝕌ℓ
-Γ ▷ A ⊦ Δ tel
------------------ (tel-ext)
-Γ ⊦ A ◁ Δ tel
-
 Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
 Γ ▷ A₁ ⊦ Δ₀ ≐ Δ₁ tel
------------------------------ (tel-ext-cong)   // defining clause of the
+----------------------------- (tel-ext)        // defining clause of the
 Γ ⊦ A₀ ◁ Δ₀ ≐ A₁ ◁ Δ₁ tel                      //   pointwise meta-notation
 
-Γ₁ ⊦ Δ tel
-σ : Γ₀ ⇒ Γ₁
------------------ (tel-sub) // defined by meta-level induction on Δ
-Γ₀ ⊦ Δ[σ] tel
+Γ ⊦ Δ₀ ≐ Δ₁ tel
+σ₀ ≐ σ₁ : Ξ ⇒ Γ
+---------------------------- (tel-sub) // defined by meta-level induction on Δ
+Ξ ⊦ Δ₀[σ₀] ≐ Δ₁[σ₁] tel
 
 σ : Γ₀ ⇒ Γ₁
 --------------------- (tel-sub-empty)
@@ -1286,17 +1237,12 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 -------------------- (tel-eq-coe-ctx)
 Γ₁ ⊦ Δ₀ ≐ Δ₁ tel
 
-Γ ⊦ Δ₀ ≐ Δ₁ tel
-σ₀ ≐ σ₁ : Ξ ⇒ Γ
----------------------------- (tel-sub-cong)
-Ξ ⊦ Δ₀[σ₀] ≐ Δ₁[σ₁] tel
-
 ## Telescopes at a level
 
 // What the record former is formed from (see
 // "Record types"). A META-DEFINITION over the one judgement, as tel
 // is. The equation Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ is POINTWISE AT 𝕌ℓ
-// (tel-lvl-ext-cong is the defining clause), and Γ ⊦ Δ tel ℓ is its
+// (tel-lvl-ext is the defining clause), and Γ ⊦ Δ tel ℓ is its
 // diagonal: every entry typed at 𝕌ℓ at its position — a lower entry by
 // code-lift, a proposition by prop-lift and code-lift. Symmetry and
 // transitivity are meta-lemmas, pointwise from el-sym and el-trans.
@@ -1305,18 +1251,13 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 ------------- (tel-lvl-empty)
 Γ ⊦ ε tel ℓ
 
-Γ ⊦ A : 𝕌ℓ
-Γ ▷ A ⊦ Δ tel ℓ
------------------ (tel-lvl-ext)
-Γ ⊦ A ◁ Δ tel ℓ
-
 Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
 Γ ▷ A₁ ⊦ Δ₀ ≐ Δ₁ tel ℓ
-------------------------------- (tel-lvl-ext-cong)   // defining clause of the
+------------------------------- (tel-lvl-ext)        // defining clause of the
 Γ ⊦ A₀ ◁ Δ₀ ≐ A₁ ◁ Δ₁ tel ℓ                          //   pointwise meta-notation
 
 // META-LEMMAS, each entrywise:
-//   * (forget) Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ gives Γ ⊦ Δ₀ ≐ Δ₁ tel — tel-ext-cong asks
+//   * (forget) Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ gives Γ ⊦ Δ₀ ≐ Δ₁ tel — tel-ext asks
 //     an entry equation at SOME level.
 //   * (raise) Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ and ℓ ≤ ℓ′ give Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ′, by
 //     code-lift-eq. The contexts of the later entries are unchanged:
@@ -1325,8 +1266,8 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 //     finite; take the greatest of the entry equations' levels and raise.
 //     On the diagonal: every telescope is a telescope at some level.
 //   * (substitution) Γ₁ ⊦ Δ₀ ≐ Δ₁ tel ℓ and σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁ give
-//     Γ₀ ⊦ Δ₀[σ₀] ≐ Δ₁[σ₁] tel ℓ: tel-sub-cong's induction, each entry
-//     el-sub-cong at 𝕌ℓ, and 𝕌ℓ[σ] ≜ 𝕌ℓ — levels are literals, a
+//     Γ₀ ⊦ Δ₀[σ₀] ≐ Δ₁[σ₁] tel ℓ: tel-sub's induction, each entry
+//     el-sub at 𝕌ℓ, and 𝕌ℓ[σ] ≜ 𝕌ℓ — levels are literals, a
 //     substitution moves none. Likewise tel-coe-ctx and tel-eq-coe-ctx
 //     hold at a level.
 //   * (descent) Γ ⊦ Δ₀ ≐ Δ₁ tel with Γ ⊦ Δ₀ tel ℓ and Γ ⊦ Δ₁ tel ℓ give
@@ -1771,7 +1712,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 //    see ty-quot):
 //      1. Mutually implied relations give EQUAL quotient types:
 //         code-prop-eq under Γ ▷ A ▷ A[↑] gives R₀ ≐ R₁ : Ω, then
-//         ty-quot-cong; dually ty-quot-inj returns only iff-content.
+//         ty-quot; dually ty-quot-inj returns only iff-content.
 //         A proof-relevant presentation is recovered as A / ∥R∥.
 //      2. Effectivity, in the ONLY form it can take: quotient equality
 //         is the equivalence CLOSURE. For R : Ω over Γ ▷ A ▷ A[↑] with
@@ -1853,11 +1794,12 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 ------------------ (code-squash)
 Γ ⊦ ∥A∥ : Ω
 
-Γ ⊦ a₀ : A
-Γ ⊦ a₁ : A
---------------------------- (code-eq) // A an ARBITRARY type, the
-Γ ⊦ (a₀ ≡ a₁ ∈ A) : Ω                 //   universes included: type
-                                      //   equality is a proposition
+Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
+Γ ⊦ a₀ ≐ a₁ : A₁
+Γ ⊦ b₀ ≐ b₁ : A₁
+--------------------------------------------- (code-eq) // A an ARBITRARY type, the
+Γ ⊦ (a₀ ≡ b₀ ∈ A₀) ≐ (a₁ ≡ b₁ ∈ A₁) : Ω                 //   universes included: type
+                                                        //   equality is a proposition
 
 Γ ⊦ p : Ω
 ---------------------------- (code-squash-idem) // squash is idempotent on
@@ -1873,14 +1815,6 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
                                                 //   typing), so this is
                                                 //   an equation and not a
                                                 //   contraction
-
-Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
-Γ ⊦ a₀ ≐ a₁ : A₁
-Γ ⊦ b₀ ≐ b₁ : A₁
---------------------------------------------- (code-eq-cong) // the full form of
-Γ ⊦ (a₀ ≡ b₀ ∈ A₀) ≐ (a₁ ≡ b₁ ∈ A₁) : Ω                      //   code-eq (THE DOUBLING
-                                                             //   CONVENTION), displayed
-                                                             //   under its own name
 
 Γ ▷ p ⊦ s : q[↑]
 Γ ▷ q ⊦ t : p[↑]
@@ -2233,19 +2167,31 @@ U[ς]          ≜ U
 ---------------------------- (refl-qty)   // a sort entry at 𝕌ℓ₊₁, a point or
 Γ·⟦Φ⟧ ⊦ ⟦𝔄⟧ : 𝕌ℓ₊₁                       //   equation entry at 𝕌ℓ
 
+Γ ⊦ Φ qctx   Φ ≼ ℓ
+--------------------- (refl-qty-univ)
+Γ·⟦Φ⟧ ⊦ ⟦U⟧ ≜ 𝕌ℓ : 𝕌ℓ₊₁
+
+Γ ; Φ ⊦ 𝕥 : U   Φ ≼ ℓ
+-------------------------- (refl-qty-el)
+Γ·⟦Φ⟧ ⊦ ⟦El 𝕥⟧ ≜ ⟦𝕥⟧ : 𝕌ℓ₊₁
+
+Γ ⊦ A : 𝕌ℓ
+Γ ▷ A ; Φ[↑] ⊦ 𝔄 qty
+Φ ≼ ℓ
+-------------------------------------- (refl-qty-pi-ext)
+Γ·⟦Φ⟧ ⊦ ⟦A ⇛ 𝔄⟧ ≜ A[↑⟦Φ⟧] → ⟦𝔄⟧[ξ_{Φ,A}] : 𝕌ℓ₊₁
+
+Γ ; Φ ▷ El 𝕥 ⊦ 𝔄 qty
+Φ ≼ ℓ
+------------------------------------- (refl-qty-pi-ind)
+Γ·⟦Φ⟧ ⊦ ⟦El 𝕥 ⇛ 𝔄⟧ ≜ ⟦𝕥⟧ → ⟦𝔄⟧ : 𝕌ℓ₊₁
+
 Γ ; Φ ⊦ 𝕥 : 𝔄
 ---------------------------- (refl-qtm)
 Γ·⟦Φ⟧ ⊦ ⟦𝕥⟧ : ⟦𝔄⟧
 
 ⟦⬦⟧               ≜ ε
 ⟦Φ ▷ 𝔄⟧           ≜ ⟦Φ⟧ ▷ ⟦𝔄⟧
-
-⟦U⟧_{Γ;Φ}         ≜ 𝕌ℓ                              // ℓ the bound: a sort entry is a
-                                                    //   type variable at the bound
-⟦El 𝕥⟧_{Γ;Φ}      ≜ ⟦𝕥⟧_{Γ;Φ}                       // a code at 𝕌ℓ, hence a type
-⟦A ⇛ 𝔄⟧_{Γ;Φ}     ≜ A[↑⟦Φ⟧] → ⟦𝔄⟧_{Γ ▷ A ; Φ[↑]}[ξ_{Φ,A}]   // external Π
-⟦El 𝕥 ⇛ 𝔄⟧_{Γ;Φ}  ≜ ⟦𝕥⟧_{Γ;Φ} → ⟦𝔄⟧_{Γ ; Φ ▷ El 𝕥}          // internal Π: the ToS
-                                                    //   variable IS the Nova variable
 
 ⟦⬡ᵢ⟧_{Γ;Φ}        ≜ ☐ᵢ
 ⟦𝕥 t⟧_{Γ;Φ}       ≜ ⟦𝕥⟧_{Γ;Φ} t[↑⟦Φ⟧]
@@ -2374,7 +2320,7 @@ e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
 //
 // THE TWO PATHWAYS. By-name is ADMISSIBLE from by-content — the
 // contents ⌈𝒮⌉[e˲₀] and ⌈𝒮⌉[e˲₁] are equal piece by piece, by
-// el-sub-cong — so the relation is by-content's, a partial
+// el-sub — so the relation is by-content's, a partial
 // equivalence. By-name is stated because it decides the common case —
 // two uses of ONE name — on the syntax, without evaluating either
 // side: the rigid-rigid-before-unfolding discipline, as a rule.
@@ -2386,7 +2332,7 @@ e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
 // META-LEMMA. Equal signatures have equal entries, arities and
 // readings, positionwise — by content this is the comparison itself
 // (a reading is a recursion on the syntax compared), by name it is
-// tel-sub-cong on the entry's arity — and their initial algebras are
+// tel-sub on the entry's arity — and their initial algebras are
 // equal spines, by the formers' own congruence along the signature.
 // This is what types the LEFT instance of a doubled former at the
 // RIGHT instance's arity.
@@ -2467,7 +2413,7 @@ e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
 // (IDENTITY above), a bound bounding both instances. The full forms
 // are displayed because their premises live at the arity — the RIGHT
 // signature's, entry i's type instantiated by the RIGHT spine's
-// prefix, the sp-ext-cong discipline. Injectivity: a universe's
+// prefix, the sp-ext discipline. Injectivity: a universe's
 // equality is STRUCTURAL, so equal
 // saturated sort types at ONE signature have equal spines, indexwise
 // — the ty-pi-inj block, extended to the QIIT former (at level 0 the
@@ -2736,10 +2682,10 @@ e˲ : Θ ⇒ Γ norm
 // and el-sub-comp below state the general facts for the WHOLE sort,
 // types included (A = 𝕌ℓ).
 
-Γ₁ ⊦ t : A
-σ : Γ₀ ⇒ Γ₁
----------------------- (el-sub)
-Γ₀ ⊦ t[σ] : A[σ]
+Γ₁ ⊦ t₀ ≐ t₁ : A
+σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
+--------------------------------- (el-sub)
+Γ₀ ⊦ t₀[σ₀] ≐ t₁[σ₁] : A[σ₁]
 
 Γ ⊦ t : A
 ----------------------- (el-sub-id) // true on the nose by induction on t
@@ -2958,18 +2904,13 @@ e˲ : Γ₁ ⇒ Γ norm
 // el-class-cong is el-quot-i, el-quot-e-cong is el-quot-e, el-let-cong
 // is el-let, code-pi/-sigma/-sum/-quot-cong are the level-0 instances
 // of ty-pi/-sigma/-sum/-quot, code-squash-cong is code-squash, and
-// el-sub-cong — the MASTER congruence, substitution functionality —
-// is el-sub read in full, displayed here because everything else
-// routes through it:
-
-Γ₁ ⊦ t₀ ≐ t₁ : A
-σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
---------------------------------- (el-sub-cong)   // el-sub in full
-Γ₀ ⊦ t₀[σ₀] ≐ t₁[σ₁] : A[σ₁]
+// the MASTER congruence, substitution functionality, is el-sub
+// itself, stated in full where it is introduced: everything else
+// routes through it. Its instance at one substitution:
 
 Γ₁ ⊦ t₀ ≐ t₁ : A
 σ : Γ₀ ⇒ Γ₁
---------------------------------- (el-sub-cong-fix) // the σ₀ = σ₁ instance
+--------------------------------- (el-sub-fix) // the σ₀ = σ₁ instance
 Γ₀ ⊦ t₀[σ] ≐ t₁[σ] : A[σ]
 
 // One equation about a former is STRONGER than its congruence and is
@@ -3278,21 +3219,15 @@ lift_{K a}(R) u v      ≜ u ≡ v ∈ a
 Γ ⊦ · : ε
 
 Γ ▷ A ⊦ Δ tel
-Γ ⊦ e : A
-Γ ⊦ ē : Δ[id, e]
----------------------- (sp-ext)
-Γ ⊦ e, ē : A ◁ Δ
-
-Γ ▷ A ⊦ Δ tel
 Γ ⊦ e₀ ≐ e₁ : A
 Γ ⊦ ē₀ ≐ ē₁ : Δ[id, e₁]
---------------------------------- (sp-ext-cong)   // defining clause of the
+--------------------------------- (sp-ext)        // defining clause of the
 Γ ⊦ (e₀, ē₀) ≐ (e₁, ē₁) : A ◁ Δ                   //   pointwise meta-notation
 
-Γ₁ ⊦ ē : Δ
-σ : Γ₀ ⇒ Γ₁
----------------------- (sp-sub) // defined by meta-level induction on ē
-Γ₀ ⊦ ē[σ] : Δ[σ]
+Γ₁ ⊦ ē₀ ≐ ē₁ : Δ
+σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
+----------------------------------- (sp-sub) // defined by meta-level induction on ē
+Γ₀ ⊦ ē₀[σ₀] ≐ ē₁[σ₁] : Δ[σ₁]
 
 σ : Γ₀ ⇒ Γ₁
 ----------------------- (sp-sub-empty)
@@ -3325,18 +3260,13 @@ lift_{K a}(R) u v      ≜ u ≡ v ∈ a
 -------------------- (sp-eq-coe-tel)
 Γ ⊦ ē₀ ≐ ē₁ : Δ₁
 
-Γ₁ ⊦ ē₀ ≐ ē₁ : Δ
-σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
------------------------------------ (sp-sub-cong)
-Γ₀ ⊦ ē₀[σ₀] ≐ ē₁[σ₁] : Δ[σ₁]
-
 # Record types (labelled telescopes)
 
 // Rec l̄ Δ is a telescope Δ with a label per entry. The labels are a
 // parallel list — Δ stays an ordinary nameless telescope, so a label
 // never binds and the tel-/sp- machinery of this document is reused as
 // is: a record's body is a SPINE of Δ (sp-empty, sp-ext), its
-// substitution and its equality the spine's (sp-sub, sp-ext-cong).
+// substitution and its equality the spine's (sp-sub, sp-ext).
 
 // SIDE CONDITIONS on label lists — meta-level, context-free.
 
@@ -3388,7 +3318,7 @@ t.(l l̄) ≜ t.l, t.l̄
 //     Γ ⊦ (t₀ / l̄ ↪ Δ₀)‖ₗ ≐ (t₁ / l̄ ↪ Δ₁)‖ₗ : 𝕌ℓ
 // By induction on the position of l, the two walks kept in step: their
 // suffixes stay equal telescopes at ℓ over Γ. At l the field types are
-// the heads of the suffixes, equal at 𝕌ℓ by tel-lvl-ext-cong read
+// the heads of the suffixes, equal at 𝕌ℓ by tel-lvl-ext read
 // backwards. Past an earlier label l′, with heads A₀ ≐ A₁, the suffixes
 // become
 //     Δ₀′[id, t₀.l′] ≐ Δ₁′[id, t₁.l′]
