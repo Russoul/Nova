@@ -45,8 +45,7 @@ natAlgHomUnique : (A : 𝕌)
   (f g : NatAlgHom _ _ natAlg a)
   (n : ℕ)
   → f .π₁ n ≡ g .π₁ n
-  using (hyp.rw,
-    Core.id.Id.eq,
+  using (Core.id.Id.eq,
     Core.id.Id.unfold,
     Natural.algebra.IsNatAlgebra.unfold,
     Natural.algebra.NatAlgHom.unfold,
@@ -55,6 +54,8 @@ natAlgHomUnique =
   λA a f g n. ℕ-elim
     let hf = idToEq _ (f .π₁ Z) (a .π₁) (f .π₂ .π₁)
         hg = idToEq _ (g .π₁ Z) (a .π₁) (g .π₂ .π₁)
+        claim1 = hf
+        claim2 = hg
         ⋆
     k ih. let hf = idToEq _ (f .π₁ (S k)) (a .π₂ (f .π₁ k)) (f .π₂ .π₂ k)
               hg = idToEq _ (g .π₁ (S k)) (a .π₂ (g .π₁ k)) (g .π₂ .π₂ k)

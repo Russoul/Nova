@@ -1,7 +1,0 @@
-#!/bin/sh
-# layout faults are structural errors naming the columns they saw
-# (docs/NovaElaboration.txt, Layout — ERRORS)
-for f in misaligned stray tab column0 clause-head; do
-  echo "--- $f"
-  "$1" elab $f.nova
-done

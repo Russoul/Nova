@@ -1,0 +1,4 @@
+-- a field is written with ↪, an entry with a colon
+bad : Rec (x : ℕ) :=
+  record
+    x : Z

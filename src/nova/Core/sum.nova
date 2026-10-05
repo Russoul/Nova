@@ -63,7 +63,7 @@ isLeftCode : (a b : 𝕌) → a ⊎ b → 𝕌
 isLeftCode = λa b t. ⊎-elim (x. 𝟙) (y. 𝟘) t
 
 inj1NotInj2 : (a b : 𝕌) (x : a) (y : b) → (inj₁ x ≡ inj₂ y ∈ a ⊎ b) → 𝟘
-  using (Core.sum.isLeftCode.unfold)
+  using (Core.sum.isLeftCode.eq)
 inj1NotInj2 = λa b x y h. transport (isLeftCode a b) h ()
 
 -- the mirror image of outl/inj1Injective, for the right injection

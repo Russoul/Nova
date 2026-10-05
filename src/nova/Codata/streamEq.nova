@@ -3,7 +3,7 @@
 -- bisimilarity, definable TODAY as an Ω-proposition (squash of a Π
 -- over ℕ of equations). Its theory below runs on ℕ-INDUCTION where a
 -- bisimulation proof would use coinduction: el-nu-eta is judgemental
--- in the theory but has no kernel certificate (NovaKernel.txt, A5),
+-- in the theory but has no kernel certificate (NovaKernel.nspec, A5),
 -- so the REFLECTION of obsEq into ≡ is the one statement that stays
 -- out of reach here — everything observational is provable now.
 -- n-fold tail, unfolding head-first: tlN (S n) s ≐ tlN n (tl s)
@@ -72,8 +72,7 @@ mapFuseObsEq =
 
 -- the tail of an iterate is the iterate of the image, observationally
 iterShiftObsEq : {a : 𝕌} (f : a → a) (x : a) → obsEq (tl (iterate f x)) (iterate f (f x))
-  using (hyp.rw,
-    Codata.stream.iterate.eq,
+  using (Codata.stream.iterate.eq,
     Codata.stream.stream.eq,
     Codata.stream.tl.eq,
     Codata.streamEq.obsEq.unfold)

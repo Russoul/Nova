@@ -22,16 +22,8 @@ natAddMonoid =
 multOneR : (n : ℕ) → n * S Z ≡ n using (Natural.*.eq, Natural.+.eq)
 multOneR = λn. ⋆
 
-oneMultL : (n : ℕ) → S Z * n ≡ n
-  using (*.eq,
-    hyp.rw,
-    Natural.multZeroId,
-    Natural.multZeroId.rw,
-    sucPlus,
-    sucPlus.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
-oneMultL = λn. ℕ-elim ⋆ (k ih. ⋆) n
+oneMultL : (n : ℕ) → S Z * n ≡ n using (*.eq)
+oneMultL = λn. ℕ-elim ⋆ (k ih. zeroPlusId k by sucPlus Z k) n
 
 -- (ℕ, *, 1) is a monoid.
 natMulMonoid : IsMonoid ℕ using (Algebra.monoid.IsMonoid.unfold)

@@ -1,3 +1,0 @@
-input.nova:8:14: error: El marks a domain in this literal's own sorts — an external domain IS its code: spell it bare
-8 |   ins : (x : El ℕ) (m : El B) → El B
-  |              ^^

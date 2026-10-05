@@ -1,3 +1,0 @@
-import lib (one)
-two : ℕ
-two = S one

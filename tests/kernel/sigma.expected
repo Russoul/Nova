@@ -1,0 +1,13 @@
+accepted Zeros : 𝕌₀ := ℕ × ☐₀ ≡ Z ∈ ℕ
+accepted zero-witness : ℕ × ☐₀ ≡ Z ∈ ℕ := (Z, ⋆)
+accepted first : ℕ := zero-witness .π₁
+accepted second : zero-witness .π₁ ≡ Z ∈ ℕ := zero-witness .π₂
+accepted first-is-Z : zero-witness .π₁ ≡ Z ∈ ℕ := ⋆
+accepted at-Zeros : Zeros := zero-witness
+accepted first-at-Zeros : ℕ := at-Zeros .π₁
+rejected first-at-Zeros-stuck (line 14): the definiens: .π₁: the type is not a Σ-type
+rejected not-a-pair (line 17): the definiens: pair: the type is not a Σ-type
+rejected not-a-sigma (line 18): the definiens: .π₁: the type is not a Σ-type
+accepted prod-of-props : 𝕌₀ := Z ≡ Z ∈ ℕ × Z ≡ Z ∈ ℕ
+rejected prod-of-props-at-omega (line 22): the definiens: the synthesised and the expected type do not agree
+exit 1

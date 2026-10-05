@@ -1,4 +1,0 @@
-#!/bin/sh
-"$1" elab input.nova
-echo "--- a using on the definiens clause is refused:"
-"$1" elab bad.nova

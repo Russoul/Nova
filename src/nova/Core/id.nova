@@ -1,5 +1,5 @@
 -- The identity FAMILY: structural equality as a small QIIT
--- (docs/NovaFoundation.txt, Ω block — the prf-code construction).
+-- (docs/NovaFoundation.nspec, Ω block — the prf-code construction).
 -- Equality the PROPOSITION lives at Ω and carries no data; Id is its
 -- structural counterpart IN 𝕌: a code, storable inside small types,
 -- usable as an eliminator motive, indexwise-injective through the
@@ -19,7 +19,7 @@ idToEq a x y p = IdElimP a (λu v w. u ≡ v) (λu. ⋆) x y p
 
 -- introduction: with x ≐ y reflected from the hypothesis, refl a x
 -- already inhabits Id a x y (index congruence)
-eqToId : {a : 𝕌} (x y : a) → (x ≡ y) → Id _ x y using (hyp.rw, Core.id.Id.eq, Core.id.Id.unfold)
+eqToId : {a : 𝕌} (x y : a) → (x ≡ y) → Id _ x y using (Core.id.Id.eq, Core.id.Id.unfold)
 eqToId = λa x y h. refl a x
 
 -- the bridge, packaged: Id and ≡ are the same proposition up to iff

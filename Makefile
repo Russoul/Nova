@@ -1,16 +1,27 @@
-.PHONY: build install test normalize clean
+.PHONY: build dev test promote ci clean
+
+# tools/nspec.lua runs under luajit, or under Neovim's own Lua.
+LUA := $(shell command -v luajit >/dev/null 2>&1 && echo luajit || echo nvim -l)
 
 build:
-	pack build nova.ipkg
+	dune build
 
-install:
-	pack install-app nova.ipkg
+# The local dev loop: build, then the spec check.
+dev: build
+	$(LUA) tools/nspec.lua
 
+# The unit tests and the golden tests of the kernel.
 test:
-	./test.sh
+	dune test
 
-normalize:
-	./normalize-corpus.sh
+# Rewrite the golden tests' expected outputs from the current binary;
+# review the diff before committing.
+promote: build
+	bash tests/kernel/run.sh _build/default/src/ocaml/bin/main.exe --promote tests/kernel
+
+# Every flake check.
+ci:
+	nix flake check
 
 clean:
-	rm -rf build
+	dune clean

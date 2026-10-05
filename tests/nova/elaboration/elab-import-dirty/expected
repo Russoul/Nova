@@ -1,7 +1,0 @@
-module dirty:
-defined plus
-defined bad [+1 obligation]
-open obligations (1):
-  [1] (n : ℕ) ⊢ dirty.plus Z n ≐ n : ℕ
-      at: dirty.nova:4:11: def bad: checking ⋆
-Error: module dirty has open obligations and cannot be imported

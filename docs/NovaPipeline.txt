@@ -9,14 +9,17 @@ elaborator's first implementation exposed a consistency-grade hole in
 trusted equality search (see "Why this shape" below); the individual
 layers are specified elsewhere:
 
-  * docs/NovaFoundation.txt   — the THEORY. Sole source of truth; every
+  * docs/NovaFoundation.nspec   — the THEORY. Sole source of truth; every
                                 other layer answers to it.
-  * docs/NovaKernel.txt       — the KERNEL, rule by rule: fuel-bounded
-                                normalization, certificate replay,
-                                item-level checking over skeletons.
+  * docs/NovaKernel.nspec       — the KERNEL, rule by rule: fuel-bounded
+                                normalization, proof checking, the
+                                readings of derivations (§10).
   * docs/NovaElaboration.txt  — the elaborator: surface syntax,
                                 bidirectional rules, the obligation
                                 lifecycle.
+  * docs/NovaStrategy.txt     — the GOAL (natural proofs) and the
+                                three roles — author, engine, kernel —
+                                with the audit that keeps them apart.
 
 (The derivation-era machinery — .rules sessions, its checker, parsers
 and docs — has been removed; the pipeline below replaced it.)
@@ -38,7 +41,7 @@ and docs — has been removed; the pipeline below replaced it.)
       │                                    artifact (see below)
       │  KERNEL                          (trusted, total)
       │    synthesis over the annotated tree + fuel-bounded beta +
-      │    certificate replay; no search, no choices, always a verdict
+      │    proof checking; no search, no choices, always a verdict
       ▼
   accept / reject                        — the only verdict that counts;
                                            accepted erasures extend the
@@ -54,15 +57,15 @@ every judgement from its own Σ using only:
 
   * type synthesis over the annotated tree (annotations supply what
     synthesis cannot invent — see artifact format);
-  * FUEL-BOUNDED beta conversion (Foundation's ≜ rules: the beta
-    family, signature unfolding) — step budgets come
-    from the certificate, exhaustion means
-    REJECT, so the kernel is total: every artifact gets a verdict;
-  * CERTIFICATE REPLAY: at a conversion site, apply the recorded trace
-    steps mechanically — check each step's proof element, rewrite at
-    the given path in the given orientation, compare normal forms
-    (fuel-bounded normalization between the recorded extensional
-    steps).
+  * FUEL-BOUNDED β conversion (Foundation's ≜ rules: the beta family
+    and the eliminators' computation, NEVER signature unfolding) —
+    budgets come with the certificate, exhaustion means REJECT, so the
+    kernel is total: every artifact gets a verdict;
+  * PROOF CHECKING: at a conversion site, read the PROOF TERM against
+    the equation — decompose the sides along its congruence nodes,
+    compute each position's type, check each leaf's licence there (a
+    proof element; a DEFINITION TO UNFOLD: every δ is a leaf), compare
+    β-normal forms where the proof says refl.
 
 Consequences of the split:
 
@@ -72,7 +75,7 @@ Consequences of the split:
     not a safety property.
   * The same holds for elaborator bugs generally: a wrong core term, a
     mis-substituted type, a bogus motive all die in the kernel.
-  * The kernel is small enough to audit against NovaFoundation.txt
+  * The kernel is small enough to audit against NovaFoundation.nspec
     rule by rule, and is the only component with that obligation.
 
 ////////// The artifact: annotated trees, not annotated terms //////////
@@ -94,12 +97,13 @@ The kernel's INPUT, however, is richer than a bare term: an ANNOTATED
 TREE — the elaborator's output where each node optionally carries
 exactly what the bidirectional pass invented or consumed there:
 
-  * eliminator motives (ℕ-elim, quot-elim) — bare core is not even
-    re-checkable without them;
+  * eliminator motives (ℕ-elim, ⊎-elim, quot-elim, and a QIIT's
+    𝒮.𝕤-elim, whose core carries only its methods) — bare core is
+    not even re-checkable without them;
   * the expected type at checked introduction forms;
-  * conversion traces at switch sites: chains of
-    (path, proof element, orientation) steps, plus the quotient-witness
-    step kind carrying its witness element;
+  * conversion PROOFS at switch sites: proof terms (congruence nodes
+    around licence leaves, transitivity, symmetry, type conversion,
+    the type-directed leaves — quotient witnesses among them);
   * fuel budgets for the kernel's normalization (per item or per site;
     the elaborator knows its own step counts and writes in a margin).
 
@@ -117,41 +121,93 @@ principle (spellings are unique only up to a hypothesis-sensitive,
 undecidable equality). No consumer may compare annotations
 syntactically; only up to conversion.
 
-////////// Computation in the kernel: bounded, not certified //////////
+////////// Computation in the kernel: β bounded, δ certified //////////
 
-A design alternative was considered and recorded here deliberately:
-move beta itself into the certificate (every ≜-step a recorded
-(rule, path) entry; the kernel a pure single-step replayer comparing
-terms syntactically). Its attractions are real — the kernel becomes
-structurally total, the certificate becomes a literally linearized
-Foundation equality derivation (finest possible audit granularity),
-and no strategy coupling between elaborator and kernel can exist.
+Two kinds of computation meet at a conversion site, and they are
+treated differently.
 
-It loses on measured grounds: computation-heavy discharges (numeral
-tests, unfolding recursive definitions) make traces proportional to
-reduction length with β-duplication blowups; the kernel sheds only the
-fixpoint driver anyway (single-step application is the same clauses,
-and substitution — the genuinely subtle part — stays trusted because
-TYPING needs it); and head-exposure traces would spread annotation
-plumbing to every elimination position.
+β — the beta family, the eliminators' ι, let, ν-β, QIIT-β — is
+confluent, canonical, owned by the theory's own ≜ rules and not
+user-extensible. Its only sin is potential divergence under an
+inconsistent hypothesis, a liveness problem. The kernel therefore
+keeps a β-normalizer, FUEL-BOUNDED, budgets supplied with the
+certificate, exhaustion = reject: certificates stay small and the
+audit story is unchanged (the normalizer mirrors Foundation's ≜
+rules clause for clause). A design that logs every β-step was
+considered and rejected on measured grounds (computation-heavy
+discharges would make traces proportional to reduction length).
 
-The deciding observation: in this theory β was never the dangerous
-part of conversion. It is confluent, canonical, owned by the theory's
-own ≜ rules, and not user-extensible; the undecidable,
-hypothesis-sensitive part of conversion is the EXTENSIONAL part, which
-is already certificate-side. β's only sin is potential divergence
-under inconsistent hypotheses — a liveness problem, cured by fuel.
+δ — signature unfolding — is where a STRATEGY lives: which
+definitions, at which occurrences, how deep. A kernel that unfolds on
+its own initiative fixes one strategy in the trusted base and forces
+every producer to predict it step for step; the certificate's paths
+are meaningful only relative to the normal form that strategy
+computes, and any mismatch is a "bad path" (docs/NovaKernel.nspec,
+CONVENTIONS, records the reasoning). So δ is CERTIFIED: a proof term
+carries δ LEAVES — one occurrence (δ x ē), or every addressable
+occurrence of named definitions at once (δ-all, the δ-round of a
+join) — and the kernel's join is β-only. The producer's every
+unfolding is recorded; the licence vocabulary (`<def>.eq`,
+`<def>.unfold`) survives as a HINT to the untrusted engine about what
+to unfold and what to leave folded for matching, and the kernel never
+reads it. Consequence, measured: the corpus is accepted with the
+engine's exposure whitelist enforced OR fully open, at the same
+speed — the coupling that used to break a site when the two sides
+normalized differently is gone.
 
-Decision: the kernel keeps the ≜-engine, FUEL-BOUNDED, budgets
-supplied by the certificate, exhaustion = reject. Totality is
-preserved (the verdict gap is closed), certificates stay small (a
-number per site, not a computation log), and the audit story is
-unchanged (the kernel's normalizer mirrors Foundation's ≜ rules
-clause for clause). Full trace-beta remains the documented FALLBACK,
-to be revisited only if per-step auditability is ever needed (e.g.
-exporting kernel derivations to an external checker) or fuel coupling
-bites. The floor in every variant: α-comparison and substitution stay
-trusted — no kernel design knows less than that.
+CERTIFICATES ARE PROOF TERMS (docs/NovaKernel.nspec §2, §7). The
+kernel never edits a goal: a proof is a term-shaped tree — congruence
+nodes, one per former, around licence leaves, with transitivity,
+symmetry and type conversion — and the kernel reads it against the
+equation's sides, decomposing them along the nodes and computing each
+position's type from the node above (the type flowing down, a
+neutral head's inferred type, or a carried motive). Transitivity
+finds its middles by running one proof DIRECTIONALLY from the known
+side; the type-directed leaves (irrelevance, η, quotient witnesses,
+propext) read both sides. A licence stated in one spelling and used
+at a position spelled otherwise (a hypothesis k + Z ≡ k at an
+occurrence of ℕ-elim … k Z) is transitivity over the leaf with the
+δ chains that normalized it — never an inversion onto the goal, where
+an unfolded body that has β-reduced away leaves no position to
+refold. The engine writes the DERIVATION AS IT SEARCHES
+(Nova.Elaboration.Proof, its untrusted proof library, on the grammar
+of docs/NovaKernel.nspec §10): a rewrite it performs is emitted as the
+licence's leaf inside the node skeleton of the position at once — a
+candidate's leaf built once over its own context and instantiated by
+substitution — a closing step as its leaf, and the search
+returns the finished derivation; there is no certificate language
+between the engine and the kernel, no translation at the boundary;
+the kernel reads the derivation and nothing else.
+
+NO δ FOR EXPOSURE: the kernel's weak-head normalizer is β-only.
+A shape a definition hides — the Π of a checked λ, the quotient of a
+class, the Σ a projection needs, the ≡ behind a hypothesis, the type
+a stated equation sits at — reaches the kernel as a recorded
+conversion (an ascription or a conversion node in the item's
+derivation, a conv/scrut node or an ascribed leaf inside a proof),
+produced by the engine's own exposure and RUN by the kernel from the
+type it knows — no copy of an exposed type enters a derivation; a
+value the elaborator never elaborated (a solved hole, a synthesized
+type, a recovered motive) is RE-DERIVED against its type
+(docs/NovaKernel.nspec §10.6). A proof
+element, and the neutral a rewrite sits under, is a TYPED NEUTRAL:
+the spine written as a proof term over self leaves, ascribed where a
+definition hides a shape, so it states its own type and the kernel
+unfolds nothing to type it. Proof terms are written in the core's
+own syntax ((x : T by α) .π₂ y reads as the term it is about), and
+every element a proof carries — a δ or path leaf's spine — is
+itself a proof naming that element, so no
+second checker types anything bare. Nothing unfolds on the kernel's
+own initiative along a verdict path: carried QIIT signatures and
+polynomials are compared under the β-join like everything else
+(docs/NovaKernel.nspec §9), a checked position compares its inferred
+and expected types by β alone, and every δ-apart position carries
+its conversion; the kernel has no δ normalizer at all — a hole's
+value is typed by re-derivation (Nova.Elaboration.Rederive, a
+proposer beside the engine, outside the kernel module), read like
+everything else. The floor in every variant: α-comparison
+and substitution stay trusted — no kernel design knows less than
+that.
 
 ////////// Who produces what: the two tactic layers //////////
 
@@ -230,47 +286,62 @@ imports resolved by transitive re-elaboration, qualified names as flat
 docs/NovaElaboration.txt, "Modules"); the EQUATION KERNEL with the demotion of
 engine verdicts to proposals — Nova.Kernel provides
 fuel-bounded normalization (mirroring the ≜ rules clause for clause,
-exhaustion = reject), proof-element inference/checking for elimination
-spines and intro forms, injectivity selectors, TYPED PATH DESCENT
-(every rewrite's licensed equation is verified against its position's
-locally determined expected type — intermediate hops need no type,
-congruence only demands the child equation at the rewrite point, and
-a type-undetermined rewrite point accepts a neutral subterm at its
-own synthesized type, the NEUTRAL-SUBTERM rule of the kernel spec's
-§6), and
-replay of the certificate finals (beta, el-zero-prop/el-one-prop,
-quotient witnesses, el-pi-eta/el-sigma-eta). The discharge engine emits certificates for every discharge
-(rewrite traces with parametric-context normalization bridging,
-whole-equation matches with condition witnesses, hop chains,
-injectivity-selector components), and convElem/convTy count a
-discharge ONLY if its certificate replays — a replay failure is
-reported on the resulting obligation. Both historical exploits are
-golden tests that now END IN OBLIGATIONS (elab-reject-prop-solvent,
-elab-reject-cross-quotient): the parametric 𝟙-lemma dies at proof
-argument checking, the cross-quotient transport dies at the positional
-type check.
+exhaustion = reject), stated spines (every element a proof carries is
+a proof naming it), DERIVATION READING
+(every leaf's stated equation is verified against its position's
+type, computed by the nodes above it — a head child's from what it
+states or inverts to, never left undetermined, the kernel spec's §6;
+the engine writes no proof at an untyped position: a stuck head's
+type is recovered by re-derivation or the comparison is not made),
+and the
+type-directed leaves (el-zero-prop/el-one-prop, quotient witnesses,
+el-pi-eta/el-sigma-eta). The discharge engine writes a proof term for
+every discharge (rewrites with the stored candidate's normalization
+bridged by transitivity, whole-equation matches with condition
+witnesses, hop chains, S-injectivity as the predecessor congruence),
+and
+convElem/convTy count a discharge ONLY if its proof checks — a
+kernel rejection is the site's obligation, carrying the verdict; no
+second route is tried in its place — a
+kernel rejection is reported on the resulting obligation. A route the
+engine matched but cannot WRITE the proof of (a licence's element at
+the wrong type, a stated type no δ converts to the position's) is
+dropped inside the search — audited as PROOF-FAIL — and the search
+goes on with its other routes. Both historical exploits are golden
+tests that END IN OBLIGATIONS (elab-reject-prop-solvent,
+elab-reject-cross-quotient): the parametric 𝟙-lemma dies writing its
+proof argument, the cross-quotient transport dies at the positional
+type of its leaf.
 
-The ITEM-LEVEL kernel is implemented: bidirectional re-checking of
-whole core items over ANNOTATION SKELETONS — trees positionally
-aligned with the core term carrying eliminator motives, expected types
-at checked intro forms, switch/refl-eq/well-definedness certificates, and
-head-exposure payloads (an expected type whose Π/Σ/quotient structure
-only lemma normalization exposes ships as the exposed type plus a type
-certificate; pure-δβ exposures ship a stepless certificate, and a
-stepped exposure is kernel-VALIDATED at emission — it rides inside the
-skeleton with no committed replay of its own, so an invalid one, e.g.
-a hypothesis rewriting under a code binder, must never be shipped). The kernel's Σ is the authoritative one: an item is
+The kernel reads DERIVATIONS alone (docs/NovaKernel.nspec): an item
+is a derivation of its type and a derivation of its body — proof
+terms in the core's own syntax whose nodes carry what β does not read
+(eliminator motives, the annotations of intro forms in inference
+position, conversion and exposure proofs, witnesses) and whose
+ERASURE is the core term; there is no bare-term checker, and a value
+the elaborator never elaborated (a hole's solution, a recovered
+motive, a carrier's embedded piece) gets its derivation by
+RE-DERIVATION, read like any other. An expected type whose
+Π/Σ/quotient structure a definition hides is exposed by an ascription
+whose δ proof is RUN from the type (no copy of the exposed type
+enters the derivation).
+Elaboration is SYNTAX-DIRECTED: it never rewrites an expected type by
+lemmas or hypotheses to find a shape — a shape that holds only up to
+an equation is written as an ascription, whose switch carries the
+equation as an ordinary constraint. Measured over the corpus before the
+lemma-rewriting exposure was removed: three sites needed it, two in
+Lang/vectByIndAppend and one in Codata/conat, now three ascriptions). The kernel's Σ is the authoritative one: an item is
 admitted to it only when the item re-checks from kernel Σ alone, and a
 file is accepted exactly when the run's final signature is
 definitional and every item was so admitted. Two consequences of that discipline are
 load-bearing:
 
-  * certificates carry a TYPE BRIDGE (the equation-level counterpart
-    of the exposure payload): a conversion site whose replay steps
-    land at positions only a lemma-normalized type determines is
-    replayed at that exposed type, justified by a nested TYPE
-    certificate — equal types have equal PERs, and a bogus bridge
-    dies in replay like any other bad step;
+  * proofs carry a TYPE CONVERSION (the equation-level counterpart
+    of the exposure ascription): a conversion site whose leaves sit at
+    positions only a lemma-normalized type determines is checked at
+    that exposed type, justified by a nested TYPE proof — equal types
+    have equal PERs, and a bogus conversion dies in checking like any
+    other bad leaf;
   * a conversion the engine can only close by DECOMPOSING (children
     discharged, but no composite certificate expressible) is assumed,
     not silently accepted — the composite surfaces as an ordinary

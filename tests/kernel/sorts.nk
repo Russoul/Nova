@@ -1,0 +1,11 @@
+-- sorts: formers infer their least sort; cumulativity is explicit
+
+prop : Ω := ℕ → (Z ≡ Z ∈ ℕ)
+fam : 𝕌₁ := ℕ → 𝕌₀
+fam-up : 𝕌₂ := lift fam
+fam-down : 𝕌₀ := lift fam
+omega1 : 𝕌₁ := Ω
+omega0 : 𝕌₀ := Ω
+pair-of-props : 𝕌₀ := (Z ≡ Z ∈ ℕ) × (Z ≡ Z ∈ ℕ)
+sum-level : 𝕌₁ := ℕ ⊎ 𝕌₀
+prop-as-code : 𝕌₀ := lift (Z ≡ Z ∈ ℕ)

@@ -1,4 +1,4 @@
--- Ω, the universe of mere propositions (docs/NovaFoundation.txt).
+-- Ω, the universe of mere propositions (docs/NovaFoundation.nspec).
 --
 -- Propositions are Ω-valued and stand as their own (realizer-irrelevant)
 -- type; ∥T∥ squashes an arbitrary type into a proposition; ⋆ is the
@@ -38,10 +38,10 @@ reflectSquash = λA a b h. ⋆
 
 -- ty-quot-cong: quotients by iff-equal Ω relations are the SAME type,
 -- so a variable of one moves to the other with no coercion.
-quotIff : (A : 𝕌) (v : A / (n m. ∥𝟙∥)) → A / (n m. Z ≡ Z) using (propext)
+quotIff : (A : 𝕌) (v : A / (n m. ∥𝟙∥)) → A / (n m. Z ≡ Z)
 quotIff = λA v. v
 
--- Impredicative connectives (Ω section, docs/NovaFoundation.txt): ⊤, ⊥,
+-- Impredicative connectives (Ω section, docs/NovaFoundation.nspec): ⊤, ⊥,
 -- ∧, ⊃ are the squashed types the theory itself names in its notes.
 -- Nova has no primitive sum type, so even ∨ is impredicative — it
 -- quantifies over ALL of Ω to pick out the least prop implied by both

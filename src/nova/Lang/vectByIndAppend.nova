@@ -2,18 +2,20 @@ import Natural (+, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusAssoc)
 import Lang.vectByInd (vect)
 
 vappend : (n : ℕ) {A : 𝕌} (m : ℕ) → vect n A → vect m A → vect (n + m) A
-  using (Natural.+.unfold, sucPlus.rw, vect.eq, Lang.vectByInd.vect.unfold, zeroPlusId.rw)
-vappend = λn A m. ℕ-elim (λv w. w) (k ih. λv w. v .π₁, ih (v .π₂) w) n
+  using (vect.eq, Lang.vectByInd.vect.unfold)
+vappend =
+  λn A m. ℕ-elim
+    λv w. w by zeroPlusId m
+    k ih. λv w. (v .π₁, ih (v .π₂) w : A × vect (k + m) A) by sucPlus k m
+    n
 
 -- This equation holds by direct computation
-vappendZ : (A : 𝕌) (n : ℕ) (v : vect Z A) (w : vect n A) → vappend _ _ v w ≡ w ∈ vect n A
-  using (hyp.rw,
-    sucPlus.rw,
-    vappend.eq,
-    vect.eq,
-    Lang.vectByInd.vect.unfold,
-    zeroPlusId,
-    zeroPlusId.rw)
+vappendZ : (A : 𝕌)
+  (n : ℕ)
+  (v : vect Z A)
+  (w : vect n A)
+  → (let claim6 = zeroPlusId n in vappend _ _ v w) ≡ w ∈ vect n A
+  using (vappend.eq, vect.eq, Lang.vectByInd.vect.unfold)
 vappendZ = λA n v w. ⋆
 
 --  ^^^^^^^^^ FIXME: Can't be synthesised
@@ -22,15 +24,9 @@ vappendS : (n : ℕ)
   (m : ℕ)
   (v : vect (S n) A)
   (w : vect m A)
-  → vappend _ _ v w ≡ (v .π₁, vappend _ _ (v .π₂) w)
-  using (hyp.rw,
-    Natural.+.unfold,
-    sucPlus,
-    sucPlus.rw,
-    vappend.eq,
-    vect.eq,
-    Lang.vectByInd.vect.unfold,
-    zeroPlusId.rw)
+  → vappend _ _ v w
+    ≡ (let claim5 = sucPlus n m in (v .π₁, vappend _ _ (v .π₂) w : A × vect (n + m) A))
+  using (vappend.eq, vect.eq, Lang.vectByInd.vect.unfold)
 vappendS = λn A m v w. ⋆
 
 -- the associativity step case, packaged: with the tail instance of
@@ -42,21 +38,17 @@ vappendAssocS : {A : 𝕌}
   {v : vect m A}
   {w : vect k A}
   {q : vect (S p) A}
-  → (vappend (p + m) k (vappend _ _ (q .π₂) v) w
+  → ((let claim4 = plusAssoc p m k in vappend (p + m) k (vappend _ _ (q .π₂) v) w)
     ≡ vappend _ _ (q .π₂) (vappend _ _ v w)
     ∈ vect (p + (m + k)) A)
-    → vappend (S p + m) k (vappend _ _ q v) w
+    → (let claim2 = plusAssoc (S p) m k
+           claim3 = sucPlus p (ℕ-elim m (n ih. S ih) k)
+           vappend (S p + m) k (vappend _ _ q v) w)
       ≡ vappend _ _ q (vappend _ _ v w)
       ∈ vect (S p + (m + k)) A
-  using (hyp.rw,
-    Natural.+.unfold,
-    plusAssoc.rw,
-    sucPlus.rw,
-    vappend.eq,
-    vect.eq,
-    Lang.vectByInd.vect.unfold,
-    zeroPlusId.rw)
-vappendAssocS = λA m k p v w q hih. ⋆
+  using (vappend.eq, vect.eq, Lang.vectByInd.vect.unfold)
+vappendAssocS =
+  λA m k p v w q hih. ⋆ by sucPlus p m, sucPlus (p + m) k, sucPlus p (m + k), plusAssoc p m k
 
 -- Associativity: the statement itself only type-checks up to
 -- plus-associativity (the two sides' lengths differ intensionally)
@@ -68,26 +60,17 @@ vappendAssoc : (n : ℕ)
   (v : vect m A)
   (w : vect k A)
   (u : vect n A)
-  → vappend _ _ (vappend _ _ u v) w ≡ vappend n (m + k) u (vappend _ _ v w)
-  using (hyp.rw,
-    Natural.+.unfold,
-    plusAssoc,
-    plusAssoc.rw,
-    sucPlus,
-    sucPlus.rw,
-    vappendS.rw,
-    vappendZ.rw,
-    vect.eq,
-    Lang.vectByInd.vect.unfold,
-    zeroPlusId,
-    zeroPlusId.rw)
+  → vappend _ _ (vappend _ _ u v) w
+    ≡ (let claim1 = plusAssoc n m k in vappend n (m + k) u (vappend _ _ v w))
+  using (vappend.eq, vect.eq, Lang.vectByInd.vect.unfold)
 vappendAssoc =
-  λn A m k v w u. ℕ-elim
-    p. (q : vect p A)
-      → vappend (p + m) k (vappend _ _ q v) w
-        ≡ vappend _ _ q (vappend _ _ v w)
-        ∈ vect (p + (m + k)) A
-    λq. ⋆ using (vappend.eq, vect.eq, zeroPlusId.rw, sucPlus.rw, hyp.rw)
-    p ih. λq. vappendAssocS (ih (q .π₂))
-    n
-    u
+  λn A m k v w u. let claim = plusAssoc n m k
+                      ℕ-elim
+                        p. (q : vect p A)
+                          → (let claim = plusAssoc p m k in vappend (p + m) k (vappend _ _ q v) w)
+                            ≡ vappend _ _ q (vappend _ _ v w)
+                            ∈ vect (p + (m + k)) A
+                        λq. zeroPlusId (m + k) by zeroPlusId m
+                        p ih. λq. vappendAssocS (ih (q .π₂))
+                        n
+                        u

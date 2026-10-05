@@ -1,0 +1,25 @@
+accepted u0 : 𝕌₁ := 𝕌₀
+accepted u1 : 𝕌₂ := 𝕌₁
+rejected u0-not-u0 (line 6): the definiens: the synthesised and the expected type do not agree
+accepted u0-lifted : 𝕌₂ := 𝕌₀
+rejected u0-lifted-twice (line 8): the definiens: this proof only checks; annotate it to synthesise
+accepted u0-lifted-twice-annot : 𝕌₃ := 𝕌₀
+accepted poly-id-ty : 𝕌₁ := 𝕌₀ → ☐₀ → ☐₁
+accepted poly-id-ty-large : 𝕌₂ := 𝕌₁ → ☐₀ → ☐₁
+rejected poly-id-ty-too-small (line 14): the definiens: the synthesised and the expected type do not agree
+accepted pair-of-universes : 𝕌₁ := 𝕌₀ × 𝕌₀
+accepted family-of-large : 𝕌₂ := ℕ → 𝕌₁
+accepted sigma-large : 𝕌₂ := 𝕌₁ × ☐₀
+rejected unlifted (line 20): a context entry: the synthesised and the expected type do not agree
+accepted poly-id (A : 𝕌₀) (x : ☐₀) : ☐₁ := ☐₀
+accepted poly-id-at-large : 𝕌₂ := 𝕌₀ → ☐₀ → ☐₁
+rejected props-as-family (line 28): the definiens: the synthesised and the expected type do not agree
+accepted props-as-family-ok (f : ℕ → Ω) : ℕ → 𝕌₀ := λ. ☐₁ ☐₀
+accepted const-prop (p : Ω) : ℕ → 𝕌₀ := λ. ☐₁
+accepted restr (A : 𝕌₀) (B : 𝕌₀) (h : ☐₁ ≡ ☐₀ ∈ 𝕌₁) : ☐₂ ≡ ☐₁ ∈ 𝕌₀ := ⋆
+accepted restr-props (p : Ω) (q : Ω) (h : ☐₁ ≡ ☐₀ ∈ 𝕌₀) : ☐₂ ≡ ☐₁ ∈ Ω := ⋆
+rejected restr-wrong-way (line 41): the definiens: restrict: the target sort is not below the source
+rejected restr-not-a-code (line 44): the definiens: restrict: the right witness: the synthesised and the expected type do not agree
+accepted lift-eq (A : 𝕌₀) (B : 𝕌₀) (h : ☐₁ ≡ ☐₀ ∈ 𝕌₀) : ☐₂ ≡ ☐₁ ∈ 𝕌₁ := ⋆
+rejected plain-digit (line 51): the type: unknown item '𝕌0'
+exit 1

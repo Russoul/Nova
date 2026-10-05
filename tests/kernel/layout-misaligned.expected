@@ -1,0 +1,2 @@
+layout-misaligned.nk:5:4: an argument line at column 4 — this spine's arguments stand at column 5
+exit 2

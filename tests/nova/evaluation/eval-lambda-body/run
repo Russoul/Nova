@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" eval input.nova weird

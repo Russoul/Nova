@@ -1,0 +1,2 @@
+records-misaligned.nk:5:5: an argument line at column 5 — this spine's arguments stand at column 7
+exit 2

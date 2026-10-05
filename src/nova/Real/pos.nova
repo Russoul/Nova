@@ -51,8 +51,8 @@ reqCongR : (p y y' : RSeq) → REq y y' → REq p y ≡ REq p y'
 reqCongR = λp y y' h. propExt (λa. reqTrans _ a h) (λa. reqTrans _ a (reqSym h))
 
 reqAt : RSeq → Real → Ω
-  using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold, reqCongR)
-reqAt = λp z. quot-elim (y. REq p y) z
+  using (Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
+reqAt = λp z. quot-elim (y. REq p y) (y y' h. reqCongR p _ _ h) z
 
 reqOfClassEq : {p p' : RSeq} → (class p ≡ class p' ∈ Real) → REq p p'
   using (Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold, Real.REq.unfold, reqAt.eq)
@@ -186,6 +186,7 @@ posSampleNN : (p : RSeq)
     Real.realOfQ.eq,
     Real.constReg.eq,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.RLeP.eq,
     Real.neg.seqOf.eq)
 posSampleNN =
@@ -279,6 +280,7 @@ clampREq : {p : RSeq} → realZero ≤ class p → REq (clampRSeq p) p
     Real.realOfQ.eq,
     Real.constReg.eq,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.RLeP.eq,
     Real.neg.seqOf.eq,
     clampRSeq.eq,

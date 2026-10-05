@@ -1,5 +1,0 @@
--- the supplied implications are CHECKED: an implication at the wrong
--- codomain does not pass for propext
-bad : (p : Ω) (q : Ω) → (p → p) → p ≡ q ∈ Ω
-bad =
-  λp. λq. λf. ⋆ (f , f)

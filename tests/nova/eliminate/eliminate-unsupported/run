@@ -1,5 +1,0 @@
-#!/bin/sh
-"$1" eliminate input.nova 10:16 c
-"$1" eliminate input.nova 13:22 f
-"$1" eliminate input.nova 13:22 A
-"$1" eliminate input.nova 13:22 x

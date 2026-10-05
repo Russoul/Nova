@@ -1,0 +1,14 @@
+accepted A : 𝕌₀
+accepted a : A
+accepted f : A → A
+accepted ax : a ≡ f a ∈ A
+accepted fa : A := f a
+accepted use-ax : f a ≡ f (f a) ∈ A := ⋆
+rejected no-delta (line 11): the definiens: δ: 'A' is a declaration, it has no definiens
+accepted twice : A → A := λ. f (f ☐₀)
+accepted twice-a : twice a ≡ f (f a) ∈ A := ⋆
+accepted p : Ω
+accepted h : p
+accepted h-serves : h ≡ h ∈ p := ⋆
+rejected A (line 21): item 'A' is already in Σ
+exit 1

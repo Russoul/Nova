@@ -1,0 +1,834 @@
+# Judgements
+
+Γ ⊦ [α] t₀ ≐ t₁ ⇒ T    // Given core context Γ and a surface proof infer the core equation LHS, RHS and type
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ T    // Given core context Γ, core type T and a surface proof infer the core equation LHS, RHS
+Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ Δ    // spine equation, against a TELESCOPE Δ over Γ: a record's body, a QIIT's arguments (LISTS)
+[ᾱ] e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm  // normal-substitution equation, into a CONTEXT Θ: the arguments of a reference x[e˲] (LISTS)
+Γ ctx                     // Γ is a well-formed context
+Σ ⊦ I item                // the item I extends the signature Σ (the entry points)
+Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ        // polynomial equation proof at level ℓ, synthesising both sides
+Γ ⊦ [ᾱ] Δ₀ ≐ Δ₁ tel ℓ         // telescope equation proof, synthesising both sides and the LEAST level ℓ
+
+# Notation
+
+// A proof written with ONE side, Γ ⊦ [α] a ⇐ A (likewise ⇒),
+// means Γ ⊦ [α] a₀ ≐ a₁ ⇐ A with a₀ ≡β a₁ (the join is checked), and a
+// stands for a₁. Γ ⊦ t ⇐ T and Γ ⊦ t ⇒ T abbreviate Γ ⊦ [t] t ≐ t ⇐ T and
+// Γ ⊦ [t] t ≐ t ⇒ T: a term with no proof leaf is its own reflexivity
+// proof, the one-sided case α = t. A surface piece a rule names in a
+// premise (a motive C, a carrier a, a witness type T) denotes its core
+// elaboration where the conclusion uses it. A premise Γ ⊦ [ρ] ⋆ ⇐ P, P a
+// proposition, asks for ANY proof at P and disregards its sides: a
+// hypothesis ☐ᵢ proves ☐ᵢ ≐ ☐ᵢ at P and serves there. Only a conclusion
+// mints ⋆. A TYPE is a term at a SORT: a universe 𝒰 of the foundation's
+// Syntax, Ω or a 𝕌ℓ, with its level |𝒰|. So "T is a type" is Γ ⊦ T ⇒ 𝒰,
+// and an equation of types is an equation at a sort. There is no
+// judgement of types, and no judgement of type equations, beside the two
+// above.
+
+# Syntax
+
+// What a formal line may be. Terms, contexts, telescopes, spines and the
+// QIIT syntax are the foundation's (Syntax); the kernel adds items, its
+// proofs α and its judgements 𝒥.
+
+I ::= (Γ ⊦ x : t) | (Γ ⊦ x ≔ t : t) | (Γ ⊦ x ≔ Φ qsig ℓ)
+ē |= ēᴰ
+
+α, β, γ, κ, λ, ρ, τ, φ, ω, θ, ι, π, χ ::= ☐ᵢ
+    | 𝒰 | 𝟘 | 𝟙 | ℕ | () | Z | S α
+    | α → α | α × α | α ⊎ α | α / α | α ≡ α ∈ α | ∥α∥ | Rec l̄ ᾱ
+    | λ α | α α | let α α | α, α | α.π₁ | α.π₂ | ⟨l̄ ↪ ᾱ⟩ | α.l
+    | inj₁ α | inj₂ α | ⊎-elim 𝒰 t α α α | 𝟘-elim α | ℕ-elim 𝒰 t α α α
+    | class α | quot-eq α α α | quot-elim 𝒰 t α α α
+    | reify α | reflect α | squash α | unsquash α α α
+    | irrel α α | prop-irrel α α α | propext α α α α
+    | lift α | restrict α α α | conv α α | (α : t)
+    | x π̄ | δ x e˲ | α ; α | α ⁻¹
+    | η→ α | η× α | ηRec α
+    | ν φ | out α | corec 𝔽 (s : t. α) α
+    | ην 𝔽 (s : t. t) (s. t) α t | coind t t (x y. t) t (x y h. t)
+    | x[π̄].𝕤 ᾱ | x[π̄].𝕔 ᾱ | x[e˲].𝕤-elim 𝒰̄ ᾱ ᾱ α | x[e˲].𝕔 ē
+ᾱ, δ̄ ::= · | α, ᾱ
+π̄, ᾱ ::= · | π̄, α
+φ, ψ ::= 𝕏 | K α | φ × φ | φ ⊎ φ | α × φ | α → φ
+
+𝒥 ::= Γ ctx | Σ ⊦ I item | I ∈ Σ
+    | Γ ⊦ [α] t ≐ t ⇒ t | Γ ⊦ [α] t ≐ t ⇐ t
+    | Γ ⊦ [α] t ⇒ t | Γ ⊦ [α] t ⇐ t | Γ ⊦ t ⇒ t | Γ ⊦ t ⇐ t
+    | Γ ⊦ [ᾱ] ē ≐ ē ⇐ Δ | Γ ⊦ ē ⇐ Δ
+    | [π̄] e˲ ≐ e˲ : Γ ⇒ Γ norm | e˲ : Γ ⇒ Γ norm
+    | Γ ⊦ [φ] 𝔽 ≐ 𝔽 poly ℓ | Γ ⊦ 𝔽 poly ℓ
+    | Γ ⊦ [ᾱ] Δ ≐ Δ tel ℓ
+    | l ∈ l̄ | l̄ distinct | |l̄| = |ᾱ|
+    | 𝒰 sort | 𝒰 ≼ 𝒰 | 𝒰̄ targets Φ
+    | t ≡β t | 𝔄 ≡β 𝔄
+    | Γ ⊦ Φ qctx ℓ | Γ ; Φ ⊦ 𝔄 qty ℓ | Γ ; Φ ⊦ 𝕥 ⇒ 𝔄 | Γ ; Φ ⊦ 𝕥 ⇐ 𝔄
+    | Φ(𝕤) = 𝔄 | Φ(𝕔) = 𝔄 | 𝔄 ends El 𝕥 | 𝔄 ends El (𝕥 ≡ 𝕥) at 𝕥
+
+# Conventions
+
+// * A non-linear metavariable occurrence, or a former pattern (A → B, A × B,
+//   t₀ ≡ t₁ ∈ T, …) in an input position, means equality modulo substitution
+//   and β — weak-head β for a pattern, full β for a comparison. "β" is every
+//   computation rule: β, the ι-rules, let-β, record-β, ν-β, QIIT-β. NEVER δ:
+//   definitions unfold only through the proof former δ x. Every comparison
+//   runs under a FUEL budget (equality reflection makes β-normalisation of a
+//   well-typed term diverge under an inconsistent hypothesis); exhaustion is
+//   rejection, so the checker is total.
+
+// * NO δ FOR EXPOSURE EITHER. A pattern input (λ against a Π, a quot-elim
+//   scrutinee against a quotient, ⋆ against a prop) is matched after
+//   weak-head β only; a reference at the head is STUCK, and the term is
+//   rejected unless an annotation ((conv t α) : T) exposes the shape, α a
+//   chain of δ leaves naming each unfolding at its path (the annotation
+//   rule, modal section). The reason: whnf-δ in
+//   the checker would fix ONE unfolding strategy in the trusted base — the
+//   producer would have to predict it step for step, its spellings would
+//   leak into every downstream type and report, and its one wasteful case
+//   (unfolding a scrutinee that then fails to make ι fire, leaving a larger
+//   stuck term) could never be improved without changing what the checker
+//   accepts. With δ explicit, over-normalisation is a PRODUCER quality —
+//   visible as proof size, fixable by a better strategy or a lemma, never a
+//   checker semantics. The producer should unfold PROGRESS-ONLY: the head
+//   while it yields a former, a scrutinee only if ι then fires, rolled back
+//   otherwise; the emitted chain is the shortest δ-sequence to the shape.
+//   Without δ, β-normal forms are bounded by the written term's own redexes:
+//   every blow-up the corpus shows is δ, and it now happens on the untrusted
+//   side and is recorded.
+
+// * SORTS ARE CUMULATIVE, Ω ≼ 𝕌₀ ≼ 𝕌₁ ≼ … (the foundation's order on
+//   universes): a proposition is a small type, a small type is a large one.
+//   Cumulativity enters through exactly two proof forms, lift and restrict
+//   (the modal section) — never silently — and acts at the ROOT only:
+//   A → Ω is not A → 𝕌₀ (write λx. f x). Levels are
+//   literals: no level polymorphism; a statement over (A : 𝕌₀) lives at 𝕌₁.
+//   A former INFERS its least sort (the arithmetic on ℓ ⊔ ℓ′ below) and is
+//   used at any higher one through lift; the checker never guesses a
+//   universe.
+
+// * Ω HAS NO CODE BELOW 𝕌₁: Ω ⇒ 𝕌₁ and never Ω ⇒ 𝕌₀, so A → Ω is a 𝕌₁ type
+//   for every A (Cantor stays a theorem; the effective topos refutes Ω : 𝕌₀,
+//   a program cannot tell two propositions apart, while validating every
+//   p : Ω at 𝕌₀). Individual propositions ARE 𝕌₀ codes, by Ω ≼ 𝕌₀. Every
+//   𝕌ℓ's equality is thereby MIXED: structural on the formers, extensional
+//   (propext) on the proposition cluster; an equation across the clusters is
+//   underivable by absence.
+
+// * ELIMINATORS NAME THEIR SORT: the 𝒰 on ℕ-elim, ⊎-elim, quot-elim and the
+//   QIIT eliminator is the sort the motive lands in, an INPUT the motive is
+//   checked at, never computed from it. 𝒰 = Ω is where well-definedness and
+//   coherences close by irrelevance.
+
+# The entry points: contexts, items, the signature Σ
+
+// Σ is a list of ITEMS, each closed over its own CONTEXT Θ:
+//   (Θ ⊦ x : T) ∈ Σ           a DECLARATION (an assumption, a hole, a lemma's statement)
+//   (Θ ⊦ x ≔ t : T) ∈ Σ       a DEFINITION
+//   (Θ ⊦ x ≔ Φ qsig ℓ) ∈ Σ    a QIIT SIGNATURE: a qiit-context Φ over its parameters Θ, at its level ℓ
+// Every rule below is relative to Σ. The checker is entered one item
+// at a time, each read against the whole of Σ before it; an accepted
+// item is appended, and nothing else ever extends Σ.
+
+----- (ctx-empty)
+ε ctx
+
+Γ ctx      Γ ⊦ A ⇒ 𝒰
+--------------------- (ctx-ext)
+Γ ▷ A ctx
+
+Θ ctx      Θ ⊦ T ⇒ 𝒰
+-------------------------- (sig-decl)
+Σ ⊦ (Θ ⊦ x : T) item
+// A declaration: a statement that is a type at some sort.
+
+Θ ctx      Θ ⊦ T ⇒ 𝒰      Θ ⊦ [α] t ⇐ T
+----------------------------------------- (sig-def)
+Σ ⊦ (Θ ⊦ x ≔ t : T) item
+// A definition: the producer hands over a PROOF α at T; its right side is
+// the definiens the kernel records (a plain term is its own proof; a lemma
+// is a definition of ⋆ at an equation type, its proof a reify …).
+
+Θ ctx      Θ ⊦ Φ qctx ℓ
+------------------------------ (sig-qsig)
+Σ ⊦ (Θ ⊦ x ≔ Φ qsig ℓ) item
+// A QIIT signature: a qiit-context, checked ONCE, here, at the level ℓ it
+// names. A former of it carries the NAME x and arguments for Θ (the QIIT
+// section); no core term contains a qiit-context.
+
+# Lists: normal substitutions, telescopes, spines
+
+// Two shapes, the foundation's. A CONTEXT grows at its inner end, and a
+// NORMAL SUBSTITUTION into it is built the same way: the parameters of an
+// item of Σ, and the arguments of a reference to it. A TELESCOPE over Γ
+// is read from its outer end, each entry binding in the rest, and a SPINE
+// against it likewise: a record's entries and its body, a QIIT arity and
+// its arguments. A one-sided list (e˲ : Γ ⇒ Θ norm, Γ ⊦ ē ⇐ Δ) is one
+// whose proofs' sides β-join, entry by entry.
+
+// The syntax of normal substitutions e˲, telescopes Δ and spines ē, and
+// the operations on them — Γ · Δ, ↑Δ, Δ[σ], the derived snoc Δ ▷ A and
+// the instantiation X[ē] — are the foundation's (Syntax; Rules (tel);
+// the QIIT section's plumbing). Only their checking rules are stated
+// here.
+
+---------------------- (sub-norm-empty)
+[·] · ≐ · : Γ ⇒ ε norm
+
+[ᾱ] e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm
+Γ ⊦ [β] t₀ ≐ t₁ ⇐ A[e˲₁]
+---------------------------------------------- (sub-norm-ext)
+[ᾱ, β] (e˲₀, t₀) ≐ (e˲₁, t₁) : Γ ⇒ Θ ▷ A norm
+// The new entry at its type instantiated by the RIGHT substitution built
+// so far.
+
+----------------- (sp-empty)
+Γ ⊦ [·] · ≐ · ⇐ ε
+
+Γ ⊦ [α] e₀ ≐ e₁ ⇐ A
+Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ Δ[id, e₁]
+---------------------------------------- (sp-ext)
+Γ ⊦ [α, ᾱ] (e₀, ē₀) ≐ (e₁, ē₁) ⇐ A ◁ Δ
+// The head at the telescope's head, the rest against the rest
+// instantiated at the RIGHT head.
+
+# Π-type
+
+Γ ▷ A ⊦ [α] f₀ ≐ f₁ ⇐ B
+--------------------------- (el-pi-i)
+Γ ⊦ [λ α] λf₀ ≐ λf₁ ⇐ A → B
+
+Γ ⊦ [α] f₀ ≐ f₁ ⇒ A → B
+Γ ⊦ [β] e₀ ≐ e₁ ⇐ A
+----------------------------------- (el-pi-e)
+Γ ⊦ [α β] f₀ e₀ ≐ f₁ e₁ ⇒ B[id, e₁]
+
+# Σ-type
+
+Γ ⊦ [α] p₀ ≐ p₁ ⇒ A × B
+----------------------------------- (el-sigma-e₁)
+Γ ⊦ [α .π₁] p₀ .π₁ ≐ p₁ .π₁ ⇒ A
+
+Γ ⊦ [α] p₀ ≐ p₁ ⇒ A × B
+-------------------------------------------- (el-sigma-e₂)
+Γ ⊦ [α .π₂] p₀ .π₂ ≐ p₁ .π₂ ⇒ B[id, p₁ .π₁]
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ A
+Γ ⊦ [β] b₀ ≐ b₁ ⇐ B[id, a₁]
+----------------------------------------- (el-sigma-i)
+Γ ⊦ [α, β] (a₀, b₀) ≐ (a₁, b₁) ⇐ A × B
+
+# Record type
+
+// Rec l̄ Δ: a telescope Δ over Γ with a LABEL per entry, the labels a
+// parallel list l̄ (telescopes and spines: LISTS above). A
+// label is INERT — compared syntactically, never
+// bound, never substituted for — so a record's body is an ordinary
+// spine of Δ and its proof an ordinary spine proof. The formation rule
+// is with the other formers (𝕌-type), η with the leaves. In the concrete
+// syntax a label doubles as the binder name of its entry, a projection
+// is the postfix ρ .l, and the record has two spellings: ⟨l ↪ α, …⟩
+// inline and the keyword record, a field per line, in block layout.
+
+Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ Δ
+---------------------------------------------- (el-rec-i)
+Γ ⊦ [⟨l̄ ↪ ᾱ⟩] ⟨l̄ ↪ ē₀⟩ ≐ ⟨l̄ ↪ ē₁⟩ ⇐ Rec l̄ Δ
+// The labels are the TYPE's, in its order: a literal at another label list
+// is rejected, never permuted. Distinctness and the lengths are the input
+// type's; the spine fixes |ᾱ| = |Δ|.
+
+Γ ⊦ [ρ] r₀ ≐ r₁ ⇒ Rec l̄ Δ      l ∈ l̄
+---------------------------------------------- (el-rec-e)
+Γ ⊦ [ρ .l] r₀.l ≐ r₁.l ⇒ (r₁ / l̄ ↪ Δ)‖ₗ
+// l ∉ l̄ is rejection. The type is the FIELD TYPE of l at the right
+// record, the foundation's walk from the head, the record standing for its
+// own earlier components.
+
+// COMPUTATION is el-rec-beta, inside "modulo β": ⟨l̄ ↪ ē⟩.lᵢ ⇝ eᵢ, by
+// lookup of the label in the literal. No type is consulted.
+
+# ⊎-type
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ A
+------------------------------------- (el-sum-i₁)
+Γ ⊦ [inj₁ α] inj₁ a₀ ≐ inj₁ a₁ ⇐ A ⊎ B
+
+Γ ⊦ [β] b₀ ≐ b₁ ⇐ B
+------------------------------------- (el-sum-i₂)
+Γ ⊦ [inj₂ β] inj₂ b₀ ≐ inj₂ b₁ ⇐ A ⊎ B
+
+𝒰 sort
+Γ ⊦ [τ] t₀ ≐ t₁ ⇒ A ⊎ B
+Γ ▷ A ⊎ B ⊦ C ⇐ 𝒰
+Γ ▷ A ⊦ [λ] u₀ ≐ u₁ ⇐ C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ [ρ] v₀ ≐ v₁ ⇐ C[↑, inj₂ ☐₀]
+-------------------------------------------------------------------- (el-sum-e)
+Γ ⊦ [⊎-elim 𝒰 C λ ρ τ] ⊎-elim u₀ v₀ t₀ ≐ ⊎-elim u₁ v₁ t₁ ⇒ C[id, t₁]
+
+# Quotient type
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ A
+----------------------------------------- (el-quot-i)
+Γ ⊦ [class α] class a₀ ≐ class a₁ ⇐ A / R
+
+Γ ⊦ [α] a ⇐ A      Γ ⊦ [β] b ⇐ A      Γ ⊦ [ρ] ⋆ ⇐ R[id, a, b]
+------------------------------------------------------ (el-quot-eq)
+Γ ⊦ [quot-eq α β ρ] class a ≐ class b ⇐ A / R
+// Related representatives, equal classes.
+
+𝒰 sort
+Γ ⊦ [κ] q₀ ≐ q₁ ⇒ A / R
+Γ ▷ A / R ⊦ B ⇐ 𝒰
+Γ ▷ A ⊦ [φ] f₀ ≐ f₁ ⇐ B[↑, class ☐₀]
+Γ ▷ A ▷ A[↑] ▷ R ⊦ [ω] f₁[↑³, ☐₂] ≐ f₁[↑³, ☐₁] ⇐ B[↑³, class ☐₂]   // f₀'s well-definedness follows through φ;
+------------------------------------------------------------------------ (el-quot-e) //   at 𝒰 = Ω, ω is irrel
+Γ ⊦ [quot-elim 𝒰 B φ ω κ] quot-elim f₀ q₀ ≐ quot-elim f₁ q₁ ⇒ B[id, q₁]
+
+# 𝟘-type
+
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ 𝟘
+---------------------------------------- (el-zero-e)
+Γ ⊦ [𝟘-elim α] 𝟘-elim t₀ ≐ 𝟘-elim t₁ ⇐ A
+
+# 𝟙-type
+
+-------------------- (el-one-i)
+Γ ⊦ [()] () ≐ () ⇐ 𝟙
+
+# ℕ-type
+
+----------------- (el-nat-z)
+Γ ⊦ [Z] Z ≐ Z ⇐ ℕ
+
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ ℕ
+------------------------- (el-nat-s)
+Γ ⊦ [S α] S t₀ ≐ S t₁ ⇐ ℕ
+
+𝒰 sort
+Γ ▷ ℕ ⊦ A ⇐ 𝒰
+Γ ⊦ [α] z₀ ≐ z₁ ⇐ A[id, Z]
+Γ ▷ ℕ ▷ A ⊦ [β] s₀ ≐ s₁ ⇐ A[↑², S ☐₁]
+Γ ⊦ [τ] t₀ ≐ t₁ ⇐ ℕ
+------------------------------------------------------------------ (el-nat-e)
+Γ ⊦ [ℕ-elim 𝒰 A α β τ] ℕ-elim z₀ s₀ t₀ ≐ ℕ-elim z₁ s₁ t₁ ⇒ A[id, t₁]
+
+# ≡-type
+
+Γ ⊦ [α] t₀ ≐ t₁ ⇒ T
+--------------------------------- (el-eq-i)
+Γ ⊦ [reify α] ⋆ ≐ ⋆ ⇒ (t₀ ≡ t₁ ∈ T)
+// The equation REIFIED as a proposition; written ⌜α⌝ inline.
+
+Γ ⊦ [α] ⋆ ⇒ t₀ ≡ t₁ ∈ T
+--------------------------- (el-reflect)
+Γ ⊦ [reflect α] t₀ ≐ t₁ ⇒ T
+// The proposition REFLECTED to its equation; written ⌞α⌟ inline. The two
+// are inverse: reflect (reify α) proves what α proves, and
+// reify (reflect h) ≐ h by irrelevance.
+
+# The sorts as terms
+
+----------------------- (ty-univ)
+Γ ⊦ [𝕌ℓ] 𝕌ℓ ≐ 𝕌ℓ ⇒ 𝕌ℓ₊₁
+
+------------------ (ty-prop)
+Γ ⊦ [Ω] Ω ≐ Ω ⇒ 𝕌₁
+// And NOT ⇒ 𝕌₀ (CONVENTIONS): Ω is the one type that is
+// not a code at the level of its elements.
+
+# 𝕌-type: the formers
+
+// The formers INFER their least sort; the arithmetic is on the sorts the
+// parts infer. Two rules for →: into a universe (the level is the join)
+// and into Ω (a proposition whatever the domain — the one impredicative
+// rule, and the reason Ω is a sort of its own rather than a universe).
+// A bound part is compared over the RIGHT-hand domain of the binder.
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇒ 𝒰
+Γ ▷ A₁ ⊦ [β] B₀ ≐ B₁ ⇒ 𝕌ℓ
+------------------------------------------------ (ty-pi)
+Γ ⊦ [α → β] (A₀ → B₀) ≐ (A₁ → B₁) ⇒ 𝕌(|𝒰| ⊔ ℓ)
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇒ 𝒰
+Γ ▷ A₁ ⊦ [β] B₀ ≐ B₁ ⇒ Ω
+------------------------------------------------
+Γ ⊦ [α → β] (A₀ → B₀) ≐ (A₁ → B₁) ⇒ Ω
+// Impredicative.
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇒ 𝒰₁
+Γ ▷ A₁ ⊦ [β] B₀ ≐ B₁ ⇒ 𝒰₂
+--------------------------------------------------- (ty-sigma)
+Γ ⊦ [α × β] (A₀ × B₀) ≐ (A₁ × B₁) ⇒ 𝕌(|𝒰₁| ⊔ |𝒰₂|)
+// A product of propositions is a small TYPE, not a proposition: p ∧ q is
+// ∥p × q∥.
+
+// A telescope is compared from its head, each entry a type equation
+// over the RIGHT-hand entries before it, and INFERS its least level: the
+// join of the sorts its entries infer, 0 at the empty telescope (|Ω| = 0:
+// a proposition costs nothing). This is the foundation's Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ
+// at the least such ℓ; a higher one is reached at the former, by lift.
+
+------------------- (tel-lvl-empty)
+Γ ⊦ [·] ε ≐ ε tel 0
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇒ 𝒰
+Γ ▷ A₁ ⊦ [ᾱ] Δ₀ ≐ Δ₁ tel ℓ
+--------------------------------------------- (tel-lvl-ext)
+Γ ⊦ [α, ᾱ] A₀ ◁ Δ₀ ≐ A₁ ◁ Δ₁ tel (|𝒰| ⊔ ℓ)
+// At the least level.
+
+l̄ distinct      |l̄| = |ᾱ|
+Γ ⊦ [ᾱ] Δ₀ ≐ Δ₁ tel ℓ
+--------------------------------------- (ty-rec)
+Γ ⊦ [Rec l̄ ᾱ] Rec l̄ Δ₀ ≐ Rec l̄ Δ₁ ⇒ 𝕌ℓ
+// ONE label list on both sides. A record is at the level of its telescope;
+// a record of propositions is a small TYPE, as a product is.
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇒ 𝒰₁
+Γ ⊦ [β] B₀ ≐ B₁ ⇒ 𝒰₂
+--------------------------------------------------- (ty-sum)
+Γ ⊦ [α ⊎ β] (A₀ ⊎ B₀) ≐ (A₁ ⊎ B₁) ⇒ 𝕌(|𝒰₁| ⊔ |𝒰₂|)
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇒ 𝒰
+Γ ▷ A₁ ▷ A₁[↑] ⊦ [ρ] R₀ ≐ R₁ ⇐ Ω
+--------------------------------------- (ty-quot)
+Γ ⊦ [α / ρ] (A₀ / R₀) ≐ (A₁ / R₁) ⇒ 𝕌|𝒰|
+// The relation slot is Ω: a code is not a proposition.
+
+------------------ (ty-zero)
+Γ ⊦ [𝟘] 𝟘 ≐ 𝟘 ⇒ 𝕌₀
+
+------------------ (ty-one)
+Γ ⊦ [𝟙] 𝟙 ≐ 𝟙 ⇒ 𝕌₀
+
+------------------ (ty-nat)
+Γ ⊦ [ℕ] ℕ ≐ ℕ ⇒ 𝕌₀
+
+# Squash
+
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ A
+-------------------------- (el-squash-i)
+Γ ⊦ [squash α] ⋆ ⇐ ∥A∥
+
+Γ ⊦ [γ] B ⇐ Ω                        // a CHECK at Ω: cumulativity is one-way, B ⇐ 𝕌₀ says nothing
+Γ ⊦ [β] ⋆ ⇒ ∥A∥                      // β SYNTHESISES the squash: nothing else determines A
+Γ ▷ A ⊦ [α] ⋆ ⇐ B[↑]
+------------------------------------- (el-squash-e-prf)
+Γ ⊦ [unsquash γ α β] ⋆ ⇒ B
+
+# Ω-type: the propositions
+
+// The prop formers SYNTHESISE Ω whatever the sort of their parts (so the
+// impredicative → rule sees them); ⇐ Ω follows by the silent switch.
+
+Γ ⊦ [α] A₀ ≐ A₁ ⇒ 𝒰
+------------------------- (code-squash)
+Γ ⊦ [∥α∥] ∥A₀∥ ≐ ∥A₁∥ ⇒ Ω
+
+Γ ⊦ [τ] T₀ ≐ T₁ ⇒ 𝒰
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ T₁
+Γ ⊦ [β] b₀ ≐ b₁ ⇐ T₁
+--------------------------------------------------- (code-eq)
+Γ ⊦ [α ≡ β ∈ τ] (a₀ ≡ b₀ ∈ T₀) ≐ (a₁ ≡ b₁ ∈ T₁) ⇒ Ω
+// At every sort: (A ≡ B ∈ 𝕌ℓ) between types, (p ≡ q ∈ Ω) between
+// propositions.
+
+Γ ⊦ [α] a ⇐ T      Γ ⊦ [β] b ⇐ T      T ≡β 𝟙
+------------------------------------------------ (el-one-prop)
+Γ ⊦ [irrel α β] a ≐ b ⇐ T
+
+Γ ⊦ [α] a ⇐ T      Γ ⊦ [β] b ⇐ T      T ≡β 𝟘
+------------------------------------------------ (el-zero-prop)
+Γ ⊦ [irrel α β] a ≐ b ⇐ T
+
+Γ ⊦ [γ] T ⇐ Ω      Γ ⊦ [α] a ⇐ T      Γ ⊦ [β] b ⇐ T
+----------------------------------------------------- (el-prf-prop)
+Γ ⊦ [prop-irrel γ α β] a ≐ b ⇒ T
+// γ carries the proposition, so the rule SYNTHESISES it; ⇐ follows
+// silently. Propositionhood is witnessed, never read off a core type.
+
+Γ ⊦ [ρ] p ⇐ Ω      Γ ⊦ [θ] q ⇐ Ω      Γ ▷ p ⊦ [γ] s ⇐ q[↑]      Γ ▷ q ⊦ [ι] t ⇐ p[↑]
+------------------------------------------------------------------------------------ (code-prop-eq)
+Γ ⊦ [propext ρ θ γ ι] p ≐ q ⇒ Ω
+// Propositional extensionality.
+
+# Modal
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇒ T'
+T ≡β T'
+--------------------------
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ T
+// THE SILENT SWITCH, for every α that synthesises: not a leaf but the
+// reader's convention. Every proof form belongs to ONE mode, so a
+// synthesising form in checking position is read in its own mode and its
+// type compared with the expected one; this is what makes Γ ⊦ t ⇐ T
+// meaningful for a synthesising t. The switches that change something stay
+// explicit: lift (the sort) and the annotation (⇐ to ⇒, the type).
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇒ 𝒰
+𝒰 ≼ 𝒰′
+-------------------------- (code-lift-eq prop-lift-eq)
+Γ ⊦ [lift α] a₀ ≐ a₁ ⇐ 𝒰′
+// The switch at a sort: cumulativity, the target sort READ off the
+// position; on a term, [lift T] T ≐ T ⇐ 𝒰′.
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇒ 𝒰′
+𝒰 ≼ 𝒰′
+Γ ⊦ [γ₀] a₀′ ⇐ 𝒰      Γ ⊦ [γ₁] a₁′ ⇐ 𝒰      a₀ ≡β a₀′      a₁ ≡β a₁′
+------------------------------------------------------------------- (code-restrict prop-restrict)
+Γ ⊦ [restrict γ₀ γ₁ α] a₀ ≐ a₁ ⇐ 𝒰
+// MANDATORY: equal types that are codes are equal codes, equal codes that
+// are propositions are equivalent propositions — (a₀ ≡ a₁ ∈ 𝒰) and
+// (a₀ ≡ a₁ ∈ 𝒰′) equi-true; the sides' membership of 𝒰 is WITNESSED.
+
+Γ ⊦ [β] A ≐ B ⇒ 𝒰
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ A
+-------------------------- (el-eq-ty-coe)
+Γ ⊦ [conv α β] t₀ ≐ t₁ ⇐ B
+
+Γ ⊦ T ⇒ 𝒰
+Γ ⊦ [α] t₀ ≐ t₁ ⇐ T
+--------------------------
+Γ ⊦ [(α : T)] t₀ ≐ t₁ ⇒ T
+// Annotation: the switch back, ⇐ to ⇒ — a chain becomes a reify's content,
+// a λ a head, an inj a scrutinee; ((conv t α) : T) is the ascription that
+// exposes a shape (CONVENTIONS).
+
+# Contextual
+
+---------------------- (el-var)
+Γ ⊦ [☐ᵢ] ☐ᵢ ≐ ☐ᵢ ⇒ Γ‖ᵢ
+
+(Θ ⊦ x ≔ t : T) ∈ Σ
+[ᾱ] e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm
+------------------------------------- (el-sig-var)
+Γ ⊦ [x ᾱ] x[e˲₀] ≐ x[e˲₁] ⇒ T[e˲₁]
+
+(Θ ⊦ x : T) ∈ Σ
+[ᾱ] e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm
+------------------------------------- (el-sig-decl)
+Γ ⊦ [x ᾱ] x[e˲₀] ≐ x[e˲₁] ⇒ T[e˲₁]
+
+(Θ ⊦ x ≔ t : T) ∈ Σ
+e˲ : Γ ⇒ Θ norm
+----------------------------------- (el-sig-beta) // δ is always manual.
+Γ ⊦ [δ x e˲] x[e˲] ≐ t[e˲] ⇒ T[e˲]
+
+# Transitivity, symmetry, let
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ T
+Γ ⊦ [β] a₁' ≐ a₂ ⇐ T
+a₁ ≡β a₁'
+----------------------- (el-trans)
+Γ ⊦ [α ; β] a₀ ≐ a₂ ⇐ T
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇐ T
+----------------------- (el-sym)
+Γ ⊦ [α ⁻¹] a₁ ≐ a₀ ⇐ T
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇒ A
+Γ ▷ A ▷ (☐₀ ≡ a₁[↑] ∈ A[↑]) ⊦ [β] b₀ ≐ b₁ ⇒ B
+-------------------------------------------------- (el-let)
+Γ ⊦ [let α β] let a₀ b₀ ≐ let a₁ b₁ ⇒ B[id, a₁, ⋆]
+
+# Leaves: η
+
+// The η's are LEAVES; extensionality is derived:
+//   ext(g₀, g₁, α) ≜ (η→ g₀)⁻¹ ; λ α ; η→ g₁     for Γ ▷ A ⊦ [α] g₀[↑] ☐₀ ≐ g₁[↑] ☐₀ ⇐ B
+//   likewise at pairs through η× and [α, β], and at records through
+//   ηRec and ⟨l̄ ↪ ᾱ⟩.
+
+Γ ⊦ [φ] f ⇐ A → B
+------------------------------------ (el-pi-eta)
+Γ ⊦ [η→ φ] f ≐ λ (f[↑] ☐₀) ⇐ A → B
+
+Γ ⊦ [π] p ⇐ A × B
+------------------------------------- (el-sigma-eta)
+Γ ⊦ [η× π] p ≐ (p .π₁, p .π₂) ⇐ A × B
+
+Γ ⊦ [ρ] r ⇐ Rec l̄ Δ
+--------------------------------------------------- (el-rec-eta)
+Γ ⊦ [ηRec ρ] r ≐ ⟨l̄ ↪ r.l̄⟩ ⇐ Rec l̄ Δ
+// r.l̄ is the foundation's spine of projections. At the empty record every
+// element is ⟨⟩: a unit type, by this leaf.
+
+// Uniqueness of ℕ-elim, ⊎-elim and quot-elim (el-nat-eta, el-sum-eta,
+// el-quot-eta) gets NO leaf: it is proved by elimination into the
+// equality type and reflected, as the corpus does.
+
+// No injectivity selectors, for now (ty-rec-inj included).
+
+# Polynomials and ν
+
+// The polynomial 𝔽 is CARRIED by the core (ν 𝔽, corec 𝔽 f x): β reads
+// it (el-nu-beta consumes map_𝔽). The carrier code a is read by
+// typing only, so it is SURFACE — the binder annotation of the
+// coalgebra, corec 𝔽 (s : a. f) x — and absent from the core. The
+// meta-operations ⌊𝔽⌋(c) (hole filling), map_𝔽 g (functorial action)
+// and lift_𝔽(R) (the relator) are the foundation's ≜-definitions,
+// computed by the checker; "modulo β" everywhere includes el-nu-beta
+// (out of a corec runs the coalgebra one step), as it includes the
+// ι-rules and let-β. A polynomial INFERS its least level, the join of
+// the sorts its embedded codes infer (|Ω| = 0: a proposition costs
+// nothing); ν 𝔽 lives at that level, and a corec's carrier is checked
+// at it.
+
+-------------------- (poly-hole)
+Γ ⊦ [𝕏] 𝕏 ≐ 𝕏 poly 0
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇒ 𝒰
+-------------------------- (poly-const)
+Γ ⊦ [K α] K a₀ ≐ K a₁ poly |𝒰|
+
+Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ      Γ ⊦ [ψ] 𝔾₀ ≐ 𝔾₁ poly ℓ′
+-------------------------------------------------- (poly-prod poly-sum)
+Γ ⊦ [φ × ψ] 𝔽₀ × 𝔾₀ ≐ 𝔽₁ × 𝔾₁ poly (ℓ ⊔ ℓ′)
+Γ ⊦ [φ ⊎ ψ] 𝔽₀ ⊎ 𝔾₀ ≐ 𝔽₁ ⊎ 𝔾₁ poly (ℓ ⊔ ℓ′)
+
+Γ ⊦ [α] a₀ ≐ a₁ ⇒ 𝒰      Γ ▷ a₁ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ
+---------------------------------------------------- (poly-sigma poly-pi)
+Γ ⊦ [α × φ] a₀ × 𝔽₀ ≐ a₁ × 𝔽₁ poly (|𝒰| ⊔ ℓ)
+Γ ⊦ [α → φ] a₀ → 𝔽₀ ≐ a₁ → 𝔽₁ poly (|𝒰| ⊔ ℓ)
+
+Γ ⊦ [φ] 𝔽₀ ≐ 𝔽₁ poly ℓ
+------------------------- (ty-nu)
+Γ ⊦ [ν φ] ν 𝔽₀ ≐ ν 𝔽₁ ⇒ 𝕌ℓ
+
+Γ ⊦ [α] t₀ ≐ t₁ ⇒ ν 𝔽
+---------------------------------- (el-nu-e)
+Γ ⊦ [out α] out t₀ ≐ out t₁ ⇒ ⌊𝔽⌋(ν 𝔽)
+
+Γ ⊦ 𝔽 poly ℓ      Γ ⊦ a ⇐ 𝕌ℓ
+Γ ▷ a ⊦ [φ] f₀ ≐ f₁ ⇐ ⌊𝔽⌋(a)[↑]
+Γ ⊦ [χ] x₀ ≐ x₁ ⇐ a
+-------------------------------------------------------------------- (el-nu-i)
+Γ ⊦ [corec 𝔽 (s : a. φ) χ] corec 𝔽 f₀ x₀ ≐ corec 𝔽 f₁ x₁ ⇒ ν 𝔽
+// Same 𝔽: a corec at an equal polynomial goes through ν φ and conversion
+// of the equation.
+
+## Leaves: uniqueness and coinduction
+
+Γ ⊦ 𝔽 poly ℓ      Γ ⊦ a ⇐ 𝕌ℓ
+Γ ▷ a ⊦ f ⇐ ⌊𝔽⌋(a)[↑]
+Γ ▷ a ⊦ h ⇐ (ν 𝔽)[↑]
+Γ ▷ a ⊦ [α] out h ≐ map_𝔽 ((λ h)[↑]) f ⇐ ⌊𝔽⌋(ν 𝔽)[↑]
+Γ ⊦ x ⇐ a
+------------------------------------------------------------ (el-nu-eta)
+Γ ⊦ [ην 𝔽 (s : a. f) (s. h) α x] h[id, x] ≐ corec 𝔽 f x ⇒ ν 𝔽
+// A candidate commuting with out IS the corecursor.
+
+Γ ⊦ t₀ ⇐ ν 𝔽      Γ ⊦ t₁ ⇐ ν 𝔽                                 // 𝔽 the input type's polynomial
+Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ⊦ R ⇐ Ω
+Γ ⊦ p ⇐ R[id, t₀, t₁]
+Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ▷ R ⊦ q ⇐ lift_𝔽(R) (out ☐₂) (out ☐₁)
+------------------------------------------------------------ (el-nu-coind) // el-nu-coind: bisimulation implies
+Γ ⊦ [coind t₀ t₁ (x y. R) p (x y h. q)] t₀ ≐ t₁ ⇐ ν 𝔽        //   equality; admissible from ην,
+                                                             //   kept as the leaf the corpus writes
+
+# QIITs
+
+// A signature is a qiit-context Φ, DEFINED ONCE as an item
+// (Θ ⊦ x ≔ Φ qsig ℓ) of Σ over its parameters Θ. A core term carries the
+// item's NAME and arguments for its parameters, never a context:
+// x[e˲].𝕤 ē, x[e˲].𝕔 θ, x[e˲].𝕤-elim m̄ ē w. QIIT equality is NOMINAL — one
+// item at equal arguments, the foundation's qsig-eq-ref — which is
+// conservative and incomplete (THE FRAGMENT, at the end); β reads the
+// item (el-qiit-beta recurses by the constructor's arity). A context is
+// WRITTEN in the theory of signatures below — the grammar is the
+// positivity guarantee, and β reads constructor arities off it — and it
+// is TYPED through its reading as a Nova telescope, ⟦Φ⟧, over the
+// ALGEBRA CONTEXT Θ · ⟦Φ⟧: an algebra is a spine of that telescope; the
+// initial algebra ι is the spine of the formers themselves; the
+// eliminator's motives, methods and coherences are ONE spine of the
+// displayed telescope ⟦Φ⟧ᴰ over ι; the eliminator's type and its β are
+// substitutions. Nothing about the ToS is trusted beyond the readings
+// ⟦_⟧ and _ᴰ and the displayed spine θᴰ, each defined by recursion on
+// the grammar and landing in Nova syntax the rules above already read.
+// The eliminator's core carries the METHODS only: motives, coherences
+// and the sorts 𝒰̄ the motives land in are SURFACE, as ℕ-elim's A and 𝒰
+// are.
+
+// A signature is checked AT A LEVEL ℓ, its BOUND: every Nova type it
+// embeds at 𝕌ℓ (a proposition included, by Ω ≼ 𝕌₀ ≼ 𝕌ℓ), its sorts
+// types at 𝕌ℓ, ⟦Φ⟧ a telescope with sort entries at 𝕌ℓ₊₁. One bound
+// serves every sort: one check at 𝕌ℓ, no universe guessed.
+
+// (Telescopes, spines and the derived snoc the readings build with:
+// LISTS, after the entry points.)
+
+## The theory of signatures (surface = core: nameless indexed syntax)
+
+// The syntax of qiit-contexts Φ, qiit-types 𝔄 and qiit-terms 𝕥 is the
+// foundation's (THEORY OF SIGNATURES — grammar, in its QIIT section). A
+// SIGNATURE here is a closed qiit-context, the definiens of an item.
+// What follows is how the kernel CHECKS one: the modes, and the level.
+
+Γ ⊦ Φ qctx ℓ           // Given core Γ, check surface Φ at level ℓ (elaborating its Nova pieces). Run ONCE per
+                       //   signature, at its item (the entry points). An embedded Nova piece is a ONE-SIDED
+                       //   proof: its sides β-join and the right one is recorded. There is NO equation of
+                       //   contexts: two formers are compared by the name of their item and its arguments
+Γ ; Φ ⊦ 𝔄 qty ℓ
+Γ ; Φ ⊦ 𝕥 ⇒ 𝔄          // ToS terms INFER: they are variables and application chains
+Γ ; Φ ⊦ 𝕥 ⇐ 𝔄
+
+------------ (qctx-empty)
+Γ ⊦ ⬦ qctx ℓ
+
+Γ ⊦ Φ qctx ℓ      Γ ; Φ ⊦ 𝔄 qty ℓ
+---------------------------------- (qctx-ext)
+Γ ⊦ Φ ▷ 𝔄 qctx ℓ
+
+Γ ⊦ Φ qctx ℓ
+----------------- (qty-univ)
+Γ ; Φ ⊦ U qty ℓ
+
+Γ ; Φ ⊦ 𝕥 ⇐ U
+---------------- (qty-el)
+Γ ; Φ ⊦ El 𝕥 qty ℓ
+
+Γ ⊦ A ⇐ 𝕌ℓ      Γ ▷ A ; Φ[↑] ⊦ 𝔄 qty ℓ
+------------------------------------- (qty-pi-ext)
+Γ ; Φ ⊦ A ⇛ 𝔄 qty ℓ
+
+Γ ; Φ ⊦ 𝕥 ⇐ U      Γ ; Φ ▷ El 𝕥 ⊦ 𝔄 qty ℓ
+---------------------------------------- (qty-pi-ind)
+Γ ; Φ ⊦ El 𝕥 ⇛ 𝔄 qty ℓ
+
+---------------- (qtm-var)
+Γ ; Φ ⊦ ⬡ᵢ ⇒ Φ‖ᵢ
+
+Γ ; Φ ⊦ 𝕥 ⇒ A ⇛ 𝔄      Γ ⊦ t ⇐ A
+---------------------------------- (qtm-app-ext)
+Γ ; Φ ⊦ 𝕥 t ⇒ 𝔄[id, t]
+
+Γ ; Φ ⊦ 𝕥 ⇒ El 𝕦 ⇛ 𝔄      Γ ; Φ ⊦ 𝕥' ⇐ El 𝕦
+------------------------------------------- (qtm-app-ind)
+Γ ; Φ ⊦ 𝕥 𝕥' ⇒ 𝔄[𝕥']
+
+Γ ▷ A ; Φ[↑] ⊦ 𝕥 ⇐ 𝔄
+------------------------ (qtm-lam-ext)
+Γ ; Φ ⊦ λ 𝕥 ⇐ A ⇛ 𝔄
+
+Γ ; Φ ⊦ 𝕥₀ ⇐ El 𝕦      Γ ; Φ ⊦ 𝕥₁ ⇐ El 𝕦
+------------------------------------------ (qtm-eq)
+Γ ; Φ ⊦ 𝕥₀ ≡ 𝕥₁ ⇐ U
+
+Γ ; Φ ⊦ 𝕥 ⇒ 𝔄'      𝔄 ≡β 𝔄'
+------------------------- // mode switch (β on the embedded Nova pieces only)
+Γ ; Φ ⊦ 𝕥 ⇐ 𝔄
+
+## The readings ⟦_⟧ and _ᴰ
+
+// The reading of a qiit-context as a telescope ⟦Φ⟧ over Γ, and of its
+// types and terms over the algebra context Γ · ⟦Φ⟧; the arity telescope
+// ⟦𝔄⟧ᵗ and end ⟦𝔄⟧ᵉ of an entry; and the displayed reading 𝔄ᴰ, 𝕥ᴰ, ⟦Φ⟧ᴰ
+// over Γ · ⟦Φ⟧ · ⟦Φ⟧ᴰ — all are the foundation's, clause for clause (its
+// QIIT section: THE READING, An ARITY, THE DISPLAYED READING), and they
+// are what the kernel computes. The displayed reading's TARGETS 𝒰̄, one
+// per sort of Φ, each Ω or a universe, are sorts, and the eliminator
+// NAMES them: 𝒰_𝕤 is the sort its motive for 𝕤 lands in (CONVENTIONS:
+// eliminators name their sort).
+
+// A FORMER names an item (Θ ⊦ x ≔ Φ qsig ℓ) ∈ Σ and instantiates its
+// parameters by a normal substitution e˲ : Γ ⇒ Θ norm, as a reference to
+// a term item does. The readings are taken of Φ over Θ, the item's own
+// context, and a former's types are their INSTANCES, by substitution.
+// (The foundation's content of the reference, ⌈x[e˲]⌉, is Φ[e˲], and a
+// reading commutes with the substitution.) An ALGEBRA of x at e˲ over Γ
+// is a spine Γ ⊦ ā ⇐ ⟦Φ⟧[e˲]. The INITIAL algebra Γ ⊦ ι ⇐ ⟦Φ⟧[e˲] is the
+// spine of the formers at x[e˲], entry by entry (e˲ weakened under the
+// λs):
+
+ι(𝕤)  = λ ⟦𝔎⟧ᵗ[e˲, ι]. x[e˲].𝕤 (the bound variables)    // for a sort entry Φ(𝕤) = 𝔎
+ι(𝕔)  = λ ⟦𝔄⟧ᵗ[e˲, ι]. x[e˲].𝕔 (the bound variables)    // for a point entry Φ(𝕔) = 𝔄
+ι(𝕔)  = λ ⟦𝔄⟧ᵗ[e˲, ι]. ⋆                              // for an equation entry: its end is a proposition
+
+// Every type below is stated in the algebra context Θ · ⟦Φ⟧ and
+// instantiated at the parameters and the initial algebra by
+// substitution: X[e˲, ι] is X[(e˲, ι)], the substitution e˲ : Γ ⇒ Θ
+// extended by the spine ι, and X[e˲, ι, θ] extends it by a further
+// spine.
+
+// ⟦Φ⟧ᴰ[e˲, ι] is the telescope of the eliminator's SURFACE arguments in
+// signature order — motives at the sort entries, methods at the point
+// entries, coherences at the equation entries — and Γ ⊦ d̄ ⇐ ⟦Φ⟧ᴰ[e˲, ι]
+// is all of them at once. d̄(𝕤) names the motive entry for sort 𝕤, d̄(𝕔)
+// the method entry for point 𝕔, m̄ the point entries (what the core
+// keeps).
+
+## The outer formers
+
+// Each names an item (Θ ⊦ x ≔ Φ qsig ℓ) ∈ Σ. A sort and a point
+// constructor are congruent in the reference's arguments — NOMINAL
+// equality: one item, equal arguments — and their types are instances
+// at the RIGHT ones, as every type is built from the right side. The
+// eliminator and the path leaf are at ONE substitution e˲. ι is the
+// initial algebra at the arguments the types are instantiated by.
+
+(Θ ⊦ x ≔ Φ qsig ℓ) ∈ Σ      [π̄] e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm
+Φ(𝕤) = 𝔎      Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ ⟦𝔎⟧ᵗ[e˲₁, ι]
+---------------------------------------------------- (ty-qiit ty-qiit-cong qsig-eq-ref)
+Γ ⊦ [x[π̄].𝕤 ᾱ] x[e˲₀].𝕤 ē₀ ≐ x[e˲₁].𝕤 ē₁ ⇒ 𝕌ℓ
+// ty-qiit in full (ty-qiit-cong, by qsig-eq-ref): a sort is a type at the
+// level its item records. The spine equation is at the arity instantiated
+// by ē₁'s prefix.
+
+(Θ ⊦ x ≔ Φ qsig ℓ) ∈ Σ      [π̄] e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm
+Φ(𝕔) = 𝔄      𝔄 ends El 𝕥      Γ ⊦ [ᾱ] θ₀ ≐ θ₁ ⇐ ⟦𝔄⟧ᵗ[e˲₁, ι]
+------------------------------------------------------------ (el-qiit-intro el-qiit-intro-cong)
+Γ ⊦ [x[π̄].𝕔 ᾱ] x[e˲₀].𝕔 θ₀ ≐ x[e˲₁].𝕔 θ₁ ⇒ ⟦𝕥⟧[e˲₁, ι, θ₁]
+// el-qiit-intro in full, SATURATED.
+
+(Θ ⊦ x ≔ Φ qsig ℓ) ∈ Σ      e˲ : Γ ⇒ Θ norm      𝒰̄ targets Φ
+Γ ⊦ [δ̄] d̄₀ ≐ d̄₁ ⇐ ⟦Φ⟧ᴰ[e˲, ι]                        // motives, methods, coherences: ONE spine of the displayed
+Φ(𝕤) = 𝔎      Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ ⟦𝔎⟧ᵗ[e˲, ι]           //   telescope over the initial algebra. Entrywise: the motive
+Γ ⊦ [κ] w₀ ≐ w₁ ⇐ x[e˲].𝕤 ē₁                         //   entries reflexive (the two eliminators share their
+--------------------------------------------------- (el-qiit-elim) //   motives), the method entries proper equations, a
+Γ ⊦ [x[e˲].𝕤-elim 𝒰̄ δ̄ ᾱ κ]                           //   coherence entry a proposition (irrel at 𝒰_𝕤 = Ω, a proof
+    x[e˲].𝕤-elim m̄₀ ē₀ w₀ ≐ x[e˲].𝕤-elim m̄₁ ē₁ w₁     //   otherwise). Core: x[e˲].𝕤-elim m̄ ē w, m̄ the point entries
+    ⇒ d̄₁(𝕤) ē₁ᴰ w₁                                  //   of d̄; ēᴰ the DISPLAYED SPINE of the indices (COMPUTATION
+                                                    //   below). ONE e˲: across equal arguments, go through
+                                                    //   the sort's congruence and conversion
+
+// COMPUTATION is el-qiit-beta, inside "modulo β": at a constructor
+// Φ(𝕔) = 𝔄 with arguments Γ ⊦ θ ⇐ ⟦𝔄⟧ᵗ[e˲, ι],
+//   x[e˲].𝕤-elim m̄ ⟦ī⟧[e˲, ι, θ] (x[e˲′].𝕔 θ)  ⇝  m_𝕔 θᴰ
+// when the eliminator and the constructor agree NOMINALLY — one item,
+// the arguments e˲ and e˲′ equal modulo β — where Γ ⊦ θᴰ ⇐ ⟦𝔄⟧ᵗᴰ[e˲, ι, d̄] is
+// the DISPLAYED SPINE of θ (likewise ēᴰ of an index spine
+// Γ ⊦ ē ⇐ ⟦𝔎⟧ᵗ[e˲, ι] in the eliminator's type): entrywise, an external
+// argument a ↦ a, an internal argument u : x[e˲].𝕤′ ī′ ↦ u,
+// x[e˲].𝕤′-elim m̄ ī′ u (the eliminator itself at the recursive position:
+// the section φᵉˡ), an internal argument at an equation code ↦ u
+// alone. Equation constructors have no β: their content is the path
+// leaf below.
+
+## Leaves
+
+(Θ ⊦ x ≔ Φ qsig ℓ) ∈ Σ      e˲ : Γ ⇒ Θ norm
+Φ(𝕔) = 𝔄      𝔄 ends El (𝕝 ≡ 𝕣) at 𝕦      Γ ⊦ θ ⇐ ⟦𝔄⟧ᵗ[e˲, ι]
+------------------------------------------------------------------------------ (el-qiit-path)
+Γ ⊦ [x[e˲].𝕔 θ] ⟦𝕝⟧[e˲, ι, θ] ≐ ⟦𝕣⟧[e˲, ι, θ] ⇒ ⟦𝕦⟧[e˲, ι, θ]
+// The imposed equation, as a proof leaf (no term is minted: the prop's
+// element is ⋆).
+
+// Uniqueness (el-qiit-eta) gets no leaf, as at ℕ, ⊎ and / (ν's ην is
+// the one exception): the corpus proves it by elimination into the
+// equality type and reflection. No constructor injectivity: equation
+// entries make constructors non-injective in general (quotients); no
+// index selector either, for now.
+
+## The fragment
+
+// Equality of QIIT formers here is NOMINAL: the same item
+// at equal arguments, and nothing else. That is CONSERVATIVE — every
+// equation the kernel accepts is the foundation's by-name pathway,
+// qsig-eq-ref — and INCOMPLETE: the foundation also lets a former carry
+// a signature written out, lets an item be defined by a reference (an
+// alias, an instance), and equates signatures by content. The kernel
+// has none of the three. Its syntax has no signature beside the context
+// an item defines; a core term holds a name and its arguments; and two items
+// with the same content are unrelated. What the content pathway would
+// give back is had otherwise: a transparent name for one sort of an
+// instance is an ordinary definition of that sort, unfolded by δ, and a
+// signature under binders is an item over those binders as parameters.

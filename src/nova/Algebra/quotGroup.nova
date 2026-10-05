@@ -153,35 +153,37 @@ qMulWDOuterCls : {G : 𝕌}
 qMulWDOuterCls =
   λG g N a a' b h. classEqOfRel (cosetRel g N) (gop g a b) (gop g a' b) (qMulWDOuter h)
 
--- the outer half as the descent itself asks for it: the two inner
--- eliminations agree on every element of the quotient. Where realMul
--- writes `wdOuterOfComm rMul rMulComm rMulWDInnerCls`, this is the
--- honest version — a quot-elim at an ≡-motive whose method is the
--- class-level outer proof
+-- ===== the descended operation, one argument at a time =====
+--
+-- Multiplication by a fixed x on the left, descended to the quotient.
+-- Its well-definedness — the inner half, at class level — is STATED
+-- once, here, as the local claim the eliminator reads; every use of
+-- qMulL inherits it. (A raw quot-elim in a type would owe the proof
+-- again wherever the type is formed.)
+qMulL : (G : 𝕌) (g : IsGroup G) (N : G → Ω) → IsNormal g N → G → QGroup _ g N → QGroup _ g N
+  using (QGroup.unfold, qcls.eq)
+qMulL =
+  λG g N nn x v. quot-elim (q. qcls _ _ (gop g x q)) (q q' h. qMulWDInnerCls _ _ _ nn x _ _ h) v
+
+-- the outer half as the descent asks for it: the two left
+-- multiplications agree on every element of the quotient — a
+-- quot-elim at an ≡-motive whose method is the class-level outer proof
 qMulWDOuterElim : (G : 𝕌)
   (g : IsGroup G)
   (N : G → Ω)
-  → IsNormal g N
-    → (x x' : G)
-      → cosetRel g N x x'
-        → (v : QGroup _ g N)
-          → quot-elim (w. QGroup _ g N) (q. qcls _ _ (gop g x q)) v
-            ≡ quot-elim (q. qcls _ _ (gop g x' q)) v
-  using (QGroup.unfold, qMulWDInnerCls)
-qMulWDOuterElim =
-  λG g N nn x x' h v. quot-elim
-    w. quot-elim (z. QGroup _ g N) (q. qcls _ _ (gop g x q)) w
-      ≡ quot-elim (q. qcls _ _ (gop g x' q)) w
-    c. qMulWDOuterCls h
-    v
+  (nn : IsNormal g N)
+  (x x' : G)
+  → cosetRel g N x x' → (v : QGroup _ g N) → qMulL _ _ _ nn x v ≡ qMulL _ _ _ nn x' v
+  using (QGroup.unfold, qMulL.eq)
+qMulWDOuterElim = λG g N nn x x' h v. quot-elim (c. qMulWDOuterCls h) v
 
 -- ===== the descended operation =====
 qMul : (G : 𝕌)
   (g : IsGroup G)
   (N : G → Ω)
   → IsNormal g N → QGroup _ g N → QGroup _ g N → QGroup _ g N
-  using (QGroup.unfold, qMulWDInnerCls, qMulWDOuterElim)
-qMul = λG g N nn u v. quot-elim (p. quot-elim (q. qcls _ _ (gop g p q)) v) u
+  using (QGroup.unfold)
+qMul = λG g N nn u v. quot-elim (p. qMulL _ _ _ nn p v) (p p' h. qMulWDOuterElim _ _ _ nn _ _ h v) u
 
 -- β on classes. Stated with the BARE `class`, not with qcls: a
 -- quot-elim substitutes `class a` for its method binder, so this is
@@ -193,7 +195,7 @@ qMulCls : (G : 𝕌)
   (nn : IsNormal g N)
   (a b : G)
   → qMul _ _ _ nn (class a) (class b) ≡ class (gop g a b)
-  using (QGroup.unfold, qcls.eq, qMul.eq)
+  using (QGroup.unfold, qcls.eq, qMul.eq, qMulL.eq)
 qMulCls = λG g N nn a b. ⋆
 
 -- ===== the inverse descends =====
@@ -238,8 +240,8 @@ qInv : (G : 𝕌)
   (g : IsGroup G)
   (N : G → Ω)
   → IsSubgroup g N → IsNormal g N → QGroup _ g N → QGroup _ g N
-  using (QGroup.unfold, qInvWDCls)
-qInv = λG g N s nn u. quot-elim (a. qcls _ _ (ginv g a)) u
+  using (QGroup.unfold)
+qInv = λG g N s nn u. quot-elim (a. qcls _ _ (ginv g a)) (a a' h. qInvWDCls _ _ _ s nn _ _ h) u
 
 qInvCls : (G : 𝕌)
   (g : IsGroup G)
@@ -286,7 +288,7 @@ qAssoc : (G : 𝕌)
   (nn : IsNormal g N)
   (u v w : QGroup _ g N)
   → qMul _ _ _ nn (qMul _ _ _ nn u v) w ≡ qMul _ _ _ nn u (qMul _ _ _ nn v w)
-  using (QGroup.unfold, qMulCls.rw)
+  using (QGroup.unfold)
 qAssoc =
   λG g N nn u v w. quot-elim
     a. quot-elim
@@ -295,13 +297,13 @@ qAssoc =
           _
           _
           _
-          ⋆
+          qMulCls _ _ _ nn (gop {G} g a b) c by qMulCls _ _ _ nn a b
           trans
             _
             _
             qMul _ _ _ nn (class a) (qMul _ _ _ nn (class b) (class c))
             cong (λw. QGroup _ g N) (λw. class w) (gAssoc g a b c)
-            ⋆
+            ⋆ by qMulCls _ _ _ nn b c, qMulCls _ _ _ nn a (gop {G} g b c)
         w
       v
     u
@@ -312,9 +314,16 @@ qUnitL : (G : 𝕌)
   (nn : IsNormal g N)
   (u : QGroup _ g N)
   → qMul _ _ _ nn (qUnit _ g N) u ≡ u
-  using (QGroup.unfold, qUnit.eq, qMulCls.rw)
+  using (QGroup.unfold, qUnit.eq)
 qUnitL =
-  λG g N nn u. quot-elim (a. trans _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gUnitL g a))) u
+  λG g N nn u. quot-elim
+    a. trans
+      _
+      _
+      _
+      qMulCls _ _ _ nn (ge {G} g) a
+      cong (λw. QGroup _ g N) (λw. class w) (gUnitL g a)
+    u
 
 qUnitR : (G : 𝕌)
   (g : IsGroup G)
@@ -322,9 +331,16 @@ qUnitR : (G : 𝕌)
   (nn : IsNormal g N)
   (u : QGroup _ g N)
   → qMul _ _ _ nn u (qUnit _ g N) ≡ u
-  using (QGroup.unfold, qUnit.eq, qMulCls.rw)
+  using (QGroup.unfold, qUnit.eq)
 qUnitR =
-  λG g N nn u. quot-elim (a. trans _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gUnitR g a))) u
+  λG g N nn u. quot-elim
+    a. trans
+      _
+      _
+      _
+      qMulCls _ _ _ nn a (ge {G} g)
+      cong (λw. QGroup _ g N) (λw. class w) (gUnitR g a)
+    u
 
 qInvLaw : (G : 𝕌)
   (g : IsGroup G)
@@ -333,9 +349,16 @@ qInvLaw : (G : 𝕌)
   (nn : IsNormal g N)
   (u : QGroup _ g N)
   → qMul _ _ _ nn (qInv _ _ _ s nn u) u ≡ qUnit _ _ _
-  using (QGroup.unfold, qUnit.eq, qInvCls.rw, qMulCls.rw)
+  using (QGroup.unfold, qUnit.eq)
 qInvLaw =
-  λG g N s nn u. quot-elim (a. trans _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gInvL g a))) u
+  λG g N s nn u. quot-elim
+    a. trans
+      _
+      _
+      _
+      qMulCls _ _ _ nn (ginv {G} g a) a by qInvCls _ _ _ s nn a
+      cong (λw. QGroup _ g N) (λw. class w) (gInvL g a)
+    u
 
 qInvLawR : (G : 𝕌)
   (g : IsGroup G)
@@ -344,9 +367,16 @@ qInvLawR : (G : 𝕌)
   (nn : IsNormal g N)
   (u : QGroup _ g N)
   → qMul _ _ _ nn u (qInv _ _ _ s nn u) ≡ qUnit _ _ _
-  using (QGroup.unfold, qUnit.eq, qInvCls.rw, qMulCls.rw)
+  using (QGroup.unfold, qUnit.eq)
 qInvLawR =
-  λG g N s nn u. quot-elim (a. trans _ _ _ ⋆ (cong (λw. QGroup _ g N) (λw. class w) (gInvR g a))) u
+  λG g N s nn u. quot-elim
+    a. trans
+      _
+      _
+      _
+      qMulCls _ _ _ nn a (ginv {G} g a) by qInvCls _ _ _ s nn a
+      cong (λw. QGroup _ g N) (λw. class w) (gInvR g a)
+    u
 
 -- ===== G/N is a group =====
 qIsGroup : (G : 𝕌)

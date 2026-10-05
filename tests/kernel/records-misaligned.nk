@@ -1,0 +1,5 @@
+-- entry lines share one column
+bad : 𝕌₀ :=
+  Rec
+      x : ℕ
+    y : ℕ

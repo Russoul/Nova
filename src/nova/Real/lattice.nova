@@ -30,6 +30,7 @@ maxReg : {f g : ℕ → Q} → Regular f → Regular g → Regular (maxSeq f g)
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.Regular.unfold,
     Real.rBound.eq,
@@ -52,6 +53,7 @@ rMaxWDInner : (x : RSeq) {y y' : RSeq} → REq y y' → REq (rMax x y) (rMax x y
     Rat.order.sgnCases.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.REq.unfold,
     Real.RSeq.unfold,
@@ -87,6 +89,7 @@ rMaxComm : (x y : RSeq) → rMax x y ≡ rMax y x
     Rat.order.sgnCases.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.RSeq.unfold,
     Real.Regular.unfold,
@@ -99,32 +102,28 @@ rMaxWDOuterCls : {x x' c : RSeq} (h : REq x x') → class (rMax x c) ≡ class (
   using (Real.Real.unfold)
 rMaxWDOuterCls = wdOuterOfComm rMax rMaxComm rMaxWDInnerCls
 
-rMaxWDOuter : (x x' : RSeq)
-  (h : REq x x')
-  (v : Real)
-  → quot-elim (w. Real) (q. class (rMax x q)) v ≡ quot-elim (q. class (rMax x' q)) v
-  using (rMaxWDInnerCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
-rMaxWDOuter =
-  λx x' h v. quot-elim
-    w. quot-elim (z. Real) (q. class (rMax x q)) w ≡ quot-elim (q. class (rMax x' q)) w
-    c. rMaxWDOuterCls h
-    v
+-- the descended operation, one argument at a time: its
+-- well-definedness in the right argument stated once, here, as the
+-- local claim the eliminator reads
+rMaxL : RSeq → Real → Real using (Real.Real.unfold)
+rMaxL = λx v. quot-elim (q. class (rMax x q)) (q q' h. rMaxWDInnerCls x _ _ h) v
 
-realMax : Real → Real → Real
-  using (rMaxWDInnerCls,
-    rMaxWDOuter,
-    Real.REq.unfold,
-    Real.RSeq.unfold,
-    Real.Real.unfold,
-    Real.Regular.unfold)
-realMax = λu v. quot-elim (p. quot-elim (q. class (rMax p q)) v) u
+-- the outer half as the descent asks for it: the two left operations
+-- agree on every element of the quotient
+rMaxWDOuter : (x x' : RSeq) (h : REq x x') (v : Real) → rMaxL x v ≡ rMaxL x' v
+  using (Real.Real.unfold, Real.lattice.rMaxL.eq)
+rMaxWDOuter = λx x' h v. quot-elim (c. rMaxWDOuterCls {x} {x'} {c} h) v
+
+realMax : Real → Real → Real using (Real.Real.unfold)
+realMax = λu v. quot-elim (p. rMaxL p v) (p p' h. rMaxWDOuter _ _ h v) u
 
 realMaxCls : (x y : RSeq) → realMax (class x) (class y) ≡ class (rMax x y)
   using (Real.RSeq.unfold,
     Real.Real.unfold,
     Real.Regular.unfold,
     Real.lattice.rMax.eq,
-    Real.lattice.realMax.eq)
+    Real.lattice.realMax.eq,
+    Real.lattice.rMaxL.eq)
 realMaxCls = λx y. ⋆
 
 -- ===== min =====
@@ -141,6 +140,7 @@ minReg : {f g : ℕ → Q} → Regular f → Regular g → Regular (minSeq f g)
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.Regular.unfold,
     Real.rBound.eq,
@@ -165,6 +165,7 @@ rMinWDInner : (x : RSeq) {y y' : RSeq} → REq y y' → REq (rMin x y) (rMin x y
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.REq.unfold,
     Real.RSeq.unfold,
@@ -208,32 +209,28 @@ rMinWDOuterCls : {x x' c : RSeq} (h : REq x x') → class (rMin x c) ≡ class (
   using (Real.Real.unfold)
 rMinWDOuterCls = wdOuterOfComm rMin rMinComm rMinWDInnerCls
 
-rMinWDOuter : (x x' : RSeq)
-  (h : REq x x')
-  (v : Real)
-  → quot-elim (w. Real) (q. class (rMin x q)) v ≡ quot-elim (q. class (rMin x' q)) v
-  using (rMinWDInnerCls, Real.REq.unfold, Real.RSeq.unfold, Real.Real.unfold, Real.Regular.unfold)
-rMinWDOuter =
-  λx x' h v. quot-elim
-    w. quot-elim (z. Real) (q. class (rMin x q)) w ≡ quot-elim (q. class (rMin x' q)) w
-    c. rMinWDOuterCls h
-    v
+-- the descended operation, one argument at a time: its
+-- well-definedness in the right argument stated once, here, as the
+-- local claim the eliminator reads
+rMinL : RSeq → Real → Real using (Real.Real.unfold)
+rMinL = λx v. quot-elim (q. class (rMin x q)) (q q' h. rMinWDInnerCls x _ _ h) v
 
-realMin : Real → Real → Real
-  using (rMinWDInnerCls,
-    rMinWDOuter,
-    Real.REq.unfold,
-    Real.RSeq.unfold,
-    Real.Real.unfold,
-    Real.Regular.unfold)
-realMin = λu v. quot-elim (p. quot-elim (q. class (rMin p q)) v) u
+-- the outer half as the descent asks for it: the two left operations
+-- agree on every element of the quotient
+rMinWDOuter : (x x' : RSeq) (h : REq x x') (v : Real) → rMinL x v ≡ rMinL x' v
+  using (Real.Real.unfold, Real.lattice.rMinL.eq)
+rMinWDOuter = λx x' h v. quot-elim (c. rMinWDOuterCls {x} {x'} {c} h) v
+
+realMin : Real → Real → Real using (Real.Real.unfold)
+realMin = λu v. quot-elim (p. rMinL p v) (p p' h. rMinWDOuter _ _ h v) u
 
 realMinCls : (x y : RSeq) → realMin (class x) (class y) ≡ class (rMin x y)
   using (Real.RSeq.unfold,
     Real.Real.unfold,
     Real.Regular.unfold,
     Real.lattice.rMin.eq,
-    Real.lattice.realMin.eq)
+    Real.lattice.realMin.eq,
+    Real.lattice.rMinL.eq)
 realMinCls = λx y. ⋆
 
 -- ===== the lattice laws =====
@@ -251,6 +248,7 @@ rleMaxL : {x y : RSeq} → RLeP x (rMax x y)
     Rat.order.sgnCases.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.RSeq.unfold,
     Real.Regular.unfold,
@@ -285,6 +283,7 @@ rleMaxR : {x y : RSeq} → RLeP y (rMax x y)
     Rat.order.sgnCases.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.RSeq.unfold,
     Real.Regular.unfold,
@@ -320,6 +319,7 @@ rMaxLub : {x y z : RSeq} → RLeP x z → RLeP y z → RLeP (rMax x y) z
     Rat.order.sgnCases.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.RSeq.unfold,
     Real.Regular.unfold,
@@ -356,6 +356,7 @@ rleMinL : {x y : RSeq} → RLeP (rMin x y) x
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.RSeq.unfold,
     Real.Regular.unfold,
@@ -390,6 +391,7 @@ rleMinR : {x y : RSeq} → RLeP (rMin x y) y
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.RSeq.unfold,
     Real.Regular.unfold,
@@ -424,6 +426,7 @@ rMinGlb : {x y z : RSeq} → RLeP z x → RLeP z y → RLeP z (rMin x y)
     Rat.order.sZero.eq,
     Rat.order.sgnQ.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.RSeq.unfold,
     Real.Regular.unfold,
@@ -454,8 +457,11 @@ leRMaxL : (u v : Real) → u ≤ realMax u v
     Real.Regular.unfold,
     Real.lattice.rMax.eq,
     Real.lattice.realMax.eq,
+    Real.lattice.rMaxL.eq,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.≤.unfold,
+    Real.order.rleL.unfold,
     Real.order.RLeP.eq)
 leRMaxL = λu v. quot-elim (x. quot-elim (y. rleMaxL) v) u
 
@@ -466,8 +472,11 @@ leRMaxR : (u v : Real) → v ≤ realMax u v
     Real.Regular.unfold,
     Real.lattice.rMax.eq,
     Real.lattice.realMax.eq,
+    Real.lattice.rMaxL.eq,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.≤.unfold,
+    Real.order.rleL.unfold,
     Real.order.RLeP.eq)
 leRMaxR = λu v. quot-elim (x. quot-elim (y. rleMaxR) v) u
 
@@ -478,9 +487,13 @@ leRMinL : (u v : Real) → realMin u v ≤ u
     Real.Regular.unfold,
     Real.lattice.rMin.eq,
     Real.lattice.realMin.eq,
+    Real.lattice.rMinL.eq,
     Real.lattice.realMin.unfold,
+    Real.lattice.rMinL.unfold,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.≤.unfold,
+    Real.order.rleL.unfold,
     Real.order.RLeP.eq)
 leRMinL = λu v. quot-elim (x. quot-elim (y. rleMinL) v) u
 
@@ -491,9 +504,13 @@ leRMinR : (u v : Real) → realMin u v ≤ v
     Real.Regular.unfold,
     Real.lattice.rMin.eq,
     Real.lattice.realMin.eq,
+    Real.lattice.rMinL.eq,
     Real.lattice.realMin.unfold,
+    Real.lattice.rMinL.unfold,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.≤.unfold,
+    Real.order.rleL.unfold,
     Real.order.RLeP.eq)
 leRMinR = λu v. quot-elim (x. quot-elim (y. rleMinR) v) u
 
@@ -505,12 +522,15 @@ leRMaxLub : (u v w : Real) → u ≤ w → v ≤ w → realMax u v ≤ w
     Real.lattice.rMax.eq,
     Real.lattice.rMaxLub.eq,
     Real.lattice.realMax.eq,
+    Real.lattice.rMaxL.eq,
     Real.lattice.realMax.unfold,
+    Real.lattice.rMaxL.unfold,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.≤.unfold,
+    Real.order.rleL.unfold,
     Real.order.RLeP.eq,
-    Real.order.RLeP.unfold,
-    Real.order.leRCls)
+    Real.order.RLeP.unfold)
 leRMaxLub = λu v w. quot-elim (x. quot-elim (y. quot-elim (z. λp q. rMaxLub p q) w) v) u
 
 leRMinGlb : (u v w : Real) → w ≤ u → w ≤ v → w ≤ realMin u v
@@ -521,9 +541,11 @@ leRMinGlb : (u v w : Real) → w ≤ u → w ≤ v → w ≤ realMin u v
     Real.lattice.rMin.eq,
     Real.lattice.rMinGlb.eq,
     Real.lattice.realMin.eq,
+    Real.lattice.rMinL.eq,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.≤.unfold,
+    Real.order.rleL.unfold,
     Real.order.RLeP.eq,
-    Real.order.RLeP.unfold,
-    Real.order.leRCls)
+    Real.order.RLeP.unfold)
 leRMinGlb = λu v w. quot-elim (x. quot-elim (y. quot-elim (z. λp q. rMinGlb p q) w) v) u

@@ -9,7 +9,7 @@
 
 import Natural (+, *, plusZeroId, zeroPlusId, plusComm, plusAssoc, sucPlus, multZeroId, zeroMult)
 import Natural.order (sumZeroL, sumZeroR)
-import Natural.more (∸, zeroMonus, monusEqOfSum)
+import Natural.more (∸, zeroMonus, monusEqOfSum, monusZeroR)
 import Int (Int, IntR, intZero, intOne, intNeg)
 import Int.normalize (normPair)
 import Int.order (intOfNat)
@@ -24,20 +24,12 @@ intAbs : Int → ℕ
 intAbs = λz. intCanon z .π₁ + intCanon z .π₂
 
 intAbsZero : intAbs intZero ≡ Z
-  using (Int.eq.intCanon.eq,
-    Int.abs.intAbs.eq,
-    Int.intZero.eq,
-    Int.normalize.normPair.eq,
-    Natural.zeroPlusId)
-intAbsZero = ⋆
+  using (Int.eq.intCanon.eq, Int.abs.intAbs.eq, Int.intZero.eq, Int.normalize.normPair.eq)
+intAbsZero = zeroPlusId Z
 
 intAbsOne : intAbs intOne ≡ S Z
-  using (Int.eq.intCanon.eq,
-    Int.abs.intAbs.eq,
-    Int.intOne.eq,
-    Int.normalize.normPair.eq,
-    Natural.plusZeroId)
-intAbsOne = ⋆
+  using (Int.eq.intCanon.eq, Int.abs.intAbs.eq, Int.intOne.eq, Int.normalize.normPair.eq)
+intAbsOne = plusZeroId (S Z)
 
 -- on a natural the magnitude is the natural back
 intAbsOfNat : {n : ℕ} → intAbs (intOfNat n) ≡ n
@@ -74,7 +66,7 @@ intAbsZeroInv =
 -- the canonical pair of the swapped input is the swapped canonical
 -- pair, and a sum does not notice the swap
 normPairSum : {a b : ℕ} → normPair b a .π₁ + normPair b a .π₂ ≡ normPair a b .π₁ + normPair a b .π₂
-  using (Int.normalize.normPair.eq, plusComm, plusZeroId, zeroPlusId)
+  using (Int.normalize.normPair.eq)
 normPairSum =
   λa. ℕ-elim
     λb. trans
@@ -83,7 +75,7 @@ normPairSum =
       _
       cong (λu. ℕ) (λp. p .π₁ + p .π₂) {normPair b Z} {b, Z} normPairZR
       trans _ _ _ (plusZeroId b) (sym _ _ (zeroPlusId b))
-    n ih. λb. ℕ-elim ⋆ (m ihb. ih m) b
+    n ih. λb. ℕ-elim (plusComm (S n) Z) (m ihb. ih m) b
     a
 
 intAbsNeg : {z : Int} → intAbs (intNeg z) ≡ intAbs z
@@ -91,8 +83,7 @@ intAbsNeg : {z : Int} → intAbs (intNeg z) ≡ intAbs z
     Int.abs.intAbs.eq,
     Int.Int.unfold,
     Int.intNeg.eq,
-    Int.normalize.normPair.eq,
-    Core.prop.irrel)
+    Int.normalize.normPair.eq)
 intAbsNeg = λz. quot-elim (p. normPairSum) z
 
 -- ===== the magnitude is multiplicative =====
@@ -171,6 +162,7 @@ intAbsMul : (x y : Int) → intAbs (x * y) ≡ intAbs x * intAbs y
     Int.abs.intAbs.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.nzToInt.eq)
 intAbsMul =
@@ -261,40 +253,28 @@ magPairWDRep =
     cong (λu. ℕ) (λw. w + (r .π₂ ∸ r .π₁)) (monusEqOfSum h)
     cong (λu. ℕ) (λw. r' .π₁ ∸ r' .π₂ + w) (monusEqOfSum (sym _ _ h))
 
-intMag : Int → ℕ using (Int.Int.unfold, magPairWD, magPairWDRep)
-intMag = λz. quot-elim (r. magPair r) z
+intMag : Int → ℕ using (Int.Int.unfold)
+intMag = λz. quot-elim (r. magPair r) (r r' h. magPairWDRep _ _ h) z
 
 intMagZero : intMag intZero ≡ Z
   using (Int.abs.intMag.eq, Int.abs.magPair.eq, Int.intZero.eq, Natural.+.eq, Natural.more.∸.eq)
 intMagZero = ⋆
 
 intMagOfNat : (n : ℕ) → intMag (intOfNat n) ≡ n
-  using (Int.abs.intMag.eq,
-    Int.abs.magPair.eq,
-    Int.order.intOfNat.eq,
-    Natural.more.monusZeroR,
-    Natural.more.monusZeroR.rw,
-    zeroMonus,
-    zeroMonus.rw,
-    plusZeroId,
-    plusZeroId.rw)
-intMagOfNat = λn. ⋆
+  using (Int.abs.intMag.eq, Int.abs.magPair.eq, Int.order.intOfNat.eq)
+intMagOfNat = λn. plusZeroId n by zeroMonus n, monusZeroR {n}
 
 intMagNz : (f : NZ) → intMag (nzToInt f) ≡ S (nzMag f)
   using (Int.abs.intMag.eq,
     Int.abs.magPair.eq,
     Int.abs.nzMag.eq,
-    Natural.more.monusZeroR,
-    Natural.more.monusZeroR.rw,
-    plusZeroId,
-    plusZeroId.rw,
     Rat.frac.NZ.unfold,
-    Rat.frac.nzToInt.eq,
-    zeroMonus,
-    zeroMonus.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
-intMagNz = λf. ⊎-elim (n. ⋆) (n. ⋆) f
+    Rat.frac.nzToInt.eq)
+intMagNz =
+  λf. ⊎-elim
+    n. ⋆ by zeroMonus (S n), monusZeroR {S n}, plusZeroId (S n)
+    n. ⋆ by zeroMonus (S n), monusZeroR {S n}, zeroPlusId (S n)
+    f
 
 IntMagMulAt : Int → Int → Ω
 IntMagMulAt = λx y. intMag (x * y) ≡ intMag x * intMag y
@@ -328,6 +308,7 @@ intMagMul : (x y : Int) → intMag (x * y) ≡ intMag x * intMag y
     Int.abs.intMag.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.nzToInt.eq)
 intMagMul =
@@ -385,5 +366,5 @@ intMagMul =
     nzOfInt x
 
 intMagNeg : {z : Int} → intMag (intNeg z) ≡ intMag z
-  using (Int.abs.intMag.eq, Int.abs.magPair.eq, Int.Int.unfold, Int.intNeg.eq, Core.prop.irrel)
+  using (Int.abs.intMag.eq, Int.abs.magPair.eq, Int.Int.unfold, Int.intNeg.eq)
 intMagNeg = λz. quot-elim (r. plusComm (r .π₁ ∸ r .π₂) (r .π₂ ∸ r .π₁)) z

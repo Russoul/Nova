@@ -1,2 +1,0 @@
-collapse : class Z ≡ class (S Z) ∈ ℕ / (n m. ∥𝟙∥)
-collapse = ⋆

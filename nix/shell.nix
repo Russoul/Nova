@@ -1,32 +1,28 @@
-{ pkgs, inputs }:
+{ pkgs }:
 let
-  inherit (pkgs) lib;
-  deps = import ./deps.nix { inherit pkgs inputs; };
-
-  # With source, so the editor and `idris2 --repl` can jump into them.
-  libs = map (l: l.library { withSource = true; }) [
-    deps.just-a-parser
-    deps.lsp-lib
-  ];
+  op = pkgs.ocamlPackages;
 in
 {
-  # A shell where `idris2 --build nova.ipkg` works straight away: the
-  # pinned dependencies are already on IDRIS2_PACKAGE_PATH, so nothing
-  # is fetched or bootstrapped.
+  # A shell where `dune build` works straight away, with the editor
+  # tooling that goes with it.
   default = pkgs.mkShell {
     packages = [
-      pkgs.idris2
+      op.ocaml
+      op.dune_3
+      op.ocaml-lsp
+      op.ocamlformat
+      op.utop
       pkgs.python3 # tools/render-specs.py
+      pkgs.luajit # tools/nspec.lua
     ];
-
-    IDRIS2_PACKAGE_PATH = lib.makeSearchPath "lib/idris2-${pkgs.idris2.version}" libs;
 
     # Written to stderr so `nix develop -c ...` output stays clean.
     shellHook = ''
       exec 3>&1 1>&2
-      echo "Nova dev shell — idris2 ${pkgs.idris2.version}"
-      echo "  idris2 --build nova.ipkg     build the elaborator"
-      echo "  nix flake check              run every CI gate"
+      echo "Nova dev shell — OCaml ${op.ocaml.version}, dune ${op.dune_3.version}"
+      echo "  dune build                   build nova"
+      echo "  dune exec -- nova            run it"
+      echo "  nix flake check              run every gate"
       exec 1>&3 3>&-
     '';
   };

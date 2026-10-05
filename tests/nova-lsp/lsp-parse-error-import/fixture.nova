@@ -1,3 +1,0 @@
-import broken
-ok : ℕ
-ok = Z
