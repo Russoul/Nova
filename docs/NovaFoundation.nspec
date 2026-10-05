@@ -280,9 +280,9 @@ i, j, k, n ::= <natural number>
 // introduced.
 Γ |= Γ · Δ | (Γ)
 Δ |= Δ[σ] | Δ ▷ t | (Δ) | ⟦Φ⟧ | ⟦𝒮⟧ | ⟦𝔄⟧ᵗ | ⟦𝒮⟧ᴰ | ⟦Φ⟧ᴰ
-σ |= σ⁺ | ↑ⁱ | ↑Δ | e˲ | (σ) | ē | σ, ē | ξ_{Φ,t}
+σ |= σ⁺ | ↑ⁱ | ↑Δ | e˲ | (σ) | ē | σ, ē | ξ
 e˲ |= (e˲) | e˲ ∘ σ
-ē |= ē[σ] | (ē) | t.l̄ | ⟦ī⟧ | ēᴰ_{h} | ēᴰ_h
+ē |= ē[σ] | (ē) | t.l̄ | ⟦ī⟧ | ēᴰ_{h} | ēᴰ_h | ☐(Δ)
 l̄ |= (l̄)
 ℓ |= ℓ + ℓ | ℓ ⊔ ℓ | (ℓ) | |𝒰|
 i |= i + i | |Γ| | |Φ|
@@ -2004,6 +2004,40 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 ε ▷ A ≜ A ◁ ε               (T ◁ Δ) ▷ A ≜ T ◁ (Δ ▷ A)   // snoc
 Π ε. B ≜ B                  Π (A ◁ Δ). B ≜ A → Π Δ. B    // iterated →
 
+// A substitution extended by a spine, and the spine of a telescope's
+// variables:
+
+σ : Γ ⇒ Ξ
+Ξ ⊦ Δ tel
+Γ ⊦ ē : Δ[σ]
+----------------- (sub-ext-sp)
+σ , ē : Γ ⇒ Ξ · Δ
+
+σ : Γ ⇒ Ξ
+----------------- (sub-ext-sp-empty)
+σ , · ≜ σ : Γ ⇒ Ξ
+
+σ : Γ ⇒ Ξ
+Ξ ⊦ A : 𝕌ℓ
+Ξ ▷ A ⊦ Δ tel
+Γ ⊦ e : A[σ]
+Γ ⊦ ē : Δ[σ, e]
+---------------------------------------- (sub-ext-sp-ext)
+σ , (e, ē) ≜ (σ, e), ē : Γ ⇒ (Ξ ▷ A) · Δ
+
+Γ ⊦ Δ tel
+-------------------- (sp-var)
+Γ · Δ ⊦ ☐(Δ) : Δ[↑Δ]
+
+Γ ctx
+-------------------- (sp-var-empty)
+Γ ⊦ ☐(ε) ≜ · : ε
+
+Γ ⊦ A : 𝕌ℓ
+Γ ▷ A ⊦ Δ tel
+--------------------------------------------------------- (sp-var-ext)
+(Γ ▷ A) · Δ ⊦ ☐(A ◁ Δ) ≜ ☐₀[↑Δ], ☐(Δ) : (A ◁ Δ)[↑(A ◁ Δ)]
+
 //     X[ē] ≜ X[(id, ē)]  for a spine Γ ⊦ ē : Δ and X over Γ·Δ; X[ē, ē′]
 //                                                       #   extends by a further spine
 //
@@ -2151,17 +2185,30 @@ U[ς]          ≜ U
 // entries, [↑⟦Φ⟧]. The external binders — the ToS λ and A ⇛ — bind a
 // NOVA variable while the ToS zone is weakened, so their bodies are
 // read over (Γ ▷ A)·⟦Φ[↑]⟧ = (Γ ▷ A)·⟦Φ⟧[↑] and moved to
-// Γ·⟦Φ⟧ ▷ A[↑⟦Φ⟧] by the EXCHANGE
-//     ξ_{Φ,A} : Γ·⟦Φ⟧ ▷ A[↑⟦Φ⟧] ⇒ (Γ ▷ A)·⟦Φ⟧[↑]
-// the substitution with ☐ᵢ[ξ] ≜ ☐ᵢ₊₁ for i < |Φ|, ☐_{|Φ|}[ξ] ≜ ☐₀ and
-// ☐ⱼ[ξ] ≜ ☐ⱼ for j > |Φ| — a permutation of variables, well-typed
-// because the entries of ⟦Φ⟧ are over Γ and do not mention A. (That
-// ⟦Φ[σ]⟧ = ⟦Φ⟧[σ], the reading commuting with Nova substitution
-// through ToS syntax, is a raw identity, by induction.)
+// Γ·⟦Φ⟧ ▷ A[↑⟦Φ⟧] by the EXCHANGE ξ, defined below — a permutation of
+// variables, well-typed because the entries of ⟦Φ⟧ are over Γ and do
+// not mention A. (That ⟦Φ[σ]⟧ = ⟦Φ⟧[σ], the reading commuting with
+// Nova substitution through ToS syntax, is a raw identity, by
+// induction.)
 
 Γ ⊦ Φ qctx
-------------------- (refl-qctx)
+Γ ⊦ A : 𝕌ℓ
+---------------------------------------------------------------- (sub-exchange)
+ξ ≜ (↑⟦Φ⟧ ∘ ↑, ☐₀), ☐(⟦Φ⟧)[↑] : Γ·⟦Φ⟧ ▷ A[↑⟦Φ⟧] ⇒ (Γ ▷ A)·⟦Φ⟧[↑]
+
+Γ ⊦ Φ qctx      Φ ≼ ℓ
+----------------------- (refl-qctx)
 Γ ⊦ ⟦Φ⟧ tel
+
+Γ ctx
+------------------- (refl-qctx-empty)
+Γ ⊦ ⟦⬦⟧ ≜ ε tel
+
+Γ ⊦ Φ qctx
+Γ ; Φ ⊦ 𝔄 qty
+Φ ▷ 𝔄 ≼ ℓ
+--------------------------- (refl-qctx-ext)
+Γ ⊦ ⟦Φ ▷ 𝔄⟧ ≜ ⟦Φ⟧ ▷ ⟦𝔄⟧ tel
 
 Γ ; Φ ⊦ 𝔄 qty      Φ ≼ ℓ
 ---------------------------- (refl-qty)   // a sort entry at 𝕌ℓ₊₁, a point or
@@ -2176,10 +2223,10 @@ U[ς]          ≜ U
 Γ·⟦Φ⟧ ⊦ ⟦El 𝕥⟧ ≜ ⟦𝕥⟧ : 𝕌ℓ₊₁
 
 Γ ⊦ A : 𝕌ℓ
+Γ ⊦ Φ qctx     Φ ≼ ℓ
 Γ ▷ A ; Φ[↑] ⊦ 𝔄 qty
-Φ ≼ ℓ
--------------------------------------- (refl-qty-pi-ext)
-Γ·⟦Φ⟧ ⊦ ⟦A ⇛ 𝔄⟧ ≜ A[↑⟦Φ⟧] → ⟦𝔄⟧[ξ_{Φ,A}] : 𝕌ℓ₊₁
+----------------------------------------- (refl-qty-pi-ext)
+Γ·⟦Φ⟧ ⊦ ⟦A ⇛ 𝔄⟧ ≜ A[↑⟦Φ⟧] → ⟦𝔄⟧[ξ] : 𝕌ℓ₊₁
 
 Γ ; Φ ▷ El 𝕥 ⊦ 𝔄 qty
 Φ ≼ ℓ
@@ -2190,13 +2237,10 @@ U[ς]          ≜ U
 ---------------------------- (refl-qtm)
 Γ·⟦Φ⟧ ⊦ ⟦𝕥⟧ : ⟦𝔄⟧
 
-⟦⬦⟧               ≜ ε
-⟦Φ ▷ 𝔄⟧           ≜ ⟦Φ⟧ ▷ ⟦𝔄⟧
-
 ⟦⬡ᵢ⟧_{Γ;Φ}        ≜ ☐ᵢ
 ⟦𝕥 t⟧_{Γ;Φ}       ≜ ⟦𝕥⟧_{Γ;Φ} t[↑⟦Φ⟧]
 ⟦𝕥 𝕥′⟧_{Γ;Φ}      ≜ ⟦𝕥⟧_{Γ;Φ} ⟦𝕥′⟧_{Γ;Φ}
-⟦λ 𝕥⟧_{Γ;Φ}       ≜ λ (⟦𝕥⟧_{Γ ▷ A ; Φ[↑]}[ξ_{Φ,A}])   // A the Π-domain of λ 𝕥's type
+⟦λ 𝕥⟧_{Γ;Φ}       ≜ λ (⟦𝕥⟧_{Γ ▷ A ; Φ[↑]}[ξ])   // A the Π-domain of λ 𝕥's type
 ⟦𝕥₀ ≡ 𝕥₁⟧_{Γ;Φ}   ≜ (⟦𝕥₀⟧_{Γ;Φ} ≡ ⟦𝕥₁⟧_{Γ;Φ} ∈ ⟦𝕦⟧_{Γ;Φ})   // 𝕦 the sides' common code;
                                                     //   a proposition, so a 𝕌₀ code and
                                                     //   an entry like any other (Ω ≼ 𝕌₀)
