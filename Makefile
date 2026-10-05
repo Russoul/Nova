@@ -6,9 +6,8 @@ LUA := $(shell command -v luajit >/dev/null 2>&1 && echo luajit || echo nvim -l)
 build:
 	dune build
 
-# The local dev loop: build, then the spec checks.
+# The local dev loop: build, then the spec check.
 dev: build
-	python3 tools/render-specs.py --check > /dev/null
 	$(LUA) tools/nspec.lua
 
 # The unit tests and the golden tests of the kernel.

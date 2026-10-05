@@ -6,7 +6,7 @@ This file states Nova's strategic goal — that proving in Nova be the
 pen-and-paper proof, formal but natural — and the division of labour
 that realises it: three roles, AUTHOR, ENGINE and KERNEL, each with
 one job and a precise criterion for what it must never do. The other
-specs say how each piece works (docs/NovaFoundation.txt the theory,
+specs say how each piece works (docs/NovaFoundation.nspec the theory,
 docs/NovaKernel.nspec the reader, docs/NovaElaboration.txt the
 elaborator, docs/NovaPipeline.txt the trust story); this one says
 what each piece IS, so that the
@@ -135,7 +135,7 @@ true item stands as an obligation) or a REJECTED DERIVATION (an
 engine defect, reported as such), never unsoundness; the engine's
 correctness is a quality property. A kernel bug is the only kind
 that matters for trust, which is why the kernel is small, reads a
-fixed grammar rule by rule against docs/NovaFoundation.txt, and is
+fixed grammar rule by rule against docs/NovaFoundation.nspec, and is
 the only component with that obligation.
 
 ////////// How the division is realised today //////////
@@ -555,7 +555,7 @@ that with statements in the text, measured site by site.
 
 ////////// Relation to the other documents //////////
 
-  docs/NovaFoundation.txt   the theory the kernel reads against
+  docs/NovaFoundation.nspec   the theory the kernel reads against
   docs/NovaKernel.nspec       the kernel: grammar, readings, entry points
   docs/NovaElaboration.txt  the engine's surface and elaborator
   docs/NovaPipeline.txt     the trust boundary and the artifact

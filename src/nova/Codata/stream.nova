@@ -1,5 +1,5 @@
 -- Coinductive streams — the ν-scheme at its simplest product
--- polynomial (NovaFoundation.txt, "Coinductive types"); the
+-- polynomial (NovaFoundation.nspec, "Coinductive types"); the
 -- conaturals, its sum sibling, live in Codata/conat.nova.
 -- Stream a = ν (K a × 𝕏): one observation, out, splitting into head
 -- and tail; corec builds a stream from any coalgebra. Every lemma

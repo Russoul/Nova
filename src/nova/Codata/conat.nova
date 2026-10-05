@@ -1,5 +1,5 @@
 -- Conaturals, split out of Codata/stream.nova: the ν-scheme at its
--- simplest sum polynomial (NovaFoundation.txt, "Coinductive
+-- simplest sum polynomial (NovaFoundation.nspec, "Coinductive
 -- types"). conat = ν (K 𝟙 ⊎ 𝕏): zero observes as inj₁, a successor
 -- as inj₂ of its predecessor; ∞ is its own predecessor. β-shaped
 -- lemmas close by computation; infSucc is the classic coinductive

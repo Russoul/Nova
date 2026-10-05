@@ -10,21 +10,29 @@
 -- Prose has no markup. A rule name in it is a reference.
 --
 -- A formal line with ::= is a grammar production: metavariables on the left,
--- alternatives split by " | " on the right. In an alternative a category is
--- named by its first metavariable and every other token is literal; the
--- alternative <natural number> is a numeral. A subscript or superscript
--- reads as the same text full-size (☐ᵢ is ☐ i), except after a
--- metavariable, where it is part of its name (t₀).
+-- alternatives split by " | " on the right. It defines a category, once; a
+-- line with |= in its place adds alternatives to a category defined
+-- elsewhere. In an alternative a category is named by its first metavariable and every
+-- other token is literal; the alternative <natural number> is a numeral. A
+-- subscript or superscript reads as the same text full-size (☐ᵢ is ☐ i),
+-- except after a metavariable, where it is part of its name (t₀).
 --
--- If the grammar has the category J, every other formal line must be a J:
--- judgements on one line are three spaces apart, an indented line continues
--- the one above, and a metavariable keeps one category throughout its rule
--- (outside a rule, throughout its line).
+-- Every other formal line must be a judgement: an instance of a category the
+-- file itself defines and no production mentions. Judgements on one line are
+-- three spaces apart (a line whose parts are not all judgements is read as
+-- one), an indented line continues the one above, and a
+-- metavariable keeps one category throughout its rule (outside a rule,
+-- throughout its line). A file's grammar includes the foundation's.
 --
---   nspec.lua [FILE…]            check; a finding is `path:line:col: message`
+--   nspec.lua [FILE…]            check (with no FILE: every spec, and the rule
+--                                names src/ocaml cites); a finding is
+--                                `path:line:col: message`
 --   nspec.lua --html OUT FILE…   render
 --   nspec.lua --where NAME       where the foundation defines NAME
 local M = {}
+
+-- Called often during an analysis: an editor makes it yield, to stay responsive.
+local pause = function() end
 
 -- The token kinds, and the colour of each, for Neovim and the HTML page
 -- (in Neovim, headings and prose take the colourscheme's colours instead).
@@ -47,26 +55,19 @@ M.kinds = {
   nova = 'x l l̄ 𝒰 𝒰̄ Σ I Γ Δ σ e˲ ē t',
   level = 'ℓ',
   index = 'i',
-  tos = '𝕤 𝕔 Φ 𝔄 𝕥 𝔽',
+  tos = '𝕤 𝕔 Φ 𝔄 𝕥 𝔽 𝒮 ς ī',
   proof = 'α ᾱ π̄ φ',
 }
 
 local HERE = debug.getinfo(1, 'S').source:sub(2):match('^(.*)/[^/]*$') or '.'
 local DOCS = HERE .. '/../docs'
 
-local function exists(path)
-  local f = io.open(path)
-  return f and f:close() and true
-end
 local function read(path)
   local out = {}
   for line in io.lines(path) do out[#out + 1] = line end
   return out
 end
-function M.foundation()
-  local new = DOCS .. '/NovaFoundation.nspec'
-  return exists(new) and new or DOCS .. '/NovaFoundation.txt' -- .txt: not yet converted
-end
+function M.foundation() return DOCS .. '/NovaFoundation.nspec' end
 
 -- Characters ---------------------------------------------------------------
 
@@ -132,33 +133,27 @@ end
 -- Lines --------------------------------------------------------------------
 
 -- { n, kind, formal, prose, names } of each line
-function M.rows(lines, mark_)
-  local out, under = {}, false -- under: below a bar, in the same block
+function M.rows(lines)
+  local out = {}
   for n, line in ipairs(lines) do
+    pause()
     local row = { n = n, kind = 'blank', formal = '', prose = '', names = {} }
-    if mark_ == '//' and line:match('^#+ ') then
+    if line:match('^#+ ') then
       row.kind, row.formal = 'head', line
-    elseif line:sub(1, #mark_) == mark_ then
+    elseif line:sub(1, 2) == '//' then
       row.kind, row.prose = 'prose', line
     elseif line:match('%S') then
-      local cut = line:find('%s' .. mark_, 1, false) and line:find('%s+' .. mark_:gsub('%p', '%%%0'))
+      local cut = line:find('%s+//')
       row.formal = cut and line:sub(1, cut - 1) or line:gsub('%s+$', '')
       row.prose = cut and line:sub(cut) or ''
       local bare = row.formal:gsub('%b()', '')
       row.kind = bare:match('^%s*%-%-%-[%-%s]*$') and 'bar' or 'formal'
-      local found = {}
-      if row.kind == 'bar' then
-        for group in row.formal:gmatch('%b()') do
-          for x in group:sub(2, -2):gmatch('[^%s,]+') do found[#found + 1] = x end
+      for group in (row.kind == 'bar' and row.formal or ''):gmatch('%b()') do
+        for x in group:sub(2, -2):gmatch('[^%s,]+') do
+          if is_name(x) then row.names[#row.names + 1] = x end
         end
-      elseif under then
-        found[1] = row.formal:match('%s%(([^()%s]+)%)$')
-      end
-      for _, x in ipairs(found) do
-        if is_name(x) then row.names[#row.names + 1] = x end
       end
     end
-    under = row.kind == 'bar' or under and row.kind == 'formal'
     out[#out + 1] = row
   end
   return out
@@ -166,8 +161,8 @@ end
 
 -- name -> the line of the foundation that defines it
 local function defined()
-  local path, out = M.foundation(), {}
-  for _, row in ipairs(M.rows(read(path), path:match('%.nspec$') and '//' or '#')) do
+  local out = {}
+  for _, row in ipairs(M.rows(read(M.foundation()))) do
     for _, x in ipairs(row.names) do out[x] = out[x] or row.n end
   end
   return out
@@ -213,56 +208,83 @@ local function lex(s, roots)
   return toks
 end
 
--- the productions among the rows: `roots ::= alternative | alternative`
-local function grammar(rows)
+-- The productions among the rows, `roots ::= alternative | alternative`:
+-- the foundation's, then the file's own.
+local START = '\0'
+local function grammar(foreign, own)
   local sources, current = {}, nil
-  for _, row in ipairs(rows) do
-    local lhs, rhs = row.formal:match('^(.-)%s*::=%s*(.*)$')
-    if row.kind == 'formal' and lhs then
-      current, row.production = { lhs = lhs, rhs = rhs }, true
-      sources[#sources + 1] = current
-    elseif row.kind == 'formal' and current and row.formal:match('^%s*|') then
-      current.rhs, row.production = current.rhs .. ' ' .. row.formal:gsub('^%s+', ''), true
-    elseif row.formal ~= '' or row.kind ~= 'formal' then
-      current = nil
+  for _, rows in ipairs({ foreign, own }) do
+    for _, row in ipairs(rows) do
+      local lhs, mark, rhs = row.formal:match('^(.-)%s*(::=)%s*(.*)$')
+      if not lhs then lhs, mark, rhs = row.formal:match('^(%S.-)%s+(|=)%s+(.*)$') end
+      if row.kind == 'formal' and lhs then
+        current = { lhs = lhs, rhs = rhs, own = rows == own, adds = mark == '|=', n = row.n }
+        row.production, row.left = true, #row.formal - #rhs
+        sources[#sources + 1] = current
+      elseif row.kind == 'formal' and current and row.formal:match('^%s*|') then
+        current.rhs, row.production = current.rhs .. ' ' .. row.formal:gsub('^%s+', ''), true
+      elseif row.formal ~= '' or row.kind ~= 'formal' then
+        current = nil
+      end
     end
   end
-  local g = { cats = {}, order = {}, roots = {}, lits = {}, key = {} }
+  local g = { cats = {}, order = {}, roots = {}, lits = {}, key = {}, findings = {} }
   for _, source in ipairs(sources) do
-    local cat = { member = {}, alts = {}, prods = {}, index = #g.order + 1 }
-    for root in (source.lhs .. ','):gmatch('%s*(.-)%s*,') do
-      root = table.concat((chars(root)))
-      cat.name = cat.name or root
-      cat.member[root], g.roots[root] = true, true
+    local names = {}
+    for root in (source.lhs .. ','):gmatch('%s*(.-)%s*,') do names[#names + 1] = table.concat((chars(root))) end
+    local cat = g.cats[names[1]]
+    if not cat then
+      cat = { name = names[1], member = {}, alts = {}, prods = {} }
+      g.cats[cat.name], g.order[#g.order + 1] = cat, cat
     end
+    if source.adds then
+      cat.added = cat.added or source.own and source.n
+    elseif cat.defined and source.own then
+      g.findings[#g.findings + 1] = { n = source.n, message = cat.name .. ' is already defined; |= adds to it' }
+    end
+    cat.defined = cat.defined or not source.adds
+    cat.own, cat.foreign = cat.own or source.own, cat.foreign or not source.own
+    for _, root in ipairs(names) do cat.member[root], g.roots[root] = true, true end
     for alt in (source.rhs .. ' | '):gmatch('(.-)%s|%s') do
       if alt:match('^%s*<natural number>%s*$') then cat.number = true
-      elseif alt:match('%S') and not alt:match('^%s*<') then cat.alts[#cat.alts + 1] = alt end
+      elseif alt:match('%S') and not alt:match('^%s*<') then
+        cat.alts[#cat.alts + 1] = { text = alt, own = source.own }
+      end
     end
-    g.cats[cat.name] = cat
-    g.order[#g.order + 1] = cat
     g.key[#g.key + 1] = source.lhs .. '::=' .. source.rhs
   end
-  local id = 0
+  local id, mentioned = 0, {}
+  local function add(cat, rhs)
+    id = id + 1
+    cat.prods[#cat.prods + 1] = { id = id, lhs = cat.name, rhs = rhs }
+  end
   for _, cat in ipairs(g.order) do
-    local function add(rhs)
-      id = id + 1
-      cat.prods[#cat.prods + 1] = { id = id, lhs = cat.name, rhs = rhs }
-    end
-    add({ { var = cat.name } })
-    if cat.number then add({ { number = cat.name } }) end
+    add(cat, { { var = cat.name } })
+    if cat.number then add(cat, { { number = cat.name } }) end
     for _, alt in ipairs(cat.alts) do
       local rhs = {}
-      for _, tok in ipairs(lex(alt, g.roots)) do
-        if tok.root == tok.text and g.cats[tok.text] then rhs[#rhs + 1] = { nt = tok.text }
+      for _, tok in ipairs(lex(alt.text, g.roots)) do
+        local cat = tok.root == tok.text and g.cats[tok.text]
+        if cat and (alt.own or cat.foreign) then -- a foundation production names only its own categories
+          rhs[#rhs + 1], mentioned[tok.text] = { nt = tok.text }, true
         else
-          rhs[#rhs + 1] = { lit = tok.text }
-          g.lits[tok.text] = true
+          rhs[#rhs + 1], g.lits[tok.text] = { lit = tok.text }, true
         end
       end
-      add(rhs)
+      add(cat, rhs)
     end
   end
+  for _, cat in ipairs(g.order) do
+    if not cat.defined and cat.added then
+      g.findings[#g.findings + 1] = { n = cat.added, message = cat.name .. ' is not defined; ::= defines it' }
+    end
+  end
+  -- a judgement: any category of the file's own that no production mentions
+  local start = { name = START, member = {}, prods = {} }
+  for _, cat in ipairs(g.order) do
+    if cat.own and not mentioned[cat.name] then add(start, { { nt = cat.name } }) end
+  end
+  if #start.prods > 0 then g.cats[START], g.start = start, START end
   g.key = table.concat(g.key, '\n')
   return g
 end
@@ -298,7 +320,10 @@ local function recognise(g, toks, start, pin)
           add(k, parent.prod, parent.dot + 1, parent.origin)
         end
       elseif sym.nt then
-        for _, prod in ipairs(g.cats[sym.nt].prods) do add(k, prod, 0, k) end
+        if not set.seen[sym.nt] then
+          set.seen[sym.nt] = true
+          for _, prod in ipairs(g.cats[sym.nt].prods) do add(k, prod, 0, k) end
+        end
       elseif tok then
         local fits
         if sym.lit then fits = tok.text == sym.lit and (not fixed or fixed == 'lit')
@@ -323,6 +348,7 @@ local function judge(g, parts)
   cache[g.key] = cache[g.key] or {}
   local hit = cache[g.key][key]
   if hit then return hit end
+  pause()
   local toks = {}
   for p, part in ipairs(parts) do
     for _, tok in ipairs(lex(part.text, g.roots)) do
@@ -331,7 +357,7 @@ local function judge(g, parts)
     end
   end
   local result = { toks = toks }
-  result.ok, result.stuck = recognise(g, toks, 'J')
+  result.ok, result.stuck = recognise(g, toks, g.start)
   for k, tok in ipairs(result.ok and toks or {}) do
     local readings = {} -- fixed syntax first: it is the class shown when both fit
     if g.lits[tok.text] then readings[1] = 'lit' end
@@ -339,8 +365,9 @@ local function judge(g, parts)
       if tok.root and cat.member[tok.root] or tok.number and cat.number then readings[#readings + 1] = cat.name end
     end
     tok.live = {}
+    pause()
     for _, reading in ipairs(readings) do
-      if #readings == 1 and tok.root or recognise(g, toks, 'J', { [k] = reading }) then
+      if #readings == 1 and tok.root or recognise(g, toks, g.start, { [k] = reading }) then
         tok.live[reading] = true
         tok.class = tok.class or reading
       end
@@ -353,7 +380,7 @@ end
 
 -- The judgements, grouped by what shares metavariables: a rule, or outside
 -- a rule one line. A judgement is its parts { n, col, text }, one per line.
-local function units(rows)
+local function units(rows, is_judgement)
   local out, block, has_bar = {}, {}, false
   local function close()
     local rule = {}
@@ -379,7 +406,12 @@ local function units(rows)
         line[#line + 1] = { { n = row.n, col = a, text = row.formal:sub(a, b) } }
         from = b + 1
       end
-      block[#block + 1] = line
+      for _, judgement in ipairs(#line > 1 and line or {}) do
+        local a = row.formal:find('%S')
+        local whole = { { n = row.n, col = a, text = row.formal:sub(a) } }
+        if not is_judgement(judgement) and is_judgement(whole) then line = { whole } break end
+      end
+      if #line > 0 then block[#block + 1] = line end -- a line that is only a note has none
     end
   end
   close()
@@ -389,9 +421,9 @@ end
 -- Analysis -----------------------------------------------------------------
 
 -- findings { n, col, message } and tokens { n, from, to, kind } of a file
-function M.analyse(lines, path)
-  local own = path:match('%.nspec$') and '//' or '#'
-  local rows, names = M.rows(lines, own), defined()
+function M.analyse(lines, path, pause_)
+  pause = pause_ or function() end
+  local rows, names = M.rows(lines), defined()
   local cites = not path:match('NovaFoundation%.%w+$')
   local findings, tokens = {}, {}
   local function report(n, col, message) findings[#findings + 1] = { n = n, col = col, message = message } end
@@ -404,6 +436,7 @@ function M.analyse(lines, path)
   end
   for name in pairs(names) do prefixes[name:match('^[^-]+')] = true end
   for i, row in ipairs(rows) do
+    pause()
     if row.kind == 'head' then
       local depth = #row.formal:match('^#+')
       if depth > level + 1 then report(row.n, 1, 'heading skips a level') end
@@ -431,23 +464,23 @@ function M.analyse(lines, path)
     for _, x in ipairs(names_in(row.prose)) do
       local from, to = row.prose:find(x, seen, true)
       local _, dashes = x:gsub('%-', '')
+      local family = false -- name-* stands for the rules that begin so
+      for name in pairs(row.prose:sub(to + 1, to + 2) == '-*' and names or {}) do
+        family = family or name:sub(1, #x + 1) == x .. '-'
+      end
       if names[x] then
         token(row.n, shift + from, shift + to, 'rule')
-      elseif prefixes[x:match('^[^-]+')] and dashes > 1 then
+      elseif not family and prefixes[x:match('^[^-]+')] and dashes > 1 then
         report(row.n, shift + from, 'no foundation rule ' .. x)
       end
       seen = to + 1
     end
   end
 
-  local sources = rows
-  if cites and M.foundation():match('%.nspec$') then
-    sources = M.rows(read(M.foundation()), '//')
-    for _, row in ipairs(rows) do sources[#sources + 1] = row end
-  end
-  local g = grammar(sources)
+  local g = grammar(cites and M.rows(read(M.foundation())) or {}, rows)
+  for _, f in ipairs(g.findings) do report(f.n, 1, f.message) end
   for _, row in ipairs(rows) do -- a production: its metavariables by kind, the rest fixed syntax
-    local left, own, class = row.production and (row.formal:find('::=', 1, true) or 0), nil, false
+    local left, own, class = row.production and (row.left or 0), nil, false
     for _, tok in ipairs(left and lex(row.formal, g.roots) or {}) do
       own = own or tok.text
       local kind = 'keyword'
@@ -457,8 +490,8 @@ function M.analyse(lines, path)
       if kind and not class and tok.text ~= '>' then token(row.n, tok.from, tok.to, kind) end
     end
   end
-  if not g.cats.J then return findings, tokens, rows end
-  for _, rule in ipairs(units(rows)) do
+  if not g.start then return findings, tokens, rows end
+  for _, rule in ipairs(units(rows, function(parts) return judge(g, parts).ok end)) do
     local category = {} -- metavariable -> the readings every site so far allows
     for _, parts in ipairs(rule) do
       local result = judge(g, parts)
@@ -509,7 +542,6 @@ summary{font-weight:bold;margin-left:-2ch;cursor:pointer}
 i{font-style:normal}
 a{color:inherit;text-decoration:none}
 a[href]{border-bottom:1px dotted}
-.prose a{color:%RULE%}
 :target{outline:1px solid}]]
 
 local function escape(s) return (s:gsub('[&<>"]', { ['&'] = '&amp;', ['<'] = '&lt;', ['>'] = '&gt;', ['"'] = '&quot;' })) end
@@ -524,15 +556,6 @@ local function render(paths, out)
       for _, x in ipairs(row.names) do anchors[x] = anchors[x] or (path .. ':' .. row.n) end
     end
   end
-  local function link(text, here)
-    local html = escape(text)
-    for _, x in ipairs(names_in(text)) do
-      if anchors[x] and anchors[x] ~= here then
-        html = html:gsub(x:gsub('%p', '%%%0'), ('<a href="#%s">%s</a>'):format(x, x), 1)
-      end
-    end
-    return html
-  end
   local body = {}
   local function put(s) body[#body + 1] = s end
   for _, file in ipairs(files) do
@@ -540,32 +563,34 @@ local function render(paths, out)
     local by_line, level = {}, 0
     for _, tok in ipairs(file.tokens) do
       by_line[tok.n] = by_line[tok.n] or {}
-      by_line[tok.n][#by_line[tok.n] + 1] = tok
+      table.insert(by_line[tok.n], tok)
     end
     for _, row in ipairs(file.rows) do
-      local here = file.path .. ':' .. row.n
+      local here, line = file.path .. ':' .. row.n, row.formal .. row.prose
       if row.kind == 'head' then
         local depth = #row.formal:match('^#+')
         put(('</details>'):rep(math.max(0, level - depth + 1)))
         put('<details open><summary class="heading">' .. escape(row.formal:sub(depth + 2)) .. '</summary>')
         level = depth
-      elseif row.kind == 'prose' then
-        put('<div class="prose">' .. link(row.prose:sub(4), nil) .. '</div>')
       else
-        local text, at = {}, 1
-        table.sort(by_line[row.n] or {}, function(x, y) return x.from < y.from end)
+        -- the line, token by token; prose runs to the end of the line
+        local text, at, prose = {}, row.kind == 'prose' and 4 or 1, false
+        table.sort(by_line[row.n] or {}, function(x, y) return x.from < y.from or x.from == y.from and x.to > y.to end)
         for _, tok in ipairs(by_line[row.n] or {}) do
-          if tok.to > #row.formal then break end -- the note's tokens: it is rendered whole, below
-          local piece = escape(row.formal:sub(tok.from, tok.to))
-          if tok.kind == 'rule' then
-            piece = (anchors[piece] == here and '<a id="%s"></a>%s' or '<a href="#%s">%s</a>'):format(piece, piece)
+          text[#text + 1] = escape(line:sub(at, tok.from - 1))
+          at = math.max(at, tok.from)
+          if tok.kind == 'prose' then
+            text[#text + 1], prose = '<span class="prose">', true
+          else
+            local piece = escape(line:sub(at, tok.to))
+            if tok.kind == 'rule' then
+              piece = (anchors[piece] == here and '<a id="%s"></a>%s' or '<a href="#%s">%s</a>'):format(piece, piece)
+            end
+            text[#text + 1] = ('<i class="%s">%s</i>'):format(tok.kind, piece)
+            at = tok.to + 1
           end
-          text[#text + 1] = escape(row.formal:sub(at, tok.from - 1))
-          text[#text + 1] = ('<i class="%s">%s</i>'):format(tok.kind, piece)
-          at = tok.to + 1
         end
-        text[#text + 1] = escape(row.formal:sub(at))
-        if row.prose ~= '' then text[#text + 1] = '<span class="prose">' .. link(row.prose, nil) .. '</span>' end
+        text[#text + 1] = escape(line:sub(at)) .. (prose and '</span>' or '')
         put('<div>' .. table.concat(text) .. '</div>')
       end
     end
@@ -573,7 +598,7 @@ local function render(paths, out)
   end
   local titles = {}
   for _, path in ipairs(paths) do titles[#titles + 1] = stem(path) end
-  local kinds, css = {}, { (CSS:gsub('%%RULE%%', M.colours.rule)) }
+  local kinds, css = {}, { CSS }
   for kind in pairs(M.colours) do kinds[#kinds + 1] = kind end
   table.sort(kinds)
   for _, kind in ipairs(kinds) do css[#css + 1] = ('.%s{color:%s}'):format(kind, M.colours[kind]) end
@@ -597,10 +622,25 @@ local function main(args)
     if #paths == 0 then
       for path in io.popen('ls "' .. DOCS .. '"/*.nspec 2>/dev/null'):lines() do paths[#paths + 1] = path end
     end
+    local function report(path, n, col, message)
+      io.write(('%s:%d:%d: %s\n'):format(path, n, col or 1, message))
+      bad = true
+    end
     for _, path in ipairs(paths) do
-      for _, f in ipairs((M.analyse(read(path), path))) do
-        io.write(('%s:%d:%d: %s\n'):format(path, f.n, f.col or 1, f.message))
-        bad = true
+      for _, f in ipairs((M.analyse(read(path), path))) do report(path, f.n, f.col, f.message) end
+    end
+    if #args == 0 then -- and the rules the sources cite
+      local names, prefixes = defined(), {}
+      for name in pairs(names) do prefixes[name:match('^[^-]+')] = true end
+      for path in io.popen('find "' .. HERE .. '/../src/ocaml" -name "*.ml*" 2>/dev/null'):lines() do
+        for n, line in ipairs(read(path)) do
+          for _, x in ipairs(names_in(line)) do
+            local _, dashes = x:gsub('%-', '')
+            if not names[x] and prefixes[x:match('^[^-]+')] and dashes > 1 then
+              report(path, n, line:find(x, 1, true), 'no foundation rule ' .. x)
+            end
+          end
+        end
       end
     end
     os.exit(bad and 1 or 0)

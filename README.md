@@ -6,7 +6,7 @@ checked by an elaborator/kernel pipeline: surface files elaborate to
 derivations that a small trusted kernel reads.
 Written in [OCaml](https://ocaml.org).
 
-See `docs/NovaFoundation.txt` for the theory, `docs/NovaPipeline.txt`
+See `docs/NovaFoundation.nspec` for the theory, `docs/NovaPipeline.txt`
 for the architecture and `docs/NovaKernel.nspec` for the kernel rules.
 Browse the rendered specs and syntax-highlighted `src/nova/*.nova`
 sources online at [russoul.github.io/Nova](https://russoul.github.io/Nova/).
@@ -25,7 +25,7 @@ With [dune](https://dune.build):
 ```
 dune build              # the nova executable, _build/default/src/ocaml/bin/main.exe
 dune exec -- nova       # run it
-make dev                # build, then the spec-rules check
+make dev                # build, then the spec check
 ```
 
 With [Nix](https://nixos.org) (flakes):
@@ -33,7 +33,7 @@ With [Nix](https://nixos.org) (flakes):
 ```
 nix build                # the nova executable
 nix run . -- <command>
-nix flake check          # the build and the spec-rules gate
+nix flake check          # the build and the spec-format gate
 nix develop              # a shell with ocaml, dune, ocaml-lsp, ocamlformat and utop
 ```
 

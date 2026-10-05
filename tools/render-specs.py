@@ -35,7 +35,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 FILES = [
-    ("foundation", "docs/NovaFoundation.txt", "Nova Foundation"),
     ("pipeline", "docs/NovaPipeline.txt", "Nova Pipeline"),
     ("strategy", "docs/NovaStrategy.txt", "Nova Strategy"),
 ]

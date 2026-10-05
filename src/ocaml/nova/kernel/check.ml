@@ -679,9 +679,9 @@ and qtm_check st ctx l phi (k : tm qty) (t : P.t qtm) : tm qtm * tm qtm =
         reject "a ToS term's synthesised and expected types do not agree";
       (t0, t1)
 
-(* [ᾱ] e˲₀ ≐ e˲₁ : Γ ⇒ Δ norm, the arguments of a reference against the
+(* [ᾱ] e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm, the arguments of a reference against the
    CONTEXT of its item, by sub-norm-ext-cong: a context and a normal
-   substitution are snoc lists, and the entry A of Δ ▷ A is checked at
+   substitution are snoc lists, and the entry A of Θ ▷ A is checked at
    A[e˲₁], e˲₁ the substitution built so far. The fold runs from the
    deepest entry. *)
 and norm_sub st ctx (delta : ctx) (ps : P.t list) : tm list * tm list =
@@ -731,7 +731,7 @@ let check_ctx st (ps : P.t list) : ctx =
       a1 :: ctx)
     [] (List.rev ps)
 
-(* Σ ⊦ (Δ ⊦ x : T) item, and Σ ⊦ (Δ ⊦ x ≔ t : T) item: the accepted
+(* Σ ⊦ (Θ ⊦ x : T) item, and Σ ⊦ (Θ ⊦ x ≔ t : T) item: the accepted
    item, to be appended to Σ by the caller. *)
 let check_item ~fuel (sg : Sig.t) ~(params : P.t list) ~(ty : P.t)
     ~(def : P.t option) : Sig.item =

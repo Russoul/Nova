@@ -1,7 +1,7 @@
 -- let-expressions: local definitions with judgemental transparency.
 --
 -- The body of `let x = e in b` is typed under x AND its unfolding
--- equation x ≡ e (docs/NovaFoundation.txt, el-let — the strong,
+-- equation x ≡ e (docs/NovaFoundation.nspec, el-let — the strong,
 -- definition-carrying form), so facts stated at the abbreviation
 -- discharge against facts about its unfolding silently: no manual
 -- unfolding, no transport, no plumbing. From the outside a let IS its

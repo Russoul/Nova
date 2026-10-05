@@ -40,18 +40,9 @@ in
   # The executable builds.
   nova = novaPkgs.nova;
 
-  # Rule-shaped citations in src/ocaml must all be defined by a spec,
-  # and rule names must be unique.
-  spec-rules = mkCheck "spec-rules" {
-    src = specs;
-    nativeBuildInputs = [ pkgs.python3 ];
-    script = ''
-      python3 tools/render-specs.py --check
-    '';
-  };
-
-  # The .nspec specs are well-formed: every rule line is a judgement of
-  # the grammar, and every rule name is the foundation's.
+  # The .nspec specs are well-formed: every formal line is a judgement of
+  # the grammar, every rule name is the foundation's and defined once, and
+  # so is every rule-shaped citation in src/ocaml.
   spec-format = mkCheck "spec-format" {
     src = specs;
     nativeBuildInputs = [ pkgs.luajit ];

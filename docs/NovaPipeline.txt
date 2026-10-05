@@ -9,7 +9,7 @@ elaborator's first implementation exposed a consistency-grade hole in
 trusted equality search (see "Why this shape" below); the individual
 layers are specified elsewhere:
 
-  * docs/NovaFoundation.txt   — the THEORY. Sole source of truth; every
+  * docs/NovaFoundation.nspec   — the THEORY. Sole source of truth; every
                                 other layer answers to it.
   * docs/NovaKernel.nspec       — the KERNEL, rule by rule: fuel-bounded
                                 normalization, proof checking, the
@@ -75,7 +75,7 @@ Consequences of the split:
     not a safety property.
   * The same holds for elaborator bugs generally: a wrong core term, a
     mis-substituted type, a bogus motive all die in the kernel.
-  * The kernel is small enough to audit against NovaFoundation.txt
+  * The kernel is small enough to audit against NovaFoundation.nspec
     rule by rule, and is the only component with that obligation.
 
 ////////// The artifact: annotated trees, not annotated terms //////////

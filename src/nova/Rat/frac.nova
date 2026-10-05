@@ -2,7 +2,7 @@
 -- denominator.
 --
 -- Why not `(d : Int) × (d ≢ 0)`: has no 𝕌-code (there is no
--- code for Ω or for p in 𝕌 — NovaFoundation.txt's Ω section says
+-- code for Ω or for p in 𝕌 — NovaFoundation.nspec's Ω section says
 -- so outright), so a Σ carrying a proof cannot be a code and Rat would
 -- be a large `type`: no Rat, no generic (A : 𝕌) combinators, no use
 -- as a code anywhere. Worse, it would be practically uninhabited —

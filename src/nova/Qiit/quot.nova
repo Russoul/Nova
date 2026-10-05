@@ -1,4 +1,4 @@
--- The quotient, SUBSUMED GENERICALLY (docs/NovaFoundation.txt,
+-- The quotient, SUBSUMED GENERICALLY (docs/NovaFoundation.nspec,
 -- IDENTITY note): the signature for A / R over its full ambient
 -- Γ = [a : 𝕌][r : a → a → Ω] — an arbitrary carrier and an
 -- arbitrary Ω-valued relation, cls x ≡ cls y imposed under (r x y).

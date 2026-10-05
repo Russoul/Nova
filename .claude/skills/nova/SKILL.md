@@ -356,7 +356,7 @@ data [a : 𝕌] [r : El a → El a → Ω]
 
 ## Where to look things up
 
-- `docs/NovaFoundation.txt` — the theory, sole source of truth; every
+- `docs/NovaFoundation.nspec` — the theory, sole source of truth; every
   rule is named and those names are cited in code comments.
 - `docs/NovaKernel.nspec` — certificates and approximations (A1–A6).
 - `docs/NovaPipeline.txt` — the trust architecture.

@@ -1,4 +1,4 @@
--- Finite multisets over ANY carrier code (docs/NovaFoundation.txt,
+-- Finite multisets over ANY carrier code (docs/NovaFoundation.nspec,
 -- worked example, over its ambient Γ = [a : 𝕌]): points quotiented by
 -- the swap equation. Every generated def abstracts over the carrier,
 -- and so does everything defined below — instances are applications.

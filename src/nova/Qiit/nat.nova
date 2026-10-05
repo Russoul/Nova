@@ -1,4 +1,4 @@
--- ℕ as a QIIT (docs/NovaFoundation.txt, SUBSUMPTION): a one-line
+-- ℕ as a QIIT (docs/NovaFoundation.nspec, SUBSUMPTION): a one-line
 -- signature, with the derived eliminator computing by el-qiit-beta.
 
 data

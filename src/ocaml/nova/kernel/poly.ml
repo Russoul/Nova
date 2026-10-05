@@ -1,5 +1,5 @@
 (* The polynomial meta-operations of the foundation's coinductive
-   section (docs/NovaFoundation.txt): hole filling ⌊𝔽⌋(c), the
+   section (docs/NovaFoundation.nspec): hole filling ⌊𝔽⌋(c), the
    functorial action map_𝔽 and the relator lift_𝔽(R). Each is defined
    by recursion on the polynomial; a bound piece sits under the binder
    its former opens, and the hole's argument weakens past it. *)
