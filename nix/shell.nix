@@ -12,7 +12,10 @@ in
       op.ocaml-lsp
       op.ocamlformat
       op.utop
-      pkgs.python3 # tools/render-specs.py
+      (pkgs.python3.withPackages (ps: [
+        ps.numpy # tools/pen/glyphs.py
+        ps.pillow # tools/pen/glyphs.py
+      ])) # tools/render-specs.py, tools/pen/glyphs.py
       pkgs.luajit # tools/nspec.lua
     ];
 
