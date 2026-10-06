@@ -6,6 +6,8 @@ import Foundation
 final class Relay: ObservableObject {
     @Published private(set) var lines: [String] = []
     @Published private(set) var version = ""
+    /// The version the relay last announced; differs from `version` until reloaded.
+    @Published private(set) var remote = ""
     @Published private(set) var status = "not connected"
 
     private var base: URL?
@@ -40,6 +42,7 @@ final class Relay: ObservableObject {
             if reply.text.hasSuffix("\n") { lines.removeLast() }
             self.lines = lines
             version = reply.version
+            remote = reply.version
             status = "\(lines.count) lines · \(reply.version.prefix(8))"
         } catch {
             status = "cannot load: \(error.localizedDescription)"
@@ -57,8 +60,8 @@ final class Relay: ObservableObject {
         receive(task)
     }
 
-    /// Each notice names the file's version; a new one means reload. (While
-    /// there is no ink, the editor is always clean, so it always reloads.)
+    /// Each notice names the file's version. Reloading is the editor's call:
+    /// it reloads only when clean, so no ink is lost under a changed text.
     private func receive(_ task: URLSessionWebSocketTask) {
         task.receive { [weak self] result in
             Task { @MainActor in
@@ -66,7 +69,7 @@ final class Relay: ObservableObject {
                 switch result {
                 case .success(.string(let text)):
                     let notice = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: String]
-                    if let version = notice?["version"], version != self.version { await self.load() }
+                    if let version = notice?["version"] { self.remote = version }
                     self.receive(task)
                 case .success:
                     self.receive(task)

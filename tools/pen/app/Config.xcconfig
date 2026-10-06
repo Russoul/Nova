@@ -1,0 +1,5 @@
+// Signing for a run on the iPad. Put your team in Local.xcconfig, which is
+// not committed (Xcode → Settings → Accounts shows it once you are signed in):
+//   DEVELOPMENT_TEAM = ABCDE12345
+CODE_SIGN_STYLE = Automatic
+#include? "Local.xcconfig"

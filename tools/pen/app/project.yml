@@ -14,6 +14,9 @@ targets:
   NovaPen:
     type: application
     platform: iOS
+    configFiles:
+      Debug: Config.xcconfig
+      Release: Config.xcconfig
     sources:
       - path: Sources
       - path: ../glyphs.json # tools/pen/glyphs.py's output, bundled as is
