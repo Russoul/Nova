@@ -141,6 +141,58 @@ func shift(of row: Int, by replacements: [Replacement]) -> Int {
     replacements.filter { $0.last < row }.reduce(0) { $0 + $1.growth }
 }
 
+/// Where a replaced block changed, character by character, as cells of the
+/// new block (row, column, from 0): the cells written anew, and the places
+/// text was removed from (where nothing was written in its stead).
+func changes(from old: [String], to new: [String]) -> (written: [Cell], removed: [Cell]) {
+    // The lines as one run of characters, newlines between them; each with its cell.
+    func run(_ lines: [String]) -> (chars: [Character], cells: [Cell]) {
+        var chars = [Character](), cells = [Cell]()
+        for (r, line) in lines.enumerated() {
+            if r > 0 {
+                chars.append("\n")
+                cells.append(Cell(row: r - 1, column: lines[r - 1].count))
+            }
+            for (c, ch) in line.enumerated() {
+                chars.append(ch)
+                cells.append(Cell(row: r, column: c))
+            }
+        }
+        return (chars, cells)
+    }
+    let (a, _) = run(old), (b, at) = run(new)
+    var gone = Set<Int>(), came = Set<Int>()
+    for change in b.difference(from: a) {
+        switch change {
+        case .remove(let offset, _, _): gone.insert(offset)
+        case .insert(let offset, _, _): came.insert(offset)
+        }
+    }
+    // Walk both runs together: what neither removed nor inserted is common, in order.
+    var written = [Cell](), removed = [Cell]()
+    var i = 0, j = 0
+    while i < a.count || j < b.count {
+        if i < a.count, gone.contains(i) {
+            let spot = j < b.count ? at[j] : at.last.map { Cell(row: $0.row, column: $0.column + 1) } ?? Cell(row: 0, column: 0)
+            if removed.last != spot { removed.append(spot) }
+            i += 1
+        } else if j < b.count, came.contains(j) {
+            if b[j] != "\n" { written.append(at[j]) }
+            j += 1
+        } else {
+            i += 1
+            j += 1
+        }
+    }
+    return (written, removed.filter { !written.contains($0) })
+}
+
+/// A character's place in the text: row and column, from 0.
+struct Cell: Hashable {
+    let row: Int
+    let column: Int
+}
+
 // Geometry ---------------------------------------------------------------------
 
 private func resample(_ points: [CGPoint], every step: CGFloat) -> [CGPoint] {

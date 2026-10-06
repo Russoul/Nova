@@ -23,14 +23,20 @@ final class PageView: UIView {
 
     required init?(coder: NSCoder) { fatalError("not from a storyboard") }
 
-    func show(_ layout: Layout) {
+    /// New text. With `redraw`, only that part of the page is drawn again
+    /// (where the text changed); without it, all of it.
+    func show(_ layout: Layout, redraw: CGRect? = nil) {
         text = UIColor.label.resolvedColor(with: traitCollection).cgColor
         lock.withLock {
             self.layout = layout
             marks = []
         }
-        layer.contents = nil
-        layer.setNeedsDisplay()
+        if let redraw {
+            layer.setNeedsDisplay(redraw)
+        } else {
+            layer.contents = nil
+            layer.setNeedsDisplay()
+        }
     }
 
     /// The marks now; `changed` is where they differ from before.
@@ -86,6 +92,7 @@ final class InkView: UIView {
     private var points: [CGPoint] = []
     private let live = CAShapeLayer()
     private var bands: [CAShapeLayer] = []
+    private var flashing: CALayer?
     private static let tints: [UIColor] = [.systemOrange, .systemGreen, .systemPink, .systemTeal, .systemPurple, .systemYellow]
 
     /// Pen and eraser widths stay the same on screen whatever the zoom.
@@ -117,6 +124,58 @@ final class InkView: UIView {
             band.fillColor = InkView.tints[k % InkView.tints.count].withAlphaComponent(0.14).cgColor
             layer.insertSublayer(band, below: live)
             return band
+        }
+    }
+
+    /// Show briefly what a text edit changed: cells written anew tinted, with
+    /// their characters drawn over everything (text restored by an undo can
+    /// lie under the eraser that comes back with it), and a bar where text
+    /// was removed; then fade. A new flash replaces one still showing.
+    func flash(written: [Cell], removed: [Cell], in layout: Layout) {
+        flashing?.removeFromSuperlayer()
+        guard !written.isEmpty || !removed.isEmpty else { return }
+        let cw = layout.cellWidth, lh = layout.lineHeight
+        let tint = CAShapeLayer(), bars = CAShapeLayer(), glyphs = CAShapeLayer()
+        let tintPath = CGMutablePath(), barPath = CGMutablePath(), glyphPath = CGMutablePath()
+        for cell in written {
+            tintPath.addRect(CGRect(origin: layout.origin(cell.row, cell.column), size: CGSize(width: cw, height: lh)))
+            for stroke in layout.strokes(cell.row, cell.column) {
+                guard let first = stroke.first else { continue }
+                glyphPath.move(to: first)
+                glyphPath.addLines(between: stroke.count > 1 ? stroke : [first, first])
+            }
+        }
+        glyphs.path = glyphPath
+        glyphs.fillColor = nil
+        glyphs.strokeColor = UIColor.systemGreen.cgColor
+        glyphs.lineWidth = layout.glyphs.pen * Layout.em
+        glyphs.lineCap = .round
+        glyphs.lineJoin = .round
+        for cell in removed {
+            let o = layout.origin(cell.row, cell.column)
+            barPath.addRect(CGRect(x: o.x - lh * 0.04, y: o.y + lh * 0.1, width: lh * 0.08, height: lh * 0.8))
+        }
+        tint.path = tintPath
+        tint.fillColor = UIColor.systemGreen.withAlphaComponent(0.3).cgColor
+        bars.path = barPath
+        bars.fillColor = UIColor.systemRed.withAlphaComponent(0.8).cgColor
+        let group = CALayer()
+        group.addSublayer(tint)
+        group.addSublayer(glyphs)
+        group.addSublayer(bars)
+        layer.insertSublayer(group, below: live)
+        flashing = group
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 1
+        fade.toValue = 0
+        fade.beginTime = CACurrentMediaTime() + 1.0
+        fade.duration = 1.0
+        fade.fillMode = .forwards
+        fade.isRemovedOnCompletion = false
+        group.add(fade, forKey: "fade")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.1) { [weak self] in
+            group.removeFromSuperlayer()
+            if self?.flashing === group { self?.flashing = nil }
         }
     }
 
@@ -184,13 +243,13 @@ final class PageScroll: UIScrollView, UIScrollViewDelegate {
 
     required init?(coder: NSCoder) { fatalError("not from a storyboard") }
 
-    func show(_ layout: Layout) {
+    func show(_ layout: Layout, redraw: CGRect? = nil) {
         let size = layout.size
         page.bounds = CGRect(origin: .zero, size: size)
         page.center = CGPoint(x: size.width * zoomScale / 2, y: size.height * zoomScale / 2)
         contentSize = CGSize(width: size.width * zoomScale, height: size.height * zoomScale)
         ink.frame = page.bounds
-        page.show(layout)
+        page.show(layout, redraw: redraw)
         ink.show([], in: layout)
     }
 

@@ -136,7 +136,7 @@ final class Editor: ObservableObject {
                     return Mark(tool: mark.tool, points: mark.points.map { CGPoint(x: $0.x, y: $0.y + dy) }, width: mark.width)
                 }
                 steps = [.recognition(undo: inverse(of: replacements, in: lines), marks: marks)]
-                take(result, version: newVersion, marks: kept)
+                take(result, version: newVersion, marks: kept, changed: replacements)
             }
         } catch {
             problem = error.localizedDescription
@@ -164,7 +164,7 @@ final class Editor: ObservableObject {
                     steps = []
                 case .done(let newVersion):
                     steps.removeLast()
-                    take(restored, version: newVersion, marks: before)
+                    take(restored, version: newVersion, marks: before, changed: undo)
                     steps += before.map { _ in .mark }
                 }
             } catch {
@@ -184,15 +184,40 @@ final class Editor: ObservableObject {
 
     // The page ---------------------------------------------------------------
 
-    private func take(_ lines: [String], version: String, marks: [Mark]) {
+    /// Show new text with these marks. `changed` are the replacements that
+    /// made it from the text shown now: then only the rows they touched are
+    /// drawn again (all rows below, if the line count changed), and what they
+    /// changed flashes. Without them the whole page is drawn again.
+    private func take(_ lines: [String], version: String, marks: [Mark], changed: [Replacement]? = nil) {
+        let old = self.lines, oldLayout = layout, oldMarks = self.marks
         self.lines = lines
         self.version = version
         let layout = Layout(rows: lines.map(Array.init), glyphs: .bundled)
         self.layout = layout
         self.marks = marks
         edited = Set(marks.flatMap { layout.rows(editedBy: $0) })
-        scroll?.show(layout)
-        refresh(changed: marks.reduce(CGRect.null) { $0.union($1.bounds) })
+        var redraw: CGRect?
+        if let changed, let first = changed.map(\.first).min() {
+            let width = max(layout.size.width, oldLayout?.size.width ?? 0)
+            func band(_ rows: Range<Int>) -> CGRect {
+                CGRect(x: 0, y: layout.origin(rows.lowerBound, 0).y, width: width, height: CGFloat(rows.count) * layout.lineHeight)
+            }
+            redraw = changed.contains { $0.growth != 0 }
+                ? band(first..<max(old.count, lines.count))
+                : changed.reduce(CGRect.null) { $0.union(band($1.first..<($1.last + 1))) }
+        }
+        scroll?.show(layout, redraw: redraw)
+        refresh(changed: (oldMarks + marks).reduce(CGRect.null) { $0.union($1.bounds) })
+        guard let changed else { return }
+        var shift = 0, written = [Cell](), removed = [Cell]()
+        for r in changed.sorted(by: { $0.first < $1.first }) {
+            let top = r.first + shift
+            let d = changes(from: Array(old[r.first..<(r.last + 1)]), to: r.lines)
+            written += d.written.map { Cell(row: $0.row + top, column: $0.column) }
+            removed += d.removed.map { Cell(row: $0.row + top, column: $0.column) }
+            shift += r.growth
+        }
+        scroll?.ink.flash(written: written, removed: removed, in: layout)
     }
 
     private func refresh(changed: CGRect) {
