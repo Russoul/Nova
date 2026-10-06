@@ -51,6 +51,7 @@ final class Editor: ObservableObject {
     }
 
     var isClean: Bool { marks.isEmpty }
+    var layoutShown: Layout? { layout }
     var canUndo: Bool { !steps.isEmpty && activity == nil }
     var editedRows: Int { edited.count }
 

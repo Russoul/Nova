@@ -63,6 +63,9 @@ struct ContentView: View {
         guard editor.isClean else { return }
         if editor.version != relay.version { editor.show(relay.lines, version: relay.version) }
         if relay.remote != relay.version { Task { await relay.load() } }
+        #if DEBUG
+        Demo.run(editor, relay)
+        #endif
     }
 
     private var summary: String {
