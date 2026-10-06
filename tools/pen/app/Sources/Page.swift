@@ -10,6 +10,7 @@ final class PageView: UIView {
     private var layout: Layout?
     private var marks: [Mark] = []
     private var text = UIColor.label.cgColor
+    private var palette: [TokenKind: CGColor] = [:]
     private let ink = UIColor.systemBlue.cgColor
 
     override init(frame: CGRect) {
@@ -23,16 +24,17 @@ final class PageView: UIView {
 
     required init?(coder: NSCoder) { fatalError("not from a storyboard") }
 
-    /// New text. With `redraw`, only that part of the page is drawn again
-    /// (where the text changed); without it, all of it.
-    func show(_ layout: Layout, redraw: CGRect? = nil) {
+    /// New text. With `redraw`, only those parts of the page are drawn again
+    /// (where the text or its colours changed); without it, all of it.
+    func show(_ layout: Layout, redraw: [CGRect]? = nil) {
         text = UIColor.label.resolvedColor(with: traitCollection).cgColor
+        palette = TokenKind.palette(for: traitCollection)
         lock.withLock {
             self.layout = layout
             marks = []
         }
         if let redraw {
-            layer.setNeedsDisplay(redraw)
+            redraw.forEach { layer.setNeedsDisplay($0) }
         } else {
             layer.contents = nil
             layer.setNeedsDisplay()
@@ -50,18 +52,22 @@ final class PageView: UIView {
         let (layout, marks) = lock.withLock { (self.layout, self.marks) }
         guard let layout else { return }
         let (rows, columns) = layout.cells(in: rect)
-        let path = CGMutablePath()
+        var paths: [TokenKind?: CGMutablePath] = [:] // one path per kind, plain text under nil
         for r in rows {
             for c in columns where c < layout.rows[r].count {
+                let kind = layout.kind(r, c), path = paths[kind] ?? CGMutablePath()
                 for stroke in layout.strokes(r, c) { add(stroke, to: path) }
+                paths[kind] = path
             }
         }
         ctx.setLineCap(.round)
         ctx.setLineJoin(.round)
-        ctx.addPath(path)
-        ctx.setStrokeColor(text)
         ctx.setLineWidth(layout.glyphs.pen * Layout.em)
-        ctx.strokePath()
+        for (kind, path) in paths {
+            ctx.addPath(path)
+            ctx.setStrokeColor(kind.flatMap { palette[$0] } ?? text)
+            ctx.strokePath()
+        }
         for mark in marks where mark.bounds.intersects(rect) {
             let path = CGMutablePath()
             add(mark.points, to: path)
@@ -243,7 +249,7 @@ final class PageScroll: UIScrollView, UIScrollViewDelegate {
 
     required init?(coder: NSCoder) { fatalError("not from a storyboard") }
 
-    func show(_ layout: Layout, redraw: CGRect? = nil) {
+    func show(_ layout: Layout, redraw: [CGRect]? = nil) {
         let size = layout.size
         page.bounds = CGRect(origin: .zero, size: size)
         page.center = CGPoint(x: size.width * zoomScale / 2, y: size.height * zoomScale / 2)
@@ -254,4 +260,31 @@ final class PageScroll: UIScrollView, UIScrollViewDelegate {
     }
 
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { page }
+}
+
+extension TokenKind {
+    /// The colours of the kinds: tools/nspec.lua's `M.colours` on a dark page
+    /// (as in Neovim), and darker twins of the same hues on a light one.
+    /// A heading takes the page's own text colour, as in Neovim.
+    static func palette(for traits: UITraitCollection) -> [TokenKind: CGColor] {
+        let dark = traits.userInterfaceStyle == .dark
+        var out = [TokenKind: CGColor]()
+        for kind in [TokenKind.prose, .bar, .rule, .keyword, .nova, .level, .index, .tos, .proof] {
+            let (onDark, onLight): (UInt32, UInt32) = switch kind {
+            case .prose: (0xa6adc8, 0x6c6f85)
+            case .bar: (0x6c7086, 0x9ca0b0)
+            case .rule: (0xa995d6, 0x7254b8)
+            case .keyword: (0xf9e2af, 0xb7791f)
+            case .nova: (0x5c6370, 0x7c7f93)
+            case .level, .index: (0xfab387, 0xd2560a)
+            case .tos: (0x53cad4, 0x14838c)
+            case .proof: (0xcba6f7, 0x8839ef)
+            case .heading: (0, 0)
+            }
+            let rgb = dark ? onDark : onLight
+            out[kind] = CGColor(srgbRed: CGFloat(rgb >> 16 & 0xff) / 255, green: CGFloat(rgb >> 8 & 0xff) / 255,
+                                blue: CGFloat(rgb & 0xff) / 255, alpha: 1)
+        }
+        return out
+    }
 }

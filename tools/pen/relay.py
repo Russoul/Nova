@@ -5,9 +5,17 @@ It serves one spec file to the iPad, applies the iPad's edits to it, turns
 handwritten edits into text with `claude -p` (the user's Claude login), and
 checks every candidate with the spec checker before offering it.
 
-  GET  /file       {"text", "version"}; a version is the SHA-256 of the file
+  GET  /file       {"text", "version", "tokens"}; a version is the SHA-256 of
+                   the file; tokens are per line, [from, to, kind] (bytes of the
+                   line, from 1, inclusive; a later token wins where they overlap)
   POST /edit       {"base", "replacements": [{"first", "last", "lines"}]}
-                   -> {"version"}, or 409 {"version"} if the file is not at base
+                   -> {"version", "tokens": {LINE: [...]}}, or 409 {"version"}
+                   if the file is not at base. The tokens are those of each line
+                   (numbered from 0, in the new text) whose tokens are not what
+                   the base's would be with only the replaced lines changed: a
+                   replaced line always, others when the analysis moved (a
+                   metavariable's category is the rule's; a grammar line's edit
+                   reaches the whole file)
   POST /recognise  {"base", "requests": [{"spans": [{"first", "last", "image"}]}]}
                    -> {"results": [{"chosen", "candidates", ...}]}, or 409
   GET  /events     a WebSocket: {"version"} now, and whenever the file changes
@@ -100,20 +108,29 @@ class Checker:
     def __init__(self):
         self.proc, self.lock = None, asyncio.Lock()
 
-    async def findings(self, path, lines):
+    async def analyse(self, path, lines):
+        """The findings (line, column, message), and the tokens of each line:
+        [from, to, kind], bytes of the line from 1, inclusive, in order."""
         async with self.lock:
             if self.proc is None or self.proc.returncode is not None:
                 self.proc = await asyncio.create_subprocess_exec(
                     'luajit', os.path.join(HERE, 'check.lua'),
-                    stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE)
+                    stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, limit=1 << 20)
             body = '%s\t%d\n' % (path, len(lines)) + ''.join(line + '\n' for line in lines)
             self.proc.stdin.write(body.encode('utf-8'))
             await self.proc.stdin.drain()
-            out = []
+            findings, tokens = [], [[] for _ in lines]
             for _ in range(int(await self.proc.stdout.readline())):
                 n, col, message = (await self.proc.stdout.readline()).decode('utf-8').rstrip('\n').split('\t', 2)
-                out.append((int(n), int(col), message))
-            return out
+                findings.append((int(n), int(col), message))
+            for _ in range(int(await self.proc.stdout.readline())):
+                n, a, b, kind = (await self.proc.stdout.readline()).decode('utf-8').rstrip('\n').split('\t')
+                if 0 < int(n) <= len(lines):
+                    tokens[int(n) - 1].append([int(a), int(b), kind])
+            return findings, tokens
+
+    async def findings(self, path, lines):
+        return (await self.analyse(path, lines))[0]
 
 
 def by_content(findings, lines):
@@ -268,10 +285,23 @@ def log(cfg, entry, requests):
 
 # HTTP -----------------------------------------------------------------------
 
+async def tokens(cfg, lines, version):
+    """The tokens of the file at a version, analysed once and kept for the
+    last few versions (an edit's reply sends what changed since its base)."""
+    if version not in cfg.tokens:
+        cfg.tokens[version] = (await cfg.checker.analyse(cfg.path, lines))[1]
+        while len(cfg.tokens) > 4:
+            cfg.tokens.popitem(last=False)
+    return cfg.tokens[version]
+
+
 async def get_file(request):
     cfg = request.app['cfg']
     lines, final, version = load(cfg.path)
-    return web.json_response({'text': '\n'.join(lines) + ('\n' if final else ''), 'version': version})
+    reply = web.json_response({'text': '\n'.join(lines) + ('\n' if final else ''), 'version': version,
+                               'tokens': await tokens(cfg, lines, version)})
+    reply.enable_compression()
+    return reply
 
 
 async def post_edit(request):
@@ -285,7 +315,14 @@ async def post_edit(request):
             edited = apply(lines, body['replacements'])
         except (ValueError, KeyError, TypeError) as e:
             return web.json_response({'error': str(e)}, status=400)
-        return web.json_response({'version': store(cfg.path, edited, final)})
+        before = await tokens(cfg, lines, version)
+        new_version = store(cfg.path, edited, final)
+        after = await tokens(cfg, edited, new_version)
+    # The tokens the iPad would have if nothing but the replaced lines changed;
+    # send each line whose tokens differ (a replaced line always: it had none).
+    expected = apply(before, [dict(r, lines=[None] * len(r['lines'])) for r in body['replacements']])
+    changed = {str(r): t for r, (t, e) in enumerate(zip(after, expected)) if t != e}
+    return web.json_response({'version': new_version, 'tokens': changed})
 
 
 async def post_recognise(request):
@@ -351,6 +388,7 @@ def main():
     cfg.known = inventory() | set(open(cfg.path, encoding='utf-8').read()) - {'\n', '\r'}
     cfg.system = system_prompt(cfg.path, cfg.known)
     cfg.checker, cfg.write_lock, cfg.sockets, cfg.baselines = Checker(), asyncio.Lock(), set(), {}
+    cfg.tokens = collections.OrderedDict()
 
     app = web.Application(client_max_size=64 * 1024 * 1024)
     app['cfg'] = cfg
@@ -361,8 +399,8 @@ def main():
 
     async def start(app):
         app['watch'] = asyncio.create_task(watch(cfg))
-        lines = load(cfg.path)[0]  # build the checker's grammar now, not on the first recognition
-        await cfg.checker.findings(cfg.path, lines)
+        lines, _, version = load(cfg.path)  # build the checker's grammar now, not on the first request
+        await tokens(cfg, lines, version)
 
     app.on_startup.append(start)
     print('relay for %s on http://127.0.0.1:%d (system prompt %d chars)' % (cfg.path, cfg.port, len(cfg.system)),

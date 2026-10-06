@@ -5,6 +5,8 @@ import Foundation
 @MainActor
 final class Relay: ObservableObject {
     @Published private(set) var lines: [String] = []
+    /// Each line's tokens, as the checker reads them, for the same version.
+    private(set) var tokens: [[Token]] = []
     @Published private(set) var version = ""
     /// The version the relay last announced; differs from `version` until reloaded.
     @Published private(set) var remote = ""
@@ -12,11 +14,6 @@ final class Relay: ObservableObject {
 
     private var base: URL?
     private var socket: URLSessionWebSocketTask?
-
-    private struct FileReply: Decodable {
-        let text: String
-        let version: String
-    }
 
     func connect(to address: String) {
         socket?.cancel(with: .goingAway, reason: nil)
@@ -37,13 +34,17 @@ final class Relay: ObservableObject {
         guard let base else { return }
         do {
             let (data, _) = try await URLSession.shared.data(from: base.appending(path: "file"))
-            let reply = try JSONDecoder().decode(FileReply.self, from: data)
-            var lines = reply.text.components(separatedBy: "\n")
-            if reply.text.hasSuffix("\n") { lines.removeLast() }
+            guard let reply = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let text = reply["text"] as? String, let version = reply["version"] as? String
+            else { throw URLError(.cannotParseResponse) }
+            var lines = text.components(separatedBy: "\n")
+            if text.hasSuffix("\n") { lines.removeLast() }
+            let rows = reply["tokens"] as? [Any] ?? []
+            tokens = lines.indices.map { $0 < rows.count ? parseTokens(rows[$0]) : [] }
             self.lines = lines
-            version = reply.version
-            remote = reply.version
-            status = "\(lines.count) lines · \(reply.version.prefix(8))"
+            self.version = version
+            remote = version
+            status = "\(lines.count) lines · \(version.prefix(8))"
         } catch {
             status = "cannot load: \(error.localizedDescription)"
         }
@@ -83,8 +84,10 @@ final class Relay: ObservableObject {
     }
 
     /// Make replacements to the file at version `base`, giving `lines`. On
-    /// success the relay's text is taken as `lines` at the new version.
-    func edit(base: String, _ replacements: [Replacement], giving lines: [String]) async throws -> Reply<String> {
+    /// success the relay's text is taken as `lines` at the new version, with
+    /// its tokens: the ones there were, moved with the text, and those of
+    /// every line whose analysis changed, from the reply.
+    func edit(base: String, _ replacements: [Replacement], giving lines: [String]) async throws -> Reply<(version: String, tokens: [[Token]])> {
         let body: [String: Any] = ["base": base, "replacements": replacements.map {
             ["first": $0.first + 1, "last": $0.last + 1, "lines": $0.lines]
         }]
@@ -92,11 +95,16 @@ final class Relay: ObservableObject {
         if code == 409 { return .stale }
         guard let reply = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let version = reply["version"] as? String else { throw URLError(.badServerResponse) }
+        var delta = [Int: [Token]]()
+        for (row, value) in reply["tokens"] as? [String: Any] ?? [:] {
+            if let r = Int(row) { delta[r] = parseTokens(value) }
+        }
+        tokens = movingTokens(tokens, after: replacements, delta: delta)
         self.lines = lines
         self.version = version
         remote = version
         status = "\(lines.count) lines · \(version.prefix(8))"
-        return .done(version)
+        return .done((version, tokens))
     }
 
     private func post(_ path: String, _ body: [String: Any]) async throws -> (Data, Int) {

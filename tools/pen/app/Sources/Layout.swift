@@ -9,6 +9,24 @@ struct Layout {
 
     let rows: [[Character]]
     let glyphs: Glyphs
+    /// Each cell's token kind, from the checker; nil (or missing) draws plain.
+    var kinds: [[TokenKind?]] = []
+
+    /// A layout of lines and their tokens.
+    init(rows: [[Character]], glyphs: Glyphs, kinds: [[TokenKind?]] = []) {
+        self.rows = rows
+        self.glyphs = glyphs
+        self.kinds = kinds
+    }
+
+    init(lines: [String], tokens: [[Token]], glyphs: Glyphs) {
+        self.init(rows: lines.map(Array.init), glyphs: glyphs,
+                  kinds: zip(lines, tokens).map { cellKinds($0, $1) })
+    }
+
+    func kind(_ r: Int, _ c: Int) -> TokenKind? {
+        kinds.indices.contains(r) && kinds[r].indices.contains(c) ? kinds[r][c] : nil
+    }
 
     var cellWidth: CGFloat { glyphs.cell * Layout.em }
     var lineHeight: CGFloat { (glyphs.ascent + glyphs.descent) * Layout.em }

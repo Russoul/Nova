@@ -7,7 +7,10 @@
 -- Requests on stdin, one after another:
 --   PATH TAB N NEWLINE, then the file's N lines
 -- answered on stdout with
---   K NEWLINE, then K findings `LINE TAB COL TAB MESSAGE`
+--   K NEWLINE, then K findings `LINE TAB COL TAB MESSAGE`,
+--   T NEWLINE, then T tokens `LINE TAB FROM TAB TO TAB KIND`
+-- (a token's FROM and TO are bytes of its line, from 1, inclusive; where
+-- tokens overlap, a later one is the more specific: a rule cited in prose)
 -- PATH is the file the text stands for: it decides whether the foundation's
 -- grammar and rules are cited (they are, unless PATH is the foundation).
 -- When the text IS the foundation, its rule names are read from the text
@@ -31,11 +34,17 @@ while true do
     f:close()
     nspec.foundation = function() return scratch end
   end
-  local findings = nspec.analyse(lines, path)
+  local findings, tokens = nspec.analyse(lines, path)
   io.write(#findings, '\n')
   for _, f in ipairs(findings) do
     io.write(f.n, '\t', f.col or 1, '\t', (f.message:gsub('[\t\n]', ' ')), '\n')
   end
+  local shown = {}
+  for _, t in ipairs(tokens) do
+    if t.from and t.to then shown[#shown + 1] = t end
+  end
+  io.write(#shown, '\n')
+  for _, t in ipairs(shown) do io.write(t.n, '\t', t.from, '\t', t.to, '\t', t.kind, '\n') end
   io.flush()
 end
 os.remove(scratch)

@@ -34,6 +34,8 @@ final class Editor: ObservableObject {
     }
 
     private(set) var lines: [String] = []
+    /// Each line's tokens, for colouring.
+    private(set) var tokens: [[Token]] = []
     /// The relay's version of the text shown.
     private(set) var version = ""
     private var layout: Layout?
@@ -56,10 +58,10 @@ final class Editor: ObservableObject {
     var editedRows: Int { edited.count }
 
     /// New text from the relay; shown only when clean, so no marks are lost under it.
-    func show(_ lines: [String], version: String) {
+    func show(_ lines: [String], tokens: [[Token]], version: String) {
         guard isClean else { return }
         steps = []
-        take(lines, version: version, marks: [])
+        take(lines, tokens: tokens, version: version, marks: [])
     }
 
     func add(_ mark: Mark) {
@@ -128,7 +130,7 @@ final class Editor: ObservableObject {
             switch try await relay.edit(base: version, replacements, giving: result) {
             case .stale:
                 dropInk()
-            case .done(let newVersion):
+            case .done(let (newVersion, newTokens)):
                 let kept = marks.compactMap { mark -> Mark? in
                     let rows = layout.rows(editedBy: mark)
                     guard let first = rows.min(), rows.isSubset(of: keepRows) else { return nil }
@@ -136,7 +138,7 @@ final class Editor: ObservableObject {
                     return Mark(tool: mark.tool, points: mark.points.map { CGPoint(x: $0.x, y: $0.y + dy) }, width: mark.width)
                 }
                 steps = [.recognition(undo: inverse(of: replacements, in: lines), marks: marks)]
-                take(result, version: newVersion, marks: kept, changed: replacements)
+                take(result, tokens: newTokens, version: newVersion, marks: kept, changed: replacements)
             }
         } catch {
             problem = error.localizedDescription
@@ -162,9 +164,9 @@ final class Editor: ObservableObject {
                 case .stale:
                     problem = "The file changed on the Mac since; the recognition cannot be undone."
                     steps = []
-                case .done(let newVersion):
+                case .done(let (newVersion, newTokens)):
                     steps.removeLast()
-                    take(restored, version: newVersion, marks: before, changed: undo)
+                    take(restored, tokens: newTokens, version: newVersion, marks: before, changed: undo)
                     steps += before.map { _ in .mark }
                 }
             } catch {
@@ -186,25 +188,31 @@ final class Editor: ObservableObject {
 
     /// Show new text with these marks. `changed` are the replacements that
     /// made it from the text shown now: then only the rows they touched are
-    /// drawn again (all rows below, if the line count changed), and what they
-    /// changed flashes. Without them the whole page is drawn again.
-    private func take(_ lines: [String], version: String, marks: [Mark], changed: [Replacement]? = nil) {
-        let old = self.lines, oldLayout = layout, oldMarks = self.marks
+    /// drawn again (all rows below, if the line count changed), with every
+    /// row whose tokens changed (the rest of a rule; after a grammar edit,
+    /// rows anywhere), and what they changed flashes. Without them the whole
+    /// page is drawn again.
+    private func take(_ lines: [String], tokens: [[Token]], version: String, marks: [Mark], changed: [Replacement]? = nil) {
+        let old = self.lines, oldTokens = self.tokens, oldLayout = layout, oldMarks = self.marks
         self.lines = lines
+        self.tokens = tokens
         self.version = version
-        let layout = Layout(rows: lines.map(Array.init), glyphs: .bundled)
+        let layout = Layout(lines: lines, tokens: tokens, glyphs: .bundled)
         self.layout = layout
         self.marks = marks
         edited = Set(marks.flatMap { layout.rows(editedBy: $0) })
-        var redraw: CGRect?
+        var redraw: [CGRect]?
         if let changed, let first = changed.map(\.first).min() {
             let width = max(layout.size.width, oldLayout?.size.width ?? 0)
             func band(_ rows: Range<Int>) -> CGRect {
                 CGRect(x: 0, y: layout.origin(rows.lowerBound, 0).y, width: width, height: CGFloat(rows.count) * layout.lineHeight)
             }
-            redraw = changed.contains { $0.growth != 0 }
-                ? band(first..<max(old.count, lines.count))
-                : changed.reduce(CGRect.null) { $0.union(band($1.first..<($1.last + 1))) }
+            let edited = changed.contains { $0.growth != 0 }
+                ? [band(first..<max(old.count, lines.count))]
+                : changed.map { band($0.first..<($0.last + 1)) }
+            let moved = movingTokens(oldTokens, after: changed, delta: [:])
+            let recoloured = tokens.indices.filter { $0 < moved.count && tokens[$0] != moved[$0] }.map { band($0..<($0 + 1)) }
+            redraw = edited + recoloured
         }
         scroll?.show(layout, redraw: redraw)
         refresh(changed: (oldMarks + marks).reduce(CGRect.null) { $0.union($1.bounds) })
