@@ -1,0 +1,35 @@
+# The pen editor's iPad app. The Xcode project is generated from this file:
+#   nix run nixpkgs#xcodegen -- generate     (in tools/pen/app)
+# then open NovaPen.xcodeproj, choose a signing team, and run on the iPad.
+name: NovaPen
+options:
+  bundleIdPrefix: org.nova
+  deploymentTarget:
+    iOS: "18.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0" # tiled drawing runs off the main thread; Swift 6's isolation checks would trap it
+    TARGETED_DEVICE_FAMILY: "2"
+targets:
+  NovaPen:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: ../glyphs.json # tools/pen/glyphs.py's output, bundled as is
+        buildPhase: resources
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Nova Pen
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true # plain http to the relay on this Mac, from the simulator
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.nova.pen
