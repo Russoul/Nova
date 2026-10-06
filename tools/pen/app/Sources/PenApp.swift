@@ -10,7 +10,7 @@ struct PenApp: App {
 struct ContentView: View {
     @StateObject private var relay = Relay()
     @StateObject private var editor = Editor()
-    @AppStorage("relay") private var address = "http://127.0.0.1:8765"
+    @AppStorage("relay") private var address = Bundle.main.object(forInfoDictionaryKey: "NovaPenRelay") as? String ?? "http://127.0.0.1:8765"
 
     var body: some View {
         VStack(spacing: 0) {

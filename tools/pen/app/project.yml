@@ -25,6 +25,7 @@ targets:
       path: Info.plist
       properties:
         CFBundleDisplayName: Nova Pen
+        NovaPenRelay: $(PEN_RELAY) # the relay to connect to until another is entered
         UILaunchScreen: {}
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationPortrait

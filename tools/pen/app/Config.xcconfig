@@ -1,5 +1,9 @@
-// Signing for a run on the iPad. Put your team in Local.xcconfig, which is
-// not committed (Xcode → Settings → Accounts shows it once you are signed in):
+// Signing for a run on the iPad, and the relay the app connects to first.
+// Set both in Local.xcconfig, which is not committed:
 //   DEVELOPMENT_TEAM = ABCDE12345
+//   PEN_RELAY = https:/$()/your-mac.your-tailnet.ts.net
+// (`/$()/` keeps `//` from starting a comment.) The relay defaults to this
+// Mac's own, which is what the simulator reaches.
 CODE_SIGN_STYLE = Automatic
+PEN_RELAY = http:/$()/127.0.0.1:8765
 #include? "Local.xcconfig"
