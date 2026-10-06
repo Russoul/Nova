@@ -287,7 +287,7 @@ l̄ |= (l̄)
 ℓ |= ℓ + ℓ | ℓ ⊔ ℓ | (ℓ) | |𝒰|
 i |= i + i | |Γ| | |Φ|
 t, w |= t[σ] | (t) | Γ‖ᵢ | (t / l̄ ↪ Δ)‖ₗ | (l̄ ↪ ē)(l) | 𝒰
-    | ⟦𝔄⟧ | ⟦𝕥⟧ | ⟦𝔄⟧_{Γ;Φ} | ⟦𝕥⟧_{Γ;Φ}
+    | ⟦𝔄⟧ | ⟦𝕥⟧
     | ē(𝕤) ē t | m_𝕔 ē | h_𝕤 | h
     | ⌊𝔽⌋(t) | map_𝔽 t t | map_{𝔽} t t | lift_𝔽(t) | lift_{𝔽}(t) | Π Δ. t
 𝔽 |= 𝔽[σ] | (𝔽)
@@ -296,7 +296,7 @@ h, φ ::= <section> | hᵉˡ
 ī ::= <arguments>
 𝒰̄ ::= · | 𝒰, 𝒰̄
 Φ |= Φ[σ] | (Φ) | ⌈𝒮⌉
-𝔄 |= 𝔄[σ] | 𝔄[ς] | 𝔄[t] | 𝔄[𝕥] | (𝔄) | Φ‖ᵢ | 𝒮(𝕤) | 𝒮(𝕔) | 𝒮(i) | Φ(i)
+𝔄 |= 𝔄[σ] | 𝔄[ς] | (𝔄) | Φ‖ᵢ | 𝒮(𝕤) | 𝒮(𝕔) | 𝒮(i) | Φ(i)
 𝕥 |= 𝕥[σ] | 𝕥[ς] | (𝕥) | 𝕤 ī
 ς |= (ς) | ς[σ] | ς⁺
 
@@ -315,7 +315,7 @@ J ::= Σ sig | Γ ctx | Γ ≐ Γ ctx | Σ Γ ctx
     | Γ ⊦ Φ qctx | Γ ⊦ Φ ≐ Φ qctx | Γ ; Φ ⊦ 𝔄 qty | Γ ; Φ ⊦ 𝕥 : 𝔄 | Γ ⊦ ς : Φ ⇒ Φ | Φ‖ᵢ = 𝔄
     | Γ ⊦ 𝒮 qsig | Γ ⊦ 𝒮 ≐ 𝒮 qsig | Σ Γ ⊦ 𝒮 qsig | Σ Γ ⊦ 𝒮 ≐ 𝒮 qsig
     | 𝒮(𝕤) = 𝔄 | 𝒮(𝕔) = 𝔄 | 𝔄 ends 𝔄 | 𝔄 ends 𝔄 at 𝕥 | 𝒰̄ targets 𝒮
-    | Γ ⊦ 𝔽 poly | 𝒮 ≼ ℓ | 𝔽 ≼ ℓ | Φ ≼ ℓ | 𝒰 ≼ 𝒰 | ℓ ≤ ℓ
+    | Γ ⊦ 𝔽 poly | 𝒮 ≼ ℓ | 𝔽 ≼ ℓ | Φ ≼ ℓ | 𝔄 ≼ ℓ | 𝒰 ≼ 𝒰 | ℓ ≤ ℓ
 D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | σ ≜ σ | e˲ ≜ e˲ | ē ≜ ē | Φ ≜ Φ | 𝔄 ≜ 𝔄 | 𝕥 ≜ 𝕥
     | Γ ⊦ t : t ≜ Γ ⊦ t ≐ t : t
 
@@ -488,8 +488,8 @@ l̄ distinct      |l̄| = |Δ|      l ∈ l̄      // META-LEVEL side conditions
                              //   reference x[e˲] to a signature entry of Σ; the equation by name
                              //   or by content; Γ ⊦ 𝒮 qsig is 𝒮 ≐ 𝒮
 Γ ⊦ 𝔽 poly                   // yields Γ ctx (Coinductive types)
-𝒮 ≼ ℓ      𝔽 ≼ ℓ             // META-DEFINED level bounds: every Nova type the signature / polynomial
-                             //   embeds is typed at 𝕌ℓ at its position (ty-qiit, ty-nu)
+𝒮 ≼ ℓ      Φ ≼ ℓ      𝔄 ≼ ℓ      𝔽 ≼ ℓ      // META-DEFINED level bounds: every Nova type the signature, context,
+                                            //   type or polynomial embeds is typed at 𝕌ℓ at its position (ty-qiit, ty-nu)
 𝒰 ≼ 𝒰′                       // META-DEFINED order on universes (THE ORDER ON UNIVERSES)
 
 // Γ ⊦ a₀ ≐ a₁ : A is ONE judgement, the equation, presupposing nothing:
@@ -2049,7 +2049,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 
 //
 // INSTANTIATION is not a bespoke operation — both binder
-// instantiations are calculus instances, abbreviated 𝔄[t] / 𝔄[𝕥]:
+// instantiations are calculus instances:
 //   EXTERNAL, by a Nova term t: the NOVA substitution [id, t] acting
 //     through ToS syntax (below);
 //   INDUCTIVE, by a ToS term 𝕥: the ToS substitution [𝕚𝕕, 𝕥] (action
@@ -2110,11 +2110,11 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 
 Γ ; Φ ⊦ 𝕥 : A ⇛ 𝔄      Γ ⊦ t : A
 ---------------------------------- (qtm-app-ext)
-Γ ; Φ ⊦ 𝕥 t : 𝔄[t]
+Γ ; Φ ⊦ 𝕥 t : 𝔄[id, t]
 
 Γ ; Φ ⊦ 𝕥 : El 𝕦 ⇛ 𝔄      Γ ; Φ ⊦ 𝕥' : El 𝕦
 ---------------------------------------------- (qtm-app-ind)
-Γ ; Φ ⊦ 𝕥 𝕥' : 𝔄[𝕥']
+Γ ; Φ ⊦ 𝕥 𝕥' : 𝔄[𝕚𝕕, 𝕥']
 
 Γ ▷ A ; Φ[↑] ⊦ 𝕥 : 𝔄
 ------------------------ (qtm-lam-ext)
@@ -2210,7 +2210,7 @@ U[ς]          ≜ U
 --------------------------- (refl-qctx-ext)
 Γ ⊦ ⟦Φ ▷ 𝔄⟧ ≜ ⟦Φ⟧ ▷ ⟦𝔄⟧ tel
 
-Γ ; Φ ⊦ 𝔄 qty      Φ ≼ ℓ
+Γ ; Φ ⊦ 𝔄 qty      Φ ▷ 𝔄 ≼ ℓ
 ---------------------------- (refl-qty)   // a sort entry at 𝕌ℓ₊₁, a point or
 Γ·⟦Φ⟧ ⊦ ⟦𝔄⟧ : 𝕌ℓ₊₁                       //   equation entry at 𝕌ℓ
 
@@ -2224,26 +2224,63 @@ U[ς]          ≜ U
 
 Γ ⊦ A : 𝕌ℓ
 Γ ⊦ Φ qctx     Φ ≼ ℓ
-Γ ▷ A ; Φ[↑] ⊦ 𝔄 qty
+Γ ▷ A ; Φ[↑] ⊦ 𝔄 qty   𝔄 ≼ ℓ
 ----------------------------------------- (refl-qty-pi-ext)
 Γ·⟦Φ⟧ ⊦ ⟦A ⇛ 𝔄⟧ ≜ A[↑⟦Φ⟧] → ⟦𝔄⟧[ξ] : 𝕌ℓ₊₁
 
 Γ ; Φ ▷ El 𝕥 ⊦ 𝔄 qty
 Φ ≼ ℓ
+𝔄 ≼ ℓ
 ------------------------------------- (refl-qty-pi-ind)
 Γ·⟦Φ⟧ ⊦ ⟦El 𝕥 ⇛ 𝔄⟧ ≜ ⟦𝕥⟧ → ⟦𝔄⟧ : 𝕌ℓ₊₁
 
 Γ ; Φ ⊦ 𝕥 : 𝔄
+Φ ▷ 𝔄 ≼ ℓ
 ---------------------------- (refl-qtm)
 Γ·⟦Φ⟧ ⊦ ⟦𝕥⟧ : ⟦𝔄⟧
 
-⟦⬡ᵢ⟧_{Γ;Φ}        ≜ ☐ᵢ
-⟦𝕥 t⟧_{Γ;Φ}       ≜ ⟦𝕥⟧_{Γ;Φ} t[↑⟦Φ⟧]
-⟦𝕥 𝕥′⟧_{Γ;Φ}      ≜ ⟦𝕥⟧_{Γ;Φ} ⟦𝕥′⟧_{Γ;Φ}
-⟦λ 𝕥⟧_{Γ;Φ}       ≜ λ (⟦𝕥⟧_{Γ ▷ A ; Φ[↑]}[ξ])   // A the Π-domain of λ 𝕥's type
-⟦𝕥₀ ≡ 𝕥₁⟧_{Γ;Φ}   ≜ (⟦𝕥₀⟧_{Γ;Φ} ≡ ⟦𝕥₁⟧_{Γ;Φ} ∈ ⟦𝕦⟧_{Γ;Φ})   // 𝕦 the sides' common code;
-                                                    //   a proposition, so a 𝕌₀ code and
-                                                    //   an entry like any other (Ω ≼ 𝕌₀)
+Γ ⊦ Φ qctx    Φ ≼ ℓ
+---------------------------- (refl-qtm-var) // definition depends on the identity: ⟦𝔄[⇑]⟧ ≐ ⟦𝔄⟧[↑]
+Γ·⟦Φ⟧ ⊦ ⟦⬡ᵢ⟧ : ⟦Φ‖ᵢ⟧
+
+Γ ⊦ Φ ▷ 𝔄 qctx    Φ ▷ 𝔄 ≼ ℓ
+-------------------------------- (refl-qtm-var-zero)
+Γ·⟦Φ⟧ ▷ ⟦𝔄⟧ ⊦ ⟦⬡₀⟧ ≜ ☐₀ : ⟦𝔄⟧[↑]
+
+Γ ⊦ Φ ▷ 𝔄 qctx    Φ ▷ 𝔄 ≼ ℓ
+----------------------------------------- (refl-qtm-var-suc)
+Γ·⟦Φ⟧ ▷ ⟦𝔄⟧ ⊦ ⟦⬡ᵢ₊₁⟧ ≜ ⟦⬡ᵢ⟧[↑] : ⟦Φ‖ᵢ⟧[↑]
+
+// corollary
+Γ ⊦ Φ qctx    Φ ≼ ℓ
+------------------------- (refl-qtm-var-index)
+Γ·⟦Φ⟧ ⊦ ⟦⬡ᵢ⟧ ≜ ☐ᵢ : ⟦Φ‖ᵢ⟧
+
+Γ ⊦ Φ qctx                 Φ ≼ ℓ
+Γ ; Φ ⊦ 𝕥 : A ⇛ 𝔄      A ⇛ 𝔄 ≼ ℓ
+Γ ⊦ t : A
+---------------------------------------- (refl-qtm-app-ext)
+Γ·⟦Φ⟧ ⊦ ⟦𝕥 t⟧ ≜ ⟦𝕥⟧ t[↑⟦Φ⟧] : ⟦𝔄[id, t]⟧ // depends on: ⟦𝔄[id, t]⟧ ≐ ⟦𝔄⟧[(id, t)⁺(⟦Φ⟧[↑])]
+                                         // note that: ξ ∘ (id, t[↑⟦Φ⟧]) ≐ (id, t)⁺(⟦Φ⟧[↑])
+
+Γ ⊦ Φ qctx                      Φ ≼ ℓ
+Γ ; Φ ⊦ 𝕥 : El 𝕦 ⇛ 𝔄     El 𝕦 ⇛ 𝔄 ≼ ℓ
+Γ ; Φ ⊦ 𝕥' : El 𝕦
+--------------------------------------- (refl-qtm-app-ind)
+Γ·⟦Φ⟧ ⊦ ⟦𝕥 𝕥'⟧ ≜ ⟦𝕥⟧ ⟦𝕥'⟧ : ⟦𝔄[𝕚𝕕, 𝕥']⟧ // depends on: ⟦𝔄[𝕚𝕕, 𝕥']⟧ ≐ ⟦𝔄⟧[id, ⟦𝕥'⟧]
+
+Γ ⊦ Φ qctx              Φ ≼ ℓ
+Γ ▷ A ; Φ[↑] ⊦ 𝕥 : 𝔄    A ⇛ 𝔄 ≼ ℓ
+------------------------------------------- (refl-qtm-lam-ext)
+Γ·⟦Φ⟧ ⊦ ⟦λ 𝕥⟧ ≜ λ ⟦𝕥⟧[ξ] : A[↑⟦Φ⟧] → ⟦𝔄⟧[ξ]
+
+Γ ⊦ Φ qctx               Φ ≼ ℓ
+Γ ; Φ ⊦ 𝕥₀ : El 𝕦     El 𝕦 ≼ ℓ
+Γ ; Φ ⊦ 𝕥₁ : El 𝕦
+------------------------------------------ (refl-qtm-eq)
+Γ·⟦Φ⟧ ⊦ ⟦𝕥₀ ≡ 𝕥₁⟧ ≜ ⟦𝕥₀⟧ ≡ ⟦𝕥₁⟧ ∈ ⟦𝕦⟧ : 𝕌ℓ
+
+
 // (A sort or constructor position of 𝒮 occurring in a term is a
 // variable of the algebra context like any other; the SATURATED Nova
 // formers 𝒮.𝕤 ē and 𝒮.𝕔 θ appear only once ι is substituted and the
@@ -2394,7 +2431,8 @@ e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
 
 // The sort-𝕤 type of 𝒮 at an index spine ē (against its
 // arity at the initial algebra), at the signature's LEVEL. A signature
-// is BOUNDED by ℓ, written 𝒮 ≼ ℓ (likewise Φ ≼ ℓ for a prefix), when
+// is BOUNDED by ℓ, written 𝒮 ≼ ℓ (likewise Φ ≼ ℓ for a prefix, and
+// 𝔄 ≼ ℓ for a type over one, by its own external domains), when
 // every Nova type it embeds (the external Π domains, each at its
 // position) is typed at 𝕌ℓ — a proposition included, by prop-lift and
 // code-lift; one bound serves every sort. The bound is LOAD-BEARING:
