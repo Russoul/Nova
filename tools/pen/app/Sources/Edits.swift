@@ -108,6 +108,39 @@ func groupIntoRequests(_ spans: [Span], lines: [String]) -> [[Span]] {
     return groups.map { $0.map { spans[$0] } }.sorted { $0[0].first < $1[0].first }
 }
 
+/// Rows first...last (from 0) of a text replaced by `lines`; first = last + 1 inserts.
+struct Replacement: Equatable {
+    let first: Int
+    let last: Int
+    let lines: [String]
+
+    /// How many lines longer the text is after it.
+    var growth: Int { lines.count - (last - first + 1) }
+}
+
+/// The text with every replacement made; they must not overlap.
+func applying(_ replacements: [Replacement], to lines: [String]) -> [String] {
+    var out = lines
+    for r in replacements.sorted(by: { $0.first > $1.first }) { out.replaceSubrange(r.first..<(r.last + 1), with: r.lines) }
+    return out
+}
+
+/// The replacements that undo `replacements` (made to `lines`), in the text
+/// they produce: each block sits where the growth of those before it moved it.
+func inverse(of replacements: [Replacement], in lines: [String]) -> [Replacement] {
+    var shift = 0
+    return replacements.sorted(by: { $0.first < $1.first }).map { r in
+        defer { shift += r.growth }
+        return Replacement(first: r.first + shift, last: r.first + shift + r.lines.count - 1,
+                           lines: Array(lines[r.first..<(r.last + 1)]))
+    }
+}
+
+/// How far row `row` moves when `replacements` are made above it.
+func shift(of row: Int, by replacements: [Replacement]) -> Int {
+    replacements.filter { $0.last < row }.reduce(0) { $0 + $1.growth }
+}
+
 // Geometry ---------------------------------------------------------------------
 
 private func resample(_ points: [CGPoint], every step: CGFloat) -> [CGPoint] {
