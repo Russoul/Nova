@@ -11,6 +11,7 @@ final class PageView: UIView {
     private var marks: [Mark] = []
     private var text = UIColor.label.cgColor
     private var palette: [TokenKind: CGColor] = [:]
+    private var numbers = UIColor.tertiaryLabel.cgColor
     private let ink = UIColor.systemBlue.cgColor
 
     override init(frame: CGRect) {
@@ -29,6 +30,7 @@ final class PageView: UIView {
     func show(_ layout: Layout, redraw: [CGRect]? = nil) {
         text = UIColor.label.resolvedColor(with: traitCollection).cgColor
         palette = TokenKind.palette(for: traitCollection)
+        numbers = UIColor.tertiaryLabel.resolvedColor(with: traitCollection).cgColor
         lock.withLock {
             self.layout = layout
             marks = []
@@ -85,6 +87,15 @@ final class PageView: UIView {
             ctx.strokePath()
         }
         ctx.setBlendMode(.normal)
+        // Line numbers last: over any ink, so nothing erases them.
+        if layout.numbered {
+            let path = CGMutablePath()
+            for r in rows { for stroke in layout.numberStrokes(r) { add(stroke, to: path) } }
+            ctx.addPath(path)
+            ctx.setStrokeColor(numbers)
+            ctx.setLineWidth(layout.glyphs.pen * Layout.em)
+            ctx.strokePath()
+        }
     }
 
     private func add(_ stroke: [CGPoint], to path: CGMutablePath) {

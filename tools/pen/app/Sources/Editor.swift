@@ -13,6 +13,14 @@ final class Editor: ObservableObject {
     @Published var tool: PenTool = .pen {
         didSet { if tool == .pen || tool == .eraser { select([]) } }
     }
+    /// Whether line numbers are shown; remembered. Turning them on or off
+    /// moves the text sideways, and every mark with it.
+    @Published var lineNumbers: Bool = UserDefaults.standard.bool(forKey: "lineNumbers") {
+        didSet {
+            UserDefaults.standard.set(lineNumbers, forKey: "lineNumbers")
+            if lineNumbers != oldValue { relayout() }
+        }
+    }
     /// The ink being moved: indices into `marks`.
     @Published private(set) var selection: [Int] = []
     /// How many times over a pen stroke is smoothed (0...8); remembered.
@@ -305,7 +313,7 @@ final class Editor: ObservableObject {
         self.lines = lines
         self.tokens = tokens
         self.version = version
-        let layout = Layout(lines: lines, tokens: tokens, glyphs: .bundled)
+        let layout = Layout(lines: lines, tokens: tokens, glyphs: .bundled, numbered: lineNumbers)
         self.layout = layout
         self.marks = marks
         select([])
@@ -335,6 +343,27 @@ final class Editor: ObservableObject {
             shift += r.growth
         }
         scroll?.ink.flash(written: written, removed: removed, in: layout)
+    }
+
+    /// The same text laid out again (line numbers shown or hidden): the page
+    /// redrawn, and every mark, those kept for undo too, moved with the text.
+    private func relayout() {
+        guard let old = layout else { return }
+        let layout = Layout(lines: lines, tokens: tokens, glyphs: .bundled, numbered: lineNumbers)
+        self.layout = layout
+        let dx = (layout.gutter - old.gutter) * layout.cellWidth
+        func move(_ ms: [Mark]) -> [Mark] { ms.map { $0.moved(dx: dx, dy: 0) } }
+        marks = move(marks)
+        steps = steps.map {
+            switch $0 {
+            case .mark: .mark
+            case .marks(let before): .marks(before: move(before))
+            case .recognition(let undo, let before): .recognition(undo: undo, marks: move(before))
+            }
+        }
+        scroll?.show(layout) // the whole page is drawn again, the moved marks with it
+        refresh(changed: .null)
+        select(selection)
     }
 
     private func refresh(changed: CGRect) {

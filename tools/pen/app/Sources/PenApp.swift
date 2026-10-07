@@ -46,6 +46,11 @@ struct ContentView: View {
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: 28, alignment: .leading)
+                Menu {
+                    Toggle("Line numbers", systemImage: "list.number", isOn: $editor.lineNumbers)
+                } label: {
+                    Label("Options", systemImage: "ellipsis.circle")
+                }
                 Spacer()
                 Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
