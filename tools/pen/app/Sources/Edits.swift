@@ -47,6 +47,15 @@ struct Mark {
                     ink: ink.flatMap { $0.copy(using: &shift) }, lifted: lifted)
     }
 
+    /// The mark's points at its width, as a shape to fill.
+    var stroke: CGPath {
+        let line = CGMutablePath()
+        guard let first = points.first else { return line }
+        line.move(to: first)
+        line.addLines(between: points.count > 1 ? points : [first, first])
+        return line.copy(strokingWithWidth: width, lineCap: .round, lineJoin: .round, miterLimit: 1)
+    }
+
     var bounds: CGRect {
         guard let first = points.first else { return .null }
         let box = points.dropFirst().reduce(CGRect(origin: first, size: .zero)) { $0.union(CGRect(origin: $1, size: .zero)) }
@@ -134,8 +143,10 @@ extension Layout {
 
     /// A character lifted out of the text: a mark clearing its cell, and its
     /// strokes as one ink mark, drawn as the glyph is but in ink (no longer
-    /// read, so no longer coloured).
-    func lift(_ cell: Cell) -> [Mark] {
+    /// read, so no longer coloured). What the eraser has already taken from
+    /// the character (the strokes of `marks` before it) stays taken: only the
+    /// rest is lifted, and a character erased whole is not lifted at all.
+    func lift(_ cell: Cell, under marks: [Mark] = []) -> [Mark] {
         let o = origin(cell.row, cell.column), box = CGRect(origin: o, size: CGSize(width: cellWidth, height: lineHeight))
         let clear = Mark(tool: .eraser, points: [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.maxY)], width: 0,
                          ink: CGPath(rect: box, transform: nil), lifted: cell)
@@ -147,9 +158,12 @@ extension Layout {
             path.addLines(between: s.count > 1 ? s : [first, first])
         }
         let width = glyphs.pen * Layout.em
-        let ink = Mark(tool: .pen, points: strokes.flatMap { $0 }, width: width,
-                       ink: path.copy(strokingWithWidth: width, lineCap: .round, lineJoin: .round, miterLimit: 1))
-        return [clear, ink]
+        var shape = path.copy(strokingWithWidth: width, lineCap: .round, lineJoin: .round, miterLimit: 1)
+        for m in marks where m.tool == .eraser && m.lifted == nil && m.bounds.intersects(box) {
+            shape = shape.subtracting(m.ink ?? m.stroke)
+        }
+        guard !shape.boundingBoxOfPath.isEmpty else { return [] }
+        return [clear, Mark(tool: .pen, points: strokes.flatMap { $0 }, width: width, ink: shape)]
     }
 }
 

@@ -110,15 +110,16 @@ final class Editor: ObservableObject {
         let lifted = Set(marks.compactMap(\.lifted))
         let cells = layout.cells(inside: loop).filter { !lifted.contains($0) }
         let held = marks.indices.filter { marks[$0].tool == .pen && holds(loop, marks[$0]) }
-        if !cells.isEmpty {
+        // Characters the eraser took whole lift nothing.
+        let lifts = cells.flatMap { layout.lift($0, under: marks) }
+        if !lifts.isEmpty {
             let before = marks
-            let lifts = cells.flatMap { layout.lift($0) }
             marks += lifts
             steps.append(.marks(before: before))
             edited = Set(marks.flatMap { layout.rows(editedBy: $0) })
             refresh(changed: lifts.reduce(CGRect.null) { $0.union($1.bounds) })
         }
-        let new = marks.indices.suffix(cells.count * 2).filter { marks[$0].tool == .pen }
+        let new = marks.indices.suffix(lifts.count).filter { marks[$0].tool == .pen }
         select(held + new)
         if !selection.isEmpty { tool = .move }
     }
