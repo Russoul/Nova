@@ -2,7 +2,9 @@ import CoreGraphics
 
 /// One stroke of the Pencil since the last recognition, in page points.
 /// Marks apply in order: an eraser clears whatever lies under it, the text's
-/// strokes and earlier ink alike; ink drawn after it stays.
+/// strokes and earlier ink alike; ink drawn after it stays. A lifted
+/// character's clearing is the exception: it takes the character out of the
+/// text and touches no ink (see `inDrawingOrder`).
 struct Mark {
     enum Tool { case pen, eraser }
     let tool: Tool
@@ -50,6 +52,14 @@ struct Mark {
         let box = points.dropFirst().reduce(CGRect(origin: first, size: .zero)) { $0.union(CGRect(origin: $1, size: .zero)) }
         return box.insetBy(dx: -width / 2 - 2, dy: -width / 2 - 2)
     }
+}
+
+extension Array where Element == Mark {
+    /// The order marks are drawn in: every lifted character's clearing first,
+    /// as it removes the character from the text, never ink (ink lifted by
+    /// one lasso and moved onto a cell a later lasso lifted must stay whole);
+    /// then the ink and the eraser's strokes, in the order they were made.
+    var inDrawingOrder: [Mark] { filter { $0.lifted != nil } + filter { $0.lifted == nil } }
 }
 
 /// How tools/nspec.lua reads a line.

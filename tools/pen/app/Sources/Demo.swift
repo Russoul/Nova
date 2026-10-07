@@ -8,20 +8,36 @@ import UIKit
 ///   -demo-recognise  then press Recognise
 ///   -demo-undo       then press Undo
 ///   -demo-move       instead of writing: lasso that a₂ and move it two rows down
+///   -demo-shift      instead: erase the last 6 dashes of el-trans's bar, lasso
+///                    its name and note, and move them 6 cells left
 @MainActor
 enum Demo {
     static var ink: Bool { ProcessInfo.processInfo.arguments.contains("-demo-ink") }
     static var recognise: Bool { ProcessInfo.processInfo.arguments.contains("-demo-recognise") }
     static var undo: Bool { ProcessInfo.processInfo.arguments.contains("-demo-undo") }
     static var move: Bool { ProcessInfo.processInfo.arguments.contains("-demo-move") }
+    static var shift: Bool { ProcessInfo.processInfo.arguments.contains("-demo-shift") }
     private static var done = false
 
     static func run(_ editor: Editor, _ relay: Relay) {
-        guard ink || move, !done, let layout = editor.layoutShown,
+        guard ink || move || shift, !done, let layout = editor.layoutShown,
               let row = editor.lines.firstIndex(of: "Γ ⊦ a₀ ≐ a₂ : A"),
               let at = Array(editor.lines[row]).firstIndex(of: "≐") else { return }
         done = true
         let col = at + 2, a = layout.origin(row, col), cw = layout.cellWidth, lh = layout.lineHeight
+        if shift {
+            let bar = row - 1, dashes = Array(editor.lines[bar]).prefix { $0 == "-" }.count
+            let o = layout.origin(bar, 0), y = o.y + lh / 2
+            editor.tool = .eraser
+            editor.add(Mark(tool: .eraser, points: [CGPoint(x: o.x + CGFloat(dashes - 6) * cw, y: y), CGPoint(x: o.x + CGFloat(dashes) * cw, y: y)], width: 8))
+            editor.tool = .lasso
+            let end = o.x + CGFloat(editor.lines[bar].count + 1) * cw
+            editor.lasso([CGPoint(x: o.x + CGFloat(dashes) * cw + 2, y: o.y + 3), CGPoint(x: end, y: o.y + 3),
+                          CGPoint(x: end, y: o.y + lh - 3), CGPoint(x: o.x + CGFloat(dashes) * cw + 2, y: o.y + lh - 3)])
+            editor.moveSelection(by: CGVector(dx: -6 * cw, dy: 0))
+            editor.scroll?.zoom(to: CGRect(x: o.x + CGFloat(dashes - 20) * cw, y: o.y - 3 * lh, width: 40 * cw, height: 7 * lh), animated: false)
+            return
+        }
         if move {
             editor.tool = .lasso
             editor.lasso([CGPoint(x: a.x - 3, y: a.y + 3), CGPoint(x: a.x + 2 * cw + 3, y: a.y + 3),

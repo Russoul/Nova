@@ -68,7 +68,7 @@ final class PageView: UIView {
             ctx.setStrokeColor(kind.flatMap { palette[$0] } ?? text)
             ctx.strokePath()
         }
-        for mark in marks where mark.bounds.intersects(rect) {
+        for mark in marks.inDrawingOrder where mark.bounds.intersects(rect) {
             if let ink = mark.ink {
                 ctx.setBlendMode(mark.tool == .eraser ? .clear : .normal) // a lifted character's cell is cleared
                 ctx.addPath(ink)
