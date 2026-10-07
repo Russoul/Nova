@@ -101,6 +101,7 @@ final class InkView: UIView {
     var onMark: ((Mark) -> Void)?
     var tool: () -> Mark.Tool = { .pen }
     var zoom: () -> CGFloat = { 1 }
+    var smoothing: () -> CGFloat = { 1 }
 
     private var samples: [InkSample] = []
     private var predicted: [InkSample] = []
@@ -224,7 +225,7 @@ final class InkView: UIView {
         samples += (event?.coalescedTouches(for: touch) ?? [touch]).map(sample)
         onMark?(drawing == .eraser
                 ? Mark(tool: .eraser, points: samples.map(\.point), width: InkView.eraserWidth / zoom())
-                : Mark(pen: samples))
+                : Mark(pen: samples, smoothing: smoothing()))
         samples = []
         predicted = []
         redraw()
@@ -255,7 +256,7 @@ final class InkView: UIView {
             }
             live.path = path
         } else {
-            live.path = inkOutline(smoothed(track))
+            live.path = inkOutline(smoothed(track, strength: smoothing()))
         }
         CATransaction.commit()
     }

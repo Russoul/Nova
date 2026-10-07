@@ -15,10 +15,11 @@ func inkRadius(base: CGFloat, pressure: CGFloat) -> CGFloat {
 }
 
 /// The samples as the ink is drawn from: those too close to the one before
-/// dropped (they carry no direction), and the rest smoothed once with their
+/// dropped (they carry no direction), and the rest smoothed with their
 /// neighbours (weights 1-2-1, the ends kept where the pen touched and lifted),
-/// which takes out the tip's jitter without rounding off what was written.
-func smoothed(_ samples: [InkSample]) -> [InkSample] {
+/// `strength` times over: 1 takes out the tip's jitter, more rounds the
+/// writing off further; a fraction makes the last pass part-way.
+func smoothed(_ samples: [InkSample], strength: CGFloat = 1) -> [InkSample] {
     var kept = [InkSample]()
     for s in samples {
         if let last = kept.last, hypot(s.point.x - last.point.x, s.point.y - last.point.y) < 0.3 {
@@ -27,12 +28,17 @@ func smoothed(_ samples: [InkSample]) -> [InkSample] {
             kept.append(s)
         }
     }
-    guard kept.count > 2 else { return kept }
+    guard kept.count > 2, strength > 0 else { return kept }
     var out = kept
-    for i in 1..<(kept.count - 1) {
-        let (a, b, c) = (kept[i - 1], kept[i], kept[i + 1])
-        out[i] = InkSample(point: CGPoint(x: (a.point.x + 2 * b.point.x + c.point.x) / 4, y: (a.point.y + 2 * b.point.y + c.point.y) / 4),
-                           radius: (a.radius + 2 * b.radius + c.radius) / 4)
+    for pass in 0..<Int(strength.rounded(.up)) {
+        let w = min(1, strength - CGFloat(pass)), before = out
+        for i in 1..<(before.count - 1) {
+            let (a, b, c) = (before[i - 1], before[i], before[i + 1])
+            let x = (a.point.x + 2 * b.point.x + c.point.x) / 4, y = (a.point.y + 2 * b.point.y + c.point.y) / 4
+            let r = (a.radius + 2 * b.radius + c.radius) / 4
+            out[i] = InkSample(point: CGPoint(x: b.point.x + w * (x - b.point.x), y: b.point.y + w * (y - b.point.y)),
+                               radius: b.radius + w * (r - b.radius))
+        }
     }
     return out
 }

@@ -19,9 +19,9 @@ struct Mark {
         self.ink = ink
     }
 
-    /// A pen stroke from the Pencil's samples, smoothed.
-    init(pen samples: [InkSample]) {
-        let track = smoothed(samples)
+    /// A pen stroke from the Pencil's samples, smoothed `smoothing` times over.
+    init(pen samples: [InkSample], smoothing: CGFloat = 1) {
+        let track = smoothed(samples, strength: smoothing)
         self.init(tool: .pen, points: track.map(\.point), width: 2 * (track.map(\.radius).max() ?? 1), ink: inkOutline(track))
     }
 

@@ -35,6 +35,15 @@ struct ContentView: View {
                     .disabled(editor.isClean || editor.activity != nil)
                 Button("Recognise", systemImage: "text.viewfinder") { Task { await editor.recognise(with: relay) } }
                     .disabled(editor.isClean || editor.activity != nil)
+                Divider().frame(height: 24)
+                Image(systemName: "scribble.variable").foregroundStyle(.secondary)
+                Slider(value: $editor.smoothing, in: 0...8)
+                    .frame(width: 140)
+                    .accessibilityLabel("Smoothing")
+                Text(String(format: "%.1f", editor.smoothing))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, alignment: .leading)
                 Spacer()
                 Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }

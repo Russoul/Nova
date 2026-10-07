@@ -7,6 +7,10 @@ import UIKit
 @MainActor
 final class Editor: ObservableObject {
     @Published var tool: Mark.Tool = .pen
+    /// How many times over a pen stroke is smoothed (0...8); remembered.
+    @Published var smoothing: Double = UserDefaults.standard.object(forKey: "smoothing") as? Double ?? 1 {
+        didSet { UserDefaults.standard.set(smoothing, forKey: "smoothing") }
+    }
     @Published private(set) var marks: [Mark] = []
     @Published private(set) var requests: [[Span]] = []
     /// Requests where something did not fit: the user picks, or keeps the ink.
@@ -45,6 +49,7 @@ final class Editor: ObservableObject {
         didSet {
             scroll?.ink.onMark = { [unowned self] in add($0) }
             scroll?.ink.tool = { [unowned self] in tool }
+            scroll?.ink.smoothing = { [unowned self] in CGFloat(smoothing) }
             if let layout {
                 scroll?.show(layout)
                 refresh(changed: .null)
