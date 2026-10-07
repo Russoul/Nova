@@ -1,8 +1,8 @@
 import UIKit
 
-/// What the Pencil does: write, erase, lasso characters and ink, or move
-/// what the lasso took.
-enum PenTool { case pen, eraser, lasso, move }
+/// What the Pencil does: write, erase, lasso characters and ink, move what
+/// the lasso took, or revert the lines it traces to the text as it is.
+enum PenTool { case pen, eraser, lasso, move, revert }
 
 /// The editor's state: the text (as the relay last gave it) and the marks
 /// drawn over it since the last recognition, from which the edited rows,
@@ -69,6 +69,7 @@ final class Editor: ObservableObject {
             scroll?.ink.tool = { [unowned self] in tool }
             scroll?.ink.smoothing = { [unowned self] in CGFloat(smoothing) }
             scroll?.ink.onLasso = { [unowned self] in lasso($0) }
+            scroll?.ink.onRevert = { [unowned self] in revert($0) }
             scroll?.ink.onMoveBegan = { [unowned self] in beginMove() }
             scroll?.ink.onMove = { [unowned self] in scroll?.ink.showDragged(dragPath, offset: $0) }
             scroll?.ink.onMoveEnded = { [unowned self] in endMove(by: $0) }
@@ -130,6 +131,22 @@ final class Editor: ObservableObject {
         let new = marks.indices.suffix(lifts.count).filter { marks[$0].tool == .pen }
         select(held + new)
         if !selection.isEmpty { tool = .move }
+    }
+
+    /// Every line a traced path passes through goes back to the text as it
+    /// is: its ink, erasures and lifted characters are taken back (edits
+    /// reaching into other lines keep their part there), so spans are trimmed,
+    /// split, or gone.
+    func revert(_ path: [CGPoint]) {
+        guard let layout, activity == nil, review == nil else { return }
+        let rows = layout.rows(tracedBy: path)
+        guard !rows.isDisjoint(with: edited) else { return }
+        let before = marks
+        marks = layout.reverting(rows, in: marks)
+        steps.append(.marks(before: before))
+        select([])
+        edited = Set(marks.flatMap { layout.rows(editedBy: $0) })
+        refresh(changed: (before + marks).reduce(CGRect.null) { $0.union($1.bounds) })
     }
 
     private func select(_ indices: [Int]) {

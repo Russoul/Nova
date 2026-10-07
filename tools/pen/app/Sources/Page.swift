@@ -113,6 +113,8 @@ final class InkView: UIView {
     /// A lasso drawn, closed; the start, travel and end of a move (false
     /// from onMoveBegan: nothing is selected, so nothing moves).
     var onLasso: (([CGPoint]) -> Void)?
+    /// A path traced with the revert tool.
+    var onRevert: (([CGPoint]) -> Void)?
     var onMoveBegan: (() -> Bool)?
     var onMove: ((CGVector) -> Void)?
     var onMoveEnded: ((CGVector) -> Void)?
@@ -253,6 +255,11 @@ final class InkView: UIView {
             live.strokeColor = UIColor.systemBlue.cgColor
             live.lineWidth = 1.5 / zoom()
             live.lineDashPattern = [NSNumber(value: Double(6 / zoom())), NSNumber(value: Double(4 / zoom()))]
+        } else if drawing == .revert {
+            live.lineDashPattern = nil
+            live.fillColor = nil
+            live.strokeColor = UIColor.systemOrange.withAlphaComponent(0.4).cgColor
+            live.lineWidth = 12 / zoom()
         } else if drawing == .eraser {
             live.lineDashPattern = nil
             live.fillColor = nil
@@ -292,6 +299,7 @@ final class InkView: UIView {
         switch drawing {
         case .eraser: onMark?(Mark(tool: .eraser, points: samples.map(\.point), width: InkView.eraserWidth / zoom()))
         case .lasso: onLasso?(samples.map(\.point))
+        case .revert: onRevert?(samples.map(\.point))
         default: onMark?(Mark(pen: samples, smoothing: smoothing()))
         }
         samples = []
@@ -333,7 +341,7 @@ final class InkView: UIView {
                 path.closeSubpath()
             }
             live.path = path
-        } else if drawing == .eraser {
+        } else if drawing == .eraser || drawing == .revert {
             let path = CGMutablePath()
             if let first = track.first {
                 path.move(to: first.point)

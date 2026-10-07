@@ -8,6 +8,7 @@ import UIKit
 ///   -demo-recognise  then press Recognise
 ///   -demo-undo       then press Undo
 ///   -demo-move       instead of writing: lasso that a₂ and move it two rows down
+///   -demo-revert     after the ink: revert the bar's line (the ink reaching it is trimmed)
 ///   -demo-shift      instead: erase the last 6 dashes of el-trans's bar, lasso
 ///                    its name and note, and move them 6 cells left
 @MainActor
@@ -17,6 +18,7 @@ enum Demo {
     static var undo: Bool { ProcessInfo.processInfo.arguments.contains("-demo-undo") }
     static var move: Bool { ProcessInfo.processInfo.arguments.contains("-demo-move") }
     static var shift: Bool { ProcessInfo.processInfo.arguments.contains("-demo-shift") }
+    static var revert: Bool { ProcessInfo.processInfo.arguments.contains("-demo-revert") }
     private static var done = false
 
     static func run(_ editor: Editor, _ relay: Relay) {
@@ -62,6 +64,10 @@ enum Demo {
             x += cw * 1.3
         }
         editor.scroll?.zoom(to: CGRect(x: a.x - 12 * cw, y: a.y - 4 * lh, width: 30 * cw, height: 8 * lh), animated: false)
+        if revert {
+            let bar = layout.origin(row - 1, 0)
+            editor.revert([CGPoint(x: bar.x, y: bar.y + lh / 2), CGPoint(x: bar.x + 40 * cw, y: bar.y + lh / 2)])
+        }
         guard recognise else { return }
         Task {
             await editor.recognise(with: relay)

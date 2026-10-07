@@ -167,6 +167,58 @@ extension Layout {
     }
 }
 
+// Revert ------------------------------------------------------------------------
+
+extension Layout {
+    /// The rows a traced path passes through (sampled finely enough that a
+    /// quick stroke skips none).
+    func rows(tracedBy path: [CGPoint]) -> Set<Int> {
+        guard var last = path.first else { return [] }
+        var out = Set<Int>(row(at: last).map { [$0] } ?? [])
+        for p in path.dropFirst() {
+            let n = max(1, Int((hypot(p.x - last.x, p.y - last.y) / (lineHeight / 4)).rounded(.up)))
+            for k in 1...n {
+                let q = CGPoint(x: last.x + (p.x - last.x) * CGFloat(k) / CGFloat(n), y: last.y + (p.y - last.y) * CGFloat(k) / CGFloat(n))
+                if let r = row(at: q) { out.insert(r) }
+            }
+            last = p
+        }
+        return out
+    }
+
+    /// The marks with every edit to `rows` taken back, so those rows show the
+    /// text again: a lifted character there goes back into the text (its ink,
+    /// moved elsewhere, stays where it went: an edit of that row); every other
+    /// mark loses its part over those rows, and a mark left with nothing goes.
+    func reverting(_ rows: Set<Int>, in marks: [Mark]) -> [Mark] {
+        guard !rows.isEmpty else { return marks }
+        let bands = CGMutablePath(), width = size.width
+        for r in rows {
+            bands.addRect(CGRect(x: -width, y: origin(r, 0).y, width: 3 * width, height: lineHeight))
+        }
+        func inBand(_ p: CGPoint, reach: CGFloat) -> Bool {
+            guard let r = row(at: p) else { return false }
+            if rows.contains(r) { return true }
+            let top = origin(r, 0).y
+            return (rows.contains(r - 1) && p.y - top < reach) || (rows.contains(r + 1) && top + lineHeight - p.y < reach)
+        }
+        return marks.compactMap { m in
+            if let cell = m.lifted { return rows.contains(cell.row) ? nil : m }
+            guard m.bounds.intersects(bands.boundingBoxOfPath),
+                  m.points.contains(where: { inBand($0, reach: m.width / 2 + glyphs.pen * Layout.em) }) || m.ink != nil
+            else { return m }
+            let shape = (m.ink ?? m.stroke).subtracting(bands)
+            guard !shape.boundingBoxOfPath.isEmpty else { return nil }
+            // What is left, and the points that still say where it is (an
+            // eraser's reach must not stretch back into the reverted rows).
+            let reach = m.tool == .eraser ? m.width / 2 + glyphs.pen * Layout.em : 0
+            let kept = m.points.filter { !inBand($0, reach: reach) }
+            guard !kept.isEmpty else { return nil }
+            return Mark(tool: m.tool, points: kept, width: m.width, ink: shape)
+        }
+    }
+}
+
 /// Is p inside the closed polygon (even-odd)?
 func contains(_ polygon: [CGPoint], _ p: CGPoint) -> Bool {
     var inside = false

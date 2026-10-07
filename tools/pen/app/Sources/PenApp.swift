@@ -28,9 +28,10 @@ struct ContentView: View {
                     Image(systemName: "eraser").tag(PenTool.eraser)
                     Image(systemName: "lasso").tag(PenTool.lasso)
                     Image(systemName: "arrow.up.and.down.and.arrow.left.and.right").tag(PenTool.move)
+                    Image(systemName: "arrow.uturn.left.circle").tag(PenTool.revert)
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 210)
+                .frame(width: 260)
                 Button("Undo", systemImage: "arrow.uturn.backward") { Task { await editor.undo(with: relay) } }
                     .disabled(!editor.canUndo)
                 Button("Clear", systemImage: "trash") { editor.clear() }
