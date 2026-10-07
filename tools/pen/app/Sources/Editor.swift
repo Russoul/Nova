@@ -8,7 +8,7 @@ import UIKit
 final class Editor: ObservableObject {
     @Published var tool: Mark.Tool = .pen
     /// How many times over a pen stroke is smoothed (0...8); remembered.
-    @Published var smoothing: Double = UserDefaults.standard.object(forKey: "smoothing") as? Double ?? 1 {
+    @Published var smoothing: Double = UserDefaults.standard.object(forKey: "smoothing") as? Double ?? Double(defaultSmoothing) {
         didSet { UserDefaults.standard.set(smoothing, forKey: "smoothing") }
     }
     @Published private(set) var marks: [Mark] = []

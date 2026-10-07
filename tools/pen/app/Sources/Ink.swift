@@ -14,12 +14,15 @@ func inkRadius(base: CGFloat, pressure: CGFloat) -> CGFloat {
     base * (0.55 + 1.1 * pow(min(max(pressure, 0), 1), 0.7))
 }
 
+/// How many times over a pen stroke is smoothed until the slider says otherwise.
+let defaultSmoothing: CGFloat = 3
+
 /// The samples as the ink is drawn from: those too close to the one before
 /// dropped (they carry no direction), and the rest smoothed with their
 /// neighbours (weights 1-2-1, the ends kept where the pen touched and lifted),
 /// `strength` times over: 1 takes out the tip's jitter, more rounds the
 /// writing off further; a fraction makes the last pass part-way.
-func smoothed(_ samples: [InkSample], strength: CGFloat = 1) -> [InkSample] {
+func smoothed(_ samples: [InkSample], strength: CGFloat = defaultSmoothing) -> [InkSample] {
     var kept = [InkSample]()
     for s in samples {
         if let last = kept.last, hypot(s.point.x - last.point.x, s.point.y - last.point.y) < 0.3 {
