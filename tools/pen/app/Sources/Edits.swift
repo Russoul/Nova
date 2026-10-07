@@ -8,15 +8,20 @@ struct Mark {
     let tool: Tool
     let points: [CGPoint]
     let width: CGFloat
-    /// A pen stroke's ink, as a shape to fill whose width follows the
-    /// Pencil's pressure; without it the stroke is `points` at `width`.
+    /// The mark's shape to fill, when it has one: a pen stroke whose width
+    /// follows the Pencil's pressure, a lifted character's strokes, or the
+    /// cell a lifted character leaves (cleared, as an eraser clears). Without
+    /// it the stroke is `points` at `width`.
     let ink: CGPath?
+    /// For an eraser mark that clears a lifted character's cell: that cell.
+    let lifted: Cell?
 
-    init(tool: Tool, points: [CGPoint], width: CGFloat, ink: CGPath? = nil) {
+    init(tool: Tool, points: [CGPoint], width: CGFloat, ink: CGPath? = nil, lifted: Cell? = nil) {
         self.tool = tool
         self.points = points
         self.width = width
         self.ink = ink
+        self.lifted = lifted
     }
 
     /// A pen stroke from the Pencil's samples, smoothed `smoothing` times over.
@@ -25,11 +30,19 @@ struct Mark {
         self.init(tool: .pen, points: track.map(\.point), width: 2 * (track.map(\.radius).max() ?? 1), ink: inkOutline(track))
     }
 
-    /// The same mark, moved down by dy (when lines above it grew or shrank).
-    func moved(by dy: CGFloat) -> Mark {
-        var shift = CGAffineTransform(translationX: 0, y: dy)
-        return Mark(tool: tool, points: points.map { CGPoint(x: $0.x, y: $0.y + dy) }, width: width,
-                    ink: ink.flatMap { $0.copy(using: &shift) })
+    /// The same mark, moved down `rows` rows (when lines above it grew or
+    /// shrank); the cell a clearing mark clears moves with it.
+    func moved(rows: Int, lineHeight: CGFloat) -> Mark {
+        let mark = moved(dx: 0, dy: CGFloat(rows) * lineHeight)
+        return Mark(tool: tool, points: mark.points, width: width, ink: mark.ink,
+                    lifted: lifted.map { Cell(row: $0.row + rows, column: $0.column) })
+    }
+
+    /// The same mark, moved by (dx, dy): ink carried by the move tool.
+    func moved(dx: CGFloat, dy: CGFloat) -> Mark {
+        var shift = CGAffineTransform(translationX: dx, y: dy)
+        return Mark(tool: tool, points: points.map { CGPoint(x: $0.x + dx, y: $0.y + dy) }, width: width,
+                    ink: ink.flatMap { $0.copy(using: &shift) }, lifted: lifted)
     }
 
     var bounds: CGRect {
@@ -66,6 +79,7 @@ extension Layout {
         case .pen:
             return Set(mark.points.compactMap(row(at:)))
         case .eraser:
+            if let cell = mark.lifted { return [cell.row] }
             let reach = (mark.width + glyphs.pen * Layout.em) / 2
             let path = resample(mark.points, every: max(1, mark.width / 3))
             let (rows, columns) = cells(in: mark.bounds)
@@ -87,6 +101,63 @@ extension Layout {
         let r = Int((p.y / lineHeight - Layout.margin).rounded(.down))
         return rows.indices.contains(r) ? r : nil
     }
+}
+
+// Lasso and lift ---------------------------------------------------------------
+
+extension Layout {
+    /// The characters a lasso holds: the cells (not blank ones) whose centre
+    /// is inside it.
+    func cells(inside lasso: [CGPoint]) -> [Cell] {
+        guard lasso.count > 2 else { return [] }
+        let box = lasso.dropFirst().reduce(CGRect(origin: lasso[0], size: .zero)) { $0.union(CGRect(origin: $1, size: .zero)) }
+        let (rs, cs) = cells(in: box)
+        var out = [Cell]()
+        for r in rs {
+            for c in cs where c < rows[r].count && !rows[r][c].isWhitespace {
+                let o = origin(r, c)
+                if contains(lasso, CGPoint(x: o.x + cellWidth / 2, y: o.y + lineHeight / 2)) { out.append(Cell(row: r, column: c)) }
+            }
+        }
+        return out
+    }
+
+    /// A character lifted out of the text: a mark clearing its cell, and its
+    /// strokes as one ink mark, drawn as the glyph is but in ink (no longer
+    /// read, so no longer coloured).
+    func lift(_ cell: Cell) -> [Mark] {
+        let o = origin(cell.row, cell.column), box = CGRect(origin: o, size: CGSize(width: cellWidth, height: lineHeight))
+        let clear = Mark(tool: .eraser, points: [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.maxY)], width: 0,
+                         ink: CGPath(rect: box, transform: nil), lifted: cell)
+        let strokes = self.strokes(cell.row, cell.column)
+        let path = CGMutablePath()
+        for s in strokes {
+            guard let first = s.first else { continue }
+            path.move(to: first)
+            path.addLines(between: s.count > 1 ? s : [first, first])
+        }
+        let width = glyphs.pen * Layout.em
+        let ink = Mark(tool: .pen, points: strokes.flatMap { $0 }, width: width,
+                       ink: path.copy(strokingWithWidth: width, lineCap: .round, lineJoin: .round, miterLimit: 1))
+        return [clear, ink]
+    }
+}
+
+/// Is p inside the closed polygon (even-odd)?
+func contains(_ polygon: [CGPoint], _ p: CGPoint) -> Bool {
+    var inside = false
+    var j = polygon.count - 1
+    for i in polygon.indices {
+        let (a, b) = (polygon[i], polygon[j])
+        if (a.y > p.y) != (b.y > p.y), p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x { inside.toggle() }
+        j = i
+    }
+    return inside
+}
+
+/// Does a lasso hold a mark: most of its points inside?
+func holds(_ lasso: [CGPoint], _ mark: Mark) -> Bool {
+    !mark.points.isEmpty && Double(mark.points.filter { contains(lasso, $0) }.count) >= 0.6 * Double(mark.points.count)
 }
 
 /// Edited rows as spans: adjacent rows join.

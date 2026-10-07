@@ -45,7 +45,8 @@ extension Layout {
         for mark in touching {
             if let ink = mark.ink {
                 ctx.addPath(ink)
-                ctx.setFillColor(CGColor(red: 0.1, green: 0.25, blue: 0.9, alpha: 1))
+                ctx.setFillColor(mark.tool == .eraser ? CGColor(red: 0.9, green: 0.1, blue: 0.1, alpha: 0.45)
+                                                      : CGColor(red: 0.1, green: 0.25, blue: 0.9, alpha: 1))
                 ctx.fillPath()
                 continue
             }

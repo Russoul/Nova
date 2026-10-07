@@ -24,11 +24,13 @@ struct ContentView: View {
                 Button("Connect") { relay.connect(to: address) }
                 Divider().frame(height: 24)
                 Picker("Tool", selection: $editor.tool) {
-                    Image(systemName: "pencil.tip").tag(Mark.Tool.pen)
-                    Image(systemName: "eraser").tag(Mark.Tool.eraser)
+                    Image(systemName: "pencil.tip").tag(PenTool.pen)
+                    Image(systemName: "eraser").tag(PenTool.eraser)
+                    Image(systemName: "lasso").tag(PenTool.lasso)
+                    Image(systemName: "arrow.up.and.down.and.arrow.left.and.right").tag(PenTool.move)
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 110)
+                .frame(width: 210)
                 Button("Undo", systemImage: "arrow.uturn.backward") { Task { await editor.undo(with: relay) } }
                     .disabled(!editor.canUndo)
                 Button("Clear", systemImage: "trash") { editor.clear() }

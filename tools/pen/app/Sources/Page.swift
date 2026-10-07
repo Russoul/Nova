@@ -70,7 +70,7 @@ final class PageView: UIView {
         }
         for mark in marks where mark.bounds.intersects(rect) {
             if let ink = mark.ink {
-                ctx.setBlendMode(.normal)
+                ctx.setBlendMode(mark.tool == .eraser ? .clear : .normal) // a lifted character's cell is cleared
                 ctx.addPath(ink)
                 ctx.setFillColor(self.ink)
                 ctx.fillPath()
@@ -99,14 +99,23 @@ final class PageView: UIView {
 /// one colour per request.
 final class InkView: UIView {
     var onMark: ((Mark) -> Void)?
-    var tool: () -> Mark.Tool = { .pen }
+    /// A lasso drawn, closed; the start, travel and end of a move (false
+    /// from onMoveBegan: nothing is selected, so nothing moves).
+    var onLasso: (([CGPoint]) -> Void)?
+    var onMoveBegan: (() -> Bool)?
+    var onMove: ((CGVector) -> Void)?
+    var onMoveEnded: ((CGVector) -> Void)?
+    var tool: () -> PenTool = { .pen }
     var zoom: () -> CGFloat = { 1 }
     var smoothing: () -> CGFloat = { 1 }
 
     private var samples: [InkSample] = []
     private var predicted: [InkSample] = []
-    private var drawing: Mark.Tool = .pen
+    private var drawing: PenTool = .pen
+    private var moving: CGPoint?
     private let live = CAShapeLayer()
+    private let selection = CAShapeLayer()
+    private let dragged = CAShapeLayer()
     private var bands: [CAShapeLayer] = []
     private var flashing: CALayer?
     private static let tints: [UIColor] = [.systemOrange, .systemGreen, .systemPink, .systemTeal, .systemPurple, .systemYellow]
@@ -122,6 +131,11 @@ final class InkView: UIView {
         live.lineCap = .round
         live.lineJoin = .round
         layer.addSublayer(live)
+        selection.fillColor = nil
+        selection.strokeColor = UIColor.systemBlue.cgColor
+        layer.addSublayer(selection)
+        dragged.fillColor = UIColor.systemBlue.cgColor
+        layer.addSublayer(dragged)
     }
 
     required init?(coder: NSCoder) { fatalError("not from a storyboard") }
@@ -195,16 +209,46 @@ final class InkView: UIView {
         }
     }
 
+    /// A dashed box around what is selected, or none.
+    func showSelection(_ box: CGRect?) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        selection.path = box.map { CGPath(rect: $0.insetBy(dx: -4, dy: -4), transform: nil) }
+        selection.lineWidth = 1.5 / zoom()
+        selection.lineDashPattern = [NSNumber(value: Double(6 / zoom())), NSNumber(value: Double(4 / zoom()))]
+        CATransaction.commit()
+    }
+
+    /// What is being moved, drawn over the page `offset` from where it was.
+    func showDragged(_ path: CGPath?, offset: CGVector) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        dragged.path = path
+        dragged.setAffineTransform(CGAffineTransform(translationX: offset.dx, y: offset.dy))
+        CATransaction.commit()
+    }
+
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first, touch.type == .pencil else { return }
         drawing = tool()
+        if drawing == .move {
+            moving = onMoveBegan?() == true ? touch.location(in: self) : nil
+            return
+        }
         samples = [sample(touch)]
         predicted = []
-        if drawing == .eraser {
+        if drawing == .lasso {
+            live.fillColor = UIColor.systemBlue.withAlphaComponent(0.06).cgColor
+            live.strokeColor = UIColor.systemBlue.cgColor
+            live.lineWidth = 1.5 / zoom()
+            live.lineDashPattern = [NSNumber(value: Double(6 / zoom())), NSNumber(value: Double(4 / zoom()))]
+        } else if drawing == .eraser {
+            live.lineDashPattern = nil
             live.fillColor = nil
             live.strokeColor = UIColor.systemGray.withAlphaComponent(0.35).cgColor
             live.lineWidth = InkView.eraserWidth / zoom()
         } else {
+            live.lineDashPattern = nil
             live.fillColor = UIColor.systemBlue.cgColor
             live.strokeColor = nil
             live.lineWidth = 0
@@ -213,7 +257,12 @@ final class InkView: UIView {
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first, touch.type == .pencil, !samples.isEmpty else { return }
+        guard let touch = touches.first, touch.type == .pencil else { return }
+        if drawing == .move {
+            if let start = moving { onMove?(offset(from: start, to: touch)) }
+            return
+        }
+        guard !samples.isEmpty else { return }
         samples += (event?.coalescedTouches(for: touch) ?? [touch]).map(sample)
         // Where the Pencil is about to be: shown now, replaced by what it does.
         predicted = (event?.predictedTouches(for: touch) ?? []).map(sample)
@@ -221,20 +270,37 @@ final class InkView: UIView {
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first, touch.type == .pencil, !samples.isEmpty else { return }
+        guard let touch = touches.first, touch.type == .pencil else { return }
+        if drawing == .move {
+            if let start = moving { onMoveEnded?(offset(from: start, to: touch)) }
+            moving = nil
+            return
+        }
+        guard !samples.isEmpty else { return }
         samples += (event?.coalescedTouches(for: touch) ?? [touch]).map(sample)
-        onMark?(drawing == .eraser
-                ? Mark(tool: .eraser, points: samples.map(\.point), width: InkView.eraserWidth / zoom())
-                : Mark(pen: samples, smoothing: smoothing()))
+        switch drawing {
+        case .eraser: onMark?(Mark(tool: .eraser, points: samples.map(\.point), width: InkView.eraserWidth / zoom()))
+        case .lasso: onLasso?(samples.map(\.point))
+        default: onMark?(Mark(pen: samples, smoothing: smoothing()))
+        }
         samples = []
         predicted = []
         redraw()
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if drawing == .move, moving != nil {
+            onMoveEnded?(.zero)
+            moving = nil
+        }
         samples = []
         predicted = []
         redraw()
+    }
+
+    private func offset(from start: CGPoint, to touch: UITouch) -> CGVector {
+        let p = touch.location(in: self)
+        return CGVector(dx: p.x - start.x, dy: p.y - start.y)
     }
 
     /// Where a touch is, and the pen's radius there: wider the harder the
@@ -248,7 +314,15 @@ final class InkView: UIView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         let track = samples + predicted
-        if drawing == .eraser {
+        if drawing == .lasso {
+            let path = CGMutablePath()
+            if let first = track.first {
+                path.move(to: first.point)
+                path.addLines(between: track.map(\.point))
+                path.closeSubpath()
+            }
+            live.path = path
+        } else if drawing == .eraser {
             let path = CGMutablePath()
             if let first = track.first {
                 path.move(to: first.point)

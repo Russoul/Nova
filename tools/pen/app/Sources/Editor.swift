@@ -1,12 +1,20 @@
 import UIKit
 
+/// What the Pencil does: write, erase, lasso characters and ink, or move
+/// what the lasso took.
+enum PenTool { case pen, eraser, lasso, move }
+
 /// The editor's state: the text (as the relay last gave it) and the marks
 /// drawn over it since the last recognition, from which the edited rows,
 /// their spans and the requests follow. With no marks the editor is clean:
 /// the text alone.
 @MainActor
 final class Editor: ObservableObject {
-    @Published var tool: Mark.Tool = .pen
+    @Published var tool: PenTool = .pen {
+        didSet { if tool == .pen || tool == .eraser { select([]) } }
+    }
+    /// The ink being moved: indices into `marks`.
+    @Published private(set) var selection: [Int] = []
     /// How many times over a pen stroke is smoothed (0...8); remembered.
     @Published var smoothing: Double = UserDefaults.standard.object(forKey: "smoothing") as? Double ?? Double(defaultSmoothing) {
         didSet { UserDefaults.standard.set(smoothing, forKey: "smoothing") }
@@ -30,10 +38,12 @@ final class Editor: ObservableObject {
         var pick: Int?
     }
 
-    /// What undo takes back: a stroke, or a recognition (its text edit, and
-    /// the marks there were before it).
+    /// What undo takes back: a stroke; a lasso or a move (the marks there
+    /// were before it); or a recognition (its text edit, and the marks there
+    /// were before it).
     private enum Step {
         case mark
+        case marks(before: [Mark])
         case recognition(undo: [Replacement], marks: [Mark])
     }
 
@@ -50,6 +60,10 @@ final class Editor: ObservableObject {
             scroll?.ink.onMark = { [unowned self] in add($0) }
             scroll?.ink.tool = { [unowned self] in tool }
             scroll?.ink.smoothing = { [unowned self] in CGFloat(smoothing) }
+            scroll?.ink.onLasso = { [unowned self] in lasso($0) }
+            scroll?.ink.onMoveBegan = { [unowned self] in beginMove() }
+            scroll?.ink.onMove = { [unowned self] in scroll?.ink.showDragged(dragPath, offset: $0) }
+            scroll?.ink.onMoveEnded = { [unowned self] in endMove(by: $0) }
             if let layout {
                 scroll?.show(layout)
                 refresh(changed: .null)
@@ -81,8 +95,89 @@ final class Editor: ObservableObject {
         let changed = marks.reduce(CGRect.null) { $0.union($1.bounds) }
         marks = []
         edited = []
-        steps.removeAll { if case .mark = $0 { true } else { false } }
+        select([])
+        steps.removeAll { if case .recognition = $0 { false } else { true } }
         refresh(changed: changed)
+    }
+
+    // Lasso and move ---------------------------------------------------------
+
+    /// A lasso: the characters in it are lifted out of the text (their cells
+    /// cleared, their strokes now plain ink), and they and the ink in it are
+    /// selected, ready to move.
+    func lasso(_ loop: [CGPoint]) {
+        guard let layout, activity == nil, review == nil else { return }
+        let lifted = Set(marks.compactMap(\.lifted))
+        let cells = layout.cells(inside: loop).filter { !lifted.contains($0) }
+        let held = marks.indices.filter { marks[$0].tool == .pen && holds(loop, marks[$0]) }
+        if !cells.isEmpty {
+            let before = marks
+            let lifts = cells.flatMap { layout.lift($0) }
+            marks += lifts
+            steps.append(.marks(before: before))
+            edited = Set(marks.flatMap { layout.rows(editedBy: $0) })
+            refresh(changed: lifts.reduce(CGRect.null) { $0.union($1.bounds) })
+        }
+        let new = marks.indices.suffix(cells.count * 2).filter { marks[$0].tool == .pen }
+        select(held + new)
+        if !selection.isEmpty { tool = .move }
+    }
+
+    private func select(_ indices: [Int]) {
+        selection = indices
+        let box = indices.reduce(CGRect.null) { $0.union(marks[$1].bounds) }
+        scroll?.ink.showSelection(box.isNull ? nil : box)
+    }
+
+    /// The selected ink as one shape, for drawing it while it moves.
+    private var dragPath: CGPath? {
+        guard !selection.isEmpty else { return nil }
+        let path = CGMutablePath()
+        for i in selection {
+            let m = marks[i]
+            if let ink = m.ink {
+                path.addPath(ink)
+            } else if let first = m.points.first {
+                let line = CGMutablePath()
+                line.move(to: first)
+                line.addLines(between: m.points.count > 1 ? m.points : [first, first])
+                path.addPath(line.copy(strokingWithWidth: m.width, lineCap: .round, lineJoin: .round, miterLimit: 1))
+            }
+        }
+        return path
+    }
+
+    /// The selection is lifted off the page, to follow the Pencil.
+    private func beginMove() -> Bool {
+        guard !selection.isEmpty, activity == nil, review == nil else { return false }
+        let picked = Set(selection)
+        scroll?.page.show(marks.indices.filter { !picked.contains($0) }.map { marks[$0] },
+                          changed: selection.reduce(CGRect.null) { $0.union(marks[$1].bounds) })
+        scroll?.ink.showSelection(nil)
+        scroll?.ink.showDragged(dragPath, offset: .zero)
+        return true
+    }
+
+    #if DEBUG
+    /// A whole move at once, as a drag with the Pencil would make it.
+    func moveSelection(by offset: CGVector) {
+        if beginMove() { endMove(by: offset) }
+    }
+    #endif
+
+    /// The selection is put down where the Pencil let go.
+    private func endMove(by offset: CGVector) {
+        scroll?.ink.showDragged(nil, offset: .zero)
+        guard let layout else { return }
+        let before = marks
+        if offset != .zero {
+            for i in selection { marks[i] = marks[i].moved(dx: offset.dx, dy: offset.dy) }
+            steps.append(.marks(before: before))
+            edited = Set(marks.flatMap { layout.rows(editedBy: $0) })
+        }
+        let changed = selection.reduce(CGRect.null) { $0.union(before[$1].bounds).union(marks[$1].bounds) }
+        refresh(changed: changed)
+        select(selection)
     }
 
     // Recognition ------------------------------------------------------------
@@ -139,7 +234,7 @@ final class Editor: ObservableObject {
                 let kept = marks.compactMap { mark -> Mark? in
                     let rows = layout.rows(editedBy: mark)
                     guard let first = rows.min(), rows.isSubset(of: keepRows) else { return nil }
-                    return mark.moved(by: CGFloat(shift(of: first, by: replacements)) * layout.lineHeight)
+                    return mark.moved(rows: shift(of: first, by: replacements), lineHeight: layout.lineHeight)
                 }
                 steps = [.recognition(undo: inverse(of: replacements, in: lines), marks: marks)]
                 take(result, tokens: newTokens, version: newVersion, marks: kept, changed: replacements)
@@ -157,8 +252,16 @@ final class Editor: ObservableObject {
         case .mark:
             steps.removeLast()
             guard let mark = marks.popLast() else { return }
+            select([])
             edited = Set(marks.flatMap { layout?.rows(editedBy: $0) ?? [] })
             refresh(changed: mark.bounds)
+        case .marks(let before):
+            steps.removeLast()
+            let changed = (marks + before).reduce(CGRect.null) { $0.union($1.bounds) }
+            marks = before
+            select([])
+            edited = Set(marks.flatMap { layout?.rows(editedBy: $0) ?? [] })
+            refresh(changed: changed)
         case .recognition(let undo, let before):
             let restored = applying(undo, to: lines)
             activity = "undoing…"
@@ -204,6 +307,7 @@ final class Editor: ObservableObject {
         let layout = Layout(lines: lines, tokens: tokens, glyphs: .bundled)
         self.layout = layout
         self.marks = marks
+        select([])
         edited = Set(marks.flatMap { layout.rows(editedBy: $0) })
         var redraw: [CGRect]?
         if let changed, let first = changed.map(\.first).min() {
