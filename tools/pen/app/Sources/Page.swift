@@ -443,6 +443,18 @@ final class PageScroll: UIScrollView, UIScrollViewDelegate {
     }
 
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { page }
+
+    /// Called as the page scrolls or zooms, with the page point at the top of the view.
+    var onScroll: ((CGFloat) -> Void)?
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) { onScroll?(contentOffset.y / zoomScale) }
+    func scrollViewDidZoom(_ scrollView: UIScrollView) { onScroll?(contentOffset.y / zoomScale) }
+
+    /// Scroll so that page point y is at the top of the view.
+    func scroll(toPageY y: CGFloat) {
+        let target = max(0, min(y * zoomScale, contentSize.height - bounds.height))
+        setContentOffset(CGPoint(x: contentOffset.x, y: target), animated: true)
+    }
 }
 
 extension TokenKind {

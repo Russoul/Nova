@@ -10,6 +10,7 @@ import UIKit
 ///   -demo-move       instead of writing: lasso that a₂ and move it two rows down
 ///   -demo-revert     after the ink: revert the bar's line (the ink reaching it is trimmed)
 ///   -demo-palette [X Y]  open the tool palette mid-page, or as by a Pencil hovering at (X, Y)
+///   -demo-jump N     jump to the Nth section (from 0), as the sections panel does
 ///   -demo-shift      instead: erase the last 6 dashes of el-trans's bar, lasso
 ///                    its name and note, and move them 6 cells left
 @MainActor
@@ -24,6 +25,12 @@ enum Demo {
 
     static func run(_ editor: Editor, _ relay: Relay) {
         let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-demo-jump"), i + 1 < args.count, let k = Int(args[i + 1]),
+           editor.sections.indices.contains(k), !done {
+            done = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { editor.jump(to: editor.sections[k]) }
+            return
+        }
         if let i = args.firstIndex(of: "-demo-palette"), editor.palette == nil, !done {
             let x = i + 2 < args.count ? Double(args[i + 1]) : nil, y = i + 2 < args.count ? Double(args[i + 2]) : nil
             editor.palette = Editor.Palette(at: x.flatMap { x in y.map { CGPoint(x: x, y: $0) } })

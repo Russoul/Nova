@@ -25,6 +25,9 @@ final class Editor: ObservableObject {
     /// coordinates), or in the middle of the page (nil).
     struct Palette: Equatable { var at: CGPoint? }
     @Published var palette: Palette?
+    /// The text's headings, and the one whose section is at the top of the view.
+    @Published private(set) var sections: [Heading] = []
+    @Published private(set) var currentSection: Int?
     /// The ink being moved: indices into `marks`.
     @Published private(set) var selection: [Int] = []
     /// How many times over a pen stroke is smoothed (0...8); remembered.
@@ -74,6 +77,7 @@ final class Editor: ObservableObject {
             scroll?.ink.smoothing = { [unowned self] in CGFloat(smoothing) }
             scroll?.ink.onLasso = { [unowned self] in lasso($0) }
             scroll?.ink.onRevert = { [unowned self] in revert($0) }
+            scroll?.onScroll = { [unowned self] in follow(pageY: $0) }
             scroll?.ink.onMoveBegan = { [unowned self] in beginMove() }
             scroll?.ink.onMove = { [unowned self] in scroll?.ink.showDragged(dragPath, offset: $0) }
             scroll?.ink.onMoveEnded = { [unowned self] in endMove(by: $0) }
@@ -337,6 +341,7 @@ final class Editor: ObservableObject {
         let layout = Layout(lines: lines, tokens: tokens, glyphs: .bundled, numbered: lineNumbers)
         self.layout = layout
         self.marks = marks
+        sections = headings(of: lines)
         select([])
         edited = Set(marks.flatMap { layout.rows(editedBy: $0) })
         var redraw: [CGRect]?
@@ -385,6 +390,20 @@ final class Editor: ObservableObject {
         scroll?.show(layout) // the whole page is drawn again, the moved marks with it
         refresh(changed: .null)
         select(selection)
+    }
+
+    /// Scroll so that a section's heading is at the top, a line of room above.
+    func jump(to section: Heading) {
+        guard let layout else { return }
+        scroll?.scroll(toPageY: layout.origin(max(0, section.row - 1), 0).y)
+    }
+
+    /// Mark the section the view is in: the last heading at or above its top.
+    private func follow(pageY: CGFloat) {
+        guard let layout else { return }
+        let top = Int((pageY / layout.lineHeight - Layout.margin).rounded(.down)) + 1
+        let k = sections.lastIndex { $0.row <= top }
+        if k != currentSection { currentSection = k }
     }
 
     private func refresh(changed: CGRect) {

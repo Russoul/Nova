@@ -10,6 +10,8 @@ struct PenApp: App {
 struct ContentView: View {
     @StateObject private var relay = Relay()
     @StateObject private var editor = Editor()
+    /// The sections panel's width; 0 is closed.
+    @AppStorage("sectionsPanel") private var sectionsWidth = 0.0
     @AppStorage("relay") private var address = Bundle.main.object(forInfoDictionaryKey: "NovaPenRelay") as? String ?? "http://127.0.0.1:8765"
 
     var body: some View {
@@ -58,7 +60,14 @@ struct ContentView: View {
             .labelStyle(.iconOnly)
             .padding(8)
             Divider()
-            PageRepresentable(editor: editor)
+            HStack(spacing: 0) {
+                if sectionsWidth > 0 {
+                    SectionsPanel(editor: editor)
+                        .frame(width: sectionsWidth)
+                }
+                ResizeHandle(width: $sectionsWidth)
+                PageRepresentable(editor: editor)
+            }
         }
         .overlay {
             if let palette = editor.palette {
@@ -250,5 +259,81 @@ struct ToolPalette: View {
         let above = at.y - frame.minY - size.height
         let y = above - half.height < 0 ? at.y - frame.minY + size.height : above
         return CGPoint(x: x, y: min(max(y, half.height), frame.height - half.height))
+    }
+}
+
+/// The text's sections, by their headings, indented by level; the one the
+/// page is showing marked. Choosing one scrolls the page to it.
+struct SectionsPanel: View {
+    @ObservedObject var editor: Editor
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            List {
+                ForEach(editor.sections.indices, id: \.self) { k in
+                    SectionRow(section: editor.sections[k], here: k == editor.currentSection) {
+                        editor.jump(to: editor.sections[k])
+                    }
+                    .id(k)
+                }
+            }
+            .listStyle(.plain)
+            .overlay {
+                if editor.sections.isEmpty { Text("No headings").foregroundStyle(.secondary) }
+            }
+            .onChange(of: editor.currentSection) {
+                if let k = editor.currentSection { withAnimation { proxy.scrollTo(k, anchor: .center) } }
+            }
+        }
+    }
+}
+
+/// The edge between the sections and the page, always there: dragging its
+/// grip right opens the panel and widens it as it goes; dragging it left
+/// narrows it, and closes it below the narrowest a panel may be.
+struct ResizeHandle: View {
+    @Binding var width: Double
+    @State private var start: Double?
+    static let narrowest = 160.0, widest = 640.0
+
+    var body: some View {
+        ZStack {
+            Rectangle().fill(Color(uiColor: .separator)).frame(width: 1)
+            Capsule()
+                .fill(Color(uiColor: .systemGray3))
+                .frame(width: 8, height: 56)
+                .hoverEffect(.highlight)
+        }
+        .frame(width: 20)
+        .contentShape(Rectangle())
+        .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .global)
+            .onChanged { drag in
+                let from = start ?? width
+                start = from
+                let wanted = from + drag.translation.width
+                width = wanted < Self.narrowest ? 0 : min(wanted, Self.widest)
+            }
+            .onEnded { _ in start = nil })
+    }
+}
+
+/// One heading in the sections panel.
+struct SectionRow: View {
+    let section: Heading
+    let here: Bool
+    let jump: () -> Void
+
+    var body: some View {
+        Button(action: jump) {
+            Text(section.title)
+                .font(section.level == 1 ? .headline : .subheadline)
+                .foregroundStyle(here ? Color.accentColor : Color.primary)
+                .lineLimit(2)
+                .padding(.leading, CGFloat(section.level - 1) * 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(here ? Color.accentColor.opacity(0.12) : Color.clear)
     }
 }

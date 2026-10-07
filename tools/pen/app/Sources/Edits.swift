@@ -84,6 +84,23 @@ func rowKind(_ line: String) -> RowKind {
     return bare.range(of: #"^\s*---[-\s]*$"#, options: .regularExpression) != nil ? .bar : .formal
 }
 
+/// A heading of the text: `#` to `######` and a title, as tools/nspec.lua
+/// reads it; its row (from 0) and level (the number of `#`).
+struct Heading: Identifiable, Equatable {
+    let row: Int
+    let level: Int
+    let title: String
+    var id: Int { row }
+}
+
+func headings(of lines: [String]) -> [Heading] {
+    lines.enumerated().compactMap { r, line in
+        guard rowKind(line) == .heading else { return nil }
+        let level = line.prefix { $0 == "#" }.count
+        return Heading(row: r, level: level, title: String(line.dropFirst(level)).trimmingCharacters(in: .whitespaces))
+    }
+}
+
 /// Rows first...last (from 0, inclusive) that the user has edited.
 struct Span: Equatable {
     var first: Int
