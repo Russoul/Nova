@@ -294,26 +294,43 @@ struct SectionsPanel: View {
 struct ResizeHandle: View {
     @Binding var width: Double
     @State private var start: Double?
+    /// While dragged: whether letting go now would leave the panel closed.
+    @State private var closing = false
     static let narrowest = 160.0, widest = 640.0
 
     var body: some View {
+        let held = start != nil
         ZStack {
-            Rectangle().fill(Color(uiColor: .separator)).frame(width: 1)
+            Rectangle()
+                .fill(held && !closing ? Color.accentColor : Color(uiColor: .separator))
+                .frame(width: held ? 2 : 1)
             Capsule()
-                .fill(Color(uiColor: .systemGray3))
-                .frame(width: 8, height: 56)
+                .fill(held ? (closing ? Color(uiColor: .systemGray) : Color.accentColor) : Color(uiColor: .systemGray3))
+                .frame(width: held ? 12 : 8, height: held ? 76 : 56)
+                .overlay {
+                    if held && closing {
+                        Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).foregroundStyle(.white)
+                    }
+                }
+                .shadow(color: .black.opacity(held ? 0.25 : 0), radius: 4)
                 .hoverEffect(.highlight)
         }
         .frame(width: 20)
         .contentShape(Rectangle())
+        .animation(.easeOut(duration: 0.15), value: held)
+        .animation(.easeOut(duration: 0.15), value: closing)
         .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .global)
             .onChanged { drag in
                 let from = start ?? width
                 start = from
                 let wanted = from + drag.translation.width
-                width = wanted < Self.narrowest ? 0 : min(wanted, Self.widest)
+                closing = wanted < Self.narrowest
+                width = closing ? 0 : min(wanted, Self.widest)
             }
-            .onEnded { _ in start = nil })
+            .onEnded { _ in
+                start = nil
+                closing = false
+            })
     }
 }
 

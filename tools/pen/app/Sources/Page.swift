@@ -444,15 +444,22 @@ final class PageScroll: UIScrollView, UIScrollViewDelegate {
 
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { page }
 
-    /// Called as the page scrolls or zooms, with the page point at the top of the view.
+    /// Called as the user scrolls or zooms the page, with the page point at
+    /// the top of the view (not while a jump scrolls it: the jump says where it went).
     var onScroll: ((CGFloat) -> Void)?
+    private var jumping = false
 
-    func scrollViewDidScroll(_ scrollView: UIScrollView) { onScroll?(contentOffset.y / zoomScale) }
-    func scrollViewDidZoom(_ scrollView: UIScrollView) { onScroll?(contentOffset.y / zoomScale) }
+    func scrollViewDidScroll(_ scrollView: UIScrollView) { if !jumping { onScroll?(contentOffset.y / zoomScale) } }
+    func scrollViewDidZoom(_ scrollView: UIScrollView) { if !jumping { onScroll?(contentOffset.y / zoomScale) } }
+    func scrollViewDidEndScrollingAnimation(_ scrollView: UIScrollView) { jumping = false }
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) { jumping = false }
 
-    /// Scroll so that page point y is at the top of the view.
+    /// Scroll so that page point y is at the top of the view (as near as the
+    /// end of the page allows).
     func scroll(toPageY y: CGFloat) {
         let target = max(0, min(y * zoomScale, contentSize.height - bounds.height))
+        guard abs(target - contentOffset.y) > 0.5 else { return }
+        jumping = true
         setContentOffset(CGPoint(x: contentOffset.x, y: target), animated: true)
     }
 }

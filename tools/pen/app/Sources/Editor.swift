@@ -395,13 +395,18 @@ final class Editor: ObservableObject {
     /// Scroll so that a section's heading is at the top, a line of room above.
     func jump(to section: Heading) {
         guard let layout else { return }
+        // The section chosen is the current one, even where the page cannot
+        // bring it to the top (near the end, an earlier line stays there).
+        currentSection = sections.firstIndex(of: section)
         scroll?.scroll(toPageY: layout.origin(max(0, section.row - 1), 0).y)
     }
 
     /// Mark the section the view is in: the last heading at or above its top.
     private func follow(pageY: CGFloat) {
         guard let layout else { return }
-        let top = Int((pageY / layout.lineHeight - Layout.margin).rounded(.down)) + 1
+        // The row a quarter of a line below the top: a heading just under the
+        // top line counts as there, whatever the rounding.
+        let top = Int((pageY / layout.lineHeight - Layout.margin + 1.25).rounded(.down))
         let k = sections.lastIndex { $0.row <= top }
         if k != currentSection { currentSection = k }
     }
