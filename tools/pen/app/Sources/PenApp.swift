@@ -313,7 +313,10 @@ struct ResizeHandle: View {
                     }
                 }
                 .shadow(color: .black.opacity(held ? 0.25 : 0), radius: 4)
+                // The system's hover highlight does not follow a dragged grip:
+                // off while dragging, the grip's own colours say it is held.
                 .hoverEffect(.highlight)
+                .hoverEffectDisabled(held)
         }
         .frame(width: 20)
         .contentShape(Rectangle())
