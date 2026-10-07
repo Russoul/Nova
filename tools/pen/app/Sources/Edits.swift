@@ -101,6 +101,23 @@ func headings(of lines: [String]) -> [Heading] {
     }
 }
 
+/// How many edited rows each section holds, by the section's index; a
+/// section runs from its heading to the next heading of any level, so a
+/// subsection's edits are its own. Rows above the first heading are in none.
+func editsBySection(_ edited: Set<Int>, _ sections: [Heading]) -> [Int: Int] {
+    var out = [Int: Int]()
+    for row in edited {
+        // the last heading at or above the row (headings are in row order)
+        var lo = 0, hi = sections.count
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if sections[mid].row <= row { lo = mid + 1 } else { hi = mid }
+        }
+        if lo > 0 { out[lo - 1, default: 0] += 1 }
+    }
+    return out
+}
+
 /// Rows first...last (from 0, inclusive) that the user has edited.
 struct Span: Equatable {
     var first: Int

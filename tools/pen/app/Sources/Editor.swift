@@ -28,6 +28,8 @@ final class Editor: ObservableObject {
     /// The text's headings, and the one whose section is at the top of the view.
     @Published private(set) var sections: [Heading] = []
     @Published private(set) var currentSection: Int?
+    /// How many edited rows each section holds (by index into `sections`).
+    @Published private(set) var sectionEdits: [Int: Int] = [:]
     /// The ink being moved: indices into `marks`.
     @Published private(set) var selection: [Int] = []
     /// How many times over a pen stroke is smoothed (0...8); remembered.
@@ -413,6 +415,8 @@ final class Editor: ObservableObject {
 
     private func refresh(changed: CGRect) {
         requests = groupIntoRequests(spans(of: edited), lines: lines)
+        let counts = editsBySection(edited, sections)
+        if counts != sectionEdits { sectionEdits = counts }
         scroll?.page.show(marks, changed: changed)
         if let layout { scroll?.ink.show(requests, in: layout) }
     }

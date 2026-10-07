@@ -271,7 +271,8 @@ struct SectionsPanel: View {
         ScrollViewReader { proxy in
             List {
                 ForEach(editor.sections.indices, id: \.self) { k in
-                    SectionRow(section: editor.sections[k], here: k == editor.currentSection) {
+                    SectionRow(section: editor.sections[k], here: k == editor.currentSection,
+                               edits: editor.sectionEdits[k] ?? 0) {
                         editor.jump(to: editor.sections[k])
                     }
                     .id(k)
@@ -344,17 +345,28 @@ struct ResizeHandle: View {
 struct SectionRow: View {
     let section: Heading
     let here: Bool
+    /// Edited lines in the section: pending ink, marked beside the title.
+    let edits: Int
     let jump: () -> Void
 
     var body: some View {
         Button(action: jump) {
-            Text(section.title)
-                .font(section.level == 1 ? .headline : .subheadline)
-                .foregroundStyle(here ? Color.accentColor : Color.primary)
-                .lineLimit(2)
-                .padding(.leading, CGFloat(section.level - 1) * 14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+            HStack(spacing: 6) {
+                Text(section.title)
+                    .font(section.level == 1 ? .headline : .subheadline)
+                    .foregroundStyle(here ? Color.accentColor : Color.primary)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if edits > 0 {
+                    Label("\(edits)", systemImage: "pencil.tip")
+                        .labelStyle(.titleAndIcon)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(Color(uiColor: .systemBlue))
+                        .accessibilityLabel("\(edits) edited lines")
+                }
+            }
+            .padding(.leading, CGFloat(section.level - 1) * 14)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .listRowBackground(here ? Color.accentColor.opacity(0.12) : Color.clear)
