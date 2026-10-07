@@ -25,11 +25,12 @@ enum Demo {
         var x = a.x
         for ch in ["b", "₁"] {
             for stroke in layout.glyphs.strokes(of: Character(ch)) {
-                let points = stroke.enumerated().map { k, p in
-                    CGPoint(x: x + p.x * Layout.em * 1.3 + sin(CGFloat(k)) * 0.6,
-                            y: a.y - lh * 0.15 - p.y * Layout.em * 1.3 + cos(CGFloat(k) * 1.7) * 0.6)
+                let samples = stroke.enumerated().map { k, p in
+                    InkSample(point: CGPoint(x: x + p.x * Layout.em * 1.3 + sin(CGFloat(k)) * 0.6,
+                                             y: a.y - lh * 0.15 - p.y * Layout.em * 1.3 + cos(CGFloat(k) * 1.7) * 0.6),
+                              radius: inkRadius(base: 0.6, pressure: 0.3 + 0.5 * sin(.pi * CGFloat(k) / CGFloat(max(stroke.count - 1, 1)))))
                 }
-                editor.add(Mark(tool: .pen, points: points.count > 1 ? points : points + points, width: 1.2))
+                editor.add(Mark(pen: samples))
             }
             x += cw * 1.3
         }

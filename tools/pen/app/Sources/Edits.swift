@@ -8,6 +8,29 @@ struct Mark {
     let tool: Tool
     let points: [CGPoint]
     let width: CGFloat
+    /// A pen stroke's ink, as a shape to fill whose width follows the
+    /// Pencil's pressure; without it the stroke is `points` at `width`.
+    let ink: CGPath?
+
+    init(tool: Tool, points: [CGPoint], width: CGFloat, ink: CGPath? = nil) {
+        self.tool = tool
+        self.points = points
+        self.width = width
+        self.ink = ink
+    }
+
+    /// A pen stroke from the Pencil's samples, smoothed.
+    init(pen samples: [InkSample]) {
+        let track = smoothed(samples)
+        self.init(tool: .pen, points: track.map(\.point), width: 2 * (track.map(\.radius).max() ?? 1), ink: inkOutline(track))
+    }
+
+    /// The same mark, moved down by dy (when lines above it grew or shrank).
+    func moved(by dy: CGFloat) -> Mark {
+        var shift = CGAffineTransform(translationX: 0, y: dy)
+        return Mark(tool: tool, points: points.map { CGPoint(x: $0.x, y: $0.y + dy) }, width: width,
+                    ink: ink.flatMap { $0.copy(using: &shift) })
+    }
 
     var bounds: CGRect {
         guard let first = points.first else { return .null }

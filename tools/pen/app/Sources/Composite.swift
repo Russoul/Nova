@@ -43,6 +43,12 @@ extension Layout {
         ctx.setLineWidth(glyphs.pen * Layout.em)
         ctx.strokePath()
         for mark in touching {
+            if let ink = mark.ink {
+                ctx.addPath(ink)
+                ctx.setFillColor(CGColor(red: 0.1, green: 0.25, blue: 0.9, alpha: 1))
+                ctx.fillPath()
+                continue
+            }
             let path = CGMutablePath()
             trace(mark.points, into: path)
             ctx.addPath(path)

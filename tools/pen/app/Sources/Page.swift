@@ -69,6 +69,13 @@ final class PageView: UIView {
             ctx.strokePath()
         }
         for mark in marks where mark.bounds.intersects(rect) {
+            if let ink = mark.ink {
+                ctx.setBlendMode(.normal)
+                ctx.addPath(ink)
+                ctx.setFillColor(self.ink)
+                ctx.fillPath()
+                continue
+            }
             let path = CGMutablePath()
             add(mark.points, to: path)
             ctx.addPath(path)
@@ -95,7 +102,9 @@ final class InkView: UIView {
     var tool: () -> Mark.Tool = { .pen }
     var zoom: () -> CGFloat = { 1 }
 
-    private var points: [CGPoint] = []
+    private var samples: [InkSample] = []
+    private var predicted: [InkSample] = []
+    private var drawing: Mark.Tool = .pen
     private let live = CAShapeLayer()
     private var bands: [CAShapeLayer] = []
     private var flashing: CALayer?
@@ -187,42 +196,67 @@ final class InkView: UIView {
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first, touch.type == .pencil else { return }
-        points = [touch.location(in: self)]
-        let eraser = tool() == .eraser
-        live.strokeColor = eraser ? UIColor.systemGray.withAlphaComponent(0.35).cgColor : UIColor.systemBlue.cgColor
-        live.lineWidth = (eraser ? InkView.eraserWidth : InkView.penWidth) / zoom()
+        drawing = tool()
+        samples = [sample(touch)]
+        predicted = []
+        if drawing == .eraser {
+            live.fillColor = nil
+            live.strokeColor = UIColor.systemGray.withAlphaComponent(0.35).cgColor
+            live.lineWidth = InkView.eraserWidth / zoom()
+        } else {
+            live.fillColor = UIColor.systemBlue.cgColor
+            live.strokeColor = nil
+            live.lineWidth = 0
+        }
         redraw()
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first, touch.type == .pencil, !points.isEmpty else { return }
-        points += (event?.coalescedTouches(for: touch) ?? [touch]).map { $0.location(in: self) }
+        guard let touch = touches.first, touch.type == .pencil, !samples.isEmpty else { return }
+        samples += (event?.coalescedTouches(for: touch) ?? [touch]).map(sample)
+        // Where the Pencil is about to be: shown now, replaced by what it does.
+        predicted = (event?.predictedTouches(for: touch) ?? []).map(sample)
         redraw()
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first, touch.type == .pencil, !points.isEmpty else { return }
-        points += (event?.coalescedTouches(for: touch) ?? [touch]).map { $0.location(in: self) }
-        let tool = tool()
-        onMark?(Mark(tool: tool, points: points, width: (tool == .eraser ? InkView.eraserWidth : InkView.penWidth) / zoom()))
-        points = []
+        guard let touch = touches.first, touch.type == .pencil, !samples.isEmpty else { return }
+        samples += (event?.coalescedTouches(for: touch) ?? [touch]).map(sample)
+        onMark?(drawing == .eraser
+                ? Mark(tool: .eraser, points: samples.map(\.point), width: InkView.eraserWidth / zoom())
+                : Mark(pen: samples))
+        samples = []
+        predicted = []
         redraw()
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        points = []
+        samples = []
+        predicted = []
         redraw()
+    }
+
+    /// Where a touch is, and the pen's radius there: wider the harder the
+    /// Pencil presses, and the same on screen whatever the zoom.
+    private func sample(_ touch: UITouch) -> InkSample {
+        let pressure = touch.maximumPossibleForce > 0 ? touch.force / touch.maximumPossibleForce : 0.5
+        return InkSample(point: touch.location(in: self), radius: inkRadius(base: InkView.penWidth / 2 / zoom(), pressure: pressure))
     }
 
     private func redraw() {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        let path = CGMutablePath()
-        if let first = points.first {
-            path.move(to: first)
-            path.addLines(between: points.count > 1 ? points : [first, first])
+        let track = samples + predicted
+        if drawing == .eraser {
+            let path = CGMutablePath()
+            if let first = track.first {
+                path.move(to: first.point)
+                path.addLines(between: track.count > 1 ? track.map(\.point) : [first.point, first.point])
+            }
+            live.path = path
+        } else {
+            live.path = inkOutline(smoothed(track))
         }
-        live.path = path
         CATransaction.commit()
     }
 }

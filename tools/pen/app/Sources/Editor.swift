@@ -134,8 +134,7 @@ final class Editor: ObservableObject {
                 let kept = marks.compactMap { mark -> Mark? in
                     let rows = layout.rows(editedBy: mark)
                     guard let first = rows.min(), rows.isSubset(of: keepRows) else { return nil }
-                    let dy = CGFloat(shift(of: first, by: replacements)) * layout.lineHeight
-                    return Mark(tool: mark.tool, points: mark.points.map { CGPoint(x: $0.x, y: $0.y + dy) }, width: mark.width)
+                    return mark.moved(by: CGFloat(shift(of: first, by: replacements)) * layout.lineHeight)
                 }
                 steps = [.recognition(undo: inverse(of: replacements, in: lines), marks: marks)]
                 take(result, tokens: newTokens, version: newVersion, marks: kept, changed: replacements)
