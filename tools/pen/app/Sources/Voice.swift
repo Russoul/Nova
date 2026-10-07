@@ -70,6 +70,18 @@ enum Command: Equatable {
         case .notUnderstood: self = .notUnderstood
         }
     }
+
+    /// The model's reading, held to what was said: a target it names that was
+    /// not said (it borrows one from its instructions when nothing fits) is
+    /// not understood, and an end of the text taken for a target is the end.
+    func checked(against said: String) -> Command {
+        guard case .goTo(_, let target) = self else { return self }
+        switch Set(spokenWords(target)) {
+        case ["top"], ["start"], ["beginning"]: return .top
+        case ["bottom"], ["end"]: return .bottom
+        default: return match(target, said) >= 0.3 ? self : .notUnderstood
+        }
+    }
 }
 
 private let instructions = """
@@ -78,11 +90,20 @@ The document has sections (headings such as "Notation" or "Rules (ctx)") and nam
 "el-trans" or "sub-comp", often heard as "el trans" or "sub comp"). Choose: goToSection for a section \
 ("go to notation", "conventions"); goToRule for a rule ("rule el trans", "show me sub comp"); goToLine \
 for a line number ("line four thirty" is 430); find for anything else to look for ("where is the setoid \
-model"); nextSection, previousSection, top, bottom; selectTool to pick pen, eraser, lasso, move or revert; \
+model"); nextSection, previousSection; top or bottom for the start or end of the \
+document ("go to the end"); selectTool to pick pen, eraser, lasso, move or revert; \
 recognise to turn the handwriting into text ("recognise", "convert my ink"); undo; clearInk to throw the \
-ink away; lineNumbers to show or hide line numbers; sectionsPanel to show or hide the list of sections. \
+ink away; lineNumbers to show or hide line numbers; sectionsPanel to show or hide the list of sections ("sections", "hide sections"). \
 Copy what names the target as it was said. If the command is none of these, choose notUnderstood.
 """
+
+/// A step of the voice loop, timed, on the console.
+private let clock = ContinuousClock.now
+func log(_ s: String) {
+    #if DEBUG
+    print("voice \(clock.duration(to: .now)): \(s)")
+    #endif
+}
 
 /// Speech recognition while the squeeze is held.
 @MainActor
@@ -123,7 +144,9 @@ final class Listener {
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             let text = result?.bestTranscription.formattedString, final = result?.isFinal == true || error != nil
             Task { @MainActor in
-                guard let self else { return }
+                // What comes once this listening is over (stopped, or another
+                // begun) is ignored: it would show listening again.
+                guard let self, self.request === request else { return }
                 if let text {
                     self.heard = text
                     hearing(text)
@@ -147,13 +170,6 @@ final class Listener {
                 self.end()
             }
         }
-    }
-
-    func cancel() {
-        engine.stop()
-        engine.inputNode.removeTap(onBus: 0)
-        task?.cancel()
-        end()
     }
 
     private func end() {
@@ -188,6 +204,8 @@ final class Voice: ObservableObject {
     private let listener = Listener()
     private let speaker = AVSpeechSynthesizer()
     private var starting: Task<Bool, Never>?
+    /// The language model's session for what is being said, loaded while it is said.
+    private var session: LanguageModelSession?
 
     init(editor: Editor, relay: Relay) {
         self.editor = editor
@@ -196,6 +214,11 @@ final class Voice: ObservableObject {
 
     /// The squeeze is held: start listening.
     func begin() {
+        log("begin")
+        if case .available = SystemLanguageModel.default.availability {
+            session = LanguageModelSession(instructions: instructions)
+            session?.prewarm()
+        }
         starting = Task {
             guard await Listener.allowed() else {
                 tell("Voice needs the microphone and speech recognition, in Settings.")
@@ -217,7 +240,9 @@ final class Voice: ObservableObject {
     func end() {
         Task {
             guard await starting?.value == true else { return }
+            log("end")
             let said = await listener.finish()
+            log("heard: \(said)")
             guard !said.trimmingCharacters(in: .whitespaces).isEmpty else {
                 state = .idle
                 return
@@ -237,13 +262,6 @@ final class Voice: ObservableObject {
     }
     #endif
 
-    func cancel() {
-        Task {
-            if await starting?.value == true { listener.cancel() }
-            state = .idle
-        }
-    }
-
     /// The command said, as the language model reads it. Where the model
     /// cannot help (not on this iPad, a refusal: its guardrails take some rule
     /// names for something else, or no answer within a few seconds), all that
@@ -251,24 +269,33 @@ final class Voice: ObservableObject {
     private func understand(_ said: String) async -> Command {
         let fallback = Command.goTo(.anything, said)
         guard case .available = SystemLanguageModel.default.availability else { return fallback }
-        return await withTaskGroup(of: Command?.self) { group in
-            group.addTask {
-                let session = LanguageModelSession(instructions: instructions)
-                let answer = try? await session.respond(to: said, generating: VoiceCommand.self,
-                                                        options: GenerationOptions(temperature: 0))
-                return answer.map { Command($0.content) } ?? fallback
+        let session = self.session ?? LanguageModelSession(instructions: instructions)
+        self.session = nil
+        // Whichever comes first, the answer or the time limit: a task group
+        // would wait for the model even once cancelled, and it may not stop.
+        return await withCheckedContinuation { done in
+            var answered = false
+            func answer(_ c: Command) {
+                guard !answered else { return }
+                answered = true
+                done.resume(returning: c)
             }
-            group.addTask {
+            Task { @MainActor in
+                let reply = try? await session.respond(to: said, generating: VoiceCommand.self,
+                                                       options: GenerationOptions(temperature: 0))
+                log("model: \(reply.map { "\($0.content)" } ?? "no answer")")
+                answer(reply.map { Command($0.content).checked(against: said) } ?? fallback)
+            }
+            Task { @MainActor in
                 try? await Task.sleep(for: .seconds(4))
-                return nil
+                if !answered { log("model: out of time") }
+                answer(fallback)
             }
-            let first = await group.next() ?? nil
-            group.cancelAll()
-            return first ?? fallback
         }
     }
 
     private func perform(_ command: Command, said: String) async {
+        log("perform: \(command)")
         switch command {
         case .goTo(let kind, let target):
             let name = target.isEmpty ? said : target

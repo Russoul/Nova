@@ -174,6 +174,7 @@ struct PageRepresentable: UIViewRepresentable {
         func pencilInteraction(_ interaction: UIPencilInteraction, didReceiveSqueeze squeeze: UIPencilInteraction.Squeeze) {
             MainActor.assumeIsolated {
                 guard UIPencilInteraction.preferredSqueezeAction != .ignore else { return }
+                if squeeze.phase != .changed { log("squeeze \(squeeze.phase.rawValue)") }
                 switch squeeze.phase {
                 case .began:
                     hoverAt = squeeze.hoverPose.map { interaction.view?.convert($0.location, to: nil) ?? $0.location }
@@ -195,10 +196,12 @@ struct PageRepresentable: UIViewRepresentable {
                         editor.palette = Editor.Palette(at: hoverAt)
                     }
                 case .cancelled:
+                    // The system can cancel a squeeze held a while (one
+                    // that let go is all the same to whoever was talking).
                     holding?.cancel()
                     if talking {
                         talking = false
-                        voice.cancel()
+                        voice.end()
                     }
                 default:
                     break
