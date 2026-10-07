@@ -21,6 +21,10 @@ final class Editor: ObservableObject {
             if lineNumbers != oldValue { relayout() }
         }
     }
+    /// The tool palette, when open: by the hovering Pencil (a point in window
+    /// coordinates), or in the middle of the page (nil).
+    struct Palette: Equatable { var at: CGPoint? }
+    @Published var palette: Palette?
     /// The ink being moved: indices into `marks`.
     @Published private(set) var selection: [Int] = []
     /// How many times over a pen stroke is smoothed (0...8); remembered.

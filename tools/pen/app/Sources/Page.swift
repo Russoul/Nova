@@ -129,6 +129,8 @@ final class InkView: UIView {
     private let live = CAShapeLayer()
     private let selection = CAShapeLayer()
     private let dragged = CAShapeLayer()
+    /// Where the hovering Pencil would draw, and with what.
+    private let cursor = CAShapeLayer()
     private var bands: [CAShapeLayer] = []
     private var flashing: CALayer?
     private static let tints: [UIColor] = [.systemOrange, .systemGreen, .systemPink, .systemTeal, .systemPurple, .systemYellow]
@@ -149,6 +151,10 @@ final class InkView: UIView {
         layer.addSublayer(selection)
         dragged.fillColor = UIColor.systemBlue.cgColor
         layer.addSublayer(dragged)
+        layer.addSublayer(cursor)
+        let hover = UIHoverGestureRecognizer(target: self, action: #selector(hovered))
+        hover.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.pencil.rawValue)]
+        addGestureRecognizer(hover)
     }
 
     required init?(coder: NSCoder) { fatalError("not from a storyboard") }
@@ -222,6 +228,54 @@ final class InkView: UIView {
         }
     }
 
+    /// The Pencil hovering: a preview of the tool where its tip would land
+    /// (the pen's dot of ink, the eraser's reach, a mark for the others).
+    @objc private func hovered(_ hover: UIHoverGestureRecognizer) {
+        switch hover.state {
+        case .began, .changed: showCursor(at: hover.location(in: self))
+        default: showCursor(at: nil)
+        }
+    }
+
+    private func showCursor(at p: CGPoint?) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        guard let p else {
+            cursor.path = nil
+            return
+        }
+        let z = zoom()
+        func circle(_ r: CGFloat) -> CGPath { CGPath(ellipseIn: CGRect(x: p.x - r, y: p.y - r, width: 2 * r, height: 2 * r), transform: nil) }
+        cursor.lineDashPattern = nil
+        switch tool() {
+        case .pen:
+            cursor.path = circle(InkView.penWidth / 2 / z)
+            cursor.fillColor = UIColor.systemBlue.withAlphaComponent(0.6).cgColor
+            cursor.strokeColor = nil
+        case .eraser:
+            cursor.path = circle(InkView.eraserWidth / 2 / z)
+            cursor.fillColor = UIColor.systemGray.withAlphaComponent(0.15).cgColor
+            cursor.strokeColor = UIColor.systemGray.cgColor
+            cursor.lineWidth = 1 / z
+        case .lasso:
+            cursor.path = circle(6 / z)
+            cursor.fillColor = nil
+            cursor.strokeColor = UIColor.systemBlue.cgColor
+            cursor.lineWidth = 1.5 / z
+            cursor.lineDashPattern = [NSNumber(value: Double(3 / z)), NSNumber(value: Double(2 / z))]
+        case .move:
+            cursor.path = circle(6 / z)
+            cursor.fillColor = UIColor.systemBlue.withAlphaComponent(0.2).cgColor
+            cursor.strokeColor = UIColor.systemBlue.cgColor
+            cursor.lineWidth = 1.5 / z
+        case .revert:
+            cursor.path = circle(6 / z)
+            cursor.fillColor = UIColor.systemOrange.withAlphaComponent(0.4).cgColor
+            cursor.strokeColor = nil
+        }
+    }
+
     /// A dashed box around what is selected, or none.
     func showSelection(_ box: CGRect?) {
         CATransaction.begin()
@@ -243,6 +297,7 @@ final class InkView: UIView {
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first, touch.type == .pencil else { return }
+        showCursor(at: nil)
         drawing = tool()
         if drawing == .move {
             moving = onMoveBegan?() == true ? touch.location(in: self) : nil

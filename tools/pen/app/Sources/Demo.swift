@@ -9,6 +9,7 @@ import UIKit
 ///   -demo-undo       then press Undo
 ///   -demo-move       instead of writing: lasso that a₂ and move it two rows down
 ///   -demo-revert     after the ink: revert the bar's line (the ink reaching it is trimmed)
+///   -demo-palette [X Y]  open the tool palette mid-page, or as by a Pencil hovering at (X, Y)
 ///   -demo-shift      instead: erase the last 6 dashes of el-trans's bar, lasso
 ///                    its name and note, and move them 6 cells left
 @MainActor
@@ -22,6 +23,13 @@ enum Demo {
     private static var done = false
 
     static func run(_ editor: Editor, _ relay: Relay) {
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-demo-palette"), editor.palette == nil, !done {
+            let x = i + 2 < args.count ? Double(args[i + 1]) : nil, y = i + 2 < args.count ? Double(args[i + 2]) : nil
+            editor.palette = Editor.Palette(at: x.flatMap { x in y.map { CGPoint(x: x, y: $0) } })
+            done = true
+            return
+        }
         guard ink || move || shift, !done, let layout = editor.layoutShown,
               let row = editor.lines.firstIndex(of: "Γ ⊦ a₀ ≐ a₂ : A"),
               let at = Array(editor.lines[row]).firstIndex(of: "≐") else { return }

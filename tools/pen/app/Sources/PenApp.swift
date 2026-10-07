@@ -60,6 +60,23 @@ struct ContentView: View {
             Divider()
             PageRepresentable(editor: editor)
         }
+        .overlay {
+            if let palette = editor.palette {
+                GeometryReader { geo in
+                    let frame = geo.frame(in: .global)
+                    ZStack {
+                        Color.black.opacity(0.001) // a tap outside closes it
+                            .onTapGesture { editor.palette = nil }
+                        ToolPalette(selected: editor.tool) { tool in
+                            editor.tool = tool
+                            editor.palette = nil
+                        }
+                        .position(ToolPalette.place(palette.at, in: frame))
+                    }
+                }
+                .ignoresSafeArea()
+            }
+        }
         .onAppear { relay.connect(to: address) }
         .sheet(isPresented: Binding(get: { editor.review != nil }, set: { if !$0 { editor.review = nil } })) {
             ReviewView(editor: editor, relay: relay)
@@ -112,13 +129,27 @@ struct PageRepresentable: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(editor: editor) }
 
-    /// A double tap on the Pencil (or a squeeze) switches pen and eraser.
+    /// A double tap on the Pencil switches pen and eraser; a squeeze opens the
+    /// tool palette by the hovering tip, or mid-page when not hovering (unless
+    /// the Pencil's settings say a squeeze does nothing).
     final class Coordinator: NSObject, UIPencilInteractionDelegate {
         let editor: Editor
         init(editor: Editor) { self.editor = editor }
 
         func pencilInteraction(_ interaction: UIPencilInteraction, didReceiveTap tap: UIPencilInteraction.Tap) {
             MainActor.assumeIsolated { editor.tool = editor.tool == .pen ? .eraser : .pen }
+        }
+
+        func pencilInteraction(_ interaction: UIPencilInteraction, didReceiveSqueeze squeeze: UIPencilInteraction.Squeeze) {
+            MainActor.assumeIsolated {
+                guard squeeze.phase == .ended, UIPencilInteraction.preferredSqueezeAction != .ignore else { return }
+                if editor.palette != nil {
+                    editor.palette = nil
+                    return
+                }
+                let at = squeeze.hoverPose.map { interaction.view?.convert($0.location, to: nil) ?? $0.location }
+                editor.palette = Editor.Palette(at: at)
+            }
         }
     }
 }
@@ -175,5 +206,46 @@ struct ReviewView: View {
 
     private func objections(_ c: Relay.Result.Candidate) -> String {
         (c.new_findings + (c.foreign.isEmpty ? [] : ["not in the specs: " + c.foreign.joined()])).joined(separator: "; ")
+    }
+}
+
+/// The tools, in a row that floats over the page; the current one marked.
+/// Choosing one closes it.
+struct ToolPalette: View {
+    let selected: PenTool
+    let choose: (PenTool) -> Void
+
+    static let tools: [(PenTool, String)] = [
+        (.pen, "pencil.tip"), (.eraser, "eraser"), (.lasso, "lasso"),
+        (.move, "arrow.up.and.down.and.arrow.left.and.right"), (.revert, "arrow.uturn.left.circle"),
+    ]
+    static let size = CGSize(width: 5 * 52 + 16, height: 60)
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(Self.tools, id: \.1) { tool, icon in
+                Button { choose(tool) } label: {
+                    Image(systemName: icon)
+                        .font(.title3)
+                        .frame(width: 48, height: 48)
+                        .background(Circle().fill(tool == selected ? Color.accentColor.opacity(0.25) : .clear))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(6)
+        .background(.regularMaterial, in: Capsule())
+        .shadow(radius: 8, y: 2)
+    }
+
+    /// Where the palette's centre goes: a little above the hovering tip, so
+    /// the Pencil does not cover it, kept on screen; mid-page without a tip.
+    static func place(_ at: CGPoint?, in frame: CGRect) -> CGPoint {
+        guard let at else { return CGPoint(x: frame.width / 2, y: frame.height / 2) }
+        let half = CGSize(width: size.width / 2 + 12, height: size.height / 2 + 12)
+        let x = min(max(at.x - frame.minX, half.width), frame.width - half.width)
+        let above = at.y - frame.minY - size.height
+        let y = above - half.height < 0 ? at.y - frame.minY + size.height : above
+        return CGPoint(x: x, y: min(max(y, half.height), frame.height - half.height))
     }
 }
