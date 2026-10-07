@@ -8,8 +8,16 @@ struct PenApp: App {
 }
 
 struct ContentView: View {
-    @StateObject private var relay = Relay()
-    @StateObject private var editor = Editor()
+    @StateObject private var relay: Relay
+    @StateObject private var editor: Editor
+    @StateObject private var voice: Voice
+
+    init() {
+        let relay = Relay(), editor = Editor()
+        _relay = StateObject(wrappedValue: relay)
+        _editor = StateObject(wrappedValue: editor)
+        _voice = StateObject(wrappedValue: Voice(editor: editor, relay: relay))
+    }
     /// The sections panel's width; 0 is closed.
     @AppStorage("sectionsPanel") private var sectionsWidth = 0.0
     @AppStorage("relay") private var address = Bundle.main.object(forInfoDictionaryKey: "NovaPenRelay") as? String ?? "http://127.0.0.1:8765"
@@ -66,7 +74,8 @@ struct ContentView: View {
                         .frame(width: sectionsWidth)
                 }
                 ResizeHandle(width: $sectionsWidth)
-                PageRepresentable(editor: editor)
+                PageRepresentable(editor: editor, voice: voice)
+                    .overlay(alignment: .top) { VoiceBubble(voice: voice).animation(.easeOut(duration: 0.2), value: voice.state) }
             }
         }
         .overlay {
@@ -86,7 +95,10 @@ struct ContentView: View {
                 .ignoresSafeArea()
             }
         }
-        .onAppear { relay.connect(to: address) }
+        .onAppear {
+            relay.connect(to: address)
+            voice.setSectionsPanel = { sectionsWidth = $0 }
+        }
         .sheet(isPresented: Binding(get: { editor.review != nil }, set: { if !$0 { editor.review = nil } })) {
             ReviewView(editor: editor, relay: relay)
         }
@@ -107,7 +119,7 @@ struct ContentView: View {
         if editor.version != relay.version { editor.show(relay.lines, tokens: relay.tokens, version: relay.version) }
         if relay.remote != relay.version { Task { await relay.load() } }
         #if DEBUG
-        Demo.run(editor, relay)
+        Demo.run(editor, relay, voice)
         #endif
     }
 
@@ -126,6 +138,7 @@ struct ContentView: View {
 /// The UIKit page in SwiftUI, driven by the editor.
 struct PageRepresentable: UIViewRepresentable {
     let editor: Editor
+    let voice: Voice
 
     func makeUIView(context: Context) -> PageScroll {
         let scroll = PageScroll(frame: .zero)
@@ -136,14 +149,23 @@ struct PageRepresentable: UIViewRepresentable {
 
     func updateUIView(_ scroll: PageScroll, context: Context) {}
 
-    func makeCoordinator() -> Coordinator { Coordinator(editor: editor) }
+    func makeCoordinator() -> Coordinator { Coordinator(editor: editor, voice: voice) }
 
-    /// A double tap on the Pencil switches pen and eraser; a squeeze opens the
-    /// tool palette by the hovering tip, or mid-page when not hovering (unless
-    /// the Pencil's settings say a squeeze does nothing).
+    /// A double tap on the Pencil switches pen and eraser. A quick squeeze
+    /// opens the tool palette by the hovering tip, or mid-page when not
+    /// hovering; a squeeze held a moment listens, until it is let go (voice).
+    /// Neither, if the Pencil's settings say a squeeze does nothing.
     final class Coordinator: NSObject, UIPencilInteractionDelegate {
         let editor: Editor
-        init(editor: Editor) { self.editor = editor }
+        let voice: Voice
+        private var holding: Task<Void, Never>?
+        private var talking = false
+        private var hoverAt: CGPoint?
+
+        init(editor: Editor, voice: Voice) {
+            self.editor = editor
+            self.voice = voice
+        }
 
         func pencilInteraction(_ interaction: UIPencilInteraction, didReceiveTap tap: UIPencilInteraction.Tap) {
             MainActor.assumeIsolated { editor.tool = editor.tool == .pen ? .eraser : .pen }
@@ -151,13 +173,36 @@ struct PageRepresentable: UIViewRepresentable {
 
         func pencilInteraction(_ interaction: UIPencilInteraction, didReceiveSqueeze squeeze: UIPencilInteraction.Squeeze) {
             MainActor.assumeIsolated {
-                guard squeeze.phase == .ended, UIPencilInteraction.preferredSqueezeAction != .ignore else { return }
-                if editor.palette != nil {
-                    editor.palette = nil
-                    return
+                guard UIPencilInteraction.preferredSqueezeAction != .ignore else { return }
+                switch squeeze.phase {
+                case .began:
+                    hoverAt = squeeze.hoverPose.map { interaction.view?.convert($0.location, to: nil) ?? $0.location }
+                    holding = Task { @MainActor [weak self] in
+                        try? await Task.sleep(for: .milliseconds(350))
+                        guard let self, !Task.isCancelled else { return }
+                        talking = true
+                        editor.palette = nil
+                        voice.begin()
+                    }
+                case .ended:
+                    holding?.cancel()
+                    if talking {
+                        talking = false
+                        voice.end()
+                    } else if editor.palette != nil {
+                        editor.palette = nil
+                    } else {
+                        editor.palette = Editor.Palette(at: hoverAt)
+                    }
+                case .cancelled:
+                    holding?.cancel()
+                    if talking {
+                        talking = false
+                        voice.cancel()
+                    }
+                default:
+                    break
                 }
-                let at = squeeze.hoverPose.map { interaction.view?.convert($0.location, to: nil) ?? $0.location }
-                editor.palette = Editor.Palette(at: at)
             }
         }
     }

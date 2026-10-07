@@ -5,7 +5,7 @@ name: NovaPen
 options:
   bundleIdPrefix: org.nova
   deploymentTarget:
-    iOS: "18.0"
+    iOS: "26.0"
 settings:
   base:
     SWIFT_VERSION: "5.0" # tiled drawing runs off the main thread; Swift 6's isolation checks would trap it
@@ -26,6 +26,8 @@ targets:
       properties:
         CFBundleDisplayName: Nova Pen
         NovaPenRelay: $(PEN_RELAY) # the relay to connect to until another is entered
+        NSMicrophoneUsageDescription: Hold a squeeze of the Pencil and speak to move around the text or give a command.
+        NSSpeechRecognitionUsageDescription: What you say while holding a squeeze is turned into text on the iPad, to find what you asked for.
         UILaunchScreen: {}
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationPortrait

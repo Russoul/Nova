@@ -11,6 +11,7 @@ import UIKit
 ///   -demo-revert     after the ink: revert the bar's line (the ink reaching it is trimmed)
 ///   -demo-palette [X Y]  open the tool palette mid-page, or as by a Pencil hovering at (X, Y)
 ///   -demo-jump N     jump to the Nth section (from 0), as the sections panel does
+///   -demo-say TEXT   act on TEXT as if it were said while holding a squeeze
 ///   -demo-shift      instead: erase the last 6 dashes of el-trans's bar, lasso
 ///                    its name and note, and move them 6 cells left
 @MainActor
@@ -23,8 +24,13 @@ enum Demo {
     static var revert: Bool { ProcessInfo.processInfo.arguments.contains("-demo-revert") }
     private static var done = false
 
-    static func run(_ editor: Editor, _ relay: Relay) {
+    static func run(_ editor: Editor, _ relay: Relay, _ voice: Voice) {
         let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-demo-say"), i + 1 < args.count, !editor.lines.isEmpty, !done {
+            done = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { voice.act(on: args[i + 1]) }
+            return
+        }
         if let i = args.firstIndex(of: "-demo-jump"), i + 1 < args.count, let k = Int(args[i + 1]),
            editor.sections.indices.contains(k), !done {
             done = true

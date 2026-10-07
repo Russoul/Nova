@@ -133,6 +133,7 @@ final class InkView: UIView {
     private let cursor = CAShapeLayer()
     private var bands: [CAShapeLayer] = []
     private var flashing: CALayer?
+    private var glowing: CALayer?
     private static let tints: [UIColor] = [.systemOrange, .systemGreen, .systemPink, .systemTeal, .systemPurple, .systemYellow]
 
     /// Pen and eraser widths stay the same on screen whatever the zoom.
@@ -225,6 +226,28 @@ final class InkView: UIView {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.1) { [weak self] in
             group.removeFromSuperlayer()
             if self?.flashing === group { self?.flashing = nil }
+        }
+    }
+
+    /// A row reached by a jump glows a moment, then fades.
+    func glow(_ band: CGRect) {
+        glowing?.removeFromSuperlayer()
+        let glow = CALayer()
+        glow.frame = band
+        glow.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.3).cgColor
+        layer.insertSublayer(glow, at: 0)
+        glowing = glow
+        let fade = CABasicAnimation(keyPath: "opacity")
+        fade.fromValue = 1
+        fade.toValue = 0
+        fade.beginTime = CACurrentMediaTime() + 1.2
+        fade.duration = 0.8
+        fade.fillMode = .forwards
+        fade.isRemovedOnCompletion = false
+        glow.add(fade, forKey: "fade")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.1) { [weak self] in
+            glow.removeFromSuperlayer()
+            if self?.glowing === glow { self?.glowing = nil }
         }
     }
 

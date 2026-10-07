@@ -395,12 +395,17 @@ final class Editor: ObservableObject {
     }
 
     /// Scroll so that a section's heading is at the top, a line of room above.
-    func jump(to section: Heading) {
+    func jump(to section: Heading) { jump(toRow: section.row) }
+
+    /// Scroll so that a row is near the top, a line of room above, and make
+    /// it glow a moment. Its section becomes the current one, even where the
+    /// page cannot bring the row to the top (near the end, an earlier line
+    /// stays there).
+    func jump(toRow row: Int) {
         guard let layout else { return }
-        // The section chosen is the current one, even where the page cannot
-        // bring it to the top (near the end, an earlier line stays there).
-        currentSection = sections.firstIndex(of: section)
-        scroll?.scroll(toPageY: layout.origin(max(0, section.row - 1), 0).y)
+        currentSection = sections.lastIndex { $0.row <= row }
+        scroll?.scroll(toPageY: layout.origin(max(0, row - 1), 0).y)
+        scroll?.ink.glow(CGRect(x: 0, y: layout.origin(row, 0).y, width: layout.size.width, height: layout.lineHeight))
     }
 
     /// Mark the section the view is in: the last heading at or above its top.
