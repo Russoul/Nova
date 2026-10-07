@@ -296,6 +296,8 @@ struct ResizeHandle: View {
     @State private var start: Double?
     /// While dragged: whether letting go now would leave the panel closed.
     @State private var closing = false
+    /// Whether the Pencil (or a pointer) hovers over the edge.
+    @State private var hovering = false
     static let narrowest = 160.0, widest = 640.0
 
     var body: some View {
@@ -305,21 +307,22 @@ struct ResizeHandle: View {
                 .fill(held && !closing ? Color.accentColor : Color(uiColor: .separator))
                 .frame(width: held ? 2 : 1)
             Capsule()
-                .fill(held ? (closing ? Color(uiColor: .systemGray) : Color.accentColor) : Color(uiColor: .systemGray3))
-                .frame(width: held ? 12 : 8, height: held ? 76 : 56)
+                .fill(held ? (closing ? Color(uiColor: .systemGray) : Color.accentColor)
+                           : hovering ? Color.accentColor.opacity(0.45) : Color(uiColor: .systemGray3))
+                .frame(width: held ? 12 : hovering ? 10 : 8, height: held ? 76 : hovering ? 64 : 56)
                 .overlay {
                     if held && closing {
                         Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).foregroundStyle(.white)
                     }
                 }
                 .shadow(color: .black.opacity(held ? 0.25 : 0), radius: 4)
-                // The system's hover highlight does not follow a dragged grip:
-                // off while dragging, the grip's own colours say it is held.
-                .hoverEffect(.highlight)
-                .hoverEffectDisabled(held)
         }
         .frame(width: 20)
         .contentShape(Rectangle())
+        // Hover drawn by the grip itself, not the system's hover effect: that
+        // stays where it was drawn when the grip is dragged away.
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.15), value: hovering)
         .animation(.easeOut(duration: 0.15), value: held)
         .animation(.easeOut(duration: 0.15), value: closing)
         .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .global)
