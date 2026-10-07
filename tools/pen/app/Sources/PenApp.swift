@@ -229,6 +229,9 @@ struct ToolPalette: View {
                         .font(.title3)
                         .frame(width: 48, height: 48)
                         .background(Circle().fill(tool == selected ? Color.accentColor.opacity(0.25) : .clear))
+                        // Lit under a hovering Pencil, as the toolbar's tools are.
+                        .contentShape(.hoverEffect, Circle())
+                        .hoverEffect(.highlight)
                 }
                 .buttonStyle(.plain)
             }
