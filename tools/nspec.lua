@@ -55,7 +55,7 @@ M.kinds = {
   nova = 'x l l̄ 𝒰 𝒰̄ Σ I Γ Δ σ e˲ ē t',
   level = 'ℓ',
   index = 'i',
-  tos = '𝕤 𝕔 Φ 𝔄 𝕥 𝔽 𝒮 ς ī',
+  tos = '𝕤 𝕔 Φ 𝔄 𝕥 𝔽 𝒮 ς ī 𝔗 Ψ',
   proof = 'α ᾱ π̄ φ',
 }
 

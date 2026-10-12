@@ -1,4 +1,4 @@
--- Folding, outline, jump to a rule's definition, and the checker's findings
+-- Folding, the outline, jump to a rule's definition, and the checker's findings
 -- and token colours shown in the buffer. tools/nspec.lua is the one parser.
 local tool = vim.fn.fnamemodify(debug.getinfo(1, 'S').source:sub(2), ':h:h:h') .. '/nspec.lua'
 package.loaded.nspec = package.loaded.nspec or dofile(tool)
@@ -11,18 +11,9 @@ vim.opt_local.foldmethod = 'expr'
 vim.opt_local.foldexpr = [[getline(v:lnum)=~'^#\+ '?'>'.matchend(getline(v:lnum),'^#\+'):'=']]
 vim.opt_local.foldlevel = 99
 
--- gO: headings and named rules, in the location list
-vim.keymap.set('n', 'gO', function()
-  local items = {}
-  for n, line in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
-    local text = line:match('^#+ .*') or line:match('^%s*%-%-%-.-(%([^()]*%))')
-    if text then
-      items[#items + 1] = { bufnr = buf, lnum = n, text = text }
-    end
-  end
-  vim.fn.setloclist(0, {}, ' ', { title = 'Outline', items = items })
-  vim.cmd.lopen()
-end, { buffer = buf, desc = 'Outline' })
+-- The outline (sections, and their rules) as document symbols: gO, neo-tree's
+-- document_symbols, any symbol picker
+require('nspec.outline').serve(buf)
 
 -- gd: the foundation's definition of the rule name under the cursor
 vim.keymap.set('n', 'gd', function()
@@ -77,9 +68,11 @@ local function refresh()
       return
     end
     local lines, path, deadline = vim.api.nvim_buf_get_lines(buf, 0, -1, false), vim.api.nvim_buf_get_name(buf), 0
-    local work = coroutine.create(function()
+    local work
+    work = coroutine.create(function()
       return nspec.analyse(lines, path, function()
-        if vim.uv.hrtime() > deadline then coroutine.yield() end
+        -- only this analysis yields: the outline reads rows meanwhile
+        if vim.uv.hrtime() > deadline and coroutine.running() == work then coroutine.yield() end
       end)
     end)
     local function step()
@@ -99,5 +92,10 @@ local function refresh()
     step()
   end)
 end
-vim.api.nvim_create_autocmd({ 'TextChanged', 'InsertLeave', 'BufWritePost' }, { buffer = buf, callback = refresh })
+-- in the buffer's own group, so that running this again (:e) replaces it
+vim.api.nvim_create_autocmd({ 'TextChanged', 'InsertLeave', 'BufWritePost' }, {
+  group = vim.api.nvim_create_augroup('nspec_' .. buf, { clear = true }),
+  buffer = buf,
+  callback = refresh,
+})
 refresh()
