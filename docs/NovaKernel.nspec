@@ -767,15 +767,15 @@ a₁ ≡β a₁'
 
 (Θ ⊦ x ≔ Φ qsig ℓ) ∈ Σ      [π̄] e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm
 Φ(𝕤) = 𝔎      Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ ⟦𝔎⟧ᵗ[e˲₁, ι]
----------------------------------------------------- (ty-qiit ty-qiit-cong qsig-eq-ref)
+---------------------------------------------------- (ty-qiit qsig-eq-ref)
 Γ ⊦ [x[π̄].𝕤 ᾱ] x[e˲₀].𝕤 ē₀ ≐ x[e˲₁].𝕤 ē₁ ⇒ 𝕌ℓ
-// ty-qiit in full (ty-qiit-cong, by qsig-eq-ref): a sort is a type at the
+// ty-qiit in full (by qsig-eq-ref): a sort is a type at the
 // level its item records. The spine equation is at the arity instantiated
 // by ē₁'s prefix.
 
 (Θ ⊦ x ≔ Φ qsig ℓ) ∈ Σ      [π̄] e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm
 Φ(𝕔) = 𝔄      𝔄 ends El 𝕥      Γ ⊦ [ᾱ] θ₀ ≐ θ₁ ⇐ ⟦𝔄⟧ᵗ[e˲₁, ι]
------------------------------------------------------------- (el-qiit-intro el-qiit-intro-cong)
+------------------------------------------------------------ (el-qiit-intro)
 Γ ⊦ [x[π̄].𝕔 ᾱ] x[e˲₀].𝕔 θ₀ ≐ x[e˲₁].𝕔 θ₁ ⇒ ⟦𝕥⟧[e˲₁, ι, θ₁]
 // el-qiit-intro in full, SATURATED.
 

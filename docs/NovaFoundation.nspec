@@ -102,7 +102,7 @@
 //    the imposed path equations, and a dependent eliminator 𝒮.𝕤-elim with
 //    its computation and uniqueness laws. Every rule is stated against a
 //    signature 𝒮 carried by the formers — written out, or a REFERENCE
-//    x[e˲] to a signature defined once in Σ (sig-qsig). This subsumes ℕ,
+//    x[e˲] to a signature defined once in Σ (sig-qctx). This subsumes ℕ,
 //    (⊎) and (/) (each a one- or two-line signature), including indexed
 //    inductive types
 //    and quotient inductive types as special cases; its equation
@@ -132,7 +132,7 @@ x ::= <signature-entry-identifier>
 Σ ::= ε
     | Σ (Γ ⊦ x ≔ t : t)     // definition
     | Σ (Γ ⊦ x : t)         // declaration (a HOLE — no definiens)
-    | Σ (Γ ⊦ x ≔ 𝒮 qsig ℓ)  // QIIT-signature definition: the signature
+    | Σ (Γ ⊦ x ≔ 𝒮 qctx ℓ)  // QIIT-context (signature) definition: the signature
                             //   𝒮 over its parameters Γ, with a level ℓ
                             //   that bounds it; its references x[e˲]
                             //   are SIGNATURES, what a QIIT former
@@ -173,8 +173,7 @@ l̄ ::= · | l l̄
 // element position — one grammar, two reading aids. The formers 𝟘 𝟙 ℕ
 // → × Rec ⊎ / (and the QIIT sorts and ν) are typed at the universe their
 // components sit at, and at every higher one by CUMULATIVITY
-// (code-lift); their level-0 instances are the CODES, displayed under
-// code-* names. The Ω-formers ≡ and ∥·∥ are typed at Ω (as props) and
+// (code-lift); their level-0 instances are the CODES. The Ω-formers ≡ and ∥·∥ are typed at Ω (as props) and
 // thence at 𝕌₀ and up, by PROP-CUMULATIVITY (prop-lift: a proposition
 // IS its type of proofs, and a 𝕌₀ code).
 t, a, b, c, d, e, f, g, h, m, p, q, r, s, u, v, w, x, z, T, A, B, C, D, E, P, Q, R ::= x[e˲]   // signature reference
@@ -255,7 +254,7 @@ t, a, b, c, d, e, f, g, h, m, p, q, r, s, u, v, w, x, z, T, A, B, C, D, E, P, Q,
 // where a notion is stated at both alike — the targets of the
 // displayed reading (the QIIT section), and the sorts of the checker
 // (docs/NovaKernel.nspec). Its LEVEL is |Ω| ≜ 0, |𝕌ℓ| ≜ ℓ.
-𝒰 ::= Ω | 𝕌ℓ
+𝒰 ::= Ω | 𝕌ℓ | _
 
 // universe level
 ℓ ::= <natural number>
@@ -273,50 +272,85 @@ i, j, k, n ::= <natural number>
 // (element) spine
 ē, θ, ι, δ, ā, d̄, m̄ ::= · | t, ē
 
+// qiit-context
+𝒮, Φ ::= ⬦ | 𝒮 ▷ 𝔄 | x[e˲]
+
+// qiit-type
+𝔄, 𝔅, 𝔎 ::= U               // the universe of codes
+    | El 𝕥                  // decoding of a code 𝕥 : U
+    | t ⇛ 𝔄                 // EXTERNAL Π — domain a Nova
+                            //   type; binds a NOVA variable
+    | El 𝕥 ⇛ 𝔄              // INDUCTIVE Π — binds a ToS
+                                //   variable
+
+// qiit-term
+𝕥, 𝕦, 𝕧, 𝕝, 𝕣, 𝕖 ::= ⬡ᵢ     // ToS VARIABLE, de Bruijn
+    | ⬡(i)                  // Same as above, just another notation
+    | 𝕥 t                   // application to a Nova term
+    | 𝕥 𝕥                   // application to a ToS term
+    | λ 𝕥                   // external abstraction (binds
+                            //   a NOVA variable)
+    | 𝕥 ≡ 𝕥                 // equation CODE (in U, at the
+                            //   sides' common El)
+
+// qiit-sub
+ς, τ ::= 𝕚𝕕 | ⇑             // the ToS's OWN substitution
+         | ς ∘ ς            //   calculus, mirroring Nova's
+         | ς, 𝕥             //   (ς⁺ ≜ (ς ∘ ⇑, ⬡₀) derived)
+
+
 ## Notation
 
 // How the defined (meta-level) notions are written: alternatives added to
 // the categories of the syntax. Each notion is defined where it is
 // introduced.
 Γ |= Γ · Δ | (Γ)
-Δ |= Δ[σ] | Δ ▷ t | (Δ) | ⟦Φ⟧ | ⟦𝒮⟧ | ⟦𝔄⟧ᵗ | ⟦𝒮⟧ᴰ | ⟦Φ⟧ᴰ
-σ |= σ⁺ | ↑ⁱ | ↑Δ | e˲ | (σ) | ē | σ, ē | ξ
+Δ |= Δ[σ] | Δ ▷ t | (Δ) | ⟦𝒮⟧ | ⟦𝒮⟧ | ⟦𝔄⟧ᵗ | ⟦Ψ⟧ | 𝔗ᴺ | ⟦𝒮⟧ᴰ | ⟦𝒮⟧ᴰ 𝒰̄
+σ |= σ⁺ | ↑ⁱ | ↑Δ | e˲ | (σ) | ē | σ, ē | ξ | ξ_Δ | σ · Δ
 e˲ |= (e˲) | e˲ ∘ σ
-ē |= ē[σ] | (ē) | t.l̄ | ⟦ī⟧ | ēᴰ_{h} | ēᴰ_h | ☐(Δ)
+ē |= ē[σ] | (ē) | t.l̄ | ⟦ī⟧ | ēᴰ_{h} | ēᴰ_h | ☐(Δ) | ι(𝒮) | ι_𝒮(𝒮) | ē, t | ēᴺ | ēᵀ
 l̄ |= (l̄)
 ℓ |= ℓ + ℓ | ℓ ⊔ ℓ | (ℓ) | |𝒰|
-i |= i + i | |Γ| | |Φ|
+i |= i + i | |Γ| | |𝒮| | |𝔗| | |Ψ| | 𝕤 | 𝕔
 t, w |= t[σ] | (t) | Γ‖ᵢ | (t / l̄ ↪ Δ)‖ₗ | (l̄ ↪ ē)(l) | 𝒰
-    | ⟦𝔄⟧ | ⟦𝕥⟧
+    | ⟦𝔄⟧ | ⟦𝕥⟧ | ⟦𝔄⟧ᵉ | ⟦𝔄⟧ᴰ 𝒰
     | ē(𝕤) ē t | m_𝕔 ē | h_𝕤 | h
-    | ⌊𝔽⌋(t) | map_𝔽 t t | map_{𝔽} t t | lift_𝔽(t) | lift_{𝔽}(t) | Π Δ. t
+    | ⌊𝔽⌋(t) | map_𝔽 t t | map_{𝔽} t t | lift_𝔽(t) | lift_{𝔽}(t) | Π Δ. t | λ Δ. t
 𝔽 |= 𝔽[σ] | (𝔽)
-𝒮 |= 𝒮[σ]
+𝒮 |= 𝒮[σ] | (𝒮) | 𝒮 · Ψ
+Ψ |= Ψ[σ] | Ψ[ς] | (Ψ) | 𝔗ᵀ
+𝔗 |= 𝔗[σ] | 𝔗[ς] | (𝔗) | 𝔄ᵗ
 h, φ ::= <section> | hᵉˡ
-ī ::= <arguments>
-𝒰̄ ::= · | 𝒰, 𝒰̄
-Φ |= Φ[σ] | (Φ) | ⌈𝒮⌉
-𝔄 |= 𝔄[σ] | 𝔄[ς] | (𝔄) | Φ‖ᵢ | 𝒮(𝕤) | 𝒮(𝕔) | 𝒮(i) | Φ(i)
-𝕥 |= 𝕥[σ] | 𝕥[ς] | (𝕥) | 𝕤 ī
-ς |= (ς) | ς[σ] | ς⁺
+ī ::= · | t, ī | 𝕥, ī       // index spine: external and inductive arguments
+
+// qiit-telescope: ToS entries over a qiit-context, as a telescope over a context
+Ψ ::= ε | 𝔄 ◁ Ψ
+
+// qiit-dual: the binders of a qiit-type, external or inductive
+𝔗 ::= ε | t ◁ 𝔗 | El 𝕥 ◁ 𝔗
+𝒰̄ ::= · | 𝒰, 𝒰̄ | 𝒰̄, 𝒰 | (𝒰̄)
+𝔄 |= 𝔄[σ] | 𝔄[ς] | (𝔄) | 𝒮‖ᵢ | 𝒮(𝕤) | 𝒮(𝕔) | 𝒮(i) | 𝔄ᵉ | 𝔗 ⇛ 𝔄
+𝕥 |= 𝕥[σ] | 𝕥[ς] | (𝕥) | 𝕥 ī
+ς |= (ς) | ς[σ] | ς⁺ | ⇑Ψ
 
 ## Judgement forms
 
 // The grammar of the judgements listed in Judgements below, and of a
 // definition.
-J ::= Σ sig | Γ ctx | Γ ≐ Γ ctx | Σ Γ ctx
+J ::= Σ sig | Γ ctx | Γ ≐ Γ ctx | Γ ≜ Γ ctx | Σ Γ ctx
     | σ : Γ ⇒ Γ | σ ≐ σ : Γ ⇒ Γ | σ ≜ σ : Γ ⇒ Γ
     | e˲ : Γ ⇒ Γ norm | e˲ ≐ e˲ : Γ ⇒ Γ norm | e˲ ≜ e˲ : Γ ⇒ Γ norm
     | Γ ⊦ t : t | Γ ⊦ t ≐ t : t | Γ ⊦ t ≜ t : t | Σ Γ ⊦ t : t | Σ Γ ⊦ t ≐ t : t | Σ Γ ⊦ t ≜ t : t
     | Γ ⊦ Δ tel | Γ ⊦ Δ ≐ Δ tel | Γ ⊦ Δ ≜ Δ tel | Γ ⊦ Δ tel ℓ | Γ ⊦ Δ ≐ Δ tel ℓ
     | Γ ⊦ ē : Δ | Γ ⊦ ē ≐ ē : Δ | Γ ⊦ ē ≜ ē : Δ
-    | (Γ ⊦ x ≔ t : t) ∈ Σ | (Γ ⊦ x : t) ∈ Σ | (Γ ⊦ x ≔ 𝒮 qsig ℓ) ∈ Σ | x ∉ Σ
+    | (Γ ⊦ x ≔ t : t) ∈ Σ | (Γ ⊦ x : t) ∈ Σ | (Γ ⊦ x ≔ 𝒮 qctx ℓ) ∈ Σ | x ∉ Σ
     | l ∈ l̄ | l ∉ l̄ | l ≠ l | l̄ distinct | |l̄| = |Δ|
-    | Γ ⊦ Φ qctx | Γ ⊦ Φ ≐ Φ qctx | Γ ; Φ ⊦ 𝔄 qty | Γ ; Φ ⊦ 𝕥 : 𝔄 | Γ ⊦ ς : Φ ⇒ Φ | Φ‖ᵢ = 𝔄
-    | Γ ⊦ 𝒮 qsig | Γ ⊦ 𝒮 ≐ 𝒮 qsig | Σ Γ ⊦ 𝒮 qsig | Σ Γ ⊦ 𝒮 ≐ 𝒮 qsig
-    | 𝒮(𝕤) = 𝔄 | 𝒮(𝕔) = 𝔄 | 𝔄 ends 𝔄 | 𝔄 ends 𝔄 at 𝕥 | 𝒰̄ targets 𝒮
-    | Γ ⊦ 𝔽 poly | 𝒮 ≼ ℓ | 𝔽 ≼ ℓ | Φ ≼ ℓ | 𝔄 ≼ ℓ | 𝒰 ≼ 𝒰 | ℓ ≤ ℓ
-D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | σ ≜ σ | e˲ ≜ e˲ | ē ≜ ē | Φ ≜ Φ | 𝔄 ≜ 𝔄 | 𝕥 ≜ 𝕥
+    | Γ ; 𝒮 ⊦ 𝔄 qty | Γ ; 𝒮 ⊦ 𝔄 ≐ 𝔄 qty | Γ ; 𝒮 ⊦ 𝔄 ≜ 𝔄 qty
+    | Γ ; 𝒮 ⊦ Ψ qtel | Γ ; 𝒮 ⊦ Ψ ≜ Ψ qtel | Γ ; 𝒮 ⊦ 𝔗 qdual | Γ ; 𝒮 ⊦ 𝔗 ≜ 𝔗 qdual | Γ ; 𝒮 ⊦ ī : 𝔗 | Γ ; 𝒮 ⊦ 𝕥 : 𝔄 | Γ ⊦ ς : 𝒮 ⇒ 𝒮 | 𝒮‖ᵢ = 𝔄
+    | Γ ⊦ 𝒮 qctx | Γ ⊦ 𝒮 ≐ 𝒮 qctx | Γ ⊦ 𝒮 ≜ 𝒮 qctx | Γ ⊦ 𝒮 ⊑ 𝒮 | Σ Γ ⊦ 𝒮 qctx | Σ Γ ⊦ 𝒮 ≐ 𝒮 qctx
+    | 𝒮(𝕤) = 𝔄 | 𝒮(𝕔) = 𝔄 | Γ ⊦ 𝒰̄ targets 𝒮 | Γ ; 𝒮 ⊦ 𝒰 targets 𝔄 | Γ ⊦ 𝒰 univ
+    | Γ ⊦ 𝔽 poly | 𝒮 ≼ ℓ | 𝔽 ≼ ℓ | 𝒮 ≼ ℓ | 𝔄 ≼ ℓ | Γ ⊦ 𝒰 univ | 𝒰 ≼ 𝒰 | 𝒰 ≼ ℓ | 𝒰̄ ≼ ℓ | ℓ ≤ ℓ
+D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | Ψ ≜ Ψ | 𝔗 ≜ 𝔗 | σ ≜ σ | e˲ ≜ e˲ | ē ≜ ē | 𝒮 ≜ 𝒮 | 𝔄 ≜ 𝔄 | 𝕥 ≜ 𝕥
     | Γ ⊦ t : t ≜ Γ ⊦ t ≐ t : t
 
 # Conventions: how to read the rules
@@ -387,9 +421,7 @@ D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | σ ≜ σ | e˲ ≜ e˲ | ē ≜ ē | Φ
 //     Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ       pointwise AT 𝕌ℓ (tel-lvl-ext
 //                             defining; Γ ⊦ Δ tel ℓ is Δ ≐ Δ)
 //     Γ ⊦ ē₀ ≐ ē₁ : Δ         pointwise (sp-ext defining)
-//     Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig        of QIIT signatures: by name or by
-//                             content (qsig-eq-ref, qsig-eq-content
-//                             defining; Γ ⊦ 𝒮 qsig is 𝒮 ≐ 𝒮)
+//     Γ ⊦ 𝒮₀ ≐ 𝒮₁ qctx
 //
 //   THE EQUIVALENCE structure is two RULES, stated once here (the
 //   third, reflexivity, is the notation) —
@@ -428,8 +460,8 @@ D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | σ ≜ σ | e˲ ≜ e˲ | ē ≜ ē | Φ
 //   side conditions, Σ-membership, level bounds, the carried
 //   polynomial 𝔽 or label list l̄ (inert syntax, compared for
 //   identity, never doubled), the ToS-zone premises — are unchanged.
-//   A carried QIIT signature 𝒮 DOES double: its premise Γ ⊦ 𝒮 qsig
-//   becomes the signature equation Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig (by name or by
+//   A carried QIIT signature 𝒮 DOES double: its premise Γ ⊦ 𝒮 qctx
+//   becomes the signature equation Γ ⊦ 𝒮₀ ≐ 𝒮₁ qctx (by name or by
 //   content — IDENTITY in the QIIT section), a bound 𝒮 ≼ ℓ bounds BOTH
 //   instances, and every other use of 𝒮 in the premises — an entry
 //   𝒮(k), an arity, the initial algebra — takes the RIGHT one. The diagonal
@@ -452,10 +484,10 @@ D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | σ ≜ σ | e˲ ≜ e˲ | ē ≜ ē | Φ
 // * NAMES. Every rule carries a canonical name on its inference line,
 //   following one homogeneous scheme — <class>-<former>-<kind> — where
 //   the class prefix names the judgement class (ctx, sub, sub-norm,
-//   el, tel, sp, poly), EXCEPT that within the element class the
+//   el, tel, sp, poly, univ), EXCEPT that within the element class the
 //   prefix records the conclusion's universe: ty- for conclusions at
-//   a universe 𝕌ℓ (types), code- for the LEVEL-0 instances displayed
-//   under names of their own (codes), el- otherwise. (There is no ty
+//   a universe 𝕌ℓ (types), code- for the rules proper to the universe
+//   of codes (cumulativity, restriction, the Ω-formers), el- otherwise. (There is no ty
 //   judgement class: a type is an element of a universe, and the
 //   prefix is a naming convention.)
 //   The former names the connective or constructor, and the kind
@@ -480,17 +512,18 @@ e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm       // yields Γ ctx and Θ ctx
 Γ ⊦ ē₀ ≐ ē₁ : Δ              // yields Γ ⊦ Δ tel; Γ ⊦ ē : Δ is ē ≐ ē
 Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ            // yields Γ ⊦ Δ₀ ≐ Δ₁ tel: pointwise AT 𝕌ℓ; Γ ⊦ Δ tel ℓ is Δ ≐ Δ
 l̄ distinct      |l̄| = |Δ|      l ∈ l̄      // META-LEVEL side conditions on label lists (Record types)
-Γ ⊦ Φ qctx                   // yields Γ ctx
-Γ ; Φ ⊦ 𝔄 qty                // yields Γ ⊦ Φ qctx
-Γ ; Φ ⊦ 𝕥 : 𝔄                // yields Γ ; Φ ⊦ 𝔄 qty
-Γ ⊦ ς : Φ₀ ⇒ Φ₁              // yields Γ ⊦ Φ₀ qctx and Γ ⊦ Φ₁ qctx
-Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig             // yields Γ ctx. A QIIT signature: a qiit-context written out, or a
+Γ ⊦ 𝒮₀ ≐ 𝒮₁ qctx             // yields Γ ctx.
+Γ ; 𝒮 ⊦ 𝔄 qty                // yields Γ ⊦ 𝒮 qctx
+Γ ; 𝒮 ⊦ 𝕥 : 𝔄                // yields Γ ; 𝒮 ⊦ 𝔄 qty
+Γ ⊦ ς : 𝒮₀ ⇒ 𝒮₁              // yields Γ ⊦ 𝒮₀ qctx and Γ ⊦ 𝒮₁ qctx
                              //   reference x[e˲] to a signature entry of Σ; the equation by name
-                             //   or by content; Γ ⊦ 𝒮 qsig is 𝒮 ≐ 𝒮
+                             //   or by content; Γ ⊦ 𝒮 qctx is 𝒮 ≐ 𝒮
 Γ ⊦ 𝔽 poly                   // yields Γ ctx (Coinductive types)
-𝒮 ≼ ℓ      Φ ≼ ℓ      𝔄 ≼ ℓ      𝔽 ≼ ℓ      // META-DEFINED level bounds: every Nova type the signature, context,
+𝒮 ≼ ℓ      𝒮 ≼ ℓ      𝔄 ≼ ℓ      𝔽 ≼ ℓ      // META-DEFINED level bounds: every Nova type the signature, context,
                                             //   type or polynomial embeds is typed at 𝕌ℓ at its position (ty-qiit, ty-nu)
+Γ ⊦ 𝒰 univ                  // yields Γ ctx (Universes)
 𝒰 ≼ 𝒰′                       // META-DEFINED order on universes (THE ORDER ON UNIVERSES)
+𝒰 ≼ ℓ      𝒰̄ ≼ ℓ              // META-DEFINED level bounds on universes (likewise)
 
 // Γ ⊦ a₀ ≐ a₁ : A is ONE judgement, the equation, presupposing nothing:
 // that Γ is a context and that A is a type — a term typed at some
@@ -585,11 +618,11 @@ x ∉ Σ
                                     //   at Σ Γ ⊦ 𝕌ℓ : 𝕌ℓ₊₁ (ty-univ),
                                     //   displayed under its own name
 
-Σ Γ ⊦ 𝒮 qsig
+Σ Γ ⊦ 𝒮 qctx
 𝒮 ≼ ℓ
 x ∉ Σ
--------------------------- (sig-qsig)   // a QIIT SIGNATURE, defined once
-Σ (Γ ⊦ x ≔ 𝒮 qsig ℓ) sig                //   over its parameters Γ and
+-------------------------- (sig-qctx)   // a QIIT SIGNATURE, defined once
+Σ (Γ ⊦ x ≔ 𝒮 qctx ℓ) sig                //   over its parameters Γ and
                                         //   recorded with a level ℓ that
                                         //   bounds it (any bound; the
                                         //   record is what a reference
@@ -597,7 +630,7 @@ x ∉ Σ
 
 // A signature entry is referred to as x[e˲] — a SIGNATURE, not a term:
 // what a QIIT former carries in place of the context written out
-// (qsig-ref, in the QIIT section). The definiens is itself a
+// (qctx-ref, in the QIIT section). The definiens is itself a
 // signature, so it may be a context, or a reference to an earlier
 // entry: an alias, or an instance at chosen parameters. The entry has
 // NO declaration form — nothing can be typed against a signature whose
@@ -606,7 +639,7 @@ x ∉ Σ
 ## Definitional and open signatures
 
 // A signature is DEFINITIONAL when
-// every entry is a definition (sig-def, sig-qsig). A DECLARATION makes it OPEN:
+// every entry is a definition (sig-def, sig-qctx). A DECLARATION makes it OPEN:
 // a hole — a name with a type and no definiens, whose references
 // x[e˲] are STUCK (el-sig-decl below; deliberately no -beta). Type
 // holes are the A = 𝕌ℓ instances. An assumed EQUATION is a hole at the
@@ -777,6 +810,15 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 ------------------ (sub-eq-coe-cod)
 σ ≐ τ : Γ ⇒ Θ'
 
+// TODO: lemma
+// Γ₁ ⊦ Δ tel
+// σ : Γ₀ ⇒ Γ₁
+// σ : Γ₀ Δ[σ] ⇒ Γ₁ Δ
+// τ : Ξ ⇒ Γ₀
+// τ · Δ[σ] : Ξ Δ[σ][τ] ⇒ Γ₀ Δ[σ]
+// ----------------------------------
+// (σ · Δ) ∘ (τ · Δ[σ]) ≐ (σ ∘ τ) · Δ
+
 # Rules (normal substitution)
 
 Γ ctx
@@ -858,8 +900,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 //    components (the relation slot of / is Ω and contributes nothing);
 //    of a record the level of its telescope (Γ ⊦ Δ tel ℓ, Rules (tel));
 //    of a QIIT sort and a ν-type the level of the signature or
-//    polynomial. Their LEVEL-0 instances are the universe CODES,
-//    displayed below under code-* names; they are the same rules.
+//    polynomial. Their LEVEL-0 instances are the universe CODES.
 //  * Types have NO GENERAL rules of their own. Substitution, coercion
 //    along a context equation, the master congruence and the
 //    signature references are the element rules at A = 𝕌ℓ: el-sub,
@@ -874,11 +915,11 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 //    under absurdity — absurdity collapses every equation, type
 //    equations included.)
 //  * NAMING. A rule concluding at a universe carries the ty- prefix
-//    (see NAMES in the conventions), read "typing at 𝕌ℓ"; code- reads
-//    "the level-0 display".
+//    (see NAMES in the conventions), read "typing at 𝕌ℓ"; code- marks
+//    the rules proper to the universe of codes.
 
 Γ ctx
------------- (ty-zero) // the atoms sit at the bottom; code-zero/-one/-nat below
+------------ (ty-zero) // the atoms sit at the bottom
 Γ ⊦ 𝟘 : 𝕌₀             //   are these rules, displayed again under their code names
 
 Γ ctx
@@ -992,6 +1033,19 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 ----------------- (prop-restrict)
 Γ ⊦ p₀ ≐ p₁ : Ω
 
+## Universes
+
+// Γ ⊦ 𝒰 univ: 𝒰 is a universe, for a rule that takes one as a parameter
+// (the targets of the displayed reading).
+
+Γ ctx
+------------ (univ-prop)
+Γ ⊦ Ω univ
+
+Γ ctx
+------------ (univ-level)
+Γ ⊦ 𝕌ℓ univ
+
 ## The order on universes
 
 // 𝒰 ≼ 𝒰′ is the order the two cumulativities
@@ -1003,6 +1057,23 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 ℓ ≤ ℓ′
 --------
 𝕌ℓ ≼ 𝕌ℓ′
+
+// A universe is BOUNDED by ℓ when it is below 𝕌ℓ — a motive into it
+// lands at 𝕌ℓ₊₁ — and a list of them when each is:
+
+𝒰 ≼ 𝕌ℓ
+------
+𝒰 ≼ ℓ
+
+· ≼ ℓ
+
+𝒰̄ ≼ ℓ      𝒰 ≼ ℓ
+-----------------
+𝒰̄, 𝒰 ≼ ℓ
+
+𝒰 ≼ ℓ      𝒰̄ ≼ ℓ
+-----------------
+𝒰, 𝒰̄ ≼ ℓ
 
 // It is reflexive and transitive, and no 𝕌ℓ is below Ω. Both
 // cumulativities iterate along it — META-LEMMAS, by induction on the
@@ -1028,9 +1099,8 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 
 // Substitution action: one meta-level induction on the (single) term
 // sort defines t[σ]; the ≜-rules below assert its typings at the
-// universes (their level-0 instances are displayed again as
-// el-sub-code-*, el-sub-atoms), and the Ω-side rules (el-sub-eq,
-// el-sub-squash) its Ω-typings, whence 𝕌₀-typings by prop-lift —
+// universes, and the Ω-side rules (el-sub-eq, el-sub-squash) its
+// Ω-typings, whence 𝕌₀-typings by prop-lift —
 // one action, two families of
 // well-typedness facts. The general rules (action typing, id, comp)
 // are el-sub, el-sub-id, el-sub-comp at A = 𝕌ℓ — see THE TOWER.
@@ -1073,8 +1143,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 // commitment that type equality is equality of structural codes — on
 // the CODE cluster; the prop cluster's congruence is prop-lift-eq
 // (PROP-CUMULATIVITY), which imports code-prop-eq's extensional
-// equality wholesale. (The code-*-cong names denote the level-0
-// instances; they are not displayed.)
+// equality wholesale.
 
 # Type constructor injectivity
 //
@@ -1171,36 +1240,6 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
 Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
 
-// The same rules at level 0, displayed under their code-* names (the
-// setoid model gives 𝕌₀ a structural universe of codes; the rules
-// above are the same statement at every level).
-
-Γ ▷ a₀ ⊦ b₀ : 𝕌₀
-Γ ▷ a₁ ⊦ b₁ : 𝕌₀
-Γ ⊦ a₀ → b₀ ≐ a₁ → b₁ : 𝕌₀
------------------------------- (code-pi-inj)
-Γ ⊦ a₀ ≐ a₁ : 𝕌₀
-Γ ▷ a₁ ⊦ b₀ ≐ b₁ : 𝕌₀
-
-Γ ▷ a₀ ⊦ b₀ : 𝕌₀
-Γ ▷ a₁ ⊦ b₁ : 𝕌₀
-Γ ⊦ a₀ × b₀ ≐ a₁ × b₁ : 𝕌₀
------------------------------- (code-sigma-inj)
-Γ ⊦ a₀ ≐ a₁ : 𝕌₀
-Γ ▷ a₁ ⊦ b₀ ≐ b₁ : 𝕌₀
-
-Γ ⊦ a₀ ⊎ b₀ ≐ a₁ ⊎ b₁ : 𝕌₀
------------------------------- (code-sum-inj)
-Γ ⊦ a₀ ≐ a₁ : 𝕌₀
-Γ ⊦ b₀ ≐ b₁ : 𝕌₀
-
-Γ ▷ a₀ ▷ a₀[↑] ⊦ r₀ : Ω
-Γ ▷ a₁ ▷ a₁[↑] ⊦ r₁ : Ω
-Γ ⊦ a₀ / r₀ ≐ a₁ / r₁ : 𝕌₀
----------------------------------------- (code-quot-inj)
-Γ ⊦ a₀ ≐ a₁ : 𝕌₀
-Γ ▷ a₁ ▷ a₁[↑] ⊦ r₀ ≐ r₁ : Ω
-
 # Rules (tel)
 
 Γ ctx
@@ -1292,42 +1331,6 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 ------------------ (el-var) // Γ‖ₙ picks the type directly out of Γ's own structure — no
 Γ ⊦ ☐ₙ : Γ‖ₙ                // derivation of ☐ₙ₋₁, ☐ₙ₋₂, ... is required first.
 
-// Universe codes — the LEVEL-0 display of ty-zero/-one/-nat/-pi/
-// -sigma/-sum/-quot (THE TOWER): the same rules at ℓ = 0, under
-// code-* names.
-
-Γ ctx
------------ (code-zero)
-Γ ⊦ 𝟘 : 𝕌₀
-
-Γ ctx
------------ (code-one)
-Γ ⊦ 𝟙 : 𝕌₀
-
-Γ ctx
------------ (code-nat)
-Γ ⊦ ℕ : 𝕌₀
-
-Γ ⊦ A : 𝕌₀
-Γ ▷ A ⊦ B : 𝕌₀
--------------------- (code-pi)
-Γ ⊦ A → B : 𝕌₀
-
-Γ ⊦ A : 𝕌₀
-Γ ▷ A ⊦ B : 𝕌₀
--------------------- (code-sigma)
-Γ ⊦ A × B : 𝕌₀
-
-Γ ⊦ A : 𝕌₀
-Γ ⊦ B : 𝕌₀
--------------------- (code-sum)
-Γ ⊦ A ⊎ B : 𝕌₀
-
-Γ ⊦ A : 𝕌₀
-Γ ▷ A ▷ A[↑] ⊦ R : Ω
------------------------------- (code-quot)
-Γ ⊦ A / R : 𝕌₀
-
 ## 𝟘 and 𝟙
 
 Γ ⊦ A : 𝕌ℓ
@@ -1417,7 +1420,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 // whose premise holds by el-pi-beta; conversely the two-candidate form
 // is NOT derivable from it — the step from "equal at the generic
 // argument" to "equal" is exactly ξ's content, so stating η this way
-// is what makes el-lam-cong (ξ) admissible below.
+// is what makes ξ (el-pi-i in full) admissible below.
 
 Γ ⊦ g₀ : A → B
 Γ ⊦ g₁ : A → B
@@ -1605,7 +1608,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 // definitionally irrelevant Prop). What this buys, and what it
 // forfeits:
 //  * Proof irrelevance is inherited from el-prf-prop — no separate
-//    el-eq-eta is needed, and equality hypotheses never carry data.
+//    η-rule at ≡ is needed, and equality hypotheses never carry data.
 //  * The canonical proof is ⋆, and there is no other. This is forced, not
 //    stylistic: code-prop-eq + prop-lift-eq + el-ty-coe move proofs
 //    between iff-equal props UNCHANGED (a true equation is ≐-equal to
@@ -1618,8 +1621,8 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 //    premises are typing judgements. With el-eq-i and el-reflect at
 //    A = 𝕌ℓ, type equality is reflection-complete exactly like
 //    element equality — a type-equality hypothesis is an ordinary
-//    context entry h : (A ≡ B ∈ 𝕌ℓ), and ty-zero-elim of earlier
-//    presentations is derivable (see THE TOWER).
+//    context entry h : (A ≡ B ∈ 𝕌ℓ), and the type-equality
+//    elimination of earlier presentations is derivable (see THE TOWER).
 //  * Ω-positions take equations directly — quotient relations need no
 //    squash (ℕ × ℕ / (p q. p .π₁ + q .π₂ ≡ p .π₂ + q .π₁ ∈ ℕ)), and
 //    the squashed-equality connective below is subsumed.
@@ -1637,7 +1640,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 //    literally the same canonical forms. So a prop never exposes the
 //    squashed proofs: its one canonical form is ⋆ (cf. NuPRL's Ax),
 //    and el-prf-prop equates all members. Consequently ∥A∥, as a
-//    type, does NOT reduce to A, and there is no code-squash-inj:
+//    type, does NOT reduce to A, and ∥−∥ is NOT injective:
 //    ∥𝟙∥ ≐ (Z ≡ Z ∈ ℕ) : Ω holds by code-prop-eq while the squashees
 //    are structurally distinct. Ω adds no computation rules beyond
 //    substitution actions (squash's idempotence is ADMISSIBLE, not a
@@ -1886,10 +1889,10 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 // sorts of 𝒮 as types (𝒮.𝕤 ē), their constructors (𝒮.𝕔 θ), the imposed
 // path equations, and a dependent eliminator (𝒮.𝕤-elim) with its
 // computation and uniqueness laws. Every rule is stated AGAINST a
-// signature (⊦ 𝒮 qsig as a premise), and 𝒮 is carried by the formers
+// signature (⊦ 𝒮 qctx as a premise), and 𝒮 is carried by the formers
 // themselves (as A / R carries A and R) — either WRITTEN OUT, a
 // qiit-context in the term, or as a REFERENCE x[e˲] to a signature
-// defined once in Σ (sig-qsig) and instantiated at its parameters. A
+// defined once in Σ (sig-qctx) and instantiated at its parameters. A
 // reference is the practical form: the signature is checked once, its
 // formers are compared by name and spine (IDENTITY below), and a
 // parametrised family — lists over A — has a place for its parameter.
@@ -1919,37 +1922,6 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 // constructors and equation constructors are ordinary entries,
 // distinguished by the HEAD of their type alone.
 
-//   qiit-context
-    Φ ::= ⬦ | Φ ▷ 𝔄             // entries are ANONYMOUS
-
-//   signature — what a FORMER carries and what a Σ-entry defines: a
-//   closed qiit-context, or a reference to a signature entry of Σ at
-//   a normal substitution for its parameters. The ToS judgements
-//   below range over Φ ONLY; a signature reaches them by EVALUATION
-//   (SIGNATURES, after the readings)
-    𝒮 ::= Φ | x[e˲]
-
-//   qiit-type
-    𝔄, 𝔅, 𝔎 ::= U               // the universe of codes
-        | El 𝕥                  // decoding of a code 𝕥 : U
-        | t ⇛ 𝔄                 // EXTERNAL Π — domain a Nova
-                                //   type; binds a NOVA variable
-        | El 𝕥 ⇛ 𝔄              // INDUCTIVE Π — binds a ToS
-                                //   variable
-
-//   qiit-term
-    𝕥, 𝕦, 𝕧, 𝕝, 𝕣 ::= ⬡ᵢ        // ToS VARIABLE, de Bruijn
-        | 𝕥 t                   // application to a Nova term
-        | 𝕥 𝕥                   // application to a ToS term
-        | λ 𝕥                   // external abstraction (binds
-                                //   a NOVA variable)
-        | 𝕥 ≡ 𝕥                 // equation CODE (in U, at the
-                                //   sides' common El)
-
-//   qiit-sub
-    ς, τ ::= 𝕚𝕕 | ⇑             // the ToS's OWN substitution
-             | ς ∘ ς            //   calculus, mirroring Nova's
-             | ς, 𝕥             //   (ς⁺ ≜ (ς ∘ ⇑, ⬡₀) derived)
 
 //   (A ranges over Nova types, t over Nova terms; ⇛ is the ToS's Π,
 //   NOT Nova's →. The variable discipline is NAMELESS, like Nova's own:
@@ -1975,9 +1947,9 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 // inductive variable — sort-free automatically, with no projection and
 // no side condition.
 //
-// Entry classification, by the head of the entry's type (every
-// qiit-type ends in U or El, so the classification is exhaustive —
-// there are no other entry forms to exclude):
+// Entry classification, by the END of the entry's type (𝔄ᵉ, Arity
+// and end; every qiit-type ends in U or El, so the classification is
+// exhaustive — there are no other entry forms to exclude):
 //     … ⇛ U               a SORT (its Πs are the index arity)
 //     … ⇛ El (𝕤 ī)        a POINT constructor into sort 𝕤
 //     … ⇛ El (𝕝 ≡ 𝕣)      an EQUATION constructor (imposes 𝕝 ≐ 𝕣)
@@ -2003,6 +1975,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 // (↑Δ : Γ·Δ ⇒ Γ, so [↑Δ] weakens over Δ)
 ε ▷ A ≜ A ◁ ε               (T ◁ Δ) ▷ A ≜ T ◁ (Δ ▷ A)   // snoc
 Π ε. B ≜ B                  Π (A ◁ Δ). B ≜ A → Π Δ. B    // iterated →
+λ ε. t ≜ t                  λ (A ◁ Δ). t ≜ λ (λ Δ. t)    // iterated λ
 
 // A substitution extended by a spine, and the spine of a telescope's
 // variables:
@@ -2044,8 +2017,8 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 // LOOKUP Φ‖ᵢ — the type of ⬡ᵢ in Φ, weakened to all of Φ (mirrors
 // Nova's Γ‖ᵢ, with the ToS shift):
 
-(Φ ▷ 𝔄)‖₀   ≜ 𝔄[⇑]
-(Φ ▷ 𝔄)‖ᵢ₊₁ ≜ (Φ‖ᵢ)[⇑]
+(𝒮 ▷ 𝔄)‖₀   ≜ 𝔄[⇑]
+(𝒮 ▷ 𝔄)‖ᵢ₊₁ ≜ (𝒮‖ᵢ)[⇑]
 
 //
 // INSTANTIATION is not a bespoke operation — both binder
@@ -2071,14 +2044,17 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 //     Γ ; Φ ⊦ 𝔄 qty      𝔄 a well-formed qiit-type
 //     Γ ; Φ ⊦ 𝕥 : 𝔄      𝕥 a qiit-term of type 𝔄
 //     Γ ⊦ ς : Φ₀ ⇒ Φ₁    ς a qiit-substitution
+//     Γ ⊦ Φ ⊑ 𝒮         Φ a prefix of 𝒮
 // The dual zone Γ ; Φ: Γ is the NOVA zone (the ambient context plus
 // all external binders in scope), Φ the ToS zone (declared entries
 // plus inductive binders). A signature WRITTEN OUT is a closed
 // qiit-context — during checking, the growing context Φ IS the
 // signature-so-far, so a later declaration reaches earlier sorts and
 // constructors by qtm-var, with no prefix or ambient-𝒮 device. The
-// signature judgement Γ ⊦ 𝒮 qsig, over contexts and references alike,
+// signature judgement Γ ⊦ 𝒮 qctx, over contexts and references alike,
 // is in SIGNATURES below.
+
+### Judgements
 
 Γ ctx
 ------------- (qctx-empty)
@@ -2087,6 +2063,35 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 Γ ⊦ Φ qctx      Γ ; Φ ⊦ 𝔄 qty
 ------------------------------ (qctx-ext)
 Γ ⊦ Φ ▷ 𝔄 qctx
+
+(Γ ⊦ x ≔ 𝒮 qctx ℓ) ∈ Σ
+e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
+------------------------------ (qctx-ref)
+Σ Θ ⊦ x[e˲₀] ≐ x[e˲₁] qctx
+
+(Γ ⊦ x ≔ 𝒮 qctx ℓ) ∈ Σ
+e˲ : Θ ⇒ Γ norm
+------------------------ (qctx-ref-unfold)
+Σ Θ ⊦ x[e˲] ≐ 𝒮[e˲] qctx
+
+// PREFIX: Φ is 𝒮 up to some entry; a reference by its content.
+
+Γ ⊦ Φ qctx
+Γ ⊦ 𝒮 qctx
+---------- (qctx-prefix)
+Γ ⊦ Φ ⊑ 𝒮
+
+Γ ⊦ Φ qctx
+------------- (qctx-prefix-refl)
+Γ ⊦ Φ ⊑ Φ
+
+Γ ⊦ Φ ▷ 𝔄 ⊑ 𝒮
+----------------------------- (qctx-prefix-contract)
+Γ ⊦ Φ ⊑ 𝒮
+
+Γ ⊦ Φ₀ ≐ Φ₁ qctx      Γ ⊦ 𝒮₀ ≐ 𝒮₁ qctx      Γ ⊦ Φ₀ ⊑ 𝒮₀
+------------------------------------------------------- (qctx-prefix-coe)
+Γ ⊦ Φ₁ ⊑ 𝒮₁
 
 Γ ⊦ Φ qctx
 --------------- (qty-univ)
@@ -2124,6 +2129,8 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 ------------------------------------------ (qtm-eq)     // equation code in U
 Γ ; Φ ⊦ (𝕥₀ ≡ 𝕥₁) : U
 
+### Substitution
+
 // The ToS substitution calculus, mirroring Nova's (𝕚𝕕/⇑/∘/ext; the
 // lift ς⁺ ≜ (ς ∘ ⇑, ⬡₀) : Φ₀ ▷ 𝔄[ς] ⇒ Φ₁ ▷ 𝔄 is derived):
 
@@ -2156,6 +2163,10 @@ U[ς]          ≜ U
 (El 𝕥)[ς]     ≜ El (𝕥[ς])
 (A ⇛ 𝔄)[ς]    ≜ A ⇛ 𝔄[ς[↑]]
 (El 𝕥 ⇛ 𝔄)[ς] ≜ El (𝕥[ς]) ⇛ 𝔄[ς⁺]
+ε[ς]          ≜ ε
+(A ◁ 𝔗)[ς]    ≜ A ◁ 𝔗[ς[↑]]
+(El 𝕥 ◁ 𝔗)[ς] ≜ El (𝕥[ς]) ◁ 𝔗[ς⁺]
+(𝔄 ◁ Ψ)[ς]    ≜ 𝔄[ς] ◁ Ψ[ς⁺]
 ⬡ᵢ[𝕚𝕕]        ≜ ⬡ᵢ
 ⬡ᵢ[⇑]         ≜ ⬡ᵢ₊₁
 ⬡₀[ς, 𝕥]      ≜ 𝕥
@@ -2165,6 +2176,8 @@ U[ς]          ≜ U
 (𝕥 𝕥')[ς]     ≜ 𝕥[ς] 𝕥'[ς]
 (λ 𝕥)[ς]      ≜ λ (𝕥[ς[↑]])
 (𝕥₀ ≡ 𝕥₁)[ς]  ≜ 𝕥₀[ς] ≡ 𝕥₁[ς]
+
+### Reading
 
 // THE READING ⟦·⟧ — a signature as a Nova TELESCOPE, its types and
 // terms as Nova types and terms over the ALGEBRA CONTEXT Γ·⟦Φ⟧. This
@@ -2196,6 +2209,19 @@ U[ς]          ≜ U
 ---------------------------------------------------------------- (sub-exchange)
 ξ ≜ (↑⟦Φ⟧ ∘ ↑, ☐₀), ☐(⟦Φ⟧)[↑] : Γ·⟦Φ⟧ ▷ A[↑⟦Φ⟧] ⇒ (Γ ▷ A)·⟦Φ⟧[↑]
 
+Γ ⊦ 𝒮 qctx
+Γ ⊦ Δ tel
+----------------------------------- (sub-exchange-tel)
+ξ_Δ : Γ·⟦𝒮⟧·Δ[↑⟦𝒮⟧]  ⇒  Γ·Δ·⟦𝒮⟧[↑Δ]
+
+Γ ⊦ 𝒮 qctx
+------------------------ (sub-exchange-empty)
+ξ_ε ≜ id : Γ·⟦𝒮⟧ ⇒ Γ·⟦𝒮⟧
+
+Γ ⊦ 𝒮 qctx      Γ ⊦ A : 𝕌ℓ      Γ ▷ A ⊦ Δ tel
+------------------------------------------------------------------------------- (sub-exchange-cons)
+ξ_(A ◁ Δ) ≜ ξ_Δ ∘ (ξ · Δ[↑⟦𝒮[↑]⟧]) : Γ·⟦𝒮⟧·(A ◁ Δ)[↑⟦𝒮⟧] ⇒ (Γ ▷ A)·Δ·⟦𝒮[↑]⟧[↑Δ]
+
 Γ ⊦ Φ qctx      Φ ≼ ℓ
 ----------------------- (refl-qctx)
 Γ ⊦ ⟦Φ⟧ tel
@@ -2209,6 +2235,18 @@ U[ς]          ≜ U
 Φ ▷ 𝔄 ≼ ℓ
 --------------------------- (refl-qctx-ext)
 Γ ⊦ ⟦Φ ▷ 𝔄⟧ ≜ ⟦Φ⟧ ▷ ⟦𝔄⟧ tel
+
+Γ ; Φ ⊦ Ψ qtel      Φ · Ψ ≼ ℓ
+------------------------------ (refl-qtel)   // ⟦Φ · Ψ⟧ ≐ ⟦Φ⟧ · ⟦Ψ⟧, by induction
+Γ·⟦Φ⟧ ⊦ ⟦Ψ⟧ tel
+
+Γ ⊦ Φ qctx      Φ ≼ ℓ
+---------------------- (refl-qtel-empty)
+Γ·⟦Φ⟧ ⊦ ⟦ε⟧ ≜ ε tel
+
+Γ ; Φ ⊦ 𝔄 qty      Γ ; Φ ▷ 𝔄 ⊦ Ψ qtel      (Φ ▷ 𝔄) · Ψ ≼ ℓ
+--------------------------------------------------------- (refl-qtel-ext)
+Γ·⟦Φ⟧ ⊦ ⟦𝔄 ◁ Ψ⟧ ≜ ⟦𝔄⟧ ◁ ⟦Ψ⟧ tel
 
 Γ ; Φ ⊦ 𝔄 qty      Φ ▷ 𝔄 ≼ ℓ
 ---------------------------- (refl-qty)   // a sort entry at 𝕌ℓ₊₁, a point or
@@ -2280,20 +2318,211 @@ U[ς]          ≜ U
 ------------------------------------------ (refl-qtm-eq)
 Γ·⟦Φ⟧ ⊦ ⟦𝕥₀ ≡ 𝕥₁⟧ ≜ ⟦𝕥₀⟧ ≡ ⟦𝕥₁⟧ ∈ ⟦𝕦⟧ : 𝕌ℓ
 
+Γ ⊦ θ : ⟦𝔄⟧ᵗ[id, ι]
+------------------------------------------- (sp-split)
+Γ ⊦ θᴺ : 𝔄ᵗᴺ      Γ ⊦ θᵀ : ⟦𝔄ᵗᵀ⟧[id, θᴺ, ι]
 
 // (A sort or constructor position of 𝒮 occurring in a term is a
 // variable of the algebra context like any other; the SATURATED Nova
-// formers 𝒮.𝕤 ē and 𝒮.𝕔 θ appear only once ι is substituted and the
+// formers 𝒮.𝕤 ē and 𝒮.𝕔 θ appear only once ι is substituted and the
 // λs of its entries β-reduce.)
 
-// An ARITY. A ToS type is D₁ ⇛ … ⇛ Dₙ ⇛ E with E = U or E = El 𝕥;
-// its ARITY TELESCOPE and END are read over the algebra context, the
-// domains read over the entries before them (ξ applied at the
-// external ones):
-//     ⟦D₁ ⇛ … ⇛ Dₙ ⇛ E⟧ᵗ  ≜  ε ▷ ⟦D₁⟧ ▷ … ▷ ⟦Dₙ⟧       # over Γ·⟦Φ⟧
-//     ⟦D₁ ⇛ … ⇛ Dₙ ⇛ E⟧ᵉ  ≜  ⟦E⟧                        # over Γ·⟦Φ⟧·⟦𝔄⟧ᵗ
-// so that ⟦𝔄⟧ = Π ⟦𝔄⟧ᵗ. ⟦𝔄⟧ᵉ, the iterated Π over the arity; for an
-// El-ended 𝔄 the arity is its binder telescope.
+### Arity and end
+
+// A QIIT-TELESCOPE Ψ extends a qiit-context as a Nova telescope
+// extends a context. A type is its binders and its end; the binders
+// form a QIIT-DUAL 𝔗, each tagged by the zone it opens. An external
+// binder never depends on an inductive one, so a dual has two
+// projections: 𝔗ᴺ, the Nova telescope of the external domains over Γ,
+// and 𝔗ᵀ, the qiit-telescope of the inductive domains over the zone
+// extended by 𝔗ᴺ. The ARITY 𝔄ᵗ is the type's dual, the END 𝔄ᵉ its
+// type at Γ · 𝔄ᵗᴺ ; 𝒮[↑𝔄ᵗᴺ] · 𝔄ᵗᵀ; an index spine is typed against
+// a dual as a Nova spine is against its telescope.
+
+Γ ⊦ Φ qctx
+---------------------------------- (qtel)
+Γ ; Φ ⊦ Ψ qtel     Γ ⊦ Φ · Ψ qctx
+
+Γ ⊦ Φ qctx
+------------------------------------------ (qtel-empty)
+Γ ; Φ ⊦ ε qtel      Γ ⊦ Φ · ε ≜ Φ qctx
+
+Γ ; Φ ⊦ 𝔄 qty      Γ ; Φ ▷ 𝔄 ⊦ Ψ qtel
+------------------------------------------------------------- (qtel-ext)
+Γ ; Φ ⊦ 𝔄 ◁ Ψ qtel      Γ ⊦ Φ · (𝔄 ◁ Ψ) ≜ (Φ ▷ 𝔄) · Ψ qctx
+
+Γ ⊦ 𝒮 qctx
+------------------------------------------------------------------- (qdual)
+Γ ; 𝒮 ⊦ 𝔗 qdual     Γ ⊦ 𝔗ᴺ tel    Γ · 𝔗ᴺ ; 𝒮[↑𝔗ᴺ] ⊦ 𝔗ᵀ qtel
+
+Γ ⊦ 𝒮 qctx
+Γ ; 𝒮 ⊦ 𝔗 qdual
+-------------- (isp)
+Γ ; 𝒮 ⊦ ī : 𝔗
+
+Γ ⊦ 𝒮 qctx
+---------------------------------------------------------------- (qdual-empty)
+Γ ; 𝒮 ⊦ ε qdual      Γ ⊦ εᴺ ≜ ε tel      Γ ; 𝒮 ⊦ εᵀ ≜ ε qtel
+
+Γ ⊦ A : 𝕌ℓ      Γ ▷ A ; 𝒮[↑] ⊦ 𝔗 qdual
+----------------------------------------------------------------------------------------------------------- (qdual-ext)
+Γ ; 𝒮 ⊦ A ◁ 𝔗 qdual      Γ ⊦ (A ◁ 𝔗)ᴺ ≜ A ◁ 𝔗ᴺ tel      Γ · (A ◁ 𝔗ᴺ) ; 𝒮[↑(A ◁ 𝔗ᴺ)] ⊦ (A ◁ 𝔗)ᵀ ≜ 𝔗ᵀ qtel
+
+Γ ; 𝒮 ⊦ 𝕥 : U      Γ ; 𝒮 ▷ El 𝕥 ⊦ 𝔗 qdual
+---------------------------------------------------------------------------------------------------------------- (qdual-ind)
+Γ ; 𝒮 ⊦ El 𝕥 ◁ 𝔗 qdual      Γ ⊦ (El 𝕥 ◁ 𝔗)ᴺ ≜ 𝔗ᴺ tel      Γ · 𝔗ᴺ ; 𝒮[↑𝔗ᴺ] ⊦ (El 𝕥 ◁ 𝔗)ᵀ ≜ El 𝕥[↑𝔗ᴺ] ◁ 𝔗ᵀ qtel
+
+// Π over a dual: the binders in order, by the dual's two projections.
+
+Γ ; 𝒮 ⊦ 𝔗 qdual      Γ · 𝔗ᴺ ; 𝒮[↑𝔗ᴺ] · 𝔗ᵀ ⊦ 𝔄 qty
+--------------------------------------------------- (qdual-pi)
+Γ ; 𝒮 ⊦ 𝔗 ⇛ 𝔄 qty
+
+Γ ; 𝒮 ⊦ 𝔄 qty
+------------------------- (qdual-pi-empty)
+Γ ; 𝒮 ⊦ ε ⇛ 𝔄 ≜ 𝔄 qty
+
+Γ ⊦ A : 𝕌ℓ      Γ ▷ A ; 𝒮[↑] ⊦ 𝔗 qdual      (Γ ▷ A) · 𝔗ᴺ ; 𝒮[↑(A ◁ 𝔗ᴺ)] · 𝔗ᵀ ⊦ 𝔄 qty
+------------------------------------------------------------------------------------ (qdual-pi-ext)
+Γ ; 𝒮 ⊦ (A ◁ 𝔗) ⇛ 𝔄 ≜ A ⇛ (𝔗 ⇛ 𝔄) qty
+
+Γ ; 𝒮 ⊦ 𝕥 : U      Γ ; 𝒮 ▷ El 𝕥 ⊦ 𝔗 qdual      Γ · 𝔗ᴺ ; (𝒮 ▷ El 𝕥)[↑𝔗ᴺ] · 𝔗ᵀ ⊦ 𝔄 qty
+----------------------------------------------------------------------------------- (qdual-pi-ind)
+Γ ; 𝒮 ⊦ (El 𝕥 ◁ 𝔗) ⇛ 𝔄 ≜ El 𝕥 ⇛ (𝔗 ⇛ 𝔄) qty
+
+Γ ; 𝒮 ⊦ 𝔄 qty
+---------------- (arity)
+Γ ; 𝒮 ⊦ 𝔄ᵗ qdual
+
+Γ ; 𝒮 ⊦ 𝔄 qty
+----------------------------------------- (end)
+Γ · 𝔄ᵗᴺ ; 𝒮[↑𝔄ᵗᴺ] · 𝔄ᵗᵀ ⊦ 𝔄ᵉ qty
+
+Γ ⊦ 𝒮 qctx
+----------------------------------------------- (arity-univ)
+Γ ; 𝒮 ⊦ Uᵗ ≜ ε qdual      Γ ; 𝒮 ⊦ Uᵉ ≜ U qty
+
+Γ ; 𝒮 ⊦ 𝕥 : U
+-------------------------------------------------------- (arity-el)
+Γ ; 𝒮 ⊦ (El 𝕥)ᵗ ≜ ε qdual      Γ ; 𝒮 ⊦ (El 𝕥)ᵉ ≜ El 𝕥 qty
+
+Γ ⊦ A : 𝕌ℓ      Γ ▷ A ; 𝒮[↑] ⊦ 𝔄 qty
+------------------------------------------------------------------------------------------------------------ (arity-pi-ext)
+Γ ; 𝒮 ⊦ (A ⇛ 𝔄)ᵗ ≜ A ◁ 𝔄ᵗ qdual      (Γ ▷ A) · 𝔄ᵗᴺ ; 𝒮[↑(A ◁ 𝔄ᵗᴺ)] · 𝔄ᵗᵀ ⊦ (A ⇛ 𝔄)ᵉ ≜ 𝔄ᵉ qty
+
+Γ ; 𝒮 ▷ El 𝕥 ⊦ 𝔄 qty
+------------------------------------------------------------------------------------------------------------ (arity-pi-ind)
+Γ ; 𝒮 ⊦ (El 𝕥 ⇛ 𝔄)ᵗ ≜ El 𝕥 ◁ 𝔄ᵗ qdual      Γ · 𝔄ᵗᴺ ; (𝒮 ▷ El 𝕥)[↑𝔄ᵗᴺ] · 𝔄ᵗᵀ ⊦ (El 𝕥 ⇛ 𝔄)ᵉ ≜ 𝔄ᵉ qty
+
+Γ ⊦ 𝒮 qctx
+---------------- (isp-empty)
+Γ ; 𝒮 ⊦ · : ε
+
+Γ ⊦ t : A      Γ ; 𝒮 ⊦ ī : 𝔗[id, t]
+----------------------------------- (isp-ext)
+Γ ; 𝒮 ⊦ t, ī : A ◁ 𝔗
+
+Γ ; 𝒮 ⊦ 𝕥 : El 𝕦      Γ ; 𝒮 ⊦ ī : 𝔗[𝕚𝕕, 𝕥]
+------------------------------------------ (isp-ind)
+Γ ; 𝒮 ⊦ 𝕥, ī : El 𝕦 ◁ 𝔗
+
+Γ ⊦ 𝒮 qctx
+Γ ; 𝒮 ⊦ 𝔄 qty      𝒮 ▷ 𝔄 ≼ ℓ
+------------------------------- (refl-arity)
+Γ · ⟦𝒮⟧ ⊦ ⟦𝔄⟧ᵗ tel
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ
+------------------------ (refl-arity-univ)
+Γ · ⟦𝒮⟧ ⊦ ⟦U⟧ᵗ ≜ ε tel
+
+Γ ⊦ 𝒮 qctx
+Γ ; 𝒮 ⊦ 𝕥 : U      𝒮 ≼ ℓ
+--------------------------- (refl-arity-el)
+Γ · ⟦𝒮⟧ ⊦ ⟦El 𝕥⟧ᵗ ≜ ε tel
+
+Γ ⊦ 𝒮 qctx
+Γ ▷ A ; 𝒮[↑] ⊦ 𝔄 qty      𝒮 ▷ A ⇛ 𝔄 ≼ ℓ
+------------------------------------------ (refl-arity-pi-ext)
+Γ · ⟦𝒮⟧ ⊦ ⟦A ⇛ 𝔄⟧ᵗ ≜ A[↑⟦𝒮⟧] ◁ ⟦𝔄⟧ᵗ[ξ] tel
+
+Γ ⊦ 𝒮 qctx
+Γ ; 𝒮 ▷ El 𝕥 ⊦ 𝔄 qty      𝒮 ▷ El 𝕥 ⇛ 𝔄 ≼ ℓ
+-------------------------------------------- (refl-arity-pi-ind)
+Γ · ⟦𝒮⟧ ⊦ ⟦El 𝕥 ⇛ 𝔄⟧ᵗ ≜ ⟦𝕥⟧ ◁ ⟦𝔄⟧ᵗ tel
+
+Γ ⊦ 𝒮 qctx
+Γ ; 𝒮 ⊦ 𝔄 qty      𝒮 ▷ 𝔄 ≼ ℓ
+------------------------------- (refl-end)
+Γ · ⟦𝒮⟧ · ⟦𝔄⟧ᵗ ⊦ ⟦𝔄⟧ᵉ : 𝕌ℓ₊₁
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ
+-------------------------- (refl-end-univ)
+Γ · ⟦𝒮⟧ ⊦ ⟦U⟧ᵉ ≜ 𝕌ℓ : 𝕌ℓ₊₁
+
+Γ ⊦ 𝒮 qctx
+Γ ; 𝒮 ⊦ 𝕥 : U      𝒮 ≼ ℓ
+------------------------------ (refl-end-el)
+Γ · ⟦𝒮⟧ ⊦ ⟦El 𝕥⟧ᵉ ≜ ⟦𝕥⟧ : 𝕌ℓ₊₁
+
+Γ ⊦ 𝒮 qctx
+Γ ▷ A ; 𝒮[↑] ⊦ 𝔄 qty      𝒮 ▷ A ⇛ 𝔄 ≼ ℓ
+---------------------------------------------------------------- (refl-end-pi-ext)
+(Γ · ⟦𝒮⟧ ▷ A[↑⟦𝒮⟧]) · ⟦𝔄⟧ᵗ[ξ] ⊦ ⟦A ⇛ 𝔄⟧ᵉ ≜ ⟦𝔄⟧ᵉ[ξ · ⟦𝔄⟧ᵗ] : 𝕌ℓ₊₁
+
+Γ ⊦ 𝒮 qctx
+Γ ; 𝒮 ▷ El 𝕥 ⊦ 𝔄 qty      𝒮 ▷ El 𝕥 ⇛ 𝔄 ≼ ℓ
+-------------------------------------------------- (refl-end-pi-ind)
+(Γ · ⟦𝒮⟧ ▷ ⟦𝕥⟧) · ⟦𝔄⟧ᵗ ⊦ ⟦El 𝕥 ⇛ 𝔄⟧ᵉ ≜ ⟦𝔄⟧ᵉ : 𝕌ℓ₊₁
+
+### Telescopes
+
+Γ₁ ⊦ Δ tel
+σ : Γ₀ ⇒ Γ₁
+--------------------------
+σ · Δ : Γ₀ · Δ[σ] ⇒ Γ₁ · Δ
+
+σ : Γ₀ ⇒ Γ₁
+-------------------
+σ · ε ≜ σ : Γ₀ ⇒ Γ₁
+
+Γ₁ ⊦ A ◁ Δ tel
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------------------------
+σ · (A ◁ Δ) ≜ σ⁺ · Δ : (Γ₀ ▷ A[σ]) · Δ[σ⁺] ⇒ (Γ₁ ▷ A) · Δ
+
+Γ ⊦ Δ tel
+Γ · Δ ⊦ B : 𝕌ℓ
+--------------
+Γ ⊦ Δ ▷ B tel
+
+Γ ⊦ B : 𝕌ℓ
+---------------------
+Γ ⊦ ε ▷ B ≜ B ◁ ε tel
+
+Γ ⊦ A ◁ Δ tel
+(Γ ▷ A) · Δ ⊦ B : 𝕌ℓ
+---------------------------------
+Γ ⊦ (A ◁ Δ) ▷ B ≜ A ◁ (Δ ▷ B) tel
+
+Γ ⊦ Δ tel
+Γ · Δ ⊦ B : 𝕌ℓ
+Γ ⊦ ē : Δ
+Γ ⊦ t : B[id, ē]
+--------------------
+Γ ⊦ ē, t : Δ ▷ B
+
+Γ ⊦ B : 𝕌ℓ
+Γ ⊦ t : B
+-----------------------
+Γ ⊦ ·, t ≜ t, · : B ◁ ε
+
+Γ ⊦ A ◁ Δ tel
+(Γ ▷ A) · Δ ⊦ B : 𝕌ℓ
+Γ ⊦ e : A
+Γ ⊦ ē : Δ[id, e]
+Γ ⊦ t : B[(id, e) · Δ][id, ē]
+---------------------------------------
+Γ ⊦ (e, ē), t ≜ e, (ē, t) : A ◁ (Δ ▷ B)
 
 ## Signatures
 
@@ -2302,33 +2531,6 @@ U[ς]          ≜ U
 // of Σ, instantiated at its parameters by a normal substitution — the
 // shape a term reference has (el-sig-var).
 
-Γ ⊦ Φ qctx
--------------- (qsig-ctx)
-Γ ⊦ Φ qsig
-
-(Γ ⊦ x ≔ 𝒮 qsig ℓ) ∈ Σ
-e˲ : Θ ⇒ Γ norm
------------------------- (qsig-ref)
-Σ Θ ⊦ x[e˲] qsig
-
-// EVALUATION ⌈·⌉ — the CONTENT of a signature, the qiit-context it
-// stands for. A META-OPERATION, like the readings: a context is its
-// own content, a reference the content of its entry's definiens with
-// the parameters substituted in (Nova substitution through ToS
-// syntax):
-
-⌈Φ⌉      ≜ Φ
-⌈x[e˲]⌉  ≜ ⌈𝒮⌉[e˲]          // (Γ ⊦ x ≔ 𝒮 qsig ℓ) ∈ Σ
-
-// It terminates — a definiens refers only to entries before its own in
-// Σ — and Γ ⊦ 𝒮 qsig yields Γ ⊦ ⌈𝒮⌉ qctx (a meta-lemma: sig-qsig's
-// premise, then the substitution). Evaluation is NOT an equation of
-// the theory, and no rule unfolds a reference: it is how the
-// META-LEVEL operations reach a signature's entries. Every operation
-// the outer rules perform on 𝒮 is the operation on its content —
-
-𝒮(k) ≜ ⌈𝒮⌉(k)      ⟦𝒮⟧ ≜ ⟦⌈𝒮⌉⟧      ⟦𝒮⟧ᴰ ≜ ⟦⌈𝒮⌉⟧ᴰ
-
 // and likewise an entry's classification and its arity — while the
 // FORMERS keep 𝒮 as written: the initial algebra of a reference is
 // built from formers AT the reference (ι below), so the types of a
@@ -2336,29 +2538,60 @@ e˲ : Θ ⇒ Γ norm
 //
 // THE BOUND of a reference is its entry's record: x[e˲] ≼ ℓ′ when
 // ℓ ≤ ℓ′, ℓ the level the entry records. Nothing is inspected; and
-// then ⌈x[e˲]⌉ ≼ ℓ′ — sig-qsig bounds the definiens by ℓ, a
+// then ⌈x[e˲]⌉ ≼ ℓ′ — sig-qctx bounds the definiens by ℓ, a
 // substitution moves no level, and a bound is raised by code-lift.
 //
 // SUBSTITUTION at a reference composes, as at a term reference
 // (el-sub-sig-var): x[e˲][σ] ≜ x[e˲ ∘ σ]. Evaluation commutes with
 // it: ⌈𝒮[σ]⌉ = ⌈𝒮⌉[σ], a raw identity.
 
-// THE INITIAL ALGEBRA ι — the spine Γ ⊦ ι : ⟦𝒮⟧ of the carried
-// formers themselves, entry by entry, each entry the closed λ over its
-// arity (written at the entry's own prefix of 𝒮's content, ι↾ the
-// prefix of ι before it; the formers are at 𝒮 AS CARRIED — a
-// reference stays a reference):
-//     ι(𝕤) ≜ λ ⟦𝔎⟧ᵗ[ι↾]. 𝒮.𝕤 δ          # a sort entry 𝒮(𝕤) = 𝔎; δ the bound
-//                                        #   variables, as a Nova spine
-//     ι(𝕔) ≜ λ ⟦𝔄⟧ᵗ[ι↾]. 𝒮.𝕔 δ          # a point entry 𝒮(𝕔) = 𝔄
-//     ι(𝕔) ≜ λ ⟦𝔄⟧ᵗ[ι↾]. ⋆              # an equation entry: its end is a
-//                                        #   proposition, imposed by el-qiit-path
-// That ι is a spine is a META-LEMMA by the outer rules below (ty-qiit,
-// el-qiit-intro, el-qiit-path with el-eq-i), by induction along 𝒮.
-// Every type stated over the algebra context is instantiated at ι by
-// substitution, X[ι]; the types of the outer rules are then read UP TO
-// ≐ — ⟦El (𝕤 ī)⟧[ι, θ] β-reduces to 𝒮.𝕤 ⟦ī⟧[ι, θ], and an entry's
-// arity ⟦𝔎⟧ᵗ[ι] is a telescope over Γ.
+### Initial algebra
+
+// The spine of the formers at 𝒮, entry by entry: each entry is the
+// λ over its arity instantiated at the entries before it, of the
+// former at its position (a sort, a point constructor, or ⋆ for an
+// equation entry, whose end is a proposition imposed by
+// el-qiit-path). The formers carry 𝒮 AS WRITTEN — a reference stays a
+// reference — so the induction is on a PREFIX Φ of 𝒮's content with
+// the whole 𝒮 a parameter: ι_𝒮(Φ) is the algebra of the prefix.
+// Still prose, to be formalised: a POSITION as the
+// index of its entry from the right, as ⬡ᵢ and ☐ᵢ name it in the
+// zones, so that 𝕤, 𝕔 below is |𝒮| − |Φ| − 1; 𝒮(𝕤) = 𝔄 as that
+// entry's type over its prefix Φ, and ty-qiit, el-qiit-* at the
+// prefix algebra ι_𝒮(Φ) in place of ι(𝒮), which breaks the circle
+// between the outer rules and ι's typing; and the equation
+// ⟦𝔄⟧ ≐ Π ⟦𝔄⟧ᵗ. ⟦𝔄⟧ᵉ (induction on 𝔄, by refl-end-pi-ext's
+// substitution), which types the entries. That ι(𝒮) is a spine is
+// then a META-LEMMA by the outer rules, by induction along 𝒮.
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ
+------------------------- (ini)
+Γ ⊦ ι(𝒮) ≜ ι_𝒮(𝒮) : ⟦𝒮⟧
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮
+---------------------------------------- (ini-prefix)
+Γ ⊦ ι_𝒮(Φ) : ⟦Φ⟧
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ
+---------------------- (ini-empty)
+Γ ⊦ ι_𝒮(⬦) ≜ · : ε
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ; Φ ⊦ 𝔄 qty      Γ ⊦ Φ ▷ 𝔄 ⊑ 𝒮      // 𝕤 = |𝒮| − |Φ| − 1
+Γ · 𝔄ᵗᴺ ; Φ[↑𝔄ᵗᴺ] · 𝔄ᵗᵀ ⊦ 𝔄ᵉ ≐ U qty
+------------------------------------------------------------------------------------ (ini-sort)
+Γ ⊦ ι_𝒮(Φ ▷ 𝔄) ≜ ι_𝒮(Φ), λ ⟦𝔄⟧ᵗ[id, ι_𝒮(Φ)]. 𝒮.𝕤 ☐(⟦𝔄⟧ᵗ[id, ι_𝒮(Φ)]) : ⟦Φ⟧ ▷ ⟦𝔄⟧
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ; Φ ⊦ 𝔄 qty      Γ ⊦ Φ ▷ 𝔄 ⊑ 𝒮      // 𝕔 = |𝒮| − |Φ| − 1
+Γ · 𝔄ᵗᴺ ; Φ[↑𝔄ᵗᴺ] · 𝔄ᵗᵀ ⊦ 𝔄ᵉ ≐ El (⬡(𝕤 + |𝔄ᵗᵀ|) ī) qty
+------------------------------------------------------------------------------------ (ini-point)
+Γ ⊦ ι_𝒮(Φ ▷ 𝔄) ≜ ι_𝒮(Φ), λ ⟦𝔄⟧ᵗ[id, ι_𝒮(Φ)]. 𝒮.𝕔 ☐(⟦𝔄⟧ᵗ[id, ι_𝒮(Φ)]) : ⟦Φ⟧ ▷ ⟦𝔄⟧
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ; Φ ⊦ 𝔄 qty      Γ ⊦ Φ ▷ 𝔄 ⊑ 𝒮
+Γ · 𝔄ᵗᴺ ; Φ[↑𝔄ᵗᴺ] · 𝔄ᵗᵀ ⊦ 𝕝 : El 𝕦
+Γ · 𝔄ᵗᴺ ; Φ[↑𝔄ᵗᴺ] · 𝔄ᵗᵀ ⊦ 𝕣 : El 𝕦
+Γ · 𝔄ᵗᴺ ; Φ[↑𝔄ᵗᴺ] · 𝔄ᵗᵀ ⊦ 𝔄ᵉ ≐ El (𝕝 ≡ 𝕣) qty
+------------------------------------------------------------------------------------ (ini-eq)
+Γ ⊦ ι_𝒮(Φ ▷ 𝔄) ≜ ι_𝒮(Φ), λ ⟦𝔄⟧ᵗ[id, ι_𝒮(Φ)]. ⋆ : ⟦Φ⟧ ▷ ⟦𝔄⟧
 
 ## Identity
 
@@ -2366,20 +2599,9 @@ e˲ : Θ ⇒ Γ norm
 // signature 𝒮; two QIIT types are equal exactly when their signatures,
 // sorts (positions), and indices are — homogeneous with every other
 // former. Signatures have an EQUATION of their own,
-// Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig — a META-DEFINITION over the one judgement, like
-// the context and telescope equations, Γ ⊦ 𝒮 qsig its diagonal —
+// Γ ⊦ 𝒮₀ ≐ 𝒮₁ qctx — a META-DEFINITION over the one judgement, like
+// the context and telescope equations, Γ ⊦ 𝒮 qctx its diagonal —
 // reached by TWO PATHWAYS:
-
-(Γ ⊦ x ≔ 𝒮 qsig ℓ) ∈ Σ
-e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
------------------------------- (qsig-eq-ref)       // BY NAME: one entry, equal
-Σ Θ ⊦ x[e˲₀] ≐ x[e˲₁] qsig                         //   spines — nothing is evaluated
-
-Γ ⊦ 𝒮₀ qsig
-Γ ⊦ 𝒮₁ qsig
-Γ ⊦ ⌈𝒮₀⌉ ≐ ⌈𝒮₁⌉ qctx
------------------------------- (qsig-eq-content)   // BY CONTENT: both sides
-Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig                                   //   evaluated, the contexts compared
 
 // The equation of qiit-contexts, Γ ⊦ Φ₀ ≐ Φ₁ qctx, is the
 // COMPONENTWISE comparison: both well-formed, entry by entry the SAME
@@ -2396,7 +2618,7 @@ e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
 // needs no equirecursive/coinductive machinery. (Signature equality is
 // finer than initial-algebra isomorphism — it distinguishes entry
 // reorderings — but SOUND; choosing a syntactic granularity over the
-// semantic one is the commitment the code-injectivity block already
+// semantic one is the commitment the injectivity block already
 // makes: models collapsing structurally-distinct types are excluded.)
 //
 // THE TWO PATHWAYS. By-name is ADMISSIBLE from by-content — the
@@ -2407,7 +2629,7 @@ e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
 // side: the rigid-rigid-before-unfolding discipline, as a rule.
 // By-content is what makes a name TRANSPARENT: a named QIIT equals the
 // QIIT written out with the same entries, two entries with the same
-// content name the same types, and an alias (Γ ⊦ x ≔ y[e˲] qsig ℓ) is
+// content name the same types, and an alias (Γ ⊦ x ≔ y[e˲] qctx ℓ) is
 // an abbreviation. It is the pathway to take when the names differ.
 //
 // META-LEMMA. Equal signatures have equal entries, arities and
@@ -2447,13 +2669,12 @@ e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
 // like S t, class a and every other Nova former. The ToS is curried
 // internally; currying stops at the Nova boundary.)
 
-Γ ⊦ 𝒮 qsig      𝒮 ≼ ℓ      𝒮(𝕤) = 𝔎      𝔎 ends U      Γ ⊦ ē : ⟦𝔎⟧ᵗ[ι]
---------------------------------------------------------------------- (ty-qiit)
-Γ ⊦ 𝒮.𝕤 ē : 𝕌ℓ
 
-Γ ⊦ 𝒮 qsig      𝒮 ≼ 0      𝒮(𝕤) = 𝔎      𝔎 ends U      Γ ⊦ ē : ⟦𝔎⟧ᵗ[ι]
---------------------------------------------------------------------- (code-qiit)   // the ℓ = 0 display
-Γ ⊦ 𝒮.𝕤 ē : 𝕌₀
+Γ ⊦ 𝒮₀ ≐ 𝒮₁ qctx      𝒮₀ ≼ ℓ      𝒮₁ ≼ ℓ
+Γ · 𝒮₁(𝕤)ᵗᴺ ; 𝒮₁[↑𝒮₁(𝕤)ᵗᴺ] · 𝒮₁(𝕤)ᵗᵀ ⊦ 𝒮₁(𝕤)ᵉ ≐ U qty
+Γ ⊦ ē₀ ≐ ē₁ : ⟦𝒮₁(𝕤)⟧ᵗ[id, ι(𝒮₁)]
+--------------------------------------------------- (ty-qiit)   // in full: the diagonal is the display
+Γ ⊦ 𝒮₀.𝕤 ē₀ ≐ 𝒮₁.𝕤 ē₁ : 𝕌ℓ
 
 ## Introduction
 
@@ -2466,9 +2687,11 @@ e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
 // violation the judgemental el-qiit-path avoids at ≡-types. Nothing is
 // lost: a partial application is a λ away, λ (𝒮.𝕔 (…, ☐₀)).
 
-Γ ⊦ 𝒮 qsig      𝒮(𝕔) = 𝔄      𝔄 ends El (𝕤 ī)      Γ ⊦ θ : ⟦𝔄⟧ᵗ[ι]
---------------------------------------------------------------------- (el-qiit-intro)
-Γ ⊦ 𝒮.𝕔 θ : ⟦El (𝕤 ī)⟧[ι, θ]          // ≐ 𝒮.𝕤 ⟦ī⟧[ι, θ]
+Γ ⊦ 𝒮₀ ≐ 𝒮₁ qctx      𝒮₀ ≼ ℓ      𝒮₁ ≼ ℓ
+Γ ⊦ θ₀ ≐ θ₁ : ⟦𝒮₁(𝕔)⟧ᵗ[id, ι(𝒮₁)]
+Γ · 𝒮₁(𝕔)ᵗᴺ ; 𝒮₁[↑𝒮₁(𝕔)ᵗᴺ] · 𝒮₁(𝕔)ᵗᵀ ⊦ 𝒮₁(𝕔)ᵉ ≐ El (⬡(𝕤 + |𝒮₁(𝕔)ᵗᵀ|) ī) qty
+------------------------------------------------------------------------ (el-qiit-intro)   // in full
+Γ ⊦ 𝒮₀.𝕔 θ₀ ≐ 𝒮₁.𝕔 θ₁ : ⟦⬡(𝕤 + |𝒮₁(𝕔)ᵗᵀ|) ī⟧[(id, θ₁ᴺ, ι(𝒮₁), θ₁ᵀ)]
 
 ## Path
 
@@ -2483,41 +2706,96 @@ e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
 // (e.g. the quotient's R) is simply a binder of 𝔄, instantiated inside
 // θ.
 
-Γ ⊦ 𝒮 qsig      𝒮(𝕔) = 𝔄      𝔄 ends El (𝕝 ≡ 𝕣) at 𝕦      Γ ⊦ θ : ⟦𝔄⟧ᵗ[ι]
---------------------------------------------------------------------------- (el-qiit-path)
-Γ ⊦ ⟦𝕝⟧[ι, θ] ≐ ⟦𝕣⟧[ι, θ] : ⟦𝕦⟧[ι, θ]      // 𝕦 the sides' common code
+Γ ⊦ 𝒮 qctx     𝒮 ≼ ℓ
+Γ · 𝒮(𝕔)ᵗᴺ ; 𝒮[↑𝒮(𝕔)ᵗᴺ] · 𝒮(𝕔)ᵗᵀ ⊦ 𝕝 : El 𝕦
+Γ · 𝒮(𝕔)ᵗᴺ ; 𝒮[↑𝒮(𝕔)ᵗᴺ] · 𝒮(𝕔)ᵗᵀ ⊦ 𝕣 : El 𝕦
+Γ · 𝒮(𝕔)ᵗᴺ ; 𝒮[↑𝒮(𝕔)ᵗᴺ] · 𝒮(𝕔)ᵗᵀ ⊦ 𝒮(𝕔)ᵉ ≐ El (𝕝 ≡ 𝕣) qty
+Γ ⊦ θ : ⟦𝒮(𝕔)⟧ᵗ[id, ι(𝒮)]
+------------------------------------------------------------------------- (el-qiit-path)
+Γ ⊦ ⟦𝕝⟧[id, θᴺ, ι(𝒮), θᵀ] ≐ ⟦𝕣⟧[id, θᴺ, ι(𝒮), θᵀ] : ⟦𝕦⟧[id, θᴺ, ι(𝒮), θᵀ]
 
 ## Congruence and injectivity
 
-// ≐ is congruent at the QIIT formers as
-// at every former, by THE DOUBLING CONVENTION applied to ty-qiit and
-// el-qiit-intro: the carried 𝒮 doubles through the signature equation
-// (IDENTITY above), a bound bounding both instances. The full forms
-// are displayed because their premises live at the arity — the RIGHT
-// signature's, entry i's type instantiated by the RIGHT spine's
-// prefix, the sp-ext discipline. Injectivity: a universe's
-// equality is STRUCTURAL, so equal
-// saturated sort types at ONE signature have equal spines, indexwise
-// — the ty-pi-inj block, extended to the QIIT former (at level 0 the
-// code-pi-inj block).
+// ≐ is congruent at the QIIT formers as at every former; ty-qiit
+// and el-qiit-intro are stated IN FULL (the carried 𝒮 doubles through
+// the signature equation — IDENTITY above — a bound bounding each
+// instance, every other use at the RIGHT one), since their diagonals
+// are strictly less general. Injectivity: a universe's equality is
+// STRUCTURAL, so equal saturated sort types at ONE signature have
+// equal spines — the ty-pi-inj block, extended to the QIIT former;
+// the spine equation is entrywise at the RIGHT prefix (sp-ext).
 
-Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig      𝒮₀ ≼ ℓ      𝒮₁ ≼ ℓ
-Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ   (entrywise; Eᵢ is entry i of ⟦𝒮₁(𝕤)⟧ᵗ[ι₁], instantiated
-                     by ē₁'s prefix; ι₁ the initial algebra of 𝒮₁)
-------------------------------------------------------------- (ty-qiit-cong)   // ty-qiit in full
-Γ ⊦ 𝒮₀.𝕤 ē₀ ≐ 𝒮₁.𝕤 ē₁ : 𝕌ℓ
-
-Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig
-Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ   (entrywise at a point constructor's arity
-                     ⟦𝒮₁(𝕔)⟧ᵗ[ι₁], same discipline)
-------------------------------------------------------------- (el-qiit-intro-cong)   // el-qiit-intro in full
-Γ ⊦ 𝒮₀.𝕔 ē₀ ≐ 𝒮₁.𝕔 ē₁ : ⟦El (𝕤 ī)⟧[ι₁, ē₁]
-
-Γ ⊦ 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ : 𝕌ℓ     e₀ⱼ = e₁ⱼ for j < i  (structurally)
-------------------------------------------------------------- (code-qiit-inj)
-Γ ⊦ e₀ᵢ ≐ e₁ᵢ : Eᵢ
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ
+Γ ⊦ ē₀ : ⟦𝒮(𝕤)⟧ᵗ[id, ι(𝒮)]      Γ ⊦ ē₁ : ⟦𝒮(𝕤)⟧ᵗ[id, ι(𝒮)]
+Γ ⊦ 𝒮.𝕤 ē₀ ≐ 𝒮.𝕤 ē₁ : 𝕌ℓ
+-------------------------------------------------------- (ty-qiit-inj)
+Γ ⊦ ē₀ ≐ ē₁ : ⟦𝒮(𝕤)⟧ᵗ[id, ι(𝒮)]
 
 ## Elimination
+
+// TARGETS: one slot per entry of 𝒮 — for a sort the universe its
+// motive lands in, _ for a point or equation entry.
+
+Γ ⊦ 𝒮 qctx
+------------------- (targets-qctx)
+Γ ⊦ 𝒰̄ targets 𝒮
+
+Γ ; 𝒮 ⊦ 𝔄 qty
+------------------- (targets-qty)
+Γ ; 𝒮 ⊦ 𝒰 targets 𝔄
+
+Γ ; 𝒮 ⊦ 𝔄 qty
+Γ · 𝔄ᵗᴺ ; 𝒮[↑𝔄ᵗᴺ] · 𝔄ᵗᵀ ⊦ 𝔄ᵉ ≐ U qty
+Γ ⊦ 𝒰 univ
+---------------------------------------- (targets-qty-sort)
+Γ ; 𝒮 ⊦ 𝒰 targets 𝔄
+
+Γ ; 𝒮 ⊦ 𝔄 qty
+Γ · 𝔄ᵗᴺ ; 𝒮[↑𝔄ᵗᴺ] · 𝔄ᵗᵀ ⊦ 𝔄ᵉ ≐ El 𝕥 qty
+------------------------------------------- (targets-qty-el)
+Γ ; 𝒮 ⊦ _ targets 𝔄
+
+Γ ctx
+----------------- (targets-qctx-empty)
+Γ ⊦ · targets ⬦
+
+Γ ⊦ 𝒰̄ targets Φ
+Γ ; Φ ⊦ 𝒰 targets 𝔄
+--------------------- (targets-ctx-ext)
+Γ ⊦ 𝒰̄, 𝒰 targets Φ ▷ 𝔄
+
+Γ ⊦ 𝒮 qctx        𝒮 ≼ ℓ
+Γ ⊦ Φ ⊑ 𝒮
+Γ ⊦ 𝒰̄ targets Φ   𝒰̄ ≼ ℓ
+-----------------------
+Γ · ⟦𝒮⟧ ⊦ ⟦Φ⟧ᴰ 𝒰̄ tel
+
+Γ ⊦ 𝒮 qctx        𝒮 ≼ ℓ
+------------------------
+Γ · ⟦𝒮⟧ ⊦ ⟦⬦⟧ᴰ · ≜ ε tel
+
+Γ ⊦ 𝒮 qctx        𝒮 ≼ ℓ
+Γ ⊦ Φ ▷ 𝔄 ⊑ 𝒮
+Γ ⊦ 𝒰̄ targets Φ         𝒰̄ ≼ ℓ
+Γ ; 𝒮 ⊦ 𝒰 targets 𝔄     𝒰 ≼ ℓ
+-----------------------------------------------
+Γ · ⟦𝒮⟧ ⊦ ⟦Φ ▷ 𝔄⟧ᴰ (𝒰̄, 𝒰) ≜ ⟦Φ⟧ᴰ 𝒰̄ ▷ ⟦𝔄⟧ᴰ 𝒰 tel
+
+Γ ⊦ 𝒮 qctx             𝒮 ≼ ℓ
+Γ ; Φ ⊦ 𝔄 qty      Γ ⊦ Φ ▷ 𝔄 ⊑ 𝒮
+Γ ⊦ 𝒰̄ targets 𝒮        𝒰̄ ≼ ℓ
+Γ ; 𝒮 ⊦ 𝒰 targets 𝔄    𝒰 ≼ ℓ
+--------------------------------
+Γ · ⟦𝒮⟧ · ⟦Φ⟧ᴰ 𝒰̄ ⊦ ⟦𝔄⟧ᴰ 𝒰 : 𝕌ℓ₊₁
+
+Γ ⊦ 𝒮 qctx         𝒮 ≼ ℓ
+Γ ; Φ ⊦ 𝔄 qty      Γ ⊦ Φ ▷ 𝔄 ⊑ 𝒮
+Γ ⊦ 𝒰̄ targets 𝒮    𝒰̄ ≼ ℓ
+Γ · 𝔄ᵗᴺ ; 𝒮[↑𝔄ᵗᴺ] · 𝔄ᵗᵀ ⊦ 𝔄ᵉ ≐ U qty
+Γ ⊦ 𝒰 univ         𝒰 ≼ ℓ
+------------------------------------------------------------
+Γ · ⟦Φ⟧ ⊦ ⟦𝔄⟧ᵗ tel
+Γ · ⟦𝒮⟧ · ⟦Φ⟧ᴰ 𝒰̄ ⊦ ⟦𝔄ᵗ ⇛ U⟧ᴰ 𝒰 ≜ ⟦𝔄⟧ᵗ[? · ⟦Φ⟧ᴰ 𝒰̄] → 𝒰 : 𝕌ℓ₊₁
 
 // The eliminator's data — one MOTIVE per sort, one
 // METHOD per point constructor, one COHERENCE per equation
@@ -2604,7 +2882,7 @@ e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
 // Then m θᴰ_φ : (𝕤 ī)ᴰ (𝒮.𝕔 θ) [ι, d̄] for a method m : 𝔄ᴰ ι(𝕔). The
 // section of the eliminator itself is φᵉˡ_𝕤 ≜ 𝒮.𝕤-elim m̄ δ ☐₀.
 
-Γ ⊦ 𝒮 qsig      𝒰̄ targets 𝒮      Γ ⊦ d̄ : ⟦𝒮⟧ᴰ[ι]      // m̄ the point entries of d̄
+Γ ⊦ 𝒮 qctx      Γ ⊦ 𝒰̄ targets 𝒮      Γ ⊦ d̄ : ⟦𝒮⟧ᴰ[ι]      // m̄ the point entries of d̄
 𝒮(𝕤) = 𝔎      Γ ⊦ ē : ⟦𝔎⟧ᵗ[ι]      Γ ⊦ w : 𝒮.𝕤 ē
 --------------------------------------------------------------------- (el-qiit-elim)
 Γ ⊦ 𝒮.𝕤-elim m̄ ē w : d̄(𝕤) ēᴰ_{φᵉˡ} w         // d̄(𝕤) the motive entry: the
@@ -2618,10 +2896,10 @@ e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
 // arguments, the induction hypotheses supplied by the eliminator
 // itself.
 
-Γ ⊦ 𝒮 qsig      𝒮(𝕔) = 𝔄      𝔄 ends El (𝕤 ī)
-Γ ⊦ d̄ : ⟦𝒮⟧ᴰ[ι]      Γ ⊦ θ : ⟦𝔄⟧ᵗ[ι]
-------------------------------------------------------------------------- (el-qiit-beta)
-Γ ⊦ 𝒮.𝕤-elim m̄ ⟦ī⟧[ι, θ] (𝒮.𝕔 θ) ≜ m_𝕔 θᴰ_{φᵉˡ} : d̄(𝕤) (⟦ī⟧[ι, θ])ᴰ_{φᵉˡ} (𝒮.𝕔 θ)
+Γ ⊦ 𝒮 qctx      Γ ⊦ d̄ : ⟦𝒮⟧ᴰ[ι(𝒮)]      Γ ⊦ θ : ⟦𝒮(𝕔)⟧ᵗ[id, ι(𝒮)]
+Γ · 𝒮(𝕔)ᵗᴺ ; 𝒮[↑𝒮(𝕔)ᵗᴺ] · 𝒮(𝕔)ᵗᵀ ⊦ 𝒮(𝕔)ᵉ ≐ El (⬡(𝕤 + |𝒮(𝕔)ᵗᵀ|) ī) qty
+---------------------------------------------------------------------------------------------------------------- (el-qiit-beta)
+Γ ⊦ 𝒮.𝕤-elim m̄ ⟦ī⟧[id, θᴺ, ι(𝒮), θᵀ] (𝒮.𝕔 θ) ≜ m_𝕔 θᴰ_{φᵉˡ} : d̄(𝕤) (⟦ī⟧[id, θᴺ, ι(𝒮), θᵀ])ᴰ_{φᵉˡ} (𝒮.𝕔 θ)
 //   EQUATION constructors have NO β-rule (their content is a
 //   judgement; their coherence entries in d̄ are ⋆).
 
@@ -2630,10 +2908,10 @@ e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
 // (η) — the section is unique (initiality): any section
 // that commutes with every point constructor IS the eliminator.
 
-Γ ⊦ 𝒮 qsig      Γ ⊦ d̄ : ⟦𝒮⟧ᴰ[ι]
+Γ ⊦ 𝒮 qctx      Γ ⊦ d̄ : ⟦𝒮⟧ᴰ[ι]
 h a section: for each sort 𝕤 (𝒮(𝕤) = 𝔎),
     Γ·⟦𝔎⟧ᵗ[ι] ▷ 𝒮.𝕤 δ ⊦ h_𝕤 : d̄(𝕤) δᴰ_h ☐₀
-for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, ending in El (𝕤 ī);
+for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, 𝔄ᵉ ≐ El (⬡(𝕤 + |𝔄ᵗᵀ|) ī);
                                 θ = ⟦𝔄⟧ᵗ[ι]'s variables):
     Γ·⟦𝔄⟧ᵗ[ι] ⊦ h_𝕤[⟦ī⟧[ι, θ], 𝒮.𝕔 θ] ≐ m_𝕔 θᴰ_h : d̄(𝕤) (⟦ī⟧[ι, θ])ᴰ_h (𝒮.𝕔 θ)
 𝒮(𝕤) = 𝔎      Γ ⊦ ē : ⟦𝔎⟧ᵗ[ι]      Γ ⊦ w : 𝒮.𝕤 ē
@@ -2660,7 +2938,7 @@ for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, ending in El (𝕤 ī);
 // with it: ⟦𝒮[σ]⟧ = ⟦𝒮⟧[σ].)
 
 // CONGRUENCE and INJECTIVITY are STRUCTURAL: equal QIIT types/codes have
-// equal signatures (Γ ⊦ 𝒮₀ ≐ 𝒮₁ qsig, IDENTITY above), sort positions,
+// equal signatures (Γ ⊦ 𝒮₀ ≐ 𝒮₁ qctx, IDENTITY above), sort positions,
 // and index spines, and conversely — the signature compared by name,
 // or by content componentwise (entry by entry; qiit-types and
 // qiit-terms as plain indexed syntax — nameless, no α — their embedded
@@ -2781,9 +3059,6 @@ e˲ : Θ ⇒ Γ norm
 
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------------------------------------------------ (el-sub-atoms)
-Γ₀ ⊦ 𝟘[σ] ≜ 𝟘 : 𝕌₀
-Γ₀ ⊦ 𝟙[σ] ≜ 𝟙 : 𝕌₀
-Γ₀ ⊦ ℕ[σ] ≜ ℕ : 𝕌₀
 Γ₀ ⊦ ()[σ] ≜ () : 𝟙
 Γ₀ ⊦ Z[σ] ≜ Z : ℕ
 
@@ -2791,30 +3066,6 @@ e˲ : Θ ⇒ Γ norm
 σ : Γ₀ ⇒ Γ₁
 --------------------------------- (el-sub-s)
 Γ₀ ⊦ (S t)[σ] ≜ S t[σ] : ℕ
-
-Γ₁ ⊦ A : 𝕌₀
-Γ₁ ▷ A ⊦ B : 𝕌₀
-σ : Γ₀ ⇒ Γ₁
----------------------------------------- (el-sub-code-pi)
-Γ₀ ⊦ (A → B)[σ] ≜ A[σ] → B[σ⁺] : 𝕌₀
-
-Γ₁ ⊦ A : 𝕌₀
-Γ₁ ▷ A ⊦ B : 𝕌₀
-σ : Γ₀ ⇒ Γ₁
----------------------------------------- (el-sub-code-sigma)
-Γ₀ ⊦ (A × B)[σ] ≜ A[σ] × B[σ⁺] : 𝕌₀
-
-Γ₁ ⊦ A : 𝕌₀
-Γ₁ ⊦ B : 𝕌₀
-σ : Γ₀ ⇒ Γ₁
----------------------------------------- (el-sub-code-sum)
-Γ₀ ⊦ (A ⊎ B)[σ] ≜ A[σ] ⊎ B[σ] : 𝕌₀
-
-Γ₁ ⊦ A : 𝕌₀
-Γ₁ ▷ A ▷ A[↑] ⊦ R : Ω
-σ : Γ₀ ⇒ Γ₁
------------------------------------------- (el-sub-code-quot)
-Γ₀ ⊦ (A / R)[σ] ≜ A[σ] / R[σ⁺⁺] : 𝕌₀
 
 Γ₁ ⊦ A : 𝕌ℓ
 σ : Γ₀ ⇒ Γ₁
@@ -2979,13 +3230,10 @@ e˲ : Γ₁ ⇒ Γ norm
 // rule above is its own congruence: the display Γ ⊦ F(x̄) : T states
 // Γ ⊦ F(x̄₀) ≐ F(x̄₁) : T[x̄₁] under the doubled premises, with the
 // binder-crossing premises at the RIGHT instance. There is nothing to
-// derive and nothing to add: el-lam-cong is el-pi-i, el-app-cong is
-// el-pi-e, el-pair-cong is el-sigma-i, el-proj₁/₂-cong are
-// el-sigma-e₁/₂, el-inj₁/₂-cong are el-sum-i₁/₂, el-sum-e-cong is
-// el-sum-e, el-suc-cong is el-nat-s, el-nat-e-cong is el-nat-e,
-// el-class-cong is el-quot-i, el-quot-e-cong is el-quot-e, el-let-cong
-// is el-let, code-pi/-sigma/-sum/-quot-cong are the level-0 instances
-// of ty-pi/-sigma/-sum/-quot, code-squash-cong is code-squash, and
+// derive and nothing to add: the congruence of each former is its
+// rule in full (el-pi-i, el-pi-e, el-sigma-i, el-sigma-e₁/₂,
+// el-sum-i₁/₂, el-sum-e, el-nat-s, el-nat-e, el-quot-i, el-quot-e,
+// el-let, code-squash), and
 // the MASTER congruence, substitution functionality, is el-sub
 // itself, stated in full where it is introduced: everything else
 // routes through it. Its instance at one substitution:
@@ -3034,7 +3282,7 @@ e˲ : Γ₁ ⇒ Γ norm
 // polynomial is BOUNDED by ℓ, written 𝔽 ≼ ℓ, when each of them is
 // typed at 𝕌ℓ (one bound for the whole polynomial, as for a
 // signature); ν 𝔽 is a type at that level. A left-hand type `a` BINDS a
-// Nova variable in its body, exactly as code-sigma/code-pi bind; the
+// Nova variable in its body, exactly as ty-sigma/ty-pi bind; the
 // two product forms are distinguished by their left-hand side (K a
 // × … is the non-binding instance of the same shape). The hole 𝕏
 // never occurs left of a → — strict positivity is GRAMMATICAL, with
@@ -3082,8 +3330,8 @@ e˲ : Γ₁ ⇒ Γ norm
 
 ⌊𝕏⌋(c)          ≜ c
 ⌊K a⌋(c)        ≜ a
-⌊𝔽 × 𝔾⌋(c)      ≜ ⌊𝔽⌋(c) × ⌊𝔾⌋(c)[↑]      // code-sigma, non-dependent
-⌊𝔽 ⊎ 𝔾⌋(c)      ≜ ⌊𝔽⌋(c) ⊎ ⌊𝔾⌋(c)         // code-sum, direct
+⌊𝔽 × 𝔾⌋(c)      ≜ ⌊𝔽⌋(c) × ⌊𝔾⌋(c)[↑]      // ty-sigma, non-dependent
+⌊𝔽 ⊎ 𝔾⌋(c)      ≜ ⌊𝔽⌋(c) ⊎ ⌊𝔾⌋(c)         // ty-sum, direct
 ⌊a × 𝔽⌋(c)   ≜ a × ⌊𝔽⌋(c[↑])
 ⌊a → 𝔽⌋(c)   ≜ a → ⌊𝔽⌋(c[↑])
 
@@ -3117,8 +3365,8 @@ map_{a → 𝔽} g f    ≜ λ (map_𝔽 g[↑] (f[↑] ☐₀))
 // ⌊𝔽⌋(ν 𝔽) are ISOMORPHIC (out one way; the derivable in below
 // the other) and deliberately never ≐ — same commitment as the QIIT
 // IDENTITY paragraph. Congruence and injectivity are structural, by
-// that meta-recursion (code-nu-cong/-inj are the componentwise
-// instances, not stated per former).
+// that meta-recursion (ty-nu in full, and its injectivity, are the
+// componentwise instances, not stated per former).
 
 ## Formation
 
@@ -3127,10 +3375,6 @@ map_{a → 𝔽} g f    ≜ λ (map_𝔽 g[↑] (f[↑] ☐₀))
 Γ ⊦ 𝔽 poly      𝔽 ≼ ℓ
 ------------------------ (ty-nu)
 Γ ⊦ ν 𝔽 : 𝕌ℓ
-
-Γ ⊦ 𝔽 poly      𝔽 ≼ 0
------------------------- (code-nu)   // the ℓ = 0 display
-Γ ⊦ ν 𝔽 : 𝕌₀
 
 ## Elimination
 
@@ -3448,7 +3692,7 @@ l ∈ l̄
 Γ ⊦ t.l : (t / l̄ ↪ Δ)‖ₗ
 
 // Computation: ONE rule, by lookup. The premises are el-rec-i's — the
-// components typed, as in el-sigma-beta — not the typing of the record:
+// components typed, as in el-sigma-beta₁/₂ — not the typing of the record:
 // that a typed record has typed components is no lemma of the theory, and
 // the rule must not assert it. The type is el-rec-e's spelling; it agrees
 // with the spine's own typing of the component (sp-ext) by this rule at
@@ -3505,8 +3749,8 @@ l ∈ l̄
 
 // Names follow <class>-<former>-<kind> uniformly (see Conventions:
 // NAMES). Within the element class the prefix records the
-// conclusion's universe — ty- at a universe 𝕌ℓ, code- for the level-0
-// display of the same rules, el- otherwise. The equivalence
+// conclusion's universe — ty- at a universe 𝕌ℓ, code- for the rules
+// proper to the universe of codes, el- otherwise. The equivalence
 // structure is two RULES for the judgement and the diagonal notation
 // (el-sym, el-trans, el-refl — stated in EQUALITY) and META-LEMMAS
 // for the meta-defined spellings. The poly class has
