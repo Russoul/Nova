@@ -99,7 +99,7 @@
 //    former) — for each well-formed signature 𝒮 (mutually-defined,
 //    possibly index-dependent sorts with point AND equation (path)
 //    constructors), the sorts 𝒮.𝕤 ē as types, their constructors 𝒮.𝕔 θ,
-//    the imposed path equations, and a dependent eliminator 𝒮.𝕤-elim with
+//    the imposed path equations, and a dependent eliminator 𝒮-elim with
 //    its computation and uniqueness laws. Every rule is stated against a
 //    signature 𝒮 carried by the formers — written out, or a REFERENCE
 //    x[e˲] to a signature defined once in Σ (sig-qctx). This subsumes ℕ,
@@ -234,17 +234,13 @@ t, a, b, c, d, e, f, g, h, m, p, q, r, s, u, v, w, x, z, T, A, B, C, D, E, P, Q,
                      //   argument spine, like every other former
                      //   (equation constructors mint no term: their
                      //   content is a judgement — see el-qiit-path)
-    | 𝒮.𝕤-elim ē ē t // QIIT eliminator: the METHODS (what β reads),
-                     //   the index spine ē, the eliminee t; motives and
-                     //   coherences are premises of its rule, not
-                     //   carried — see the QIIT section
     | ν 𝔽            // coinductive type at polynomial 𝔽 — a type at the
                      //   polynomial's level; 𝔽 is carried in the term,
                      //   so ν-equality is structural (see "Coinductive
                      //   types")
     | out t          // coinductive observation (the ELIMINATOR)
     | corec 𝔽 t t    // corecursor (the INTRODUCTION: polynomial, coalgebra
-                     //   body, seed — 𝔽 is CARRIED, like m̄ at 𝒮.𝕤-elim:
+                     //   body, seed — 𝔽 is CARRIED, like d̄ at 𝒮-elim:
                      //   el-nu-beta consumes map_𝔽, so the redex must be
                      //   self-contained. The carrier is NOT: a term carries
                      //   only what computation reads)
@@ -270,7 +266,10 @@ i, j, k, n ::= <natural number>
 Δ ::= ε | t ◁ Δ
 
 // (element) spine
-ē, θ, ι, δ, ā, d̄, m̄ ::= · | t, ē
+ē, θ, ι, δ, ā, d̄, m̄, h̄ ::= · | t, ē
+    | 𝒮-elim ē          // QIIT eliminator: THE SECTION of the displayed
+                        //   algebra ē over ι(𝒮) (𝒮 CARRIED) — a spine of
+                        //   the section telescope, see Elimination
 
 // qiit-context
 𝒮, Φ ::= ⬦ | 𝒮 ▷ 𝔄 | x[e˲]
@@ -305,16 +304,16 @@ i, j, k, n ::= <natural number>
 // the categories of the syntax. Each notion is defined where it is
 // introduced.
 Γ |= Γ · Δ | (Γ)
-Δ |= Δ[σ] | Δ ▷ t | (Δ) | ⟦𝒮⟧ | ⟦𝒮⟧ | ⟦𝔄⟧ᵗ | ⟦Ψ⟧ | 𝔗ᴺ | ⟦𝒮⟧ᴰ 𝒰̄ | ⟦𝒮 ⊑ 𝒮⟧ᴰ 𝒰̄ | ⟦𝔗⟧ᴰ 𝒰̄
-σ |= σ⁺ | ↑ⁱ | ↑Δ | e˲ | (σ) | ē | σ, ē | ξ | ξ⁻¹ | ξ_Δ | ξᴰ | υ | σ · Δ
+Δ |= Δ[σ] | Δ ▷ t | (Δ) | ⟦𝒮⟧ | ⟦𝒮⟧ | ⟦𝔄⟧ᵗ | ⟦Ψ⟧ | 𝔗ᴺ | ⟦𝒮⟧ᴰ 𝒰̄ | ⟦𝒮 ⊑ 𝒮⟧ᴰ 𝒰̄ | ⟦𝔗⟧ᴰ 𝒰̄ | ⟦𝒮⟧ˢ | ⟦𝒮 ⊑ 𝒮⟧ˢ
+σ |= σ⁺ | ↑ⁱ | ↑Δ | e˲ | (σ) | ē | σ, ē | ξ | ξ⁻¹ | ξ_Δ | ξᴰ | ξᴰ⁻¹ | υ | υᴰ | ξˢ | ξˢ⁻¹ | σ · Δ
 e˲ |= (e˲) | e˲ ∘ σ
-ē |= ē[σ] | (ē) | t.l̄ | ⟦ī⟧ | ēᴰ_{h} | ēᴰ_h | ☐(Δ) | ι(𝒮) | ι_𝒮(𝒮) | ē, t | ēᴺ | ēᵀ
+ē |= ē[σ] | (ē) | t.l̄ | ⟦ī⟧ | ☐(Δ) | ι(𝒮) | ι_𝒮(𝒮) | ē, t | ēᴺ | ēᵀ
 l̄ |= (l̄)
 ℓ |= ℓ + ℓ | ℓ ⊔ ℓ | (ℓ) | |𝒰|
-i |= i + i | |Γ| | |𝒮| | |𝔗| | |Ψ| | 𝕤 | 𝕔
+i |= (i) | i + i | |Γ| | |𝒮| | |𝔗| | |Ψ| | 𝕤 | 𝕔
 t, w |= t[σ] | (t) | Γ‖ᵢ | (t / l̄ ↪ Δ)‖ₗ | (l̄ ↪ ē)(l) | 𝒰
-    | ⟦𝔄⟧ | ⟦𝕥⟧ | ⟦𝔄⟧ᵉ | ⟦𝔄⟧ᴰ 𝒰 | ⟦𝔄⟧ᴰ 𝒰 t | ⟦𝕥⟧ᴰ 𝒰̄
-    | ē(𝕤) ē t | m_𝕔 ē | h_𝕤 | h
+    | ⟦𝔄⟧ | ⟦𝕥⟧ | ⟦𝔄⟧ᵉ | ⟦𝔄⟧ᴰ 𝒰 t | ⟦𝕥⟧ᴰ 𝒰̄ | ⟦𝔄⟧ˢ t t | ⟦𝕥⟧ˢ
+    | ē(i) | t ē | h
     | ⌊𝔽⌋(t) | map_𝔽 t t | map_{𝔽} t t | lift_𝔽(t) | lift_{𝔽}(t) | Δ → t | λ Δ. t
 𝔽 |= 𝔽[σ] | (𝔽)
 𝒮 |= 𝒮[σ] | (𝒮) | 𝒮 · Ψ
@@ -348,8 +347,8 @@ J ::= Σ sig | Γ ctx | Γ ≐ Γ ctx | Γ ≜ Γ ctx | Σ Γ ctx
     | l ∈ l̄ | l ∉ l̄ | l ≠ l | l̄ distinct | |l̄| = |Δ|
     | Γ ; 𝒮 ⊦ 𝔄 qty | Γ ; 𝒮 ⊦ 𝔄 ≐ 𝔄 qty | Γ ; 𝒮 ⊦ 𝔄 ≜ 𝔄 qty
     | Γ ; 𝒮 ⊦ Ψ qtel | Γ ; 𝒮 ⊦ Ψ ≜ Ψ qtel | Γ ; 𝒮 ⊦ 𝔗 qdual | Γ ; 𝒮 ⊦ 𝔗 ≜ 𝔗 qdual | Γ ; 𝒮 ⊦ ī : 𝔗 | Γ ; 𝒮 ⊦ 𝕥 : 𝔄 | Γ ; 𝒮 ⊦ 𝕥 ≐ 𝕥 : 𝔄 | Γ ⊦ ς : 𝒮 ⇒ 𝒮 | 𝒮‖ᵢ = 𝔄
-    | Γ ⊦ 𝒮 qctx | Γ ⊦ 𝒮 ≐ 𝒮 qctx | Γ ⊦ 𝒮 ≜ 𝒮 qctx | Γ ⊦ 𝒮 ⊑ 𝒮 | Σ Γ ⊦ 𝒮 qctx | Σ Γ ⊦ 𝒮 ≐ 𝒮 qctx
-    | 𝒮(𝕤) = 𝔄 | 𝒮(𝕔) = 𝔄 | Γ ⊦ 𝒰̄ targets 𝒮 | Γ ; 𝒮 ⊦ 𝒰 targets 𝔄 | 𝒰̄‖ᵢ = 𝒰 | Γ ⊦ h section ē | Γ ⊦ 𝒰 univ
+    | Γ ⊦ 𝒮 qctx | Γ ⊦ 𝒮 ≐ 𝒮 qctx | Γ ⊦ 𝒮 ≜ 𝒮 qctx | Γ ⊦ 𝒮 ⊑ 𝒮 | Γ ⊦ 𝒮 ⊑ₛ 𝒮 | Σ Γ ⊦ 𝒮 qctx | Σ Γ ⊦ 𝒮 ≐ 𝒮 qctx
+    | 𝒮(𝕤) = 𝔄 | 𝒮(𝕔) = 𝔄 | Γ ⊦ 𝒰̄ targets 𝒮 | Γ ; 𝒮 ⊦ 𝒰 targets 𝔄 | 𝒰̄‖ᵢ = 𝒰 | Γ ⊦ 𝒰 univ
     | Γ ⊦ 𝔽 poly | 𝒮 ≼ ℓ | 𝔽 ≼ ℓ | 𝒮 ≼ ℓ | 𝔄 ≼ ℓ | Γ ⊦ 𝒰 univ | 𝒰 ≼ 𝒰 | 𝒰 ≼ ℓ | 𝒰̄ ≼ ℓ | ℓ ≤ ℓ
 D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | Ψ ≜ Ψ | 𝔗 ≜ 𝔗 | σ ≜ σ | e˲ ≜ e˲ | ē ≜ ē | 𝒮 ≜ 𝒮 | 𝔄 ≜ 𝔄 | 𝕥 ≜ 𝕥
     | Γ ⊦ t : t ≜ Γ ⊦ t ≐ t : t
@@ -1888,7 +1887,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 // index-dependent sorts, generated freely by point constructors and
 // quotiented by equation constructors — the rules below license the
 // sorts of 𝒮 as types (𝒮.𝕤 ē), their constructors (𝒮.𝕔 θ), the imposed
-// path equations, and a dependent eliminator (𝒮.𝕤-elim) with its
+// path equations, and a dependent eliminator (𝒮-elim) with its
 // computation and uniqueness laws. Every rule is stated AGAINST a
 // signature (⊦ 𝒮 qctx as a premise), and 𝒮 is carried by the formers
 // themselves (as A / R carries A and R) — either WRITTEN OUT, a
@@ -2029,7 +2028,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 //     with the qsub rules below).
 //
 // NOVA SUBSTITUTION σ through ToS syntax (𝒮[σ], Φ[σ], 𝔄[σ], 𝕥[σ],
-// ς[σ], m̄[σ]): componentwise; σ acts on every embedded Nova piece,
+// ς[σ], d̄[σ]): componentwise; σ acts on every embedded Nova piece,
 // lifted (σ⁺, once per binder) over the EXTERNAL binders in scope at
 // that piece; ToS variables are INERT (⬡ᵢ[σ] ≜ ⬡ᵢ — they are not Nova
 // variables). The two calculi act on disjoint namespaces, so their
@@ -2045,6 +2044,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 //     Γ ; Φ ⊦ 𝕥 : 𝔄      𝕥 a qiit-term of type 𝔄
 //     Γ ⊦ ς : Φ₀ ⇒ Φ₁    ς a qiit-substitution
 //     Γ ⊦ Φ ⊑ 𝒮         Φ a prefix of 𝒮
+//     Γ ⊦ Φ ⊑ₛ Φ′       Φ′ extends Φ by El entries
 // The dual zone Γ ; Φ: Γ is the NOVA zone (the ambient context plus
 // all external binders in scope), Φ the ToS zone (declared entries
 // plus inductive binders). A signature WRITTEN OUT is a closed
@@ -2093,10 +2093,29 @@ e˲ : Θ ⇒ Γ norm
 ------------------------------------------------------- (qctx-prefix-coe)
 Γ ⊦ Φ₁ ⊑ 𝒮₁
 
-Γ ⊦ Φ ⊑ Φ′      Γ ; Φ′ ⊦ 𝔄 qty
------------------------------- (qctx-prefix-ext)   // admissible, by induction on the prefix
-Γ ⊦ Φ ⊑ Φ′ ▷ 𝔄
+// SMALL EXTENSION: Φ′ is Φ followed by El entries only — the local
+// binders of a zone (Elimination).
 
+Γ ⊦ Φ qctx
+Γ ⊦ Φ′ qctx
+------------ (qctx-small)
+Γ ⊦ Φ ⊑ₛ Φ′
+
+Γ ⊦ Φ qctx
+----------- (qctx-small-refl)
+Γ ⊦ Φ ⊑ₛ Φ
+
+Γ ⊦ Φ ⊑ₛ Φ′      Γ ; Φ′ ⊦ 𝕥 : U
+-------------------------------- (qctx-small-ext)
+Γ ⊦ Φ ⊑ₛ Φ′ ▷ El 𝕥
+
+Γ ⊦ Φ₀ ≐ Φ₁ qctx      Γ ⊦ Φ′₀ ≐ Φ′₁ qctx      Γ ⊦ Φ₀ ⊑ₛ Φ′₀
+----------------------------------------------------------- (qctx-small-coe)
+Γ ⊦ Φ₁ ⊑ₛ Φ′₁
+
+Γ ⊦ Φ ⊑ₛ Φ′
+------------ (qctx-small-prefix)   // admissible, by induction on the extension
+Γ ⊦ Φ ⊑ Φ′
 
 Γ ⊦ Φ ⊑ 𝒮
 ------------------ (qctx-remainder)
@@ -2575,6 +2594,18 @@ U[ς]          ≜ U
 ----------------------------------
 Γ ⊦ (A ◁ Δ) → B ≜ A → Δ → B : 𝕌ℓ
 
+Γ ⊦ f : Δ → B      Γ ⊦ ē : Δ
+----------------------------      // application to a spine
+Γ ⊦ f ē : B[id, ē]
+
+Γ ⊦ f : ε → B
+-----------------------
+Γ ⊦ f · ≜ f : B
+
+Γ ⊦ f : (A ◁ Δ) → B      Γ ⊦ e, ē : A ◁ Δ
+-----------------------------------------------------
+Γ ⊦ f (e, ē) ≜ (f e) ē : B[id, e, ē]
+
 ## Signatures
 
 // What the formers carry. A signature is a closed
@@ -2789,20 +2820,21 @@ U[ς]          ≜ U
 // constructor — is one spine d̄ of the DISPLAYED telescope ⟦𝒮⟧ᴰ 𝒰̄,
 // read over the algebra context and instantiated at the initial
 // algebra. The reading is taken at a ZONE: a prefix Φ ⊑ 𝒮 (the
-// entries displayed so far) and a qiit-context Φ′ with Φ ⊑ Φ′ (the
+// entries displayed so far) and a qiit-context Φ′ with Φ ⊑ₛ Φ′ (the
 // inductive binders opened past it, El-typed since U ⇛ is no type).
 // Its DISPLAYED CONTEXT is Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄: the whole algebra,
 // one displayed slot per entry of Φ, then VALUE and displayed value
 // of each binder of Φ′ past Φ. The VALUES υ project it onto the
-// reading's context Γ·⟦Φ′⟧. A ToS type 𝔄 over Φ′ with subject x : ⟦𝔄⟧[υ]
-// has the displayed type ⟦𝔄⟧ᴰ 𝒰 ("x is covered", 𝒰 the target of its
-// end), a ToS term the displayed term ⟦𝕥⟧ᴰ 𝒰̄ at it; a sort code is
+// reading's context Γ·⟦Φ′⟧. A ToS type 𝔄 over Φ′ at a subject t : ⟦𝔄⟧[υ]
+// has the displayed type ⟦𝔄⟧ᴰ 𝒰 t ("t is covered", 𝒰 the target of its
+// end), a ToS term the displayed term ⟦𝕥⟧ᴰ 𝒰̄ at its image; a sort code is
 // displayed as the motive at its displayed indices, an equation code
 // as the coherence of its sides' images, a proposition. An external
 // binder goes through the exchange ξᴰ, as ξ at the reading. (That
 // _ᴰ commutes with Nova substitution and ToS weakening through ToS
-// syntax, ⟦Φ[σ] ⊑ Φ′[σ]⟧ᴰ = ⟦Φ ⊑ Φ′⟧ᴰ[σ · ⟦𝒮⟧] and ⟦𝔄[⇑Ψ]⟧ᴰ = ⟦𝔄⟧ᴰ
-// weakened, are raw identities, as at the reading.)
+// syntax, ⟦Φ[σ] ⊑ Φ′[σ]⟧ᴰ = ⟦Φ ⊑ Φ′⟧ᴰ[σ · ⟦𝒮⟧], (⟦𝔄⟧ᴰ 𝒰 t)[σ′] =
+// ⟦𝔄[σ]⟧ᴰ 𝒰 t[σ′] for σ′ the lift of σ to the zone, and ⟦𝔄[⇑Ψ]⟧ᴰ =
+// ⟦𝔄⟧ᴰ weakened, are raw identities, as at the reading.)
 //
 // TARGETS: one slot per entry of 𝒮 — for a sort the universe its
 // motive lands in, _ for a point or equation entry; a motive into Ω
@@ -2850,9 +2882,10 @@ U[ς]          ≜ U
 ### Displayed context
 
 // The displayed telescope of a prefix, over the whole algebra: the
-// displayed type of each entry at the entry's own algebra variable.
+// displayed type of each entry at the entry's own algebra variable,
+// into the target at the entry's position in 𝒮.
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ
 ----------------------------------------------------------------------- (disp-qctx)
 Γ · ⟦𝒮⟧ ⊦ ⟦Φ⟧ᴰ 𝒰̄ tel
 
@@ -2860,23 +2893,23 @@ U[ς]          ≜ U
 ---------------------------- (disp-qctx-empty)
 Γ · ⟦𝒮⟧ ⊦ ⟦⬦⟧ᴰ · ≜ ε tel
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ▷ 𝔄 ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ
-Γ ; Φ ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ
--------------------------------------------------------------------------------------------- (disp-qctx-ext)
-Γ · ⟦𝒮⟧ ⊦ ⟦Φ ▷ 𝔄⟧ᴰ (𝒰̄, 𝒰) ≜ ⟦Φ⟧ᴰ 𝒰̄ ▷ ⟦𝔄⟧ᴰ 𝒰 ⟦⬡(|𝒮 ∖ (Φ ▷ 𝔄)|)⟧[↑(⟦Φ⟧ᴰ 𝒰̄)] tel
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ▷ 𝔄 ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ
+𝒰̄‖(|𝒮 ∖ (Φ ▷ 𝔄)|) = 𝒰
+--------------------------------------------------------------------------------------- (disp-qctx-ext)
+Γ · ⟦𝒮⟧ ⊦ ⟦Φ ▷ 𝔄⟧ᴰ 𝒰̄ ≜ ⟦Φ⟧ᴰ 𝒰̄ ▷ ⟦𝔄⟧ᴰ 𝒰 ⟦⬡(|𝒮 ∖ (Φ ▷ 𝔄)|)⟧[↑(⟦Φ⟧ᴰ 𝒰̄)] tel
 
 // The displayed context of a zone: the prefix's displayed telescope,
 // then value and displayed value of each binder past it.
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 -------------------------------------------------------------------------------------- (disp-zone)
 Γ · ⟦𝒮⟧ ⊦ ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ tel
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ
 ----------------------------------------------------------------------- (disp-zone-refl)
 Γ · ⟦𝒮⟧ ⊦ ⟦Φ ⊑ Φ⟧ᴰ 𝒰̄ ≜ ⟦Φ⟧ᴰ 𝒰̄ tel
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ; Φ′ ⊦ 𝕥 : U
 ---------------------------------------------------------------------------------------------- (disp-zone-ext)
 Γ · ⟦𝒮⟧ ⊦ ⟦Φ ⊑ Φ′ ▷ El 𝕥⟧ᴰ 𝒰̄ ≜ ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ▷ ⟦𝕥⟧[υ] ▷ (⟦𝕥⟧ᴰ 𝒰̄)[↑] ☐₀ tel
@@ -2885,15 +2918,15 @@ U[ς]          ≜ U
 // context — the algebra variables of Φ (⟦𝒮⟧ ≐ ⟦Φ⟧ · ⟦𝒮 ∖ Φ⟧, by
 // qctx-remainder-lemma and refl-qtel), then the value slots.
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 -------------------------------------------------------------------------------------- (disp-values)
 υ : Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⇒ Γ · ⟦Φ′⟧
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ
 ------------------------------------------------------------------------- (disp-values-refl)
 υ ≜ ↑⟦𝒮 ∖ Φ⟧ ∘ ↑(⟦Φ⟧ᴰ 𝒰̄) : Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ⟧ᴰ 𝒰̄ ⇒ Γ · ⟦Φ⟧
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ; Φ′ ⊦ 𝕥 : U
 ---------------------------------------------------------------------------------------- (disp-values-ext)
 υ ≜ (υ ∘ ↑², ☐₁) : Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′ ▷ El 𝕥⟧ᴰ 𝒰̄ ⇒ Γ · ⟦Φ′ ▷ El 𝕥⟧
@@ -2902,50 +2935,53 @@ U[ς]          ≜ U
 // the reading: past the prefix's display lifted over the zone's,
 // then past the algebra (ξ at the telescope ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄, then at ⟦𝒮⟧).
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ⊦ A : 𝕌ℓ
 --------------------------------------------------------------------------------------------------------------------------------------------- (disp-exchange)
 ξᴰ ≜ (ξ · (⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄)[↑ · ⟦𝒮⟧]) ∘ ξ : Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ▷ A[↑⟦𝒮⟧ ∘ ↑(⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄)] ⇒ (Γ ▷ A) · ⟦𝒮[↑]⟧ · ⟦Φ[↑] ⊑ Φ′[↑]⟧ᴰ 𝒰̄
 
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ⊦ A : 𝕌ℓ
+--------------------------------------------------------------------------------------------------------------------------------------------- (disp-exchange-inv)
+ξᴰ⁻¹ ≜ ξ⁻¹ ∘ (ξ⁻¹ · (⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄)[↑]) : (Γ ▷ A) · ⟦𝒮[↑]⟧ · ⟦Φ[↑] ⊑ Φ′[↑]⟧ᴰ 𝒰̄ ⇒ Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ▷ A[↑⟦𝒮⟧ ∘ ↑(⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄)]
+
 ### Displayed types and terms
 
-// The displayed type of 𝔄 is over the displayed context extended by
-// a SUBJECT x : ⟦𝔄⟧[υ]; ⟦𝔄⟧ᴰ 𝒰 t is its instance at t. A sort's end
+// The displayed type of 𝔄 at a SUBJECT t : ⟦𝔄⟧[υ]. A sort's end
 // displays as a motive over the subject into the target; an
 // inductive binder passes the subject's argument with its induction
 // hypothesis — the displayed term of the binder's sort code, at the
-// argument — and an external binder passes its argument through.
+// argument — and an external binder passes its argument through, the
+// subject carried into the exchanged zone by ξᴰ⁻¹.
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
-Γ ; Φ′ ⊦ 𝔄 qty      Γ ; Φ′ ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ
----------------------------------------------------------- (disp-qty)
-Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ▷ ⟦𝔄⟧[υ] ⊦ ⟦𝔄⟧ᴰ 𝒰 : 𝕌ℓ₊₁
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ; Φ′ ⊦ 𝔄 qty      Γ ; Φ′ ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ      Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ t : ⟦𝔄⟧[υ]
+---------------------------------------------------------------------------------------- (disp-qty)
+Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ ⟦𝔄⟧ᴰ 𝒰 t : 𝕌ℓ₊₁
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
-Γ ; Φ′ ⊦ 𝔄 qty      Γ ; Φ′ ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ
-Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ t : ⟦𝔄⟧[υ]
----------------------------------------------------------------------- (disp-qty-at)
-Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ ⟦𝔄⟧ᴰ 𝒰 t ≜ (⟦𝔄⟧ᴰ 𝒰)[id, t] : 𝕌ℓ₊₁
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ⊦ 𝒰 univ      𝒰 ≼ ℓ      Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ t : 𝕌ℓ
+----------------------------------------------------------------- (disp-qty-univ)
+Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ ⟦U⟧ᴰ 𝒰 t ≜ t → 𝒰 : 𝕌ℓ₊₁
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
-Γ ⊦ 𝒰 univ      𝒰 ≼ ℓ
----------------------------------------------------------- (disp-qty-univ)
-Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ▷ 𝕌ℓ ⊦ ⟦U⟧ᴰ 𝒰 ≜ ☐₀ → 𝒰 : 𝕌ℓ₊₁
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ; Φ′ ⊦ 𝕥 : U      Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ t : ⟦𝕥⟧[υ]
+-------------------------------------------------------------- (disp-qty-el)
+Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ ⟦El 𝕥⟧ᴰ _ t ≜ ⟦𝕥⟧ᴰ 𝒰̄ t : 𝕌ℓ₊₁
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
-Γ ; Φ′ ⊦ 𝕥 : U
---------------------------------------------------------------------------------- (disp-qty-el)
-Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ▷ ⟦𝕥⟧[υ] ⊦ ⟦El 𝕥⟧ᴰ _ ≜ (⟦𝕥⟧ᴰ 𝒰̄)[↑] ☐₀ : 𝕌ℓ₊₁
-
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ⊦ A : 𝕌ℓ      Γ ▷ A ; Φ′[↑] ⊦ 𝔄 qty      Γ ▷ A ; Φ′[↑] ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ
----------------------------------------------------------------------------------------------------------------------------------------------------- (disp-qty-pi-ext)
-Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ▷ ⟦A ⇛ 𝔄⟧[υ] ⊦ ⟦A ⇛ 𝔄⟧ᴰ 𝒰 ≜ A[↑⟦𝒮⟧ ∘ ↑(⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄)][↑] → (⟦𝔄⟧ᴰ 𝒰)[(ξᴰ ∘ ↑⁺, ☐₁ ☐₀)] : 𝕌ℓ₊₁
+Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ t : ⟦A ⇛ 𝔄⟧[υ]
+------------------------------------------------------------------------------------- (disp-qty-pi-ext)
+Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦
+  ⟦A ⇛ 𝔄⟧ᴰ 𝒰 t ≜ A[↑⟦𝒮⟧ ∘ ↑(⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄)] → (⟦𝔄⟧ᴰ 𝒰 ((t[↑] ☐₀)[ξᴰ⁻¹]))[ξᴰ] : 𝕌ℓ₊₁
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ; Φ′ ⊦ 𝕥 : U      Γ ; Φ′ ▷ El 𝕥 ⊦ 𝔄 qty      Γ ; Φ′ ▷ El 𝕥 ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ
---------------------------------------------------------------------------------------------------------------------------------------------------------------------- (disp-qty-pi-ind)
-Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ▷ ⟦El 𝕥 ⇛ 𝔄⟧[υ] ⊦ ⟦El 𝕥 ⇛ 𝔄⟧ᴰ 𝒰 ≜ (⟦𝕥⟧[υ][↑] ◁ (⟦𝕥⟧ᴰ 𝒰̄)[↑²] ☐₀ ◁ ε) → (⟦𝔄⟧ᴰ 𝒰)[(↑⁺⁺, ☐₂ ☐₁)] : 𝕌ℓ₊₁
+Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ t : ⟦El 𝕥 ⇛ 𝔄⟧[υ]
+------------------------------------------------------------------------------------- (disp-qty-pi-ind)
+Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦
+  ⟦El 𝕥 ⇛ 𝔄⟧ᴰ 𝒰 t ≜ ⟦𝕥⟧[υ] → (⟦𝕥⟧ᴰ 𝒰̄)[↑] ☐₀ → ⟦𝔄⟧ᴰ 𝒰 (t[↑²] ☐₁) : 𝕌ℓ₊₁
 
 // The displayed term: a prefix variable is its displayed slot, a
 // binder its displayed value; an inductive argument is passed as
@@ -2953,42 +2989,42 @@ U[ς]          ≜ U
 // its sides' images — under the proof p of the equation, ⟦𝕥₀⟧ ≐ ⟦𝕥₁⟧
 // by reflection, so both images sit at one type.
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ; Φ′ ⊦ 𝕥 : 𝔄      Γ ; Φ′ ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ
 ------------------------------------------------------------------ (disp-qtm)
 Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ ⟦𝕥⟧ᴰ 𝒰̄ : ⟦𝔄⟧ᴰ 𝒰 ⟦𝕥⟧[υ]
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ
-Φ‖ᵢ = 𝔄      𝒰̄‖ᵢ = 𝒰
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ
+Φ‖ᵢ = 𝔄      𝒰̄‖(i + |𝒮 ∖ Φ|) = 𝒰
 ------------------------------------------------------------------ (disp-qtm-var)
 Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ⟧ᴰ 𝒰̄ ⊦ ⟦⬡ᵢ⟧ᴰ 𝒰̄ ≜ ☐ᵢ : ⟦𝔄⟧ᴰ 𝒰 ⟦⬡ᵢ⟧[υ]
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ; Φ′ ⊦ 𝕥 : U
 ---------------------------------------------------------------------------------- (disp-qtm-var-zero)
 Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′ ▷ El 𝕥⟧ᴰ 𝒰̄ ⊦ ⟦⬡₀⟧ᴰ 𝒰̄ ≜ ☐₀ : ⟦El 𝕥[⇑]⟧ᴰ _ ⟦⬡₀⟧[υ]
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ; Φ′ ⊦ 𝕥 : U      Φ′‖ᵢ = 𝔄      Γ ; Φ′ ⊦ 𝒰 targets 𝔄
 ---------------------------------------------------------------------------------------------- (disp-qtm-var-suc)
 Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′ ▷ El 𝕥⟧ᴰ 𝒰̄ ⊦ ⟦⬡ᵢ₊₁⟧ᴰ 𝒰̄ ≜ (⟦⬡ᵢ⟧ᴰ 𝒰̄)[↑²] : ⟦𝔄[⇑]⟧ᴰ 𝒰 ⟦⬡ᵢ₊₁⟧[υ]
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ; Φ′ ⊦ 𝕥 : A ⇛ 𝔄      Γ ▷ A ; Φ′[↑] ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ      Γ ⊦ t : A
 --------------------------------------------------------------------------------------------------------------- (disp-qtm-app-ext)
 Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ ⟦𝕥 t⟧ᴰ 𝒰̄ ≜ ⟦𝕥⟧ᴰ 𝒰̄ t[↑⟦𝒮⟧ ∘ ↑(⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄)] : ⟦𝔄[id, t]⟧ᴰ 𝒰 ⟦𝕥 t⟧[υ]
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ; Φ′ ⊦ 𝕥 : El 𝕦 ⇛ 𝔄      Γ ; Φ′ ▷ El 𝕦 ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ      Γ ; Φ′ ⊦ 𝕥′ : El 𝕦
 --------------------------------------------------------------------------------------------------------- (disp-qtm-app-ind)
 Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ ⟦𝕥 𝕥′⟧ᴰ 𝒰̄ ≜ ⟦𝕥⟧ᴰ 𝒰̄ ⟦𝕥′⟧[υ] (⟦𝕥′⟧ᴰ 𝒰̄) : ⟦𝔄[𝕚𝕕, 𝕥′]⟧ᴰ 𝒰 ⟦𝕥 𝕥′⟧[υ]
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ⊦ A : 𝕌ℓ      Γ ▷ A ; Φ′[↑] ⊦ 𝕥 : 𝔄      Γ ▷ A ; Φ′[↑] ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ
 ----------------------------------------------------------------------------------------- (disp-qtm-lam-ext)
 Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ ⟦λ 𝕥⟧ᴰ 𝒰̄ ≜ λ (⟦𝕥⟧ᴰ 𝒰̄)[ξᴰ] : ⟦A ⇛ 𝔄⟧ᴰ 𝒰 ⟦λ 𝕥⟧[υ]
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ; Φ′ ⊦ 𝕥₀ : El 𝕦      Γ ; Φ′ ⊦ 𝕥₁ : El 𝕦
 ---------------------------------------------------------------------------------------------------------------------------------------------- (disp-qtm-eq)
 Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ ⟦𝕥₀ ≡ 𝕥₁⟧ᴰ 𝒰̄ ≜ λ ((⟦𝕥₀⟧ᴰ 𝒰̄)[↑] ≡ (⟦𝕥₁⟧ᴰ 𝒰̄)[↑] ∈ (⟦𝕦⟧ᴰ 𝒰̄)[↑] ⟦𝕥₁⟧[υ][↑]) : ⟦U⟧ᴰ Ω ⟦𝕥₀ ≡ 𝕥₁⟧[υ]
@@ -2997,139 +3033,239 @@ U[ς]          ≜ U
 // value and displayed value — the telescope a method takes its
 // arguments and induction hypotheses at.
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ; Φ′ ⊦ 𝔗 qdual
 --------------------------------------- (disp-qdual)
 Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ ⟦𝔗⟧ᴰ 𝒰̄ tel
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 --------------------------------------------- (disp-qdual-empty)
 Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ ⟦ε⟧ᴰ 𝒰̄ ≜ ε tel
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ⊦ A : 𝕌ℓ      Γ ▷ A ; Φ′[↑] ⊦ 𝔗 qdual
 ------------------------------------------------------------------------------------------------------------------ (disp-qdual-ext)
 Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ ⟦A ◁ 𝔗⟧ᴰ 𝒰̄ ≜ A[↑⟦𝒮⟧ ∘ ↑(⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄)] ◁ (⟦𝔗⟧ᴰ 𝒰̄)[ξᴰ] tel
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets Φ      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ Φ′
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
 Γ ; Φ′ ⊦ 𝕥 : U      Γ ; Φ′ ▷ El 𝕥 ⊦ 𝔗 qdual
 ------------------------------------------------------------------------------------------------------------ (disp-qdual-ind)
 Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ ⟦El 𝕥 ◁ 𝔗⟧ᴰ 𝒰̄ ≜ ⟦𝕥⟧[υ] ◁ (⟦𝕥⟧ᴰ 𝒰̄)[↑] ☐₀ ◁ ⟦𝔗⟧ᴰ 𝒰̄ tel
 
+### Section telescope
+
+// THE SECTION READING _ˢ. A section of a displayed algebra is a spine
+// of the SECTION TELESCOPE ⟦𝒮⟧ˢ, over the algebra and the displayed
+// algebra: at a sort a dependent function from the carrier into the
+// motive, at a point constructor the equation that it commutes with
+// the method (a proposition), at an equation constructor nothing. It
+// is read at a zone as _ᴰ is, in the SECTION CONTEXT
+// Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ: the whole algebra and displayed
+// algebra, one section slot per entry of Φ, then the VALUE alone of
+// each binder past Φ — its displayed value is the section at its
+// code, which the DISPLAYED VALUES υᴰ supply on projecting to the
+// displayed context. The section type ⟦𝔄⟧ˢ t d, at a subject of the
+// displayed context and a displayed subject, and the section term
+// ⟦𝕥⟧ˢ follow the clauses of _ᴰ; a section at the initial algebra
+// is a spine of ⟦𝒮⟧ˢ[id, ι(𝒮), d̄].
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ
+----------------------------------------------------------------------- (sec-qctx)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ ⊦ ⟦Φ⟧ˢ tel
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ
+------------------------------------------------------ (sec-qctx-empty)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ ⊦ ⟦⬦⟧ˢ ≜ ε tel
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ▷ 𝔄 ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ
+--------------------------------------------------------------------------------------------------------------------------------------- (sec-qctx-ext)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ ⊦ ⟦Φ ▷ 𝔄⟧ˢ ≜ ⟦Φ⟧ˢ ▷ ⟦𝔄⟧ˢ ⟦⬡(|𝒮 ∖ (Φ ▷ 𝔄)|)⟧[↑(⟦Φ⟧ᴰ 𝒰̄)][υᴰ] (⟦⬡(|𝒮 ∖ (Φ ▷ 𝔄)|)⟧ᴰ 𝒰̄)[↑⟦Φ⟧ˢ] tel
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+-------------------------------------------------------------------------------------- (sec-zone)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ ⊦ ⟦Φ ⊑ Φ′⟧ˢ tel
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ
+----------------------------------------------------------------------- (sec-zone-refl)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ ⊦ ⟦Φ ⊑ Φ⟧ˢ ≜ ⟦Φ⟧ˢ tel
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ; Φ′ ⊦ 𝕥 : U
+-------------------------------------------------------------------------------------- (sec-zone-ext)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ ⊦ ⟦Φ ⊑ Φ′ ▷ El 𝕥⟧ˢ ≜ ⟦Φ ⊑ Φ′⟧ˢ ▷ ⟦𝕥⟧[υ][υᴰ] tel
+
+// DISPLAYED VALUES: the projection onto the displayed context — the
+// displayed slots of Φ, then each value with its image under the
+// section.
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+-------------------------------------------------------------------------------------- (sec-values)
+υᴰ : Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⇒ Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ
+----------------------------------------------------------------------- (sec-values-refl)
+υᴰ ≜ ↑|𝒮 ∖ Φ| ∘ ↑⟦Φ⟧ˢ : Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ⟧ˢ ⇒ Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ⟧ᴰ 𝒰̄
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ; Φ′ ⊦ 𝕥 : U
+-------------------------------------------------------------------------------------- (sec-values-ext)
+υᴰ ≜ (υᴰ ∘ ↑, ☐₀, ⟦𝕥⟧ˢ[↑] ☐₀) : Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′ ▷ El 𝕥⟧ˢ ⇒ Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′ ▷ El 𝕥⟧ᴰ 𝒰̄
+
+// EXCHANGE of an external binder past the section context, as ξᴰ.
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ⊦ A : 𝕌ℓ
+-------------------------------------------------------------------------------------- (sec-exchange)
+ξˢ ≜ (ξᴰ · (⟦Φ ⊑ Φ′⟧ˢ)[↑ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄]) ∘ ξ : Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ▷ A[↑⟦𝒮⟧ ∘ ↑(⟦𝒮⟧ᴰ 𝒰̄) ∘ ↑(⟦Φ ⊑ Φ′⟧ˢ)] ⇒ (Γ ▷ A) · ⟦𝒮[↑]⟧ · ⟦𝒮[↑]⟧ᴰ 𝒰̄ · ⟦Φ[↑] ⊑ Φ′[↑]⟧ˢ
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ⊦ A : 𝕌ℓ
+-------------------------------------------------------------------------------------- (sec-exchange-inv)
+ξˢ⁻¹ ≜ ξ⁻¹ ∘ (ξᴰ⁻¹ · (⟦Φ ⊑ Φ′⟧ˢ)[↑]) : (Γ ▷ A) · ⟦𝒮[↑]⟧ · ⟦𝒮[↑]⟧ᴰ 𝒰̄ · ⟦Φ[↑] ⊑ Φ′[↑]⟧ˢ ⇒ Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ▷ A[↑⟦𝒮⟧ ∘ ↑(⟦𝒮⟧ᴰ 𝒰̄) ∘ ↑(⟦Φ ⊑ Φ′⟧ˢ)]
+
+// The section type of 𝔄 at a subject t of the displayed context and
+// a displayed subject d of the section context: a sort's end asks
+// for a dependent function into the motive, an El end for the
+// equation of the section's image with the displayed subject; an
+// inductive binder passes the value, its displayed value being the
+// section's image.
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ; Φ′ ⊦ 𝔄 qty      Γ ; Φ′ ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ
+Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ t : ⟦𝔄⟧[υ]      Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦ d : (⟦𝔄⟧ᴰ 𝒰 t)[υᴰ]
+-------------------------------------------------------------------------------------- (sec-qty)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦ ⟦𝔄⟧ˢ t[υᴰ] d : 𝕌ℓ
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ⊦ 𝒰 univ      𝒰 ≼ ℓ      Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ t : 𝕌ℓ      Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦ d : t[υᴰ] → 𝒰
+-------------------------------------------------------------------------------------- (sec-qty-univ)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦ ⟦U⟧ˢ t[υᴰ] d ≜ t[υᴰ] → d[↑] ☐₀ : 𝕌ℓ
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ; Φ′ ⊦ 𝕥 : U      Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ t : ⟦𝕥⟧[υ]      Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦ d : (⟦𝕥⟧ᴰ 𝒰̄ t)[υᴰ]
+-------------------------------------------------------------------------------------- (sec-qty-el)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦ ⟦El 𝕥⟧ˢ t[υᴰ] d ≜ ⟦𝕥⟧ˢ t[υᴰ] ≡ d ∈ (⟦𝕥⟧ᴰ 𝒰̄ t)[υᴰ] : 𝕌ℓ
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ⊦ A : 𝕌ℓ      Γ ▷ A ; Φ′[↑] ⊦ 𝔄 qty      Γ ▷ A ; Φ′[↑] ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ
+Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ t : ⟦A ⇛ 𝔄⟧[υ]      Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦ d : (⟦A ⇛ 𝔄⟧ᴰ 𝒰 t)[υᴰ]
+-------------------------------------------------------------------------------------- (sec-qty-pi-ext)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦
+  ⟦A ⇛ 𝔄⟧ˢ t[υᴰ] d ≜ A[↑⟦𝒮⟧ ∘ ↑(⟦𝒮⟧ᴰ 𝒰̄) ∘ ↑(⟦Φ ⊑ Φ′⟧ˢ)] → (⟦𝔄⟧ˢ ((t[↑] ☐₀)[ξᴰ⁻¹])[υᴰ] ((d[↑] ☐₀)[ξˢ⁻¹]))[ξˢ] : 𝕌ℓ
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ; Φ′ ⊦ 𝕥 : U      Γ ; Φ′ ▷ El 𝕥 ⊦ 𝔄 qty      Γ ; Φ′ ▷ El 𝕥 ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ
+Γ · ⟦𝒮⟧ · ⟦Φ ⊑ Φ′⟧ᴰ 𝒰̄ ⊦ t : ⟦El 𝕥 ⇛ 𝔄⟧[υ]      Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦ d : (⟦El 𝕥 ⇛ 𝔄⟧ᴰ 𝒰 t)[υᴰ]
+-------------------------------------------------------------------------------------- (sec-qty-pi-ind)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦
+  ⟦El 𝕥 ⇛ 𝔄⟧ˢ t[υᴰ] d ≜ ⟦𝕥⟧[υ][υᴰ] → ⟦𝔄⟧ˢ (t[↑²] ☐₁)[υᴰ] (d[↑] ☐₀ (⟦𝕥⟧ˢ[↑] ☐₀)) : 𝕌ℓ
+
+// The section term: a slot of the section telescope at a prefix
+// variable; ⋆ at a binder, whose displayed value IS the section's
+// image (sec-values-ext); λ ⋆ at the equation code, its coherence
+// being the equation of two images of one value (sec-image).
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ; Φ′ ⊦ 𝕥 : 𝔄      Γ ; Φ′ ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ
+-------------------------------------------------------------------------------------- (sec-qtm)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦ ⟦𝕥⟧ˢ : ⟦𝔄⟧ˢ ⟦𝕥⟧[υ][υᴰ] (⟦𝕥⟧ᴰ 𝒰̄)[υᴰ]
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ
+Φ‖ᵢ = 𝔄      𝒰̄‖(i + |𝒮 ∖ Φ|) = 𝒰
+----------------------------------------------------------------------- (sec-qtm-var)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ⟧ˢ ⊦ ⟦⬡ᵢ⟧ˢ ≜ ☐ᵢ : ⟦𝔄⟧ˢ ⟦⬡ᵢ⟧[υ][υᴰ] (⟦⬡ᵢ⟧ᴰ 𝒰̄)[υᴰ]
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ; Φ′ ⊦ 𝕥 : U
+-------------------------------------------------------------------------------------- (sec-qtm-var-zero)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′ ▷ El 𝕥⟧ˢ ⊦ ⟦⬡₀⟧ˢ ≜ ⋆ : ⟦El 𝕥[⇑]⟧ˢ ⟦⬡₀⟧[υ][υᴰ] (⟦⬡₀⟧ᴰ 𝒰̄)[υᴰ]
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ; Φ′ ⊦ 𝕥 : U      Φ′‖ᵢ = 𝔄      Γ ; Φ′ ⊦ 𝒰 targets 𝔄
+-------------------------------------------------------------------------------------- (sec-qtm-var-suc)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′ ▷ El 𝕥⟧ˢ ⊦ ⟦⬡ᵢ₊₁⟧ˢ ≜ ⟦⬡ᵢ⟧ˢ[↑] : ⟦𝔄[⇑]⟧ˢ ⟦⬡ᵢ₊₁⟧[υ][υᴰ] (⟦⬡ᵢ₊₁⟧ᴰ 𝒰̄)[υᴰ]
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ; Φ′ ⊦ 𝕥 : A ⇛ 𝔄      Γ ▷ A ; Φ′[↑] ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ      Γ ⊦ t : A
+-------------------------------------------------------------------------------------- (sec-qtm-app-ext)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦ ⟦𝕥 t⟧ˢ ≜ ⟦𝕥⟧ˢ t[↑⟦𝒮⟧ ∘ ↑(⟦𝒮⟧ᴰ 𝒰̄) ∘ ↑(⟦Φ ⊑ Φ′⟧ˢ)] : ⟦𝔄[id, t]⟧ˢ ⟦𝕥 t⟧[υ][υᴰ] (⟦𝕥 t⟧ᴰ 𝒰̄)[υᴰ]
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ; Φ′ ⊦ 𝕥 : El 𝕦 ⇛ 𝔄      Γ ; Φ′ ▷ El 𝕦 ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ      Γ ; Φ′ ⊦ 𝕥′ : El 𝕦
+-------------------------------------------------------------------------------------- (sec-qtm-app-ind)   // the argument's image: sec-image
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦ ⟦𝕥 𝕥′⟧ˢ ≜ ⟦𝕥⟧ˢ ⟦𝕥′⟧[υ][υᴰ] : ⟦𝔄[𝕚𝕕, 𝕥′]⟧ˢ ⟦𝕥 𝕥′⟧[υ][υᴰ] (⟦𝕥 𝕥′⟧ᴰ 𝒰̄)[υᴰ]
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ⊦ A : 𝕌ℓ      Γ ▷ A ; Φ′[↑] ⊦ 𝕥 : 𝔄      Γ ▷ A ; Φ′[↑] ⊦ 𝒰 targets 𝔄      𝒰 ≼ ℓ
+-------------------------------------------------------------------------------------- (sec-qtm-lam-ext)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦ ⟦λ 𝕥⟧ˢ ≜ λ ⟦𝕥⟧ˢ[ξˢ] : ⟦A ⇛ 𝔄⟧ˢ ⟦λ 𝕥⟧[υ][υᴰ] (⟦λ 𝕥⟧ᴰ 𝒰̄)[υᴰ]
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ; Φ′ ⊦ 𝕥₀ : El 𝕦      Γ ; Φ′ ⊦ 𝕥₁ : El 𝕦
+-------------------------------------------------------------------------------------- (sec-qtm-eq)
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦ ⟦𝕥₀ ≡ 𝕥₁⟧ˢ ≜ λ ⋆ : ⟦U⟧ˢ ⟦𝕥₀ ≡ 𝕥₁⟧[υ][υᴰ] (⟦𝕥₀ ≡ 𝕥₁⟧ᴰ 𝒰̄)[υᴰ]
+
+// IMAGE: the displayed value of an El-term, through υᴰ, is the
+// section's image of its value — at a binder by sec-values-ext, at a
+// constructor by reflection at its point slot of ⟦Φ⟧ˢ.
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ Φ ⊑ 𝒮      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ Φ ⊑ₛ Φ′
+Γ ; Φ′ ⊦ 𝕥 : El 𝕦
+-------------------------------------------------------------------------------------- (sec-image)   // admissible, by induction on 𝕥
+Γ · ⟦𝒮⟧ · ⟦𝒮⟧ᴰ 𝒰̄ · ⟦Φ ⊑ Φ′⟧ˢ ⊦ (⟦𝕥⟧ᴰ 𝒰̄)[υᴰ] ≐ ⟦𝕦⟧ˢ ⟦𝕥⟧[υ][υᴰ] : (⟦𝕦⟧ᴰ 𝒰̄ ⟦𝕥⟧[υ])[υᴰ]
+
 ### Sections
 
-// The eliminator's data d̄ is a spine of the displayed telescope at
-// the initial algebra; d̄(𝕤) is its motive entry, m_𝕔 its method
-// entry. A SECTION h of d̄ is one Nova family per sort, h_𝕤 over the
-// sort's indices and carrier into the motive; the eliminator's own
-// section is hᵉˡ. The DISPLAYED SPINE θᴰ_h of a Nova spine at an
-// arity interleaves it with the images under h of its inductive
-// components: value and image at a sort code, value and ⋆ at an
-// equation code (its coherence holds, the sides being equal at ι by
-// el-qiit-path). It is taken at an ENVIRONMENT ρ, the outer
-// instance of a displayed context — the algebra ι(𝒮), the data d̄,
-// then the components so far with their images. (That the images
-// computed through ρ and through h agree, ⟦𝕥⟧ᴰ 𝒰̄[ρ] ≐ (⟦𝕥⟧[υ ∘ ρ])ᴰ_h,
-// is a meta-lemma by induction along 𝒮, the β-equations of h at the
-// index sorts.)
+// A SECTION of d̄ is a spine h̄ of the section telescope at the
+// initial algebra; THE ELIMINATOR 𝒮-elim d̄ is the one the initial
+// algebra has. Its sort slots are the sort eliminators, functions
+// from the indices and the carrier into the motive; its point slots
+// are their β-equations, propositions — so β is el-reflect at a point
+// slot (Computation) and η its uniqueness (Uniqueness). LOOKUP at a
+// position reaches a slot, at the entry's type at its own variables:
+// the motive d̄(𝕤), the method d̄(𝕔), the sort eliminator (𝒮-elim d̄)(𝕤),
+// its β-equation (𝒮-elim d̄)(𝕔).
 
 Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ d̄ : (⟦𝒮⟧ᴰ 𝒰̄)[id, ι(𝒮)]
----------------------------------------------------------------------------------------- (sec)
-Γ ⊦ h section d̄
-
-Γ ⊦ h section d̄      𝒮(𝕤) = 𝔎      𝒰̄‖𝕤 = 𝒰      Γ ⊦ ē : ⟦𝔎⟧ᵗ[id, ι(𝒮)]      Γ ⊦ w : 𝒮.𝕤 ē
--------------------------------------------------------------------------------------------- (sec-sort)
-Γ ⊦ d̄(𝕤) ēᴰ_h w : 𝒰      Γ ⊦ h_𝕤[ē, w] : d̄(𝕤) ēᴰ_h w
-
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ d̄ : (⟦𝒮⟧ᴰ 𝒰̄)[id, ι(𝒮)]
----------------------------------------------------------------------------------------- (sec-elim)
-Γ ⊦ hᵉˡ section d̄
-
-Γ ⊦ hᵉˡ section d̄      𝒮(𝕤) = 𝔎      Γ ⊦ ē : ⟦𝔎⟧ᵗ[id, ι(𝒮)]      Γ ⊦ w : 𝒮.𝕤 ē
-------------------------------------------------------------------------------------------- (sec-elim-sort)
-Γ ⊦ hᵉˡ_𝕤[ē, w] ≜ 𝒮.𝕤-elim m̄ ē w : d̄(𝕤) ēᴰ_{hᵉˡ} w
-
-Γ ⊦ h section d̄      Γ ⊦ 𝒮 ⊑ Φ′      ρ : Γ ⇒ Γ · ⟦𝒮⟧ · ⟦𝒮 ⊑ Φ′⟧ᴰ 𝒰̄
-Γ ; Φ′ ⊦ 𝔄 qty      Γ ⊦ θ : ⟦𝔄⟧ᵗ[υ ∘ ρ]
------------------------------------------------------------------------- (disp-sp)
-Γ ⊦ θᴰ_h : (⟦𝔄ᵗ⟧ᴰ 𝒰̄)[ρ]
-
-Γ ⊦ h section d̄      Γ ⊦ 𝒮 ⊑ Φ′      ρ : Γ ⇒ Γ · ⟦𝒮⟧ · ⟦𝒮 ⊑ Φ′⟧ᴰ 𝒰̄
-Γ ⊦ Φ′ qctx
------------------------------------------------------------------------ (disp-sp-univ)
-Γ ⊦ ·ᴰ_h ≜ · : (⟦Uᵗ⟧ᴰ 𝒰̄)[ρ]
-
-Γ ⊦ h section d̄      Γ ⊦ 𝒮 ⊑ Φ′      ρ : Γ ⇒ Γ · ⟦𝒮⟧ · ⟦𝒮 ⊑ Φ′⟧ᴰ 𝒰̄
-Γ ; Φ′ ⊦ 𝕥 : U
------------------------------------------------------------------------ (disp-sp-el)
-Γ ⊦ ·ᴰ_h ≜ · : (⟦(El 𝕥)ᵗ⟧ᴰ 𝒰̄)[ρ]
-
-Γ ⊦ h section d̄      Γ ⊦ 𝒮 ⊑ Φ′      ρ : Γ ⇒ Γ · ⟦𝒮⟧ · ⟦𝒮 ⊑ Φ′⟧ᴰ 𝒰̄
-Γ ⊦ A : 𝕌ℓ      Γ ▷ A ; Φ′[↑] ⊦ 𝔄 qty      Γ ⊦ a : A      Γ ⊦ θ : ⟦𝔄⟧ᵗ[υ ∘ ξᴰ ∘ (ρ, a)]
----------------------------------------------------------------------------------------- (disp-sp-pi-ext)
-Γ ⊦ (a, θ)ᴰ_h ≜ a, θᴰ_h : (⟦(A ⇛ 𝔄)ᵗ⟧ᴰ 𝒰̄)[ρ]      // θᴰ_h at ξᴰ ∘ (ρ, a)
-
-Γ ⊦ h section d̄      Γ ⊦ 𝒮 ⊑ Φ′      ρ : Γ ⇒ Γ · ⟦𝒮⟧ · ⟦𝒮 ⊑ Φ′⟧ᴰ 𝒰̄
-Γ ; Φ′ ⊦ 𝕥 ≐ ⬡(𝕤 + |Φ′ ∖ 𝒮|) ī : U      Γ ; Φ′ ▷ El 𝕥 ⊦ 𝔄 qty
-Γ ⊦ x : ⟦𝕥⟧[υ ∘ ρ]      Γ ⊦ θ : ⟦𝔄⟧ᵗ[υ ∘ (ρ, x, h_𝕤[⟦ī⟧[υ ∘ ρ], x])]
---------------------------------------------------------------------------------------------- (disp-sp-pi-ind)
-Γ ⊦ (x, θ)ᴰ_h ≜ x, h_𝕤[⟦ī⟧[υ ∘ ρ], x], θᴰ_h : (⟦(El 𝕥 ⇛ 𝔄)ᵗ⟧ᴰ 𝒰̄)[ρ]      // θᴰ_h at (ρ, x, h_𝕤[…])
-
-Γ ⊦ h section d̄      Γ ⊦ 𝒮 ⊑ Φ′      ρ : Γ ⇒ Γ · ⟦𝒮⟧ · ⟦𝒮 ⊑ Φ′⟧ᴰ 𝒰̄
-Γ ; Φ′ ⊦ 𝕥 ≐ 𝕝 ≡ 𝕣 : U      Γ ; Φ′ ▷ El 𝕥 ⊦ 𝔄 qty
-Γ ⊦ p : ⟦𝕥⟧[υ ∘ ρ]      Γ ⊦ θ : ⟦𝔄⟧ᵗ[υ ∘ (ρ, p, ⋆)]
---------------------------------------------------------------------------- (disp-sp-pi-eq)
-Γ ⊦ (p, θ)ᴰ_h ≜ p, ⋆, θᴰ_h : (⟦(El 𝕥 ⇛ 𝔄)ᵗ⟧ᴰ 𝒰̄)[ρ]      // θᴰ_h at (ρ, p, ⋆)
-
-// The METHOD at a displayed spine: the entry of d̄ at a point
-// position, applied; its type is the displayed end, the motive at
-// the constructor's displayed indices and the constructor itself.
-
-Γ ⊦ h section d̄      𝒮(𝕔) = 𝔄      Γ ⊦ θ : ⟦𝔄⟧ᵗ[id, ι(𝒮)]
-Γ · 𝔄ᵗᴺ ; 𝒮[↑𝔄ᵗᴺ] · 𝔄ᵗᵀ ⊦ 𝔄ᵉ ≐ El (⬡(𝕤 + |𝔄ᵗᵀ|) ī) qty
----------------------------------------------------------------------------------------------- (disp-method)
-Γ ⊦ m_𝕔 θᴰ_h : d̄(𝕤) (⟦ī⟧[id, θᴺ, ι(𝒮), θᵀ])ᴰ_h (𝒮.𝕔 θ)
-
-// THE ELIMINATOR at sort 𝕤: its term carries the methods m̄ (the
-// point entries of d̄) alone — β reads them and nothing else; the
-// motives and coherences are premises.
-
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ d̄ : (⟦𝒮⟧ᴰ 𝒰̄)[id, ι(𝒮)]
-𝒮(𝕤) = 𝔎      Γ ⊦ ē : ⟦𝔎⟧ᵗ[id, ι(𝒮)]      Γ ⊦ w : 𝒮.𝕤 ē
 ---------------------------------------------------------------------------------------- (el-qiit-elim)
-Γ ⊦ 𝒮.𝕤-elim m̄ ē w : d̄(𝕤) ēᴰ_{hᵉˡ} w
+Γ ⊦ 𝒮-elim d̄ : ⟦𝒮⟧ˢ[id, ι(𝒮), d̄]
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ d̄ : (⟦𝒮⟧ᴰ 𝒰̄)[id, ι(𝒮)]
+𝒮‖ᵢ = 𝔄      𝒰̄‖ᵢ = 𝒰
+---------------------------------------------------------------------------------------- (disp-lookup)
+Γ ⊦ d̄(i) : (⟦𝔄⟧ᴰ 𝒰 ⟦⬡ᵢ⟧[υ])[id, ι(𝒮), d̄]
+
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ d̄ : (⟦𝒮⟧ᴰ 𝒰̄)[id, ι(𝒮)]
+Γ ⊦ h̄ : ⟦𝒮⟧ˢ[id, ι(𝒮), d̄]      𝒮‖ᵢ = 𝔄
+---------------------------------------------------------------------------------------- (sec-lookup)
+Γ ⊦ h̄(i) : (⟦𝔄⟧ˢ ⟦⬡ᵢ⟧[υ][υᴰ] (⟦⬡ᵢ⟧ᴰ 𝒰̄)[υᴰ])[id, ι(𝒮), d̄, h̄]
 
 ## Computation
 
-// (β) — at the saturated constructor (its sort and indices
-// read off 𝕔's type): the method at the displayed spine of the
-// arguments, the induction hypotheses supplied by the eliminator
-// itself.
+// (β) is el-reflect at a point slot: (𝒮-elim d̄)(𝕔) θ proves, by
+// sec-lookup and the clauses of _ˢ, that the sort eliminator at the
+// saturated constructor is the method at the arguments and their
+// induction hypotheses — the eliminator's own values (sec-image);
+// reflected, it computes. EQUATION constructors have no β: their
+// slots are ⋆.
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ d̄ : (⟦𝒮⟧ᴰ 𝒰̄)[id, ι(𝒮)]      Γ ⊦ θ : ⟦𝒮(𝕔)⟧ᵗ[id, ι(𝒮)]
-Γ · 𝒮(𝕔)ᵗᴺ ; 𝒮[↑𝒮(𝕔)ᵗᴺ] · 𝒮(𝕔)ᵗᵀ ⊦ 𝒮(𝕔)ᵉ ≐ El (⬡(𝕤 + |𝒮(𝕔)ᵗᵀ|) ī) qty
----------------------------------------------------------------------------------------------------------------- (el-qiit-beta)
-Γ ⊦ 𝒮.𝕤-elim m̄ ⟦ī⟧[id, θᴺ, ι(𝒮), θᵀ] (𝒮.𝕔 θ) ≜ m_𝕔 θᴰ_{hᵉˡ} : d̄(𝕤) (⟦ī⟧[id, θᴺ, ι(𝒮), θᵀ])ᴰ_{hᵉˡ} (𝒮.𝕔 θ)
-//   EQUATION constructors have NO β-rule (their content is a
-//   judgement; their coherence entries in d̄ are ⋆).
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ d̄ : (⟦𝒮⟧ᴰ 𝒰̄)[id, ι(𝒮)]
+𝒮‖𝕔 = 𝔄      Γ ⊦ θ : ⟦𝔄⟧ᵗ[id, ι(𝒮)]      Γ ⊦ (𝒮-elim d̄)(𝕔) θ : (a₀ ≡ a₁ ∈ A)
+---------------------------------------------------------------------------------------- (el-qiit-beta)   // admissible, el-reflect
+Γ ⊦ a₀ ≐ a₁ : A
 
 ## Uniqueness
 
-// (η) — the section is unique (initiality): any section
-// that commutes with every point constructor IS the eliminator.
+// (η) — the section is unique (initiality): a spine of the section
+// telescope — a family per sort, commuting with every point
+// constructor by its point slots — IS the eliminator; two maps out
+// of a QIIT that agree on all constructors are equal (el-nat-eta /
+// el-quot-eta, generalized).
 
-Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ d̄ : (⟦𝒮⟧ᴰ 𝒰̄)[id, ι(𝒮)]      Γ ⊦ h section d̄
-for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, 𝔄ᵉ ≐ El (⬡(𝕤 + |𝔄ᵗᵀ|) ī);
-                                θ = ⟦𝔄⟧ᵗ[ι]'s variables):
-    Γ·⟦𝔄⟧ᵗ[ι] ⊦ h_𝕤[⟦ī⟧[ι, θ], 𝒮.𝕔 θ] ≐ m_𝕔 θᴰ_h : d̄(𝕤) (⟦ī⟧[ι, θ])ᴰ_h (𝒮.𝕔 θ)
-𝒮(𝕤) = 𝔎      Γ ⊦ ē : ⟦𝔎⟧ᵗ[id, ι(𝒮)]      Γ ⊦ w : 𝒮.𝕤 ē
-------------------------------------------------------------------------- (el-qiit-eta)
-Γ ⊦ h_𝕤[ē, w] ≐ 𝒮.𝕤-elim m̄ ē w : d̄(𝕤) ēᴰ_h w
-//   any h satisfying the β-equations equals elim: two maps out of a
-//   QIIT that agree on all constructors are equal (el-nat-eta /
-//   el-quot-eta, generalized). (The two displayed index spines,
-//   through h and through hᵉˡ, agree by this very rule at the index
-//   sorts, by induction along 𝒮.)
+Γ ⊦ 𝒮 qctx      𝒮 ≼ ℓ      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ d̄ : (⟦𝒮⟧ᴰ 𝒰̄)[id, ι(𝒮)]
+Γ ⊦ h̄ : ⟦𝒮⟧ˢ[id, ι(𝒮), d̄]
+---------------------------------------------------------------------------------------- (el-qiit-eta)
+Γ ⊦ h̄ ≐ 𝒮-elim d̄ : ⟦𝒮⟧ˢ[id, ι(𝒮), d̄]
 
 ## Substitution action
 
@@ -3137,7 +3273,7 @@ for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, 𝔄ᵉ ≐ El (⬡(�
 
 (𝒮.𝕤 ē)[σ]          ≜ 𝒮[σ].𝕤 ē[σ]
 (𝒮.𝕔 θ)[σ]          ≜ 𝒮[σ].𝕔 θ[σ]
-(𝒮.𝕤-elim m̄ ē w)[σ] ≜ 𝒮[σ].𝕤-elim m̄[σ] ē[σ] w[σ]
+(𝒮-elim d̄)[σ]       ≜ 𝒮[σ]-elim d̄[σ]
 
 // where 𝒮[σ] is the ToS substitution meta-operation (defined with the
 // grammar above): σ on every embedded Nova piece, lifted over the
@@ -3188,7 +3324,7 @@ for each point position 𝕔 of 𝒮 (𝒮(𝕔) = 𝔄, 𝔄ᵉ ≐ El (⬡(�
 //     in the setoid model: carriers are the constructor terms, the
 //     setoid relation is the congruence GENERATED by the equation
 //     constructors (no quotienting step — coarsening the relation IS
-//     the quotient), 𝒮.𝕤-elim is the unique section into any displayed
+//     the quotient), 𝒮-elim is the unique section into any displayed
 //     algebra (el-qiit-eta), and β holds on the nose. This is the
 //     initiality commitment of Altenkirch–Kaposi–Kovács (finitary QIITs),
 //     transported to the proof-irrelevant setoid setting where the
@@ -3598,12 +3734,12 @@ map_{a → 𝔽} g f    ≜ λ (map_𝔽 g[↑] (f[↑] ☐₀))
 ## Introduction
 
 // The corecursor: any coalgebra maps in. The
-// polynomial 𝔽 is CARRIED by the term (like m̄ at 𝒮.𝕤-elim — β
+// polynomial 𝔽 is CARRIED by the term (like d̄ at 𝒮-elim — β
 // consumes map_𝔽, so the redex is self-contained); the carrier code a
 // is not — typing alone reads it, and a term carries only what
 // computation reads. f is the coalgebra body, x the seed. Write
 // hᵉˡ ≜ λ (corec 𝔽 f[↑] ☐₀) for the corecursor as a function term
-// (cf. hᵉˡ at el-qiit-beta):
+// (cf. 𝒮-elim at el-qiit-elim):
 
 Γ ⊦ 𝔽 poly      Γ ⊦ a : 𝕌₀
 Γ ▷ a ⊦ f : ⌊𝔽⌋(a)[↑]
