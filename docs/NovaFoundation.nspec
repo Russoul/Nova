@@ -289,7 +289,7 @@ i, j, k, n ::= <natural number>
 // qiit-sub
 ς, τ ::= 𝕚𝕕 | ⇑             // the ToS's OWN substitution
          | ς ∘ ς            //   calculus, mirroring Nova's
-         | ς, 𝕥             //   (ς⁺ ≜ (ς ∘ ⇑, ⬡₀) derived)
+         | ς, 𝕥             //   (the lift ς⁺ is derived: qsub-lift)
 
 
 ## Notation
@@ -340,7 +340,7 @@ J ::= Σ sig | Γ ctx | Γ ≐ Γ ctx | Γ ≜ Γ ctx | Σ Γ ctx
     | (Γ ⊦ x ≔ t : t) ∈ Σ | (Γ ⊦ x : t) ∈ Σ | (Γ ⊦ x ≔ 𝒮 qctx ℓ) ∈ Σ | x ∉ Σ
     | l ∈ l̄ | l ∉ l̄ | l ≠ l | l̄ distinct | |l̄| = |Δ|
     | Γ ; 𝒮 ⊦ 𝔄 qty | Γ ; 𝒮 ⊦ 𝔄 ≐ 𝔄 qty | Γ ; 𝒮 ⊦ 𝔄 ≜ 𝔄 qty
-    | Γ ; 𝒮 ⊦ Ψ qtel | Γ ; 𝒮 ⊦ Ψ ≜ Ψ qtel | Γ ; 𝒮 ⊦ 𝔗 qdual | Γ ; 𝒮 ⊦ 𝔗 ≜ 𝔗 qdual | Γ ; 𝒮 ⊦ ī : 𝔗 | Γ ; 𝒮 ⊦ 𝕥 : 𝔄 | Γ ; 𝒮 ⊦ 𝕥 ≐ 𝕥 : 𝔄 | Γ ⊦ ς : 𝒮 ⇒ 𝒮 | 𝒮‖ᵢ = 𝔄
+    | Γ ; 𝒮 ⊦ Ψ qtel | Γ ; 𝒮 ⊦ Ψ ≜ Ψ qtel | Γ ; 𝒮 ⊦ 𝔗 qdual | Γ ; 𝒮 ⊦ 𝔗 ≜ 𝔗 qdual | Γ ; 𝒮 ⊦ ī : 𝔗 | Γ ; 𝒮 ⊦ 𝕥 : 𝔄 | Γ ; 𝒮 ⊦ 𝕥 ≐ 𝕥 : 𝔄 | Γ ⊦ ς : 𝒮 ⇒ 𝒮 | Γ ⊦ ς ≐ ς : 𝒮 ⇒ 𝒮 | Γ ⊦ ς ≜ ς : 𝒮 ⇒ 𝒮 | 𝒮‖ᵢ = 𝔄
     | Γ ⊦ 𝒮 qctx | Γ ⊦ 𝒮 ≐ 𝒮 qctx | Γ ⊦ 𝒮 ≜ 𝒮 qctx | Γ ⊦ 𝒮 ⊑ 𝒮 | Γ ⊦ 𝒮 ⊑ₛ 𝒮 | Σ Γ ⊦ 𝒮 qctx | Σ Γ ⊦ 𝒮 ≐ 𝒮 qctx
     | 𝒮(𝕤) = 𝔄 | 𝒮(𝕔) = 𝔄 | Γ ⊦ 𝒰̄ targets 𝒮 | Γ ; 𝒮 ⊦ 𝒰 targets 𝔄 | 𝒰̄‖ᵢ = 𝒰 | Γ ⊦ 𝒰 univ
     | Γ ⊦ 𝔽 poly | 𝒮 ≼ ℓ | 𝔽 ≼ ℓ | 𝒮 ≼ ℓ | 𝔄 ≼ ℓ | Γ ⊦ 𝒰 univ | 𝒰 ≼ 𝒰 | 𝒰 ≼ ℓ | 𝒰̄ ≼ ℓ | ℓ ≤ ℓ
@@ -1270,6 +1270,32 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 -------------------- (tel-eq-coe-ctx)
 Γ₁ ⊦ Δ₀ ≐ Δ₁ tel
 
+// A context extended by a telescope, and the weakening over it.
+
+Γ ⊦ Δ tel
+----------- (ctx-tel)
+Γ · Δ ctx
+
+Γ ctx
+--------------- (ctx-tel-empty)
+Γ · ε ≜ Γ ctx
+
+Γ ⊦ A ◁ Δ tel
+----------------------------- (ctx-tel-ext)
+Γ · (A ◁ Δ) ≜ (Γ ▷ A) · Δ ctx
+
+Γ ⊦ Δ tel
+---------------- (sub-wk-tel)
+↑Δ : Γ · Δ ⇒ Γ
+
+Γ ctx
+------------------ (sub-wk-tel-empty)
+↑ε ≜ id : Γ ⇒ Γ
+
+Γ ⊦ A ◁ Δ tel
+------------------------------------- (sub-wk-tel-ext)
+↑(A ◁ Δ) ≜ ↑ ∘ ↑Δ : (Γ ▷ A) · Δ ⇒ Γ
+
 ## Telescopes at a level
 
 // What the record former is formed from (see
@@ -1968,22 +1994,9 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 // to give a QIIT sort, constructor or eliminator its Nova type with
 // the initial algebra substituted; the ToS system itself never reads.
 //
-// META-OPERATIONS (each ≜-defined by meta-level induction, like the
-// substitution actions; A ranges over Nova types, Δ over Nova
-// telescopes, Φ over qiit-contexts).
-//
-// Nova plumbing — context extension by a telescope, telescope
-// weakening, telescope SNOC (the reading below builds telescopes at
-// their far end), and iterated λ (iterated Π is Δ → B, Telescopes):
-
-Γ·ε ≜ Γ                     ↑ε ≜ id
-Γ·(A ◁ Δ) ≜ (Γ ▷ A)·Δ       ↑(A ◁ Δ) ≜ ↑ ∘ ↑Δ    // the ↑Δ at Γ ▷ A
-// (↑Δ : Γ·Δ ⇒ Γ, so [↑Δ] weakens over Δ)
-ε ▷ A ≜ A ◁ ε               (T ◁ Δ) ▷ A ≜ T ◁ (Δ ▷ A)   // snoc
-λ ε. t ≜ t                  λ (A ◁ Δ). t ≜ λ (λ Δ. t)    // iterated λ
-
-// A substitution extended by a spine, and the spine of a telescope's
-// variables:
+// Nova plumbing: Γ · Δ and ↑Δ in Rules (tel); snoc, Δ → B and λ Δ. t
+// in Telescopes. A substitution extended by a spine, and the spine of
+// a telescope's variables:
 
 σ : Γ ⇒ Ξ
 Ξ ⊦ Δ tel
@@ -2184,7 +2197,7 @@ e˲ : Θ ⇒ Γ norm
 ### Substitution
 
 // The ToS substitution calculus, mirroring Nova's (𝕚𝕕/⇑/∘/ext; the
-// lift ς⁺ ≜ (ς ∘ ⇑, ⬡₀) : Φ₀ ▷ 𝔄[ς] ⇒ Φ₁ ▷ 𝔄 is derived):
+// lift is derived). ς₀ ≐ ς₁ : Φ₀ ⇒ Φ₁ is EXTENSIONAL, as σ₀ ≐ σ₁.
 
 Γ ⊦ Φ qctx
 ------------------- (qsub-id)
@@ -2201,6 +2214,10 @@ e˲ : Θ ⇒ Γ norm
 Γ ⊦ ς : Φ₀ ⇒ Φ₁      Γ ; Φ₀ ⊦ 𝕥 : 𝔄[ς]
 ---------------------------------------- (qsub-ext)
 Γ ⊦ (ς, 𝕥) : Φ₀ ⇒ Φ₁ ▷ 𝔄
+
+Γ ⊦ ς : Φ₀ ⇒ Φ₁      Γ ; Φ₁ ⊦ 𝔄 qty
+--------------------------------------------- (qsub-lift)   // admissible
+Γ ⊦ ς⁺ ≜ (ς ∘ ⇑, ⬡₀) : Φ₀ ▷ 𝔄[ς] ⇒ Φ₁ ▷ 𝔄
 
 Γ ; Φ₁ ⊦ 𝕥 : 𝔄      Γ ⊦ ς : Φ₀ ⇒ Φ₁
 ------------------------------------- (qtm-sub)   // and likewise qty-sub;
@@ -2599,6 +2616,18 @@ U[ς]          ≜ U
 (Γ ▷ A) · Δ ⊦ B : 𝕌ℓ
 ----------------------------------
 Γ ⊦ (A ◁ Δ) → B ≜ A → Δ → B : 𝕌ℓ
+
+Γ ⊦ Δ tel ℓ      Γ · Δ ⊦ t : B      // iterated λ
+------------------------------
+Γ ⊦ λ Δ. t : Δ → B
+
+Γ ⊦ t : B
+------------------
+Γ ⊦ λ ε. t ≜ t : B
+
+Γ ⊦ A ◁ Δ tel ℓ      (Γ ▷ A) · Δ ⊦ t : B
+------------------------------------------
+Γ ⊦ λ (A ◁ Δ). t ≜ λ (λ Δ. t) : A → Δ → B
 
 Γ ⊦ f : Δ → B      Γ ⊦ ē : Δ
 ----------------------------      // application to a spine
