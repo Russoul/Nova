@@ -296,7 +296,7 @@ i, j, k, n ::= <natural number>
 // introduced.
 Γ |= Γ · Δ | (Γ)
 Δ |= Δ[σ] | Δ ▷ t | (Δ) | ⟦𝒮⟧ | ⟦𝒮⟧ | ⟦𝔄⟧ᵗ | ⟦Ψ⟧ | 𝔗ᴺ | ⟦𝒮⟧ᴰ 𝒰̄ | ⟦𝒮 ⊑ 𝒮⟧ᴰ 𝒰̄ | ⟦𝔗⟧ᴰ 𝒰̄ | ⟦𝒮⟧ˢ | ⟦𝒮 ⊑ 𝒮⟧ˢ
-σ |= σ⁺ | ↑ⁱ | ↑Δ | (σ) | ē | σ, ē | ξ | ξ⁻¹ | ξ_Δ | ξᴰ | ξᴰ⁻¹ | υ | υᴰ | ξˢ | ξˢ⁻¹ | σ · Δ
+σ |= σ⁺ | ↑ⁱ | ↑Δ | (σ) | σ, ē | ξ | ξ⁻¹ | ξ_Δ | ξᴰ | ξᴰ⁻¹ | υ | υᴰ | ξˢ | ξˢ⁻¹ | σ · Δ
 ē |= ē[σ] | (ē) | t.l̄ | ⟦ī⟧ | ☐(Δ) | ι(𝒮) | ι_𝒮(𝒮) | ē, t | ēᴺ | ēᵀ
 l̄ |= (l̄)
 ℓ |= ℓ + ℓ | ℓ ⊔ ℓ | (ℓ)
@@ -527,7 +527,7 @@ l̄ distinct      |l̄| = |Δ|      l ∈ l̄      // META-LEVEL side conditions
 // diagonals the corresponding well-formedness.
 
 // The eliminator's motives, methods and coherences form an ORDINARY
-// SPINE Γ ⊦ d̄ : ⟦𝒮⟧ᴰ[ι] of the displayed telescope (QIIT section) —
+// SPINE Γ ⊦ d̄ : (⟦𝒮⟧ᴰ 𝒰̄)[id, ι(𝒮)] of the displayed telescope (QIIT section) —
 // they have no judgement form of their own.
 
 // The theory-of-signatures judgements (dual zone Γ ; Φ — Nova zone,
@@ -2036,9 +2036,6 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 --------------------------------------------------------- (sp-var-ext)
 (Γ ▷ A) · Δ ⊦ ☐(A ◁ Δ) ≜ ☐₀[↑Δ], ☐(Δ) : (A ◁ Δ)[↑(A ◁ Δ)]
 
-//     X[ē] ≜ X[(id, ē)]  for a spine Γ ⊦ ē : Δ and X over Γ·Δ; X[ē, ē′]
-//                                                       #   extends by a further spine
-//
 // INSTANTIATION is not a bespoke operation — both binder
 // instantiations are calculus instances:
 //   EXTERNAL, by a Nova term t: the NOVA substitution [id, t] acting
@@ -2980,7 +2977,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 
 // Point constructor, FULLY SATURATED: θ supplies every
 // argument at once, and 𝒮.𝕔 θ is the canonical form of its sort. A
-// bare curried 𝒮.𝕔 : ⟦𝔄⟧[ι] is deliberately NOT a term: in the empty
+// bare curried 𝒮.𝕔 : ⟦𝔄⟧[id, ι(𝒮)] is deliberately NOT a term: in the empty
 // context it would be a non-λ inhabitant of a Π-type, breaking
 // canonicity at Π (a closed Π-inhabitant is a λ — a meta-property of
 // definitional signatures, by the usual gluing argument) — the same
