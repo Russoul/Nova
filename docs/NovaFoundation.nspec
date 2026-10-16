@@ -143,12 +143,6 @@ x ::= <signature-entry-identifier>
 Γ, Θ, Ξ ::= ε      // empty typing context
     | Γ ▷ t        // extended typing context
 
-// A defined (meta-level) notion
-// Γ‖ₙ: the (n+1)-th type in Γ counting from the right (0 = the innermost
-// extension), i.e. the type ☐ₙ names before weakening.
-(Γ ▷ A)‖₀     ≜ A[↑]
-(Γ ▷ A)‖ₙ₊₁   ≜ Γ‖ₙ[↑]
-
 // typing context substitution
 σ, τ, ρ ::= ·           // empty substitution
      | σ, t          // extension substitution
@@ -249,7 +243,7 @@ t, a, b, c, d, e, f, g, h, m, p, q, r, s, u, v, w, x, z, T, A, B, C, D, E, P, Q,
 // Both are terms above; 𝒰 is only the METAVARIABLE for "either", used
 // where a notion is stated at both alike — the targets of the
 // displayed reading (the QIIT section), and the sorts of the checker
-// (docs/NovaKernel.nspec). Its LEVEL is |Ω| ≜ 0, |𝕌ℓ| ≜ ℓ.
+// (docs/NovaKernel.nspec).
 𝒰 ::= Ω | 𝕌ℓ | _
 
 // universe level
@@ -309,7 +303,7 @@ i, j, k, n ::= <natural number>
 e˲ |= (e˲) | e˲ ∘ σ
 ē |= ē[σ] | (ē) | t.l̄ | ⟦ī⟧ | ☐(Δ) | ι(𝒮) | ι_𝒮(𝒮) | ē, t | ēᴺ | ēᵀ
 l̄ |= (l̄)
-ℓ |= ℓ + ℓ | ℓ ⊔ ℓ | (ℓ) | |𝒰|
+ℓ |= ℓ + ℓ | ℓ ⊔ ℓ | (ℓ)
 i |= (i) | i + i | |Γ| | |𝒮| | |𝔗| | |Ψ| | 𝕤 | 𝕔
 t, w |= t[σ] | (t) | Γ‖ᵢ | (t / l̄ ↪ Δ)‖ₗ | (l̄ ↪ ē)(l) | 𝒰
     | ⟦𝔄⟧ | ⟦𝕥⟧ | ⟦𝔄⟧ᵉ | ⟦𝔄⟧ᴰ 𝒰 t | ⟦𝕥⟧ᴰ 𝒰̄ | ⟦𝔄⟧ˢ t t | ⟦𝕥⟧ˢ
@@ -1327,9 +1321,21 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 
 # Rules (elem)
 
-Γ ctx
------------------- (el-var) // Γ‖ₙ picks the type directly out of Γ's own structure — no
-Γ ⊦ ☐ₙ : Γ‖ₙ                // derivation of ☐ₙ₋₁, ☐ₙ₋₂, ... is required first.
+// Γ‖ₙ, the type ☐ₙ names in Γ: the (n+1)-th entry from the right,
+// weakened to Γ.
+
+Γ ⊦ A : 𝕌ℓ
+------------------------------ (ty-lookup-zero)
+Γ ▷ A ⊦ (Γ ▷ A)‖₀ ≜ A[↑] : 𝕌ℓ
+
+Γ ⊦ Γ‖ₙ : 𝕌ℓ
+Γ ⊦ A : 𝕌ℓ′
+---------------------------------- (ty-lookup-suc)
+Γ ▷ A ⊦ (Γ ▷ A)‖ₙ₊₁ ≜ Γ‖ₙ[↑] : 𝕌ℓ
+
+Γ ⊦ Γ‖ₙ : 𝕌ℓ
+------------------ (el-var)
+Γ ⊦ ☐ₙ : Γ‖ₙ
 
 ## 𝟘 and 𝟙
 
