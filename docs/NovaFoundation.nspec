@@ -336,7 +336,7 @@ J ::= Σ sig | Γ ctx | Γ ≐ Γ ctx | Σ Γ ctx
     | Γ ; 𝒮 ⊦ Ψ qtel | Γ ; 𝒮 ⊦ Ψ ≐ Ψ qtel | Γ ; 𝒮 ⊦ Ψ qtel ℓ | Γ ; 𝒮 ⊦ 𝔗 qdual | Γ ; 𝒮 ⊦ 𝔗 ≐ 𝔗 qdual | Γ ; 𝒮 ⊦ ī : 𝔗 | Γ ; 𝒮 ⊦ 𝕥 : 𝔄 | Γ ; 𝒮 ⊦ 𝕥 ≐ 𝕥 : 𝔄 | Γ ⊦ ς : 𝒮 ⇒ 𝒮 | Γ ⊦ ς ≐ ς : 𝒮 ⇒ 𝒮
     | Γ ⊦ 𝒮 qctx | Γ ⊦ 𝒮 ≐ 𝒮 qctx | Γ ⊦ 𝒮 qctx ℓ | Γ ⊦ 𝒮 ⊑ᵢ 𝒮 | Γ ⊦ 𝒮 ⊑ₛ 𝒮 | Σ Γ ⊦ 𝒮 qctx | Σ Γ ⊦ 𝒮 ≐ 𝒮 qctx | Σ Γ ⊦ 𝒮 qctx ℓ
     | Γ ⊦ 𝒰̄ targets 𝒮 | Γ ; 𝒮 ⊦ 𝒰 targets 𝔄 | 𝒰̄‖ᵢ = 𝒰 | Γ ⊦ 𝒰 univ
-    | Γ ⊦ 𝔽 poly ℓ | Γ ⊦ 𝔽 ≐ 𝔽 poly ℓ | Γ ⊦ 𝒰 univ | 𝒰 ≼ 𝒰 | 𝒰 ≼ ℓ | 𝒰̄ ≼ ℓ | ℓ ≤ ℓ
+    | Γ ⊦ 𝔽 poly ℓ | Γ ⊦ 𝔽 ≐ 𝔽 poly ℓ | Γ ⊦ 𝒰 univ | 𝒰 ≼ 𝒰 | 𝒰 ≼ ℓ | 𝒰̄ ≼ ℓ | ℓ ≼ ℓ
 
 # Conventions: how to read the rules
 
@@ -1059,11 +1059,11 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 
 // 𝒰 ≼ 𝒰′ is the order the two cumulativities
 // generate, by two rules — Ω below every universe, and
-// the tower by level (ℓ ≤ ℓ′ the order of the natural numbers):
+// the tower by level (ℓ ≼ ℓ′ the order of the natural numbers):
 
 Ω ≼ 𝒰
 
-ℓ ≤ ℓ′
+ℓ ≼ ℓ′
 --------
 𝕌ℓ ≼ 𝕌ℓ′
 
@@ -1331,7 +1331,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 // META-LEMMAS, each entrywise:
 //   * (forget) Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ gives Γ ⊦ Δ₀ ≐ Δ₁ tel — tel-ext asks
 //     an entry equation at SOME level.
-//   * (raise) Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ and ℓ ≤ ℓ′ give Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ′, by
+//   * (raise) Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ and ℓ ≼ ℓ′ give Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ′, by
 //     code-lift-eq. The contexts of the later entries are unchanged:
 //     Γ ▷ A records A, not its level.
 //   * (existence) every Γ ⊦ Δ₀ ≐ Δ₁ tel is one at some ℓ — a telescope is
@@ -2147,8 +2147,6 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 -------------------------------------------------------- (qctx-remainder-coe)
 Γ ; Φ₁ ⊦ 𝒮₁ ∖ Φ₁ ≐ 𝒮₀ ∖ Φ₀ qtel
 
-// lemma
-
 Γ ⊦ Φ ⊑ᵢ 𝒮
 ------------------------ (qctx-remainder-lemma) // admissible
 Γ ⊦ Φ · (𝒮 ∖ Φ) ≐ 𝒮 qctx
@@ -2221,7 +2219,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 ------------------ (qctx-lvl-ext)
 Γ ⊦ Φ ▷ 𝔄 qctx ℓ
 
-(Γ ⊦ x ≔ 𝒮 qctx ℓ) ∈ Σ      σ : Θ ⇒ Γ norm      ℓ ≤ ℓ′
+(Γ ⊦ x ≔ 𝒮 qctx ℓ) ∈ Σ      σ : Θ ⇒ Γ norm      ℓ ≼ ℓ′
 ------------------------------------------------------ (qctx-lvl-ref)
 Σ Θ ⊦ x[σ] qctx ℓ′
 
