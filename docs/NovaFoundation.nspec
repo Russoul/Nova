@@ -3504,7 +3504,8 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 // position's variable, instantiated — the motive or method
 // ☐ᵢ[id, ι(𝒮), d̄], the sort eliminator or its β-equation
 // ☐ᵢ[id, ι(𝒮), d̄, 𝒮-elim d̄] — at the entry's type at its own
-// variables (disp-lookup, sec-lookup: admissible, el-var at the slot).
+// variables (disp-lookup, sec-lookup: admissible, el-var at the slot);
+// the eliminator is the spine of its slots (sp-eta).
 
 Γ ⊦ 𝒮 qctx ℓ      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ d̄ : (⟦𝒮⟧ᴰ 𝒰̄)[id, ι(𝒮)]
 ---------------------------------------------------------------------------------------- (el-qiit-elim)
@@ -3512,12 +3513,12 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 
 Γ ⊦ 𝒮 qctx ℓ      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ d̄ : (⟦𝒮⟧ᴰ 𝒰̄)[id, ι(𝒮)]
 Γ ; 𝒮 ⊦ 𝒮‖ᵢ ≐ 𝔄 qty      𝒰̄‖ᵢ = 𝒰
----------------------------------------------------------------------------------------- (disp-lookup)
+---------------------------------------------------------------------------------------- (disp-lookup) // admissible
 Γ ⊦ ☐ᵢ[id, ι(𝒮), d̄] : (⟦𝔄⟧ᴰ 𝒰 ⟦⬡ᵢ⟧[υ])[id, ι(𝒮), d̄]
 
 Γ ⊦ 𝒮 qctx ℓ      Γ ⊦ 𝒰̄ targets 𝒮      𝒰̄ ≼ ℓ      Γ ⊦ d̄ : (⟦𝒮⟧ᴰ 𝒰̄)[id, ι(𝒮)]
 Γ ⊦ h̄ : ⟦𝒮⟧ˢ[id, ι(𝒮), d̄]      Γ ; 𝒮 ⊦ 𝒮‖ᵢ ≐ 𝔄 qty
----------------------------------------------------------------------------------------- (sec-lookup)
+---------------------------------------------------------------------------------------- (sec-lookup) // admissible
 Γ ⊦ ☐ᵢ[id, ι(𝒮), d̄, h̄] : (⟦𝔄⟧ˢ ⟦⬡ᵢ⟧[υ][υᴰ] (⟦⬡ᵢ⟧ᴰ 𝒰̄)[υᴰ])[id, ι(𝒮), d̄, h̄]
 
 ## Computation
@@ -4271,6 +4272,11 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------------------ (sp-sub-ext)
 Γ₀ ⊦ (e, ē)[σ] ≐ e[σ], ē[σ] : A[σ] ◁ Δ[σ⁺]
+
+Γ ⊦ ē : Δ
+------------------------ (sp-eta)   // admissible: a spine is the spine of its
+Γ ⊦ ē ≐ ☐(Δ)[id, ē] : Δ            //   components — by induction on the
+                                   //   derivation; at 𝒮-elim, el-qiit-eta
 
 Γ ≐ Γ' ctx
 Γ ⊦ ē : Δ
