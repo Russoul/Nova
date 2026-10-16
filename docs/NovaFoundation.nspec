@@ -102,7 +102,7 @@
 //    the imposed path equations, and a dependent eliminator 𝒮-elim with
 //    its computation and uniqueness laws. Every rule is stated against a
 //    signature 𝒮 carried by the formers — written out, or a REFERENCE
-//    x[e˲] to a signature defined once in Σ (sig-qctx). This subsumes ℕ,
+//    x[σ] to a signature defined once in Σ (sig-qctx). This subsumes ℕ,
 //    (⊎) and (/) (each a one- or two-line signature), including indexed
 //    inductive types
 //    and quotient inductive types as special cases; its equation
@@ -134,7 +134,7 @@ x ::= <signature-entry-identifier>
     | Σ (Γ ⊦ x : t)         // declaration (a HOLE — no definiens)
     | Σ (Γ ⊦ x ≔ 𝒮 qctx ℓ)  // QIIT-context (signature) definition: the signature
                             //   𝒮 over its parameters Γ, with a level ℓ
-                            //   that bounds it; its references x[e˲]
+                            //   that bounds it; its references x[σ]
                             //   are SIGNATURES, what a QIIT former
                             //   carries (see "Quotient inductive-
                             //   inductive types")
@@ -149,9 +149,6 @@ x ::= <signature-entry-identifier>
      | σ ∘ σ         // composition substitution
      | id            // identity substitution
      | ↑             // weakening substitution
-
-// typing context normal substitution
-e˲, t˲, p˲ ::= · | e˲, t
 
 // label — its own syntactic class, disjoint from the signature
 // identifiers x. A label is never bound and never substituted for.
@@ -170,7 +167,7 @@ l̄ ::= · | l l̄
 // (code-lift); their level-0 instances are the CODES. The Ω-formers ≡ and ∥·∥ are typed at Ω (as props) and
 // thence at 𝕌₀ and up, by PROP-CUMULATIVITY (prop-lift: a proposition
 // IS its type of proofs, and a 𝕌₀ code).
-t, a, b, c, d, e, f, g, h, m, p, q, r, s, u, v, w, x, z, T, A, B, C, D, E, P, Q, R ::= x[e˲]   // signature reference
+t, a, b, c, d, e, f, g, h, m, p, q, r, s, u, v, w, x, z, T, A, B, C, D, E, P, Q, R ::= x[σ]   // signature reference (σ NORMAL: sub-norm)
     | ☐ᵢ             // i-th element in the typing context
     | 𝕌ℓ             // the ℓ-th predicative universe (ℓ a natural-number
                      //   literal): a type at 𝕌ℓ₊₁
@@ -221,7 +218,7 @@ t, a, b, c, d, e, f, g, h, m, p, q, r, s, u, v, w, x, z, T, A, B, C, D, E, P, Q,
     | 𝒮.𝕤 ē          // sort 𝕤 of a QIIT signature 𝒮 at index spine ē —
                      //   a type at the signature's level; 𝒮 is
                      //   carried in the term — a qiit-context written
-                     //   out, or a reference x[e˲] to a signature
+                     //   out, or a reference x[σ] to a signature
                      //   entry of Σ — so QIIT equality is structural
                      //   (see "Quotient inductive-inductive types")
     | 𝒮.𝕔 ē          // POINT constructor 𝕔 of 𝒮, SATURATED: ē a full
@@ -266,7 +263,7 @@ i, j, k, n ::= <natural number>
                         //   the section telescope, see Elimination
 
 // qiit-context
-𝒮, Φ ::= ⬦ | 𝒮 ▷ 𝔄 | x[e˲]
+𝒮, Φ ::= ⬦ | 𝒮 ▷ 𝔄 | x[σ]
 
 // qiit-type
 𝔄, 𝔅, 𝔎 ::= U               // the universe of codes
@@ -299,8 +296,7 @@ i, j, k, n ::= <natural number>
 // introduced.
 Γ |= Γ · Δ | (Γ)
 Δ |= Δ[σ] | Δ ▷ t | (Δ) | ⟦𝒮⟧ | ⟦𝒮⟧ | ⟦𝔄⟧ᵗ | ⟦Ψ⟧ | 𝔗ᴺ | ⟦𝒮⟧ᴰ 𝒰̄ | ⟦𝒮 ⊑ 𝒮⟧ᴰ 𝒰̄ | ⟦𝔗⟧ᴰ 𝒰̄ | ⟦𝒮⟧ˢ | ⟦𝒮 ⊑ 𝒮⟧ˢ
-σ |= σ⁺ | ↑ⁱ | ↑Δ | e˲ | (σ) | ē | σ, ē | ξ | ξ⁻¹ | ξ_Δ | ξᴰ | ξᴰ⁻¹ | υ | υᴰ | ξˢ | ξˢ⁻¹ | σ · Δ
-e˲ |= (e˲) | e˲ ∘ σ
+σ |= σ⁺ | ↑ⁱ | ↑Δ | (σ) | ē | σ, ē | ξ | ξ⁻¹ | ξ_Δ | ξᴰ | ξᴰ⁻¹ | υ | υᴰ | ξˢ | ξˢ⁻¹ | σ · Δ
 ē |= ē[σ] | (ē) | t.l̄ | ⟦ī⟧ | ☐(Δ) | ι(𝒮) | ι_𝒮(𝒮) | ē, t | ēᴺ | ēᵀ
 l̄ |= (l̄)
 ℓ |= ℓ + ℓ | ℓ ⊔ ℓ | (ℓ)
@@ -333,7 +329,7 @@ ī ::= · | t, ī | 𝕥, ī       // index spine: external and inductive arg
 // definition.
 J ::= Σ sig | Γ ctx | Γ ≐ Γ ctx | Γ ≜ Γ ctx | Σ Γ ctx
     | σ : Γ ⇒ Γ | σ ≐ σ : Γ ⇒ Γ | σ ≜ σ : Γ ⇒ Γ
-    | e˲ : Γ ⇒ Γ norm | e˲ ≐ e˲ : Γ ⇒ Γ norm | e˲ ≜ e˲ : Γ ⇒ Γ norm
+    | σ : Γ ⇒ Γ norm | σ ≐ σ : Γ ⇒ Γ norm | σ ≜ σ : Γ ⇒ Γ norm
     | Γ ⊦ t : t | Γ ⊦ t ≐ t : t | Γ ⊦ t ≜ t : t | Σ Γ ⊦ t : t | Σ Γ ⊦ t ≐ t : t | Σ Γ ⊦ t ≜ t : t
     | Γ ⊦ Δ tel | Γ ⊦ Δ ≐ Δ tel | Γ ⊦ Δ ≜ Δ tel | Γ ⊦ Δ tel ℓ | Γ ⊦ Δ ≐ Δ tel ℓ
     | Γ ⊦ ē : Δ | Γ ⊦ ē ≐ ē : Δ | Γ ⊦ ē ≜ ē : Δ
@@ -344,7 +340,7 @@ J ::= Σ sig | Γ ctx | Γ ≐ Γ ctx | Γ ≜ Γ ctx | Σ Γ ctx
     | Γ ⊦ 𝒮 qctx | Γ ⊦ 𝒮 ≐ 𝒮 qctx | Γ ⊦ 𝒮 ≜ 𝒮 qctx | Γ ⊦ 𝒮 ⊑ 𝒮 | Γ ⊦ 𝒮 ⊑ₛ 𝒮 | Σ Γ ⊦ 𝒮 qctx | Σ Γ ⊦ 𝒮 ≐ 𝒮 qctx | Σ Γ ⊦ 𝒮 ≜ 𝒮 qctx
     | 𝒮(𝕤) = 𝔄 | 𝒮(𝕔) = 𝔄 | Γ ⊦ 𝒰̄ targets 𝒮 | Γ ; 𝒮 ⊦ 𝒰 targets 𝔄 | 𝒰̄‖ᵢ = 𝒰 | Γ ⊦ 𝒰 univ
     | Γ ⊦ 𝔽 poly | 𝒮 ≼ ℓ | 𝔽 ≼ ℓ | 𝒮 ≼ ℓ | 𝔄 ≼ ℓ | Γ ⊦ 𝒰 univ | 𝒰 ≼ 𝒰 | 𝒰 ≼ ℓ | 𝒰̄ ≼ ℓ | ℓ ≤ ℓ
-D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | Ψ ≜ Ψ | 𝔗 ≜ 𝔗 | σ ≜ σ | e˲ ≜ e˲ | ē ≜ ē | 𝒮 ≜ 𝒮 | 𝔄 ≜ 𝔄 | 𝕥 ≜ 𝕥
+D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | Ψ ≜ Ψ | 𝔗 ≜ 𝔗 | σ ≜ σ | ē ≜ ē | 𝒮 ≜ 𝒮 | 𝔄 ≜ 𝔄 | 𝕥 ≜ 𝕥
     | Γ ⊦ t : t ≜ Γ ⊦ t ≐ t : t
 
 # Conventions: how to read the rules
@@ -355,7 +351,7 @@ D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | Ψ ≜ Ψ | 𝔗 ≜ 𝔗 | σ ≜ σ | 
 //
 // * AMBIENT SIGNATURE. Every judgement is relative to a signature Σ.
 //   The Σ prefix and the premise `Σ sig` are ELIDED everywhere; rules
-//   that inspect or extend Σ (the sig rules, the x[e˲] rules) name it
+//   that inspect or extend Σ (the sig rules, the x[σ] rules) name it
 //   explicitly. Expansion: prefix every judgement with `Σ ⊦`/`Σ Γ ⊦`
 //   as appropriate and add `Σ sig` as the first premise of every rule.
 //   This is the one elision of the presentation; nothing else is left
@@ -410,7 +406,7 @@ D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | Ψ ≜ Ψ | 𝔗 ≜ 𝔗 | σ ≜ σ | 
 //                             laws, wk-ext, eta, ...) are then
 //                             META-LEMMAS, by the var-sub-* clauses;
 //                             σ : Γ ⇒ Θ is σ ≐ σ
-//     e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm  pointwise (sub-norm-ext defining)
+//     σ₀ ≐ σ₁ : Γ ⇒ Θ norm  pointwise (sub-norm-ext defining)
 //     Γ ⊦ Δ₀ ≐ Δ₁ tel         pointwise (tel-ext defining)
 //     Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ       pointwise AT 𝕌ℓ (tel-lvl-ext
 //                             defining; Γ ⊦ Δ tel ℓ is Δ ≐ Δ)
@@ -436,7 +432,7 @@ D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | Ψ ≜ Ψ | 𝔗 ≜ 𝔗 | σ ≜ σ | 
 //   For the meta-defined spellings, refl/sym/trans are META-LEMMAS,
 //   pointwise from these. Pointwise equality of
 //   constants and atoms (ε ≐ ε ctx, id ≐ id, ↑ ≐ ↑, · ≐ ·,
-//   x[e˲] ≐ x[e˲], ...) are refl instances and are not stated.
+//   x[σ] ≐ x[σ], ...) are refl instances and are not stated.
 //
 // * THE DOUBLING CONVENTION. A FORMER rule — a formation, introduction
 //   or elimination rule, whose conclusion is displayed as a typing
@@ -500,7 +496,7 @@ D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | Ψ ≜ Ψ | 𝔗 ≜ 𝔗 | σ ≜ σ | 
 Σ sig
 Γ₀ ≐ Γ₁ ctx                  // Γ ctx is Γ ≐ Γ ctx
 σ₀ ≐ σ₁ : Γ ⇒ Θ              // yields Γ ctx and Θ ctx; σ : Γ ⇒ Θ is σ ≐ σ
-e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm       // yields Γ ctx and Θ ctx
+σ₀ ≐ σ₁ : Γ ⇒ Θ norm       // yields Γ ctx and Θ ctx
 Γ ⊦ a₀ ≐ a₁ : A              // yields Γ ctx and Γ ⊦ A : 𝕌ℓ for some ℓ; Γ ⊦ a : A is a ≐ a
 Γ ⊦ Δ₀ ≐ Δ₁ tel              // yields Γ ctx; Γ ⊦ Δ tel is Δ ≐ Δ
 Γ ⊦ ē₀ ≐ ē₁ : Δ              // yields Γ ⊦ Δ tel; Γ ⊦ ē : Δ is ē ≐ ē
@@ -510,7 +506,7 @@ l̄ distinct      |l̄| = |Δ|      l ∈ l̄      // META-LEVEL side conditions
 Γ ; 𝒮 ⊦ 𝔄 qty                // yields Γ ⊦ 𝒮 qctx
 Γ ; 𝒮 ⊦ 𝕥 : 𝔄                // yields Γ ; 𝒮 ⊦ 𝔄 qty
 Γ ⊦ ς : 𝒮₀ ⇒ 𝒮₁              // yields Γ ⊦ 𝒮₀ qctx and Γ ⊦ 𝒮₁ qctx
-                             //   reference x[e˲] to a signature entry of Σ; the equation by name
+                             //   reference x[σ] to a signature entry of Σ; the equation by name
                              //   or by content; Γ ⊦ 𝒮 qctx is 𝒮 ≐ 𝒮
 Γ ⊦ 𝔽 poly                   // yields Γ ctx (Coinductive types)
 𝒮 ≼ ℓ      𝒮 ≼ ℓ      𝔄 ≼ ℓ      𝔽 ≼ ℓ      // META-DEFINED level bounds: every Nova type the signature, context,
@@ -622,7 +618,7 @@ x ∉ Σ
                                         //   record is what a reference
                                         //   reads its level from)
 
-// A signature entry is referred to as x[e˲] — a SIGNATURE, not a term:
+// A signature entry is referred to as x[σ] — a SIGNATURE, not a term:
 // what a QIIT former carries in place of the context written out
 // (qctx-ref, in the QIIT section). The definiens is itself a
 // signature, so it may be a context, or a reference to an earlier
@@ -635,10 +631,10 @@ x ∉ Σ
 // A signature is DEFINITIONAL when
 // every entry is a definition (sig-def, sig-qctx). A DECLARATION makes it OPEN:
 // a hole — a name with a type and no definiens, whose references
-// x[e˲] are STUCK (el-sig-decl below; deliberately no -beta). Type
+// x[σ] are STUCK (el-sig-decl below; deliberately no -beta). Type
 // holes are the A = 𝕌ℓ instances. An assumed EQUATION is a hole at the
 // equation's prop — an entry (Γ ⊦ h : (a₀ ≡ a₁ ∈ A)), A = 𝕌ℓ for a
-// type equation — whose reference h[e˲] yields the instantiated
+// type equation — whose reference h[σ] yields the instantiated
 // equation by el-reflect: an assumed equation is one el-reflect away
 // from an ordinary declaration, and needs no entry kind of its own.
 // Open signatures are the working states of an elaboration run: the
@@ -662,14 +658,14 @@ x ∉ Σ
 // * INSTANTIATION (signature cut). If Σ (Γ ⊦ x : A) Σ' ⊦ J and
 //   Σ Γ ⊦ t : A — the filling term lives in the PREFIX preceding the
 //   hole — then Σ Σ'[t/x] ⊦ J[t/x], where [t/x] replaces every
-//   reference x[e˲] by t[e˲]. The A = 𝕌ℓ instance covers type
+//   reference x[σ] by t[σ]. The A = 𝕌ℓ instance covers type
 //   declarations, filled by Σ Γ ⊦ T : 𝕌ℓ. The IN-PLACE variant needs
 //   no substitution at all:
 //   Σ (Γ ⊦ x ≔ t : A) Σ' ⊦ J follows directly, since every rule that
 //   applied to the declaration entry has its conclusion re-derivable
 //   from the definition entry (el-sig-decl's conclusion is
 //   el-sig-var's) and no rule depends on x LACKING a body — the flip
-//   only refines, adding the equations x[e˲] ≜ t[e˲].
+//   only refines, adding the equations x[σ] ≜ t[σ].
 //   DISCHARGING an equation obligation is the prop instance: the hole
 //   h : (a₀ ≡ a₁ ∈ A) fills with ⋆ exactly when the equation is
 //   derivable in its prefix (el-eq-i) — one open-entry kind, one
@@ -677,7 +673,7 @@ x ∉ Σ
 //
 // Substitution action is uniform in the entry kind: el-sub-sig-var,
 // stated below for definitions, is adopted verbatim for declarations —
-// x[e˲][σ] ≜ x[e˲ ∘ σ] whichever entry x names.
+// x[ρ][σ] ≜ x[ρ ∘ σ] whichever entry x names.
 
 # Rules (ctx)
 
@@ -815,51 +811,62 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 
 # Rules (normal substitution)
 
+// σ : Γ ⇒ Θ norm: σ is NORMAL — built from · and extension alone (one
+// syntax of substitutions, two judgements); what a reference x[σ] takes.
+
 Γ ctx
 ------------------ (sub-norm-empty)
 · : Γ ⇒ ε norm
 
-e˲ : Γ ⇒ ε norm
+σ : Γ ⇒ ε norm
 ----------------------- (sub-norm-empty-unique)
-e˲ ≐ · : Γ ⇒ ε norm
+σ ≐ · : Γ ⇒ ε norm
 
 Γ₁ ⊦ A : 𝕌ℓ
-e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm
-Γ₀ ⊦ t₀ ≐ t₁ : A[e˲₁]
+σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁ norm
+Γ₀ ⊦ t₀ ≐ t₁ : A[σ₁]
 ---------------------------------------- (sub-norm-ext)   // A explicit, as at sub-ext; the defining
-(e˲₀, t₀) ≐ (e˲₁, t₁) : Γ₀ ⇒ Γ₁ ▷ A norm                  //   clause of the pointwise meta-notation
+(σ₀, t₀) ≐ (σ₁, t₁) : Γ₀ ⇒ Γ₁ ▷ A norm                  //   clause of the pointwise meta-notation
 
-e˲ : Γ₀ ⇒ Γ₁ norm
+σ : Γ₀ ⇒ Γ₁ norm
 ------------------- (sub-norm-embed) // a normal substitution is a substitution
-e˲ : Γ₀ ⇒ Γ₁
+σ : Γ₀ ⇒ Γ₁
 
-e˲₀ ≐ e˲₁ : Γ₀ ⇒ Γ₁ norm
-σ : Θ ⇒ Γ₀
------------------------------------ (sub-norm-comp) // via Γ₀; defined by meta-level induction:
-e˲₀ ∘ σ ≐ e˲₁ ∘ σ : Θ ⇒ Γ₁ norm
+σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁ norm
+τ : Θ ⇒ Γ₀
+----------------------------------- (sub-norm-comp)   // a normal substitution composed
+σ₀ ∘ τ ≐ σ₁ ∘ τ : Θ ⇒ Γ₁ norm                        //   is normal: sub-ext-post, in norm
 
-· ∘ σ ≜ ·
-(e˲, t) ∘ σ ≜ (e˲ ∘ σ, t[σ])
+τ : Θ ⇒ Γ₀
+------------------------ (sub-norm-comp-empty)
+· ∘ τ ≜ · : Θ ⇒ ε norm
+
+Γ₁ ⊦ A : 𝕌ℓ
+σ : Γ₀ ⇒ Γ₁ norm
+Γ₀ ⊦ t : A[σ]
+τ : Θ ⇒ Γ₀
+--------------------------------------------- (sub-norm-comp-ext)
+(σ, t) ∘ τ ≜ (σ ∘ τ, t[τ]) : Θ ⇒ Γ₁ ▷ A norm
 
 Γ₀ ≐ Γ₁ ctx
-e˲ : Γ₀ ⇒ Θ norm
+σ : Γ₀ ⇒ Θ norm
 -------------------- (sub-norm-coe-dom)
-e˲ : Γ₁ ⇒ Θ norm
+σ : Γ₁ ⇒ Θ norm
 
 Θ₀ ≐ Θ₁ ctx
-e˲ : Γ ⇒ Θ₀ norm
+σ : Γ ⇒ Θ₀ norm
 ----------------------- (sub-norm-coe-cod)
-e˲ : Γ ⇒ Θ₁ norm
+σ : Γ ⇒ Θ₁ norm
 
 Γ ≐ Γ' ctx
-e˲ ≐ t˲ : Γ ⇒ Θ norm
+σ₀ ≐ σ₁ : Γ ⇒ Θ norm
 ------------------------- (sub-norm-eq-coe-dom)
-e˲ ≐ t˲ : Γ' ⇒ Θ norm
+σ₀ ≐ σ₁ : Γ' ⇒ Θ norm
 
 Θ ≐ Θ' ctx
-e˲ ≐ t˲ : Γ ⇒ Θ norm
+σ₀ ≐ σ₁ : Γ ⇒ Θ norm
 ------------------------- (sub-norm-eq-coe-cod)
-e˲ ≐ t˲ : Γ ⇒ Θ' norm
+σ₀ ≐ σ₁ : Γ ⇒ Θ' norm
 
 # Rules (types — typing at the universes)
 //
@@ -1085,7 +1092,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 // Signature references at type entries need no rules of their own:
 // el-sig-var, el-sig-beta and el-sig-decl (in the element rules)
 // cover the A = 𝕌ℓ entries — e.g. for (Γ ⊦ x ≔ A : 𝕌ℓ) ∈ Σ,
-// el-sig-var concludes Σ Θ ⊦ x[e˲] : 𝕌ℓ[e˲], and the index computes
+// el-sig-var concludes Σ Θ ⊦ x[σ] : 𝕌ℓ[σ], and the index computes
 // to 𝕌ℓ by ty-sub-atoms. As before, a type declaration types its
 // references but never unfolds them (no -beta — the reference is
 // stuck); an assumed type equation is a hole at (A₀ ≡ A₁ ∈ 𝕌ℓ),
@@ -1923,7 +1930,7 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 // computation and uniqueness laws. Every rule is stated AGAINST a
 // signature (⊦ 𝒮 qctx as a premise), and 𝒮 is carried by the formers
 // themselves (as A / R carries A and R) — either WRITTEN OUT, a
-// qiit-context in the term, or as a REFERENCE x[e˲] to a signature
+// qiit-context in the term, or as a REFERENCE x[σ] to a signature
 // defined once in Σ (sig-qctx) and instantiated at its parameters. A
 // reference is the practical form: the signature is checked once, its
 // formers are compared by name and spine (IDENTITY below), and a
@@ -2071,14 +2078,14 @@ e˲ ≐ t˲ : Γ ⇒ Θ' norm
 Γ ⊦ Φ ▷ 𝔄 qctx
 
 (Γ ⊦ x ≔ 𝒮 qctx ℓ) ∈ Σ
-e˲₀ ≐ e˲₁ : Θ ⇒ Γ norm
+σ₀ ≐ σ₁ : Θ ⇒ Γ norm
 ------------------------------ (qctx-ref)
-Σ Θ ⊦ x[e˲₀] ≐ x[e˲₁] qctx
+Σ Θ ⊦ x[σ₀] ≐ x[σ₁] qctx
 
 (Γ ⊦ x ≔ 𝒮 qctx ℓ) ∈ Σ
-e˲ : Θ ⇒ Γ norm
+σ : Θ ⇒ Γ norm
 ------------------------ (qctx-ref-unfold)
-Σ Θ ⊦ x[e˲] ≐ 𝒮[e˲] qctx
+Σ Θ ⊦ x[σ] ≐ 𝒮[σ] qctx
 
 // PREFIX: Φ is 𝒮 up to some entry; a reference by its content.
 
@@ -2326,9 +2333,9 @@ e˲ : Θ ⇒ Γ norm
 ----------------------------------- (qctx-nsub-ext)
 Θ ⊦ (Φ ▷ 𝔄)[σ] ≜ Φ[σ] ▷ 𝔄[σ] qctx
 
-(Γ ⊦ x ≔ 𝒮 qctx ℓ) ∈ Σ      e˲ : Γ₁ ⇒ Γ norm      σ : Θ ⇒ Γ₁
+(Γ ⊦ x ≔ 𝒮 qctx ℓ) ∈ Σ      ρ : Γ₁ ⇒ Γ norm      σ : Θ ⇒ Γ₁
 ------------------------------------------------------------- (qctx-nsub-ref)
-Σ Θ ⊦ x[e˲][σ] ≜ x[e˲ ∘ σ] qctx
+Σ Θ ⊦ x[ρ][σ] ≜ x[ρ ∘ σ] qctx
 
 Γ ; Φ ⊦ 𝔄 qty      σ : Θ ⇒ Γ
 ----------------------------- (qty-nsub)
@@ -2820,7 +2827,7 @@ e˲ : Θ ⇒ Γ norm
 ## Signatures
 
 // What the formers carry. A signature is a closed
-// qiit-context WRITTEN OUT, or a REFERENCE x[e˲] to a signature entry
+// qiit-context WRITTEN OUT, or a REFERENCE x[σ] to a signature entry
 // of Σ, instantiated at its parameters by a normal substitution — the
 // shape a term reference has (el-sig-var).
 
@@ -2829,13 +2836,13 @@ e˲ : Θ ⇒ Γ norm
 // built from formers AT the reference (ι below), so the types of a
 // named QIIT mention its name and never its entries.
 //
-// THE BOUND of a reference is its entry's record: x[e˲] ≼ ℓ′ when
+// THE BOUND of a reference is its entry's record: x[σ] ≼ ℓ′ when
 // ℓ ≤ ℓ′, ℓ the level the entry records. Nothing is inspected; and
-// then ⌈x[e˲]⌉ ≼ ℓ′ — sig-qctx bounds the definiens by ℓ, a
+// then ⌈x[σ]⌉ ≼ ℓ′ — sig-qctx bounds the definiens by ℓ, a
 // substitution moves no level, and a bound is raised by code-lift.
 //
 // SUBSTITUTION at a reference composes, as at a term reference
-// (el-sub-sig-var): x[e˲][σ] ≜ x[e˲ ∘ σ]. Evaluation commutes with
+// (el-sub-sig-var): x[ρ][σ] ≜ x[ρ ∘ σ]. Evaluation commutes with
 // it: ⌈𝒮[σ]⌉ = ⌈𝒮⌉[σ], a raw identity.
 
 ### Initial algebra
@@ -2915,14 +2922,14 @@ e˲ : Θ ⇒ Γ norm
 // makes: models collapsing structurally-distinct types are excluded.)
 //
 // THE TWO PATHWAYS. By-name is ADMISSIBLE from by-content — the
-// contents ⌈𝒮⌉[e˲₀] and ⌈𝒮⌉[e˲₁] are equal piece by piece, by
+// contents ⌈𝒮⌉[σ₀] and ⌈𝒮⌉[σ₁] are equal piece by piece, by
 // el-sub — so the relation is by-content's, a partial
 // equivalence. By-name is stated because it decides the common case —
 // two uses of ONE name — on the syntax, without evaluating either
 // side: the rigid-rigid-before-unfolding discipline, as a rule.
 // By-content is what makes a name TRANSPARENT: a named QIIT equals the
 // QIIT written out with the same entries, two entries with the same
-// content name the same types, and an alias (Γ ⊦ x ≔ y[e˲] qctx ℓ) is
+// content name the same types, and an alias (Γ ⊦ x ≔ y[σ] qctx ℓ) is
 // an abbreviation. It is the pathway to take when the names differ.
 //
 // META-LEMMA. Equal signatures have equal entries, arities and
@@ -2935,7 +2942,7 @@ e˲ : Θ ⇒ Γ norm
 //
 // A NAME for a QIIT is therefore its Σ-entry: the signature is
 // checked once, and every sort, constructor and eliminator of it is a
-// former at x[e˲]. Consequently the
+// former at x[σ]. Consequently the
 // theory is UNIFORMLY structural, QIITs included, so (/) is a genuine
 // instance — A / R is 𝒮.𝕢 · for
 //     𝒮 = ( 𝕢 : U ; cls : (x : A) ⇛ El 𝕢 ;
@@ -3574,29 +3581,29 @@ e˲ : Θ ⇒ Γ norm
 //   swapping the two heads — the multiset laws, no transport.
 
 // Signature references. These three rules serve EVERY entry, type
-// entries included: at an A = 𝕌ℓ entry the conclusion index A[e˲]
+// entries included: at an A = 𝕌ℓ entry the conclusion index A[σ]
 // computes to 𝕌ℓ by ty-sub-atoms.
 
 (Γ ⊦ x ≔ a : A) ∈ Σ
-e˲ : Θ ⇒ Γ norm
+σ : Θ ⇒ Γ norm
 ------------------------ (el-sig-var)
-Σ Θ ⊦ x[e˲] : A[e˲]
+Σ Θ ⊦ x[σ] : A[σ]
 
 (Γ ⊦ x ≔ a : A) ∈ Σ
-e˲ : Θ ⇒ Γ norm
+σ : Θ ⇒ Γ norm
 ------------------------------ (el-sig-beta)
-Σ Θ ⊦ x[e˲] ≜ a[e˲] : A[e˲]
+Σ Θ ⊦ x[σ] ≜ a[σ] : A[σ]
 
 // Open-signature references (see DEFINITIONAL AND OPEN SIGNATURES): a
 // declaration types its references but never unfolds them (no -beta).
 // An assumed equation needs no rule of its own: it is a hole h at the
 // equation's prop, and el-sig-decl + el-reflect give
-// a₀[e˲] ≐ a₁[e˲] : A[e˲] from the reference h[e˲].
+// a₀[σ] ≐ a₁[σ] : A[σ] from the reference h[σ].
 
 (Γ ⊦ x : A) ∈ Σ
-e˲ : Θ ⇒ Γ norm
+σ : Θ ⇒ Γ norm
 --------------------- (el-sig-decl)
-Σ Θ ⊦ x[e˲] : A[e˲]
+Σ Θ ⊦ x[σ] : A[σ]
 
 // Substitution action: t[σ] is defined by ONE meta-level induction
 // on the term sort — the ≜-equations below together with the
@@ -3761,10 +3768,10 @@ e˲ : Θ ⇒ Γ norm
 Ξ ⊦ ☐ₙ[τ ∘ σ] ≜ ☐ₙ[τ][σ] : B[τ][σ]
 
 (Γ ⊦ x ≔ a : A) ∈ Σ
-e˲ : Γ₁ ⇒ Γ norm
+ρ : Γ₁ ⇒ Γ norm
 σ : Γ₀ ⇒ Γ₁
 ---------------------------------------------- (el-sub-sig-var)
-Σ Γ₀ ⊦ x[e˲][σ] ≜ x[e˲ ∘ σ] : A[e˲ ∘ σ]
+Σ Γ₀ ⊦ x[ρ][σ] ≜ x[ρ ∘ σ] : A[ρ ∘ σ]
 
 ## Coercion
 
