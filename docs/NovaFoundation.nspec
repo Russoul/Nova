@@ -3269,17 +3269,26 @@ U[ς]          ≜ U
 
 ## Substitution action
 
-// Substitution acts through the carried signature:
+// Substitution acts through the carried signature. 𝒮[σ] is the Nova
+// substitution through ToS syntax (Theory of signatures): σ on every
+// embedded Nova piece, lifted over the external binders in scope;
+// inductive variables untouched; at a reference it composes,
+// x[e˲][σ] ≜ x[e˲ ∘ σ]. (The reading commutes with it: ⟦𝒮[σ]⟧ = ⟦𝒮⟧[σ].)
 
-(𝒮.𝕤 ē)[σ]          ≜ 𝒮[σ].𝕤 ē[σ]
-(𝒮.𝕔 θ)[σ]          ≜ 𝒮[σ].𝕔 θ[σ]
-(𝒮-elim d̄)[σ]       ≜ 𝒮[σ]-elim d̄[σ]
+Γ₁ ⊦ 𝒮.𝕤 ē : 𝕌ℓ
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------- (ty-sub-qiit)
+Γ₀ ⊦ (𝒮.𝕤 ē)[σ] ≜ 𝒮[σ].𝕤 ē[σ] : 𝕌ℓ
 
-// where 𝒮[σ] is the ToS substitution meta-operation (defined with the
-// grammar above): σ on every embedded Nova piece, lifted over the
-// external binders in scope; inductive variables untouched; at a
-// reference it composes, x[e˲][σ] ≜ x[e˲ ∘ σ]. (The reading commutes
-// with it: ⟦𝒮[σ]⟧ = ⟦𝒮⟧[σ].)
+Γ₁ ⊦ 𝒮.𝕔 θ : A
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------- (el-sub-qiit-intro)
+Γ₀ ⊦ (𝒮.𝕔 θ)[σ] ≜ 𝒮[σ].𝕔 θ[σ] : A[σ]
+
+Γ₁ ⊦ 𝒮-elim d̄ : Δ
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------------- (sp-sub-qiit-elim)
+Γ₀ ⊦ (𝒮-elim d̄)[σ] ≜ 𝒮[σ]-elim d̄[σ] : Δ[σ]
 
 // CONGRUENCE and INJECTIVITY are STRUCTURAL: equal QIIT types/codes have
 // equal signatures (Γ ⊦ 𝒮₀ ≐ 𝒮₁ qctx, IDENTITY above), sort positions,
