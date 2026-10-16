@@ -301,15 +301,14 @@ i, j, k, n ::= <natural number>
 l̄ |= (l̄)
 ℓ |= ℓ + ℓ | ℓ ⊔ ℓ | (ℓ)
 i |= (i) | i + i | |Γ| | |𝒮| | |𝔗| | |Ψ| | 𝕤 | 𝕔
-t, w |= t[σ] | (t) | Γ‖ᵢ | (t / l̄ ↪ Δ)‖ₗ | (l̄ ↪ ē)(l) | 𝒰
+t, w |= t[σ] | (t) | Γ‖ᵢ | 𝒰
     | ⟦𝔄⟧ | ⟦𝕥⟧ | ⟦𝔄⟧ᵉ | ⟦𝔄⟧ᴰ 𝒰 t | ⟦𝕥⟧ᴰ 𝒰̄ | ⟦𝔄⟧ˢ t t | ⟦𝕥⟧ˢ
-    | ē(i) | t ē | h
-    | ⌊𝔽⌋(t) | map_𝔽 t t | map_{𝔽} t t | lift_𝔽(t) | lift_{𝔽}(t) | Δ → t | λ Δ. t
+    | ē(i) | t ē
+    | ⌊𝔽⌋(t) | map_𝔽 t | map_{𝔽} t | lift_𝔽(t) | lift_{𝔽}(t) | Δ → t | λ Δ. t
 𝔽 |= 𝔽[σ] | (𝔽)
 𝒮 |= 𝒮[σ] | (𝒮) | 𝒮 · Ψ
 Ψ |= Ψ[σ] | Ψ[ς] | (Ψ) | 𝔗ᵀ | 𝒮 ∖ 𝒮
 𝔗 |= 𝔗[σ] | 𝔗[ς] | (𝔗) | 𝔄ᵗ
-h, φ ::= <section> | hᵉˡ
 ī ::= · | t, ī | 𝕥, ī       // index spine: external and inductive arguments
 
 // qiit-telescope: ToS entries over a qiit-context, as a telescope over a context
@@ -334,12 +333,12 @@ J ::= Σ sig | Γ ctx | Γ ≐ Γ ctx | Γ ≜ Γ ctx | Σ Γ ctx
     | Γ ⊦ Δ tel | Γ ⊦ Δ ≐ Δ tel | Γ ⊦ Δ ≜ Δ tel | Γ ⊦ Δ tel ℓ | Γ ⊦ Δ ≐ Δ tel ℓ
     | Γ ⊦ ē : Δ | Γ ⊦ ē ≐ ē : Δ | Γ ⊦ ē ≜ ē : Δ
     | (Γ ⊦ x ≔ t : t) ∈ Σ | (Γ ⊦ x : t) ∈ Σ | (Γ ⊦ x ≔ 𝒮 qctx ℓ) ∈ Σ | x ∉ Σ
-    | l ∈ l̄ | l ∉ l̄ | l ≠ l | l̄ distinct | |l̄| = |Δ|
+    | l ∈ l̄ | l ∉ l̄ | l̄ distinct | |l̄| = |Δ| | Γ ⊦ t / l̄ ↪ Δ
     | Γ ; 𝒮 ⊦ 𝔄 qty | Γ ; 𝒮 ⊦ 𝔄 ≐ 𝔄 qty | Γ ; 𝒮 ⊦ 𝔄 ≜ 𝔄 qty
     | Γ ; 𝒮 ⊦ Ψ qtel | Γ ; 𝒮 ⊦ Ψ ≜ Ψ qtel | Γ ; 𝒮 ⊦ 𝔗 qdual | Γ ; 𝒮 ⊦ 𝔗 ≜ 𝔗 qdual | Γ ; 𝒮 ⊦ ī : 𝔗 | Γ ; 𝒮 ⊦ 𝕥 : 𝔄 | Γ ; 𝒮 ⊦ 𝕥 ≐ 𝕥 : 𝔄 | Γ ; 𝒮 ⊦ 𝕥 ≜ 𝕥 : 𝔄 | Γ ⊦ ς : 𝒮 ⇒ 𝒮 | Γ ⊦ ς ≐ ς : 𝒮 ⇒ 𝒮 | Γ ⊦ ς ≜ ς : 𝒮 ⇒ 𝒮
     | Γ ⊦ 𝒮 qctx | Γ ⊦ 𝒮 ≐ 𝒮 qctx | Γ ⊦ 𝒮 ≜ 𝒮 qctx | Γ ⊦ 𝒮 ⊑ 𝒮 | Γ ⊦ 𝒮 ⊑ₛ 𝒮 | Σ Γ ⊦ 𝒮 qctx | Σ Γ ⊦ 𝒮 ≐ 𝒮 qctx | Σ Γ ⊦ 𝒮 ≜ 𝒮 qctx
     | 𝒮(𝕤) = 𝔄 | 𝒮(𝕔) = 𝔄 | Γ ⊦ 𝒰̄ targets 𝒮 | Γ ; 𝒮 ⊦ 𝒰 targets 𝔄 | 𝒰̄‖ᵢ = 𝒰 | Γ ⊦ 𝒰 univ
-    | Γ ⊦ 𝔽 poly | 𝒮 ≼ ℓ | 𝔽 ≼ ℓ | 𝒮 ≼ ℓ | 𝔄 ≼ ℓ | Γ ⊦ 𝒰 univ | 𝒰 ≼ 𝒰 | 𝒰 ≼ ℓ | 𝒰̄ ≼ ℓ | ℓ ≤ ℓ
+    | Γ ⊦ 𝔽 poly | Γ ⊦ 𝔽 ≐ 𝔽 poly | Γ ⊦ 𝔽 ≜ 𝔽 poly | 𝒮 ≼ ℓ | 𝔽 ≼ ℓ | 𝒮 ≼ ℓ | 𝔄 ≼ ℓ | Γ ⊦ 𝒰 univ | 𝒰 ≼ 𝒰 | 𝒰 ≼ ℓ | 𝒰̄ ≼ ℓ | ℓ ≤ ℓ
 D ::= t ≜ t | Γ ≜ Γ | Δ ≜ Δ | Ψ ≜ Ψ | 𝔗 ≜ 𝔗 | σ ≜ σ | ē ≜ ē | 𝒮 ≜ 𝒮 | 𝔄 ≜ 𝔄 | 𝕥 ≜ 𝕥
     | Γ ⊦ t : t ≜ Γ ⊦ t ≐ t : t
 
@@ -3890,36 +3889,69 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 ---------------------------------- (poly-pi)
 Γ ⊦ a → 𝔽 poly
 
-// REFLECTION ⌊𝔽⌋(c) — the code with the hole filled by Γ ⊦ c : 𝕌ℓ
-// (≜-defined by meta-level induction on 𝔽, like the QIIT reading; c
-// weakens under the binders):
+// REFLECTION ⌊𝔽⌋(c): the code with the hole filled by Γ ⊦ c : 𝕌ℓ.
 
-⌊𝕏⌋(c)          ≜ c
-⌊K a⌋(c)        ≜ a
-⌊𝔽 × 𝔾⌋(c)      ≜ ⌊𝔽⌋(c) × ⌊𝔾⌋(c)[↑]      // ty-sigma, non-dependent
-⌊𝔽 ⊎ 𝔾⌋(c)      ≜ ⌊𝔽⌋(c) ⊎ ⌊𝔾⌋(c)         // ty-sum, direct
-⌊a × 𝔽⌋(c)   ≜ a × ⌊𝔽⌋(c[↑])
-⌊a → 𝔽⌋(c)   ≜ a → ⌊𝔽⌋(c[↑])
+Γ ⊦ 𝔽 poly      𝔽 ≼ ℓ      Γ ⊦ c : 𝕌ℓ
+--------------------------------------- (ty-poly)
+Γ ⊦ ⌊𝔽⌋(c) : 𝕌ℓ
 
-// FUNCTORIAL ACTION map_𝔽 — for Γ ⊦ g : c₀ → c₁, a function
-// term Γ ⊦ map_𝔽 g : ⌊𝔽⌋(c₀) → ⌊𝔽⌋(c₁), ≜-defined by
-// meta-level induction on 𝔽 (clauses written applied; at the binding
-// formers the recursion proceeds at the instantiated body and g
-// weakens under the binder; the sum clause is ⊎-elim at constant
-// motive):
+Γ ⊦ c : 𝕌ℓ
+----------------------- (ty-poly-hole)
+Γ ⊦ ⌊𝕏⌋(c) ≜ c : 𝕌ℓ
 
-map_𝕏 g x             ≜ g x
-map_{K a} g x         ≜ x
-map_{𝔽 × 𝔾} g p       ≜ (map_𝔽 g (p .π₁) , map_𝔾 g (p .π₂))
-map_{𝔽 ⊎ 𝔾} g s       ≜ ⊎-elim (inj₁ (map_𝔽 g[↑] ☐₀)) (inj₂ (map_𝔾 g[↑] ☐₀)) s
-map_{a × 𝔽} g p    ≜ (p .π₁ , map_𝔽 g (p .π₂))
-map_{a → 𝔽} g f    ≜ λ (map_𝔽 g[↑] (f[↑] ☐₀))
+Γ ⊦ a : 𝕌ℓ      Γ ⊦ c : 𝕌ℓ
+--------------------------- (ty-poly-const)
+Γ ⊦ ⌊K a⌋(c) ≜ a : 𝕌ℓ
 
-// The FUNCTOR LAWS — map_𝔽 (λ ☐₀) ≐ λ ☐₀ and
-// map_𝔽 (g₁ ∘ g₀-composite) ≐ map_𝔽 g₁ ∘ map_𝔽 g₀ pointwise — are
-// derivable per polynomial by meta-level induction on 𝔽, each
-// instance an ordinary internal equation (β, η and ⊎-eta per
-// former).
+Γ ⊦ 𝔽 × 𝔾 poly      𝔽 × 𝔾 ≼ ℓ      Γ ⊦ c : 𝕌ℓ
+------------------------------------------------ (ty-poly-prod)   // ty-sigma, non-dependent
+Γ ⊦ ⌊𝔽 × 𝔾⌋(c) ≜ ⌊𝔽⌋(c) × ⌊𝔾⌋(c)[↑] : 𝕌ℓ
+
+Γ ⊦ 𝔽 ⊎ 𝔾 poly      𝔽 ⊎ 𝔾 ≼ ℓ      Γ ⊦ c : 𝕌ℓ
+------------------------------------------------ (ty-poly-sum)
+Γ ⊦ ⌊𝔽 ⊎ 𝔾⌋(c) ≜ ⌊𝔽⌋(c) ⊎ ⌊𝔾⌋(c) : 𝕌ℓ
+
+Γ ⊦ a × 𝔽 poly      a × 𝔽 ≼ ℓ      Γ ⊦ c : 𝕌ℓ
+------------------------------------------------ (ty-poly-sigma)
+Γ ⊦ ⌊a × 𝔽⌋(c) ≜ a × ⌊𝔽⌋(c[↑]) : 𝕌ℓ
+
+Γ ⊦ a → 𝔽 poly      a → 𝔽 ≼ ℓ      Γ ⊦ c : 𝕌ℓ
+------------------------------------------------ (ty-poly-pi)
+Γ ⊦ ⌊a → 𝔽⌋(c) ≜ a → ⌊𝔽⌋(c[↑]) : 𝕌ℓ
+
+// FUNCTORIAL ACTION map_𝔽 g, a function term; its β-equations follow
+// the shape of 𝔽 (the sum by ⊎-elim at constant motive). The functor
+// laws — map_𝔽 (λ ☐₀) ≐ λ ☐₀, and map of a composite is the composite
+// of the maps, pointwise — are derivable per polynomial (β, η and
+// ⊎-eta per former).
+
+Γ ⊦ 𝔽 poly      𝔽 ≼ ℓ      Γ ⊦ c₀ : 𝕌ℓ      Γ ⊦ c₁ : 𝕌ℓ      Γ ⊦ g : c₀ → c₁[↑]
+--------------------------------------------------------------------------------- (el-map)
+Γ ⊦ map_𝔽 g : ⌊𝔽⌋(c₀) → ⌊𝔽⌋(c₁)[↑]
+
+Γ ⊦ map_𝕏 g : ⌊𝕏⌋(c₀) → ⌊𝕏⌋(c₁)[↑]      Γ ⊦ x : c₀
+---------------------------------------------------- (el-map-hole)
+Γ ⊦ map_𝕏 g x ≜ g x : c₁
+
+Γ ⊦ map_{K a} g : ⌊K a⌋(c₀) → ⌊K a⌋(c₁)[↑]      Γ ⊦ x : a
+---------------------------------------------------------- (el-map-const)
+Γ ⊦ map_{K a} g x ≜ x : a
+
+Γ ⊦ map_{𝔽 × 𝔾} g : ⌊𝔽 × 𝔾⌋(c₀) → ⌊𝔽 × 𝔾⌋(c₁)[↑]      Γ ⊦ p : ⌊𝔽 × 𝔾⌋(c₀)
+----------------------------------------------------------------------------- (el-map-prod)
+Γ ⊦ map_{𝔽 × 𝔾} g p ≜ (map_𝔽 g (p .π₁) , map_𝔾 g (p .π₂)) : ⌊𝔽 × 𝔾⌋(c₁)
+
+Γ ⊦ map_{𝔽 ⊎ 𝔾} g : ⌊𝔽 ⊎ 𝔾⌋(c₀) → ⌊𝔽 ⊎ 𝔾⌋(c₁)[↑]      Γ ⊦ s : ⌊𝔽 ⊎ 𝔾⌋(c₀)
+------------------------------------------------------------------------------------------- (el-map-sum)
+Γ ⊦ map_{𝔽 ⊎ 𝔾} g s ≜ ⊎-elim (inj₁ ((map_𝔽 g)[↑] ☐₀)) (inj₂ ((map_𝔾 g)[↑] ☐₀)) s : ⌊𝔽 ⊎ 𝔾⌋(c₁)
+
+Γ ⊦ map_{a × 𝔽} g : ⌊a × 𝔽⌋(c₀) → ⌊a × 𝔽⌋(c₁)[↑]      Γ ⊦ p : ⌊a × 𝔽⌋(c₀)
+----------------------------------------------------------------------------- (el-map-sigma)
+Γ ⊦ map_{a × 𝔽} g p ≜ (p .π₁ , map_{𝔽[id, p .π₁]} g (p .π₂)) : ⌊a × 𝔽⌋(c₁)
+
+Γ ⊦ map_{a → 𝔽} g : ⌊a → 𝔽⌋(c₀) → ⌊a → 𝔽⌋(c₁)[↑]      Γ ⊦ f : ⌊a → 𝔽⌋(c₀)
+----------------------------------------------------------------------------- (el-map-pi)
+Γ ⊦ map_{a → 𝔽} g f ≜ λ (map_𝔽 g[↑] (f[↑] ☐₀)) : ⌊a → 𝔽⌋(c₁)
 
 ## Identity
 
@@ -3959,9 +3991,7 @@ map_{a → 𝔽} g f    ≜ λ (map_𝔽 g[↑] (f[↑] ☐₀))
 // polynomial 𝔽 is CARRIED by the term (like d̄ at 𝒮-elim — β
 // consumes map_𝔽, so the redex is self-contained); the carrier code a
 // is not — typing alone reads it, and a term carries only what
-// computation reads. f is the coalgebra body, x the seed. Write
-// hᵉˡ ≜ λ (corec 𝔽 f[↑] ☐₀) for the corecursor as a function term
-// (cf. 𝒮-elim at el-qiit-elim):
+// computation reads. f is the coalgebra body, x the seed.
 
 Γ ⊦ 𝔽 poly      Γ ⊦ a : 𝕌₀
 Γ ▷ a ⊦ f : ⌊𝔽⌋(a)[↑]
@@ -3978,7 +4008,7 @@ map_{a → 𝔽} g f    ≜ λ (map_𝔽 g[↑] (f[↑] ☐₀))
 Γ ▷ a ⊦ f : ⌊𝔽⌋(a)[↑]
 Γ ⊦ x : a
 ------------------------------------------------------------- (el-nu-beta)
-Γ ⊦ out (corec 𝔽 f x) ≜ map_𝔽 hᵉˡ (f[id, x]) : ⌊𝔽⌋(ν 𝔽)
+Γ ⊦ out (corec 𝔽 f x) ≜ map_𝔽 (λ (corec 𝔽[↑] f[↑⁺] ☐₀)) (f[id, x]) : ⌊𝔽⌋(ν 𝔽)
 
 ## Uniqueness
 
@@ -3988,7 +4018,7 @@ map_{a → 𝔽} g f    ≜ λ (map_𝔽 g[↑] (f[↑] ☐₀))
 Γ ⊦ 𝔽 poly      Γ ⊦ a : 𝕌₀
 Γ ▷ a ⊦ f : ⌊𝔽⌋(a)[↑]
 Γ ▷ a ⊦ h : (ν 𝔽)[↑]
-Γ ▷ a ⊦ out h ≐ map_𝔽 ((λ h)[↑]) f : ⌊𝔽⌋(ν 𝔽)[↑]
+Γ ▷ a ⊦ out h ≐ (map_𝔽 (λ h))[↑] f : ⌊𝔽⌋(ν 𝔽)[↑]
 Γ ⊦ x : a
 ------------------------------------------------------------- (el-nu-eta)
 Γ ⊦ h[id, x] ≐ corec 𝔽 f x : ν 𝔽
@@ -4005,35 +4035,46 @@ map_{a → 𝔽} g f    ≜ λ (map_𝔽 g[↑] (f[↑] ☐₀))
 // el-nu-eta's corollary adopted as a
 // rule for the kernel's convenience (the el-squash-e-eq precedent:
 // ADMISSIBLE, kept because the kernel checks it directly). It needs
-// one more ≜-meta-operation, the RELATOR lift_𝔽(R) — the relation
-// lifting of a polynomial: for Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ⊦ R : Ω and
-// elements u, v of ⌊𝔽⌋(ν 𝔽)'s decoding (R's base weakens under every
-// binder the clauses cross; its own two binders lift over it):
-//
+// THE RELATOR lift_𝔽(R) — the relation lifting of a polynomial, for a
+// relation R on a code c, a function term into Ω. Its β-equations
+// follow the shape of 𝔽: the sum by ⊎-elim at motive Ω, ⊥ = ∥𝟘∥ off
+// the diagonal (the tag mismatch judgementally visible); at a
+// dependent pair the second components are compared under the
+// equation of the first, where their types agree by el-reflect — no
+// transport, the same extensional degeneration as the QIIT ᴰ-clauses.
 
-lift_𝕏(R) u v          ≜ R[id, u, v]
-lift_{K a}(R) u v      ≜ u ≡ v ∈ a
+Γ ⊦ 𝔽 poly      𝔽 ≼ ℓ      Γ ⊦ c : 𝕌ℓ      Γ ▷ c ▷ c[↑] ⊦ R : Ω
+------------------------------------------------------------------ (el-relator)
+Γ ⊦ lift_𝔽(R) : ⌊𝔽⌋(c) → ⌊𝔽⌋(c)[↑] → Ω
 
-//     lift_{𝔽 × 𝔾}(R) u v    ≜ ∥(lift_𝔽(R) (u .π₁) (v .π₁))
-//                                 × (lift_𝔾(R) (u .π₂) (v .π₂))∥
-//     lift_{𝔽 ⊎ 𝔾}(R) u v    ≜ ⊎-elim at motive Ω, on u then v:
-//                              the diagonal branches lift the
-//                              payloads, the off-diagonal ones are ⊥
-//                              — definitional collapse at canonical
-//                              forms, the tag mismatch judgementally
-//                              visible
-//     lift_{a × 𝔽}(R) u v ≜ ∥(h : u .π₁ ≡ v .π₁ ∈ a)
-//                                 × (lift_{𝔽[u .π₁]}(R) (u .π₂) (v .π₂))∥
-//                              # the two instances are ≐ under h by
-//                              # el-reflect — no transport, the same
-//                              # extensional degeneration as the
-//                              # QIIT ᴰ-clauses
-//     lift_{a → 𝔽}(R) u v ≜ ∥(x : a) → lift_𝔽(R) (u x) (v x)∥
+Γ ⊦ lift_𝕏(R) : ⌊𝕏⌋(c) → ⌊𝕏⌋(c)[↑] → Ω      Γ ⊦ u : c      Γ ⊦ v : c
+------------------------------------------------------------------------ (el-relator-hole)
+Γ ⊦ lift_𝕏(R) u v ≜ R[id, u, v] : Ω
+
+Γ ⊦ lift_{K a}(R) : ⌊K a⌋(c) → ⌊K a⌋(c)[↑] → Ω      Γ ⊦ u : a      Γ ⊦ v : a
+------------------------------------------------------------------------------ (el-relator-const)
+Γ ⊦ lift_{K a}(R) u v ≜ (u ≡ v ∈ a) : Ω
+
+Γ ⊦ lift_{𝔽 × 𝔾}(R) : ⌊𝔽 × 𝔾⌋(c) → ⌊𝔽 × 𝔾⌋(c)[↑] → Ω      Γ ⊦ u : ⌊𝔽 × 𝔾⌋(c)      Γ ⊦ v : ⌊𝔽 × 𝔾⌋(c)
+------------------------------------------------------------------------------------------------- (el-relator-prod)
+Γ ⊦ lift_{𝔽 × 𝔾}(R) u v ≜ ∥lift_𝔽(R) (u .π₁) (v .π₁) × (lift_𝔾(R) (u .π₂) (v .π₂))[↑]∥ : Ω
+
+Γ ⊦ lift_{𝔽 ⊎ 𝔾}(R) : ⌊𝔽 ⊎ 𝔾⌋(c) → ⌊𝔽 ⊎ 𝔾⌋(c)[↑] → Ω      Γ ⊦ u : ⌊𝔽 ⊎ 𝔾⌋(c)      Γ ⊦ v : ⌊𝔽 ⊎ 𝔾⌋(c)
+------------------------------------------------------------------------------------------------------------- (el-relator-sum)
+Γ ⊦ lift_{𝔽 ⊎ 𝔾}(R) u v ≜ ⊎-elim (⊎-elim (lift_𝔽(R)[↑ ∘ ↑] ☐₁ ☐₀) ∥𝟘∥ v[↑]) (⊎-elim ∥𝟘∥ (lift_𝔾(R)[↑ ∘ ↑] ☐₁ ☐₀) v[↑]) u : Ω
+
+Γ ⊦ lift_{a × 𝔽}(R) : ⌊a × 𝔽⌋(c) → ⌊a × 𝔽⌋(c)[↑] → Ω      Γ ⊦ u : ⌊a × 𝔽⌋(c)      Γ ⊦ v : ⌊a × 𝔽⌋(c)
+------------------------------------------------------------------------------------------------- (el-relator-sigma)
+Γ ⊦ lift_{a × 𝔽}(R) u v ≜ ∥(u .π₁ ≡ v .π₁ ∈ a) × lift_{𝔽[id, u .π₁]}(R)[↑] (u[↑] .π₂) (v[↑] .π₂)∥ : Ω
+
+Γ ⊦ lift_{a → 𝔽}(R) : ⌊a → 𝔽⌋(c) → ⌊a → 𝔽⌋(c)[↑] → Ω      Γ ⊦ u : ⌊a → 𝔽⌋(c)      Γ ⊦ v : ⌊a → 𝔽⌋(c)
+------------------------------------------------------------------------------------------------- (el-relator-pi)
+Γ ⊦ lift_{a → 𝔽}(R) u v ≜ ∥a → lift_𝔽(R[↑⁺⁺]) (u[↑] ☐₀) (v[↑] ☐₀)∥ : Ω
 
 Γ ⊦ 𝔽 poly
 Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ⊦ R : Ω
 Γ ⊦ p : R[id, t₀, t₁]
-Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ▷ R ⊦ q : lift_𝔽(R) (out ☐₂) (out ☐₁)
+Γ ▷ ν 𝔽 ▷ (ν 𝔽)[↑] ▷ R ⊦ q : lift_𝔽(R)[↑ ∘ ↑ ∘ ↑] (out ☐₂) (out ☐₁)
 Γ ⊦ t₀ : ν 𝔽      Γ ⊦ t₁ : ν 𝔽
 ------------------------------------------------------------------- (el-nu-coind)
 Γ ⊦ t₀ ≐ t₁ : ν 𝔽
@@ -4053,13 +4094,47 @@ lift_{K a}(R) u v      ≜ u ≡ v ∈ a
 
 ## Substitution action
 
-// Substitution acts through the carried
-// polynomial (𝔽[σ] the evident meta-operation: σ on the embedded
-// Nova pieces, lifted under the binders; the hole is inert):
+// Substitution acts through the carried polynomial; the hole is inert.
 
-(ν 𝔽)[σ]        ≜ ν 𝔽[σ]      // type and code
-(out t)[σ]      ≜ out t[σ]
-(corec 𝔽 f x)[σ] ≜ corec 𝔽[σ] f[σ⁺] x[σ]
+Γ ⊦ 𝔽 poly      σ : Θ ⇒ Γ
+-------------------------- (poly-sub)
+Θ ⊦ 𝔽[σ] poly
+
+σ : Θ ⇒ Γ
+--------------------- (poly-sub-hole)
+Θ ⊦ 𝕏[σ] ≜ 𝕏 poly
+
+Γ ⊦ a : 𝕌ℓ      σ : Θ ⇒ Γ
+---------------------------- (poly-sub-const)
+Θ ⊦ (K a)[σ] ≜ K a[σ] poly
+
+Γ ⊦ 𝔽 × 𝔾 poly      σ : Θ ⇒ Γ
+---------------------------------- (poly-sub-prod)
+Θ ⊦ (𝔽 × 𝔾)[σ] ≜ 𝔽[σ] × 𝔾[σ] poly
+
+Γ ⊦ 𝔽 ⊎ 𝔾 poly      σ : Θ ⇒ Γ
+---------------------------------- (poly-sub-sum)
+Θ ⊦ (𝔽 ⊎ 𝔾)[σ] ≜ 𝔽[σ] ⊎ 𝔾[σ] poly
+
+Γ ⊦ a × 𝔽 poly      σ : Θ ⇒ Γ
+------------------------------------ (poly-sub-sigma)
+Θ ⊦ (a × 𝔽)[σ] ≜ a[σ] × 𝔽[σ⁺] poly
+
+Γ ⊦ a → 𝔽 poly      σ : Θ ⇒ Γ
+------------------------------------ (poly-sub-pi)
+Θ ⊦ (a → 𝔽)[σ] ≜ a[σ] → 𝔽[σ⁺] poly
+
+Γ₁ ⊦ ν 𝔽 : 𝕌ℓ      σ : Γ₀ ⇒ Γ₁
+--------------------------------- (ty-sub-nu)
+Γ₀ ⊦ (ν 𝔽)[σ] ≜ ν 𝔽[σ] : 𝕌ℓ
+
+Γ₁ ⊦ out t : A      σ : Γ₀ ⇒ Γ₁
+--------------------------------- (el-sub-nu-e)
+Γ₀ ⊦ (out t)[σ] ≜ out t[σ] : A[σ]
+
+Γ₁ ⊦ corec 𝔽 f x : A      σ : Γ₀ ⇒ Γ₁
+---------------------------------------------------- (el-sub-nu-i)
+Γ₀ ⊦ (corec 𝔽 f x)[σ] ≜ corec 𝔽[σ] f[σ⁺] x[σ] : A[σ]
 
 ## Notes
 
@@ -4171,64 +4246,35 @@ l l̄ distinct
 
 // |l̄| = |Δ|: the lists have the same length
 
-## Meta-defined notions
+## Fields
 
-// (The telescope AT A LEVEL, Γ ⊦ Δ tel ℓ, and its
-// meta-lemmas are in Rules (tel).)
+// Γ ⊦ t / l̄ ↪ Δ: the fields l̄ of t have the types Δ — a SUFFIX of t's
+// record, over Γ, the earlier fields instantiated at t's projections.
+// A projection and the spine of projections t.l̄ are typed by it.
 
-// The component of a body at a label.
+Γ ⊦ t : Rec l̄ Δ
+---------------- (rec-fields)
+Γ ⊦ t / l̄ ↪ Δ
 
-(l l̄ ↪ e, ē)(l) ≜ e
-(l′ l̄ ↪ e, ē)(l) ≜ (l̄ ↪ ē)(l)                      l′ ≠ l
+Γ ⊦ t / l l̄ ↪ A ◁ Δ
+----------------------- (rec-fields-step)
+Γ ⊦ t / l̄ ↪ Δ[id, t.l]
 
-// The spine of projections of t at the labels l̄, by induction on l̄.
+Γ ⊦ t₀ ≐ t₁ : Rec l̄′ Δ′      Γ ⊦ Δ₀ ≐ Δ₁ tel      Γ ⊦ t₀ / l̄ ↪ Δ₀
+----------------------------------------------------------------- (rec-fields-coe)
+Γ ⊦ t₁ / l̄ ↪ Δ₁
 
-t.·     ≜ ·
-t.(l l̄) ≜ t.l, t.l̄
+Γ ⊦ t / l̄ ↪ Δ
+--------------- (sp-rec-proj)
+Γ ⊦ t.l̄ : Δ
 
-// The TYPE OF THE FIELD l of t. t is FIXED — an element of the record
-// being walked from its start, not of the suffix — and the suffix l̄ ↪ Δ
-// is over Γ, its earlier fields already instantiated at t's projections.
+Γ ⊦ t / · ↪ ε
+----------------- (sp-rec-proj-empty)
+Γ ⊦ t.· ≜ · : ε
 
-(t / l l̄ ↪ A ◁ Δ)‖ₗ ≜ A
-(t / l′ l̄ ↪ A ◁ Δ)‖ₗ ≜ (t / l̄ ↪ Δ[id, t.l′])‖ₗ      l′ ≠ l
-
-// Closed form: for l̄ = l̄′ l l̄″ with l's entry A over Γ·(the entries
-// of l̄′),
-//     (t / l̄ ↪ Δ)‖ₗ ≐ A[id, t.l̄′]
-//
-// META-LEMMA (well-formedness). If Γ ⊦ t : Rec l̄ Δ, Γ ⊦ Δ tel ℓ and
-// l ∈ l̄ then
-//     Γ ⊦ (t / l̄ ↪ Δ)‖ₗ : 𝕌ℓ
-// By induction on the position of l, together with el-rec-e at the
-// earlier labels (each step of the walk uses the typing of t.l′ at the
-// field type the walk has just reached, and the suffix stays a
-// telescope at ℓ — tel ℓ's substitution meta-lemma).
-//
-// META-LEMMA (congruence). If Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ, Γ ⊦ t₀ ≐ t₁ : Rec l̄ Δ₁
-// and l ∈ l̄ then
-//     Γ ⊦ (t₀ / l̄ ↪ Δ₀)‖ₗ ≐ (t₁ / l̄ ↪ Δ₁)‖ₗ : 𝕌ℓ
-// By induction on the position of l, the two walks kept in step: their
-// suffixes stay equal telescopes at ℓ over Γ. At l the field types are
-// the heads of the suffixes, equal at 𝕌ℓ by tel-lvl-ext read
-// backwards. Past an earlier label l′, with heads A₀ ≐ A₁, the suffixes
-// become
-//     Δ₀′[id, t₀.l′] ≐ Δ₁′[id, t₁.l′]
-// by tel ℓ's substitution meta-lemma, from Δ₀′ ≐ Δ₁′ over Γ ▷ A₁ and
-// t₀.l′ ≐ t₁.l′ : A₁ — the FULL (doubled) form of el-rec-e at l′, whose
-// type is the field type the right walk has just reached. The lemma at l
-// thus uses el-rec-e only at EARLIER labels, and gives in return what the
-// doubled el-rec-e needs at l: its left instance t₀.l, typed at
-// (t₀ / l̄ ↪ Δ₁)‖ₗ, is typed at the right instance's (t₁ / l̄ ↪ Δ₁)‖ₗ by
-// coercion.
-// Instances: Δ₀ = Δ₁ is congruence in the element (the doubling of
-// el-rec-e); t₀ = t₁ is congruence in the telescope (an element of
-// Rec l̄ Δ₁ is one of Rec l̄ Δ₀ by ty-rec's full form and coercion, and
-// its field types at the two agree).
-//
-// META-LEMMA (substitution). For σ : Γ₀ ⇒ Γ₁,
-//     (t / l̄ ↪ Δ)‖ₗ[σ] ≐ (t[σ] / l̄ ↪ Δ[σ])‖ₗ
-// by the same induction, from Δ[id, t.l′][σ] ≐ Δ[σ⁺][id, t[σ].l′].
+Γ ⊦ t / l l̄ ↪ A ◁ Δ
+--------------------------------- (sp-rec-proj-ext)
+Γ ⊦ t.(l l̄) ≜ t.l, t.l̄ : A ◁ Δ
 
 ## Rules
 
@@ -4252,24 +4298,29 @@ l̄ distinct
 ----------------------- (el-rec-i)
 Γ ⊦ ⟨l̄ ↪ ē⟩ : Rec l̄ Δ
 
-Γ ⊦ t : Rec l̄ Δ
-l ∈ l̄
-------------------------- (el-rec-e)
-Γ ⊦ t.l : (t / l̄ ↪ Δ)‖ₗ
+Γ ⊦ t / l l̄ ↪ A ◁ Δ
+-------------------- (el-rec-e)   // congruence: at t₀, then rec-fields-coe
+Γ ⊦ t.l : A
 
-// Computation: ONE rule, by lookup. The premises are el-rec-i's — the
-// components typed, as in el-sigma-beta₁/₂ — not the typing of the record:
-// that a typed record has typed components is no lemma of the theory, and
-// the rule must not assert it. The type is el-rec-e's spelling; it agrees
-// with the spine's own typing of the component (sp-ext) by this rule at
-// the earlier labels.
+// Computation: by the position of the label. The premises are
+// el-rec-i's — the components typed, as in el-sigma-beta₁/₂ — not the
+// typing of the record: that a typed record has typed components is no
+// lemma of the theory, and the rule must not assert it. The miss step
+// is well-typed by induction along l̄: the fields of the two records
+// agree at the earlier labels by this rule.
 
-Γ ⊦ ē : Δ
-l̄ distinct
-|l̄| = |Δ|
-l ∈ l̄
---------------------------------------------------- (el-rec-beta)
-Γ ⊦ ⟨l̄ ↪ ē⟩.l ≜ (l̄ ↪ ē)(l) : (⟨l̄ ↪ ē⟩ / l̄ ↪ Δ)‖ₗ
+Γ ⊦ e, ē : A ◁ Δ
+l l̄ distinct
+|l l̄| = |A ◁ Δ|
+---------------------------- (el-rec-beta)
+Γ ⊦ ⟨l l̄ ↪ e, ē⟩.l ≜ e : A
+
+Γ ⊦ e, ē : A ◁ Δ
+l′ l̄ distinct
+|l′ l̄| = |A ◁ Δ|
+Γ ⊦ ⟨l̄ ↪ ē⟩.l : B
+--------------------------------------- (el-rec-beta-miss)
+Γ ⊦ ⟨l′ l̄ ↪ e, ē⟩.l ≜ ⟨l̄ ↪ ē⟩.l : B
 
 // Uniqueness, in el-sigma-eta's form and orientation. At l̄ = · this is
 // ⟨⟩ ≐ t : Rec · ε — the empty record is a unit type.
@@ -4305,11 +4356,10 @@ l̄ distinct
 ------------------------------------------- (el-sub-record)
 Γ₀ ⊦ ⟨l̄ ↪ ē⟩[σ] ≜ ⟨l̄ ↪ ē[σ]⟩ : Rec l̄ Δ[σ]
 
-Γ₁ ⊦ t : Rec l̄ Δ
-l ∈ l̄
+Γ₁ ⊦ t.l : A
 σ : Γ₀ ⇒ Γ₁
----------------------------------------------- (el-sub-rec-proj)
-Γ₀ ⊦ (t.l)[σ] ≜ t[σ].l : (t[σ] / l̄ ↪ Δ[σ])‖ₗ
+------------------------------- (el-sub-rec-proj)
+Γ₀ ⊦ (t.l)[σ] ≜ t[σ].l : A[σ]
 
 # Rule name scheme
 
@@ -4320,6 +4370,6 @@ l ∈ l̄
 // structure is two RULES for the judgement and the diagonal notation
 // (el-sym, el-trans, el-refl — stated in EQUALITY) and META-LEMMAS
 // for the meta-defined spellings. The poly class has
-// well-formedness rules only (polynomials are inert syntax, no
-// equality of their own). All other names appear verbatim on their
+// well-formedness rules and the substitution action only (polynomials
+// are inert syntax, compared structurally). All other names appear verbatim on their
 // rules; there are no synonyms.
