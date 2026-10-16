@@ -41,7 +41,7 @@
 // NOTE: well-typed terms need not normalize in an inconsistent context.
 // Equality reflection makes typability hypothesis-sensitive: e.g. under
 // Γ ∋ h : (A ≡ (A → A) ∈ 𝕌), the equation A ≐ A → A holds (and
-// lifts to types by code-lift-eq), so
+// lifts to types by code-lift), so
 // self-application types and ω ω is well-formed at A, where ω ≔ λx. x x
 // — yet ω ω has no normal form. Normalization is therefore a property of terms
 // in consistent contexts only; any procedure that beta-normalizes a
@@ -817,6 +817,11 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 ------------------------------- (ty-sum)     // non-dependent: B over Γ, not Γ ▷ A
 Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ : 𝕌ℓ
 
+Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
+Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
+-------------------------------- (ty-quot)   // the relation slot is Ω, at any level of A:
+Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕌ℓ                   //   a quotient is at the level of its carrier
+
 ## Cumulativity
 
 // There is no decoding former: every element of 𝕌ℓ IS
@@ -832,12 +837,8 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 // type only: a function into 𝕌ℓ is not thereby a function into 𝕌ℓ₊₁
 // (η-expand it); a context entry at 𝕌ℓ is not one at 𝕌ℓ₊₁.
 
-Γ ⊦ a : 𝕌ℓ
------------------ (code-lift)
-Γ ⊦ a : 𝕌ℓ₊₁
-
 Γ ⊦ a₀ ≐ a₁ : 𝕌ℓ
------------------ (code-lift-eq)
+----------------- (code-lift)
 Γ ⊦ a₀ ≐ a₁ : 𝕌ℓ₊₁
 
 Γ ⊦ a₀ : 𝕌ℓ
@@ -855,9 +856,9 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 // MANDATORY for the same reason code-restrict is (it keeps the props
 // (p ≡ q ∈ Ω) and (p ≡ q ∈ 𝕌₀) equi-true at props, so the ∈-slot
 // stays well-defined). THE ASYMMETRY with the 𝕌 triple, stated
-// plainly: code-lift-eq imports nothing (a level's equality is the
+// plainly: code-lift imports nothing (a level's equality is the
 // restriction of the next level's structural equality on the nose),
-// but prop-lift-eq imports PROPOSITIONAL EXTENSIONALITY into 𝕌₀ — on
+// but prop-lift imports PROPOSITIONAL EXTENSIONALITY into 𝕌₀ — on
 // the prop cluster, type equality is mere equivalence (code-prop-eq).
 // Type equality at EVERY universe is thereafter MIXED: structural on
 // the code cluster, extensional on the prop cluster. This is no cost
@@ -866,7 +867,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 // proposition into 𝕌₀ up to iff (see the impredicativity note in the
 // Ω block), and prf r ≐ prf r′ : 𝕌₀ whenever r ⟺ r′ — the small
 // universe's equality is mixed without the lift, which only makes it
-// so directly. prop-lift-eq is PRIMITIVE, not an el-sub instance
+// so directly. prop-lift is PRIMITIVE, not an el-sub instance
 // (the master congruence at ☐₀ over Γ ▷ Ω concludes at Ω, not 𝕌₀ —
 // nothing else lifts the coarse equality). CROSS-CLUSTER equations
 // are underivable by absence: ∥𝟙∥ ≐ 𝟙 : 𝕌₀ has no derivation —
@@ -883,12 +884,8 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 // no 𝕌₀ code (THE TOWER): the lift is of propositions, never of
 // their universe.
 
-Γ ⊦ p : Ω
------------------ (prop-lift)
-Γ ⊦ p : 𝕌₀
-
 Γ ⊦ p₀ ≐ p₁ : Ω
------------------ (prop-lift-eq)
+----------------- (prop-lift)
 Γ ⊦ p₀ ≐ p₁ : 𝕌₀
 
 Γ ⊦ p₀ : Ω
@@ -946,43 +943,6 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 //   * (lift) Γ ⊦ a₀ ≐ a₁ : 𝒰 and 𝒰 ≼ 𝒰′ give Γ ⊦ a₀ ≐ a₁ : 𝒰′.
 //   * (restrict) Γ ⊦ a₀ : 𝒰, Γ ⊦ a₁ : 𝒰, 𝒰 ≼ 𝒰′ and Γ ⊦ a₀ ≐ a₁ : 𝒰′
 //     give Γ ⊦ a₀ ≐ a₁ : 𝒰.
-
-Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
-Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
--------------------------------- (ty-quot)   // the relation slot is Ω, at any level of A:
-Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ : 𝕌ℓ                   //   a quotient is at the level of its carrier
-
-σ : Γ₀ ⇒ Γ₁
-------------------------------------------------------------------------- (ty-sub-atoms)
-Γ₀ ⊦ 𝟘[σ] ≐ 𝟘 : 𝕌₀
-Γ₀ ⊦ 𝟙[σ] ≐ 𝟙 : 𝕌₀
-Γ₀ ⊦ ℕ[σ] ≐ ℕ : 𝕌₀
-Γ₀ ⊦ 𝕌ℓ[σ] ≐ 𝕌ℓ : 𝕌ℓ₊₁
-Γ₀ ⊦ Ω[σ] ≐ Ω : 𝕌₁
-
-Γ₁ ⊦ A : 𝕌ℓ
-Γ₁ ▷ A ⊦ B : 𝕌ℓ
-σ : Γ₀ ⇒ Γ₁
---------------------------------------- (ty-sub-pi)
-Γ₀ ⊦ (A → B)[σ] ≐ A[σ] → B[σ ▷ A] : 𝕌ℓ
-
-Γ₁ ⊦ A : 𝕌ℓ
-Γ₁ ▷ A ⊦ B : 𝕌ℓ
-σ : Γ₀ ⇒ Γ₁
---------------------------------------- (ty-sub-sigma)
-Γ₀ ⊦ (A × B)[σ] ≐ A[σ] × B[σ ▷ A] : 𝕌ℓ
-
-Γ₁ ⊦ A : 𝕌ℓ
-Γ₁ ⊦ B : 𝕌ℓ
-σ : Γ₀ ⇒ Γ₁
---------------------------------------- (ty-sub-sum)
-Γ₀ ⊦ (A ⊎ B)[σ] ≐ A[σ] ⊎ B[σ] : 𝕌ℓ
-
-Γ₁ ⊦ A : 𝕌ℓ
-Γ₁ ▷ A ▷ A[↑] ⊦ R : Ω
-σ : Γ₀ ⇒ Γ₁
----------------------------------------- (ty-sub-quot)
-Γ₀ ⊦ (A / R)[σ] ≐ A[σ] / R[σ ▷ A ▷ A[↑]] : 𝕌ℓ
 
 # Type constructor injectivity
 //
@@ -1158,7 +1118,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 //   * (forget) Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ gives Γ ⊦ Δ₀ ≐ Δ₁ tel — tel-ext asks
 //     an entry equation at SOME level.
 //   * (raise) Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ and ℓ ≼ ℓ′ give Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ′, by
-//     code-lift-eq. The contexts of the later entries are unchanged:
+//     code-lift. The contexts of the later entries are unchanged:
 //     Γ ▷ A records A, not its level.
 //   * (existence) every Γ ⊦ Δ₀ ≐ Δ₁ tel is one at some ℓ — a telescope is
 //     finite; take the greatest of the entry equations' levels and raise.
@@ -1170,7 +1130,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 //     hold at a level.
 //   * (descent) Γ ⊦ Δ₀ ≐ Δ₁ tel with Γ ⊦ Δ₀ tel ℓ and Γ ⊦ Δ₁ tel ℓ give
 //     Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ: an entry equation at a lower level rises by
-//     code-lift-eq, one at a higher level descends by code-restrict, whose
+//     code-lift, one at a higher level descends by code-restrict, whose
 //     two typing premises are the diagonals (the left entry read over the
 //     right prefix by coercion).
 //
@@ -1208,6 +1168,17 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 Γ ⊦ t : 𝟘
 -------------------- (el-zero-e)
 Γ ⊦ 𝟘-elim t : A
+
+// One equation about a former is STRONGER than its congruence and is
+// a rule of its own: under an inhabitant of 𝟘 every equation holds,
+// so 𝟘-elim needs no premise relating its two arguments.
+
+Γ ⊦ A : 𝕌ℓ
+Γ ⊦ t₀ : 𝟘
+Γ ⊦ t₁ : 𝟘
+------------------------------------ (el-zero-e-cong) // ADMISSIBLE: el-zero-e at the
+Γ ⊦ 𝟘-elim t₀ ≐ 𝟘-elim t₁ : A                         //   equation's prop, then
+                                                      //   el-reflect
 
 Γ ⊦ t₀ : 𝟘
 Γ ⊦ t₁ : 𝟘
@@ -1471,7 +1442,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 //  * Proof irrelevance is inherited from el-prf-prop — no separate
 //    η-rule at ≡ is needed, and equality hypotheses never carry data.
 //  * The canonical proof is ⋆, and there is no other. This is forced, not
-//    stylistic: code-prop-eq + prop-lift-eq + el-ty-coe move proofs
+//    stylistic: code-prop-eq + prop-lift + el-ty-coe move proofs
 //    between iff-equal props UNCHANGED (a true equation is ≐-equal to
 //    ∥𝟙∥ at Ω), so every inhabited prop must have literally the same
 //    canonical form.
@@ -1491,7 +1462,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 //
 // Notes:
 //  * Realizer irrelevance is FORCED, not chosen: code-prop-eq +
-//    prop-lift-eq + el-ty-coe move an element between iff-equal props
+//    prop-lift + el-ty-coe move an element between iff-equal props
 //    UNCHANGED, which is sound only if those props (as types) have
 //    literally the same canonical forms. So a prop never exposes the
 //    squashed proofs: its one canonical form is ⋆ (cf. NuPRL's Ax),
@@ -1585,7 +1556,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 //         code-prop-eq from R⁺'s OWN transitivity and symmetry (this is
 //         why the motive is the closure and not R: nothing about R is
 //         needed); then el-quot-beta at class a, congruence along the
-//         class equation, prop-lift-eq and el-ty-coe carry R⁺'s
+//         class equation, prop-lift and el-ty-coe carry R⁺'s
 //         reflexivity proof to b. Both directions stay inside A / R — no
 //         transport to A / R⁺, which by item 1 is a DIFFERENT type.
 //         Corollary: where R is an equivalence, R⁺ collapses into it by
@@ -1705,7 +1676,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
                                         //   (s[↑] one way, el-squash-i
                                         //   with ()[↑] the other) gives
                                         //   p ≐ ∥𝟙∥ : Ω, and
-                                        //   prop-lift-eq with el-ty-coe
+                                        //   prop-lift with el-ty-coe
                                         //   carries el-squash-i's
                                         //   ⋆ : ∥𝟙∥ into p — any
                                         //   inhabited prop admits ⋆;
@@ -1732,6 +1703,253 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 Γ ▷ A ⊦ t : q[↑]
 ------------------------ (el-squash-e-prf)
 Γ ⊦ ⋆ : q
+
+# Rules (substitution action)
+
+// Signature references.
+
+(Γ ⊦ x ≔ a : A) ∈ Σ
+σ : Θ ⇒ Γ norm
+------------------------ (el-sig-var)
+Σ Θ ⊦ x[σ] : A[σ]
+
+(Γ ⊦ x ≔ a : A) ∈ Σ
+σ : Θ ⇒ Γ norm
+------------------------------ (el-sig-beta)
+Σ Θ ⊦ x[σ] ≐ a[σ] : A[σ]
+
+(Γ ⊦ x : A) ∈ Σ
+σ : Θ ⇒ Γ norm
+--------------------- (el-sig-decl)
+Σ Θ ⊦ x[σ] : A[σ]
+
+// Substitution action.
+
+Γ₁ ⊦ t₀ ≐ t₁ : A
+σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
+--------------------------------- (el-sub)
+Γ₀ ⊦ t₀[σ₀] ≐ t₁[σ₁] : A[σ₁]
+
+Γ₁ ⊦ t₀ ≐ t₁ : A
+σ : Γ₀ ⇒ Γ₁
+--------------------------------- (el-sub-fix) // the σ₀ = σ₁ instance
+Γ₀ ⊦ t₀[σ] ≐ t₁[σ] : A[σ]
+
+Γ ⊦ t : A
+----------------------- (el-sub-id) // admissible, by induction on the derivation
+Γ ⊦ t[id] ≐ t : A
+
+Γ₂ ⊦ t : A
+σ : Γ₁ ⇒ Γ₂
+τ : Γ₀ ⇒ Γ₁
+--------------------------------------- (el-sub-comp) // admissible, by induction on the derivation
+Γ₀ ⊦ t[σ ∘ τ] ≐ t[σ][τ] : A[σ][τ]
+
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------------------------- (ty-sub-atoms)
+Γ₀ ⊦ 𝟘[σ] ≐ 𝟘 : 𝕌₀
+Γ₀ ⊦ 𝟙[σ] ≐ 𝟙 : 𝕌₀
+Γ₀ ⊦ ℕ[σ] ≐ ℕ : 𝕌₀
+Γ₀ ⊦ 𝕌ℓ[σ] ≐ 𝕌ℓ : 𝕌ℓ₊₁
+Γ₀ ⊦ Ω[σ] ≐ Ω : 𝕌₁
+
+Γ₁ ⊦ A : 𝕌ℓ
+Γ₁ ▷ A ⊦ B : 𝕌ℓ
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------- (ty-sub-pi)
+Γ₀ ⊦ (A → B)[σ] ≐ A[σ] → B[σ ▷ A] : 𝕌ℓ
+
+Γ₁ ⊦ A : 𝕌ℓ
+Γ₁ ▷ A ⊦ B : 𝕌ℓ
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------- (ty-sub-sigma)
+Γ₀ ⊦ (A × B)[σ] ≐ A[σ] × B[σ ▷ A] : 𝕌ℓ
+
+Γ₁ ⊦ A : 𝕌ℓ
+Γ₁ ⊦ B : 𝕌ℓ
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------- (ty-sub-sum)
+Γ₀ ⊦ (A ⊎ B)[σ] ≐ A[σ] ⊎ B[σ] : 𝕌ℓ
+
+Γ₁ ⊦ A : 𝕌ℓ
+Γ₁ ▷ A ▷ A[↑] ⊦ R : Ω
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------- (ty-sub-quot)
+Γ₀ ⊦ (A / R)[σ] ≐ A[σ] / R[σ ▷ A ▷ A[↑]] : 𝕌ℓ
+
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------------------------------------ (el-sub-atoms)
+Γ₀ ⊦ ()[σ] ≐ () : 𝟙
+Γ₀ ⊦ Z[σ] ≐ Z : ℕ
+
+Γ₁ ⊦ t : ℕ
+σ : Γ₀ ⇒ Γ₁
+--------------------------------- (el-sub-s)
+Γ₀ ⊦ (S t)[σ] ≐ S t[σ] : ℕ
+
+Γ₁ ⊦ A : 𝕌ℓ
+σ : Γ₀ ⇒ Γ₁
+------------------------------------ (el-sub-squash)
+Γ₀ ⊦ ∥A∥[σ] ≐ ∥A[σ]∥ : Ω
+
+Γ₁ ▷ A ⊦ f : B
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------------- (el-sub-lam)
+Γ₀ ⊦ (λ f)[σ] ≐ λ f[σ ▷ A] : A[σ] → B[σ ▷ A]
+
+Γ₁ ▷ A ⊦ B : 𝕌ℓ
+Γ₁ ⊦ f : A → B
+Γ₁ ⊦ e : A
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------ (el-sub-app)
+Γ₀ ⊦ (f e)[σ] ≐ f[σ] e[σ] : B[σ, e[σ]]
+
+Γ₁ ⊦ a : A
+Γ₁ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b : B
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------- (el-sub-let)
+Γ₀ ⊦ (let a b)[σ] ≐ let a[σ] b[σ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑])] : B[σ, a[σ], ⋆]
+// (coherent: ☐₀[σ ▷ A] ≐ ☐₀ and a[↑][σ ▷ A] ≐ a[σ][↑], so the equation entry
+// lands as the unfolding equation OF a[σ] — the RHS is the let at
+// a[σ] — and ⋆[σ] ≐ ⋆ keeps the conclusion type in shape)
+
+Γ₁ ▷ A ⊦ B : 𝕌ℓ
+Γ₁ ⊦ a : A
+Γ₁ ⊦ b : B[id, a]
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------ (el-sub-pair)
+Γ₀ ⊦ (a , b)[σ] ≐ a[σ] , b[σ] : A[σ] × B[σ ▷ A]
+
+Γ₁ ⊦ t : A × B
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------ (el-sub-proj₁)
+Γ₀ ⊦ (t .π₁)[σ] ≐ t[σ] .π₁ : A[σ]
+
+Γ₁ ⊦ t : A × B
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------- (el-sub-proj₂)
+Γ₀ ⊦ (t .π₂)[σ] ≐ t[σ] .π₂ : B[σ, t[σ] .π₁]
+
+Γ₁ ⊦ B : 𝕌ℓ
+Γ₁ ⊦ a : A
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------ (el-sub-inj₁)
+Γ₀ ⊦ (inj₁ a)[σ] ≐ inj₁ a[σ] : A[σ] ⊎ B[σ]
+
+Γ₁ ⊦ A : 𝕌ℓ
+Γ₁ ⊦ b : B
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------ (el-sub-inj₂)
+Γ₀ ⊦ (inj₂ b)[σ] ≐ inj₂ b[σ] : A[σ] ⊎ B[σ]
+
+Γ ▷ A ⊎ B ⊦ C : 𝕌ℓ
+Γ ▷ A ⊦ u : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ v : C[↑, inj₂ ☐₀]
+Γ ⊦ t : A ⊎ B
+σ : Θ ⇒ Γ
+------------------------------------------------------------------- (el-sub-sum-e)
+Θ ⊦ (⊎-elim u v t)[σ] ≐ ⊎-elim u[σ ▷ A] v[σ ▷ B] t[σ] : C[σ, t[σ]]
+
+Γ₁ ⊦ a₀ : A
+Γ₁ ⊦ a₁ : A
+σ : Γ₀ ⇒ Γ₁
+----------------------------------------------------- (el-sub-eq)
+Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)[σ] ≐ (a₀[σ] ≡ a₁[σ] ∈ A[σ]) : Ω
+
+Γ₁ ⊦ p : Ω
+Γ₁ ⊦ ⋆ : p
+σ : Γ₀ ⇒ Γ₁
+--------------------------------- (el-sub-star)
+Γ₀ ⊦ ⋆[σ] ≐ ⋆ : p[σ]
+
+Γ ▷ ℕ ⊦ A : 𝕌ℓ
+Γ ⊦ z : A[id, Z]
+Γ ▷ ℕ ▷ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
+Γ ⊦ t : ℕ
+σ : Θ ⇒ Γ
+------------------------------------------------------------------- (el-sub-nat-e)
+Θ ⊦ (ℕ-elim z s t)[σ] ≐ ℕ-elim z[σ] s[σ ▷ ℕ ▷ A] t[σ] : A[σ, t[σ]]
+
+Γ ▷ A ▷ A[↑] ⊦ R : Ω
+Γ ⊦ a : A
+σ : Θ ⇒ Γ
+---------------------------------------------------- (el-sub-class)
+Θ ⊦ (class a)[σ] ≐ class a[σ] : A[σ] / R[σ ▷ A ▷ A[↑]]
+
+Γ ▷ (A / R) ⊦ B : 𝕌ℓ
+Γ ▷ A ⊦ f : B[↑, class ☐₀]
+Γ ▷ A ▷ A[↑] ▷ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ⊦ q : A / R
+σ : Θ ⇒ Γ
+------------------------------------------------------------------ (el-sub-quot-e)
+Θ ⊦ (quot-elim f q)[σ] ≐ quot-elim f[σ ▷ A] q[σ] : B[σ, q[σ]]
+
+Γ ⊦ A : 𝕌ℓ
+Γ ⊦ t : 𝟘
+σ : Θ ⇒ Γ
+--------------------------------------------- (el-sub-zero-e)
+Θ ⊦ (𝟘-elim t)[σ] ≐ 𝟘-elim t[σ] : A[σ]
+
+Γ ⊦ A : 𝕌ℓ
+σ : Θ ⇒ Γ
+Θ ⊦ t : A[σ]
+------------------------------- (var-sub-hit)   // A the type ☐₀ names in Γ ▷ A
+Θ ⊦ ☐₀[σ, t] ≐ t : A[σ]
+
+Γ ⊦ A : 𝕌ℓ
+Γ ⊦ ☐ₙ : B
+σ : Θ ⇒ Γ
+Θ ⊦ t : A[σ]
+--------------------------------------- (var-sub-miss)   // A the extension type
+Θ ⊦ ☐ₙ₊₁[σ, t] ≐ ☐ₙ[σ] : B[σ]
+
+Γ ⊦ ☐ₙ : B
+Γ ⊦ A : 𝕌ℓ
+----------------------------------- (var-sub-wk)
+Γ ▷ A ⊦ ☐ₙ[↑] ≐ ☐ₙ₊₁ : B[↑]
+
+Γ ⊦ ☐ₙ : B
+--------------------------- (var-sub-id)
+Γ ⊦ ☐ₙ[id] ≐ ☐ₙ : B
+
+Γ ⊦ ☐ₙ : B
+τ : Θ ⇒ Γ
+σ : Ξ ⇒ Θ
+------------------------------------------ (var-sub-comp)
+Ξ ⊦ ☐ₙ[τ ∘ σ] ≐ ☐ₙ[τ][σ] : B[τ][σ]
+
+(Γ ⊦ x ≔ a : A) ∈ Σ
+ρ : Γ₁ ⇒ Γ norm
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------------- (el-sub-sig-var)
+Σ Γ₀ ⊦ x[ρ][σ] ≐ x[ρ ∘ σ] : A[ρ ∘ σ]
+(Γ ⊦ x : A) ∈ Σ
+ρ : Γ₁ ⇒ Γ norm
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------------- (el-sub-sig-decl)
+Σ Γ₀ ⊦ x[ρ][σ] ≐ x[ρ ∘ σ] : A[ρ ∘ σ]
+
+# Rules (coercion)
+
+Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
+Γ ⊦ a : A₀
+-------------------- (el-ty-coe)
+Γ ⊦ a : A₁
+
+Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
+Γ ⊦ a₀ ≐ a₁ : A₀
+-------------------- (el-eq-ty-coe)
+Γ ⊦ a₀ ≐ a₁ : A₁
+
+Γ₀ ≐ Γ₁ ctx
+Γ₀ ⊦ a : A
+--------------- (el-coe-ctx)     // at A = 𝕌ℓ: coercion of a TYPE
+Γ₁ ⊦ a : A
+
+Γ₀ ≐ Γ₁ ctx
+Γ₀ ⊦ a₀ ≐ a₁ : A
+-------------------- (el-eq-coe-ctx)   // at A = 𝕌ℓ: of a type equation
+Γ₁ ⊦ a₀ ≐ a₁ : A
 
 # Quotient inductive-inductive types (signatures)
 //
@@ -3286,232 +3504,6 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 //   swp is an equation constructor; 𝒮.Bag ·'s eliminator carries the
 //   coherence premise that the method for ins is invariant under
 //   swapping the two heads — the multiset laws, no transport.
-
-// Signature references.
-
-(Γ ⊦ x ≔ a : A) ∈ Σ
-σ : Θ ⇒ Γ norm
------------------------- (el-sig-var)
-Σ Θ ⊦ x[σ] : A[σ]
-
-(Γ ⊦ x ≔ a : A) ∈ Σ
-σ : Θ ⇒ Γ norm
------------------------------- (el-sig-beta)
-Σ Θ ⊦ x[σ] ≐ a[σ] : A[σ]
-
-(Γ ⊦ x : A) ∈ Σ
-σ : Θ ⇒ Γ norm
---------------------- (el-sig-decl)
-Σ Θ ⊦ x[σ] : A[σ]
-
-// Substitution action.
-
-Γ₁ ⊦ t₀ ≐ t₁ : A
-σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁
---------------------------------- (el-sub)
-Γ₀ ⊦ t₀[σ₀] ≐ t₁[σ₁] : A[σ₁]
-
-Γ ⊦ t : A
------------------------ (el-sub-id) // admissible, by induction on the derivation
-Γ ⊦ t[id] ≐ t : A
-
-Γ₂ ⊦ t : A
-σ : Γ₁ ⇒ Γ₂
-τ : Γ₀ ⇒ Γ₁
---------------------------------------- (el-sub-comp) // admissible, by induction on the derivation
-Γ₀ ⊦ t[σ ∘ τ] ≐ t[σ][τ] : A[σ][τ]
-
-σ : Γ₀ ⇒ Γ₁
------------------------------------------------------------------------------------- (el-sub-atoms)
-Γ₀ ⊦ ()[σ] ≐ () : 𝟙
-Γ₀ ⊦ Z[σ] ≐ Z : ℕ
-
-Γ₁ ⊦ t : ℕ
-σ : Γ₀ ⇒ Γ₁
---------------------------------- (el-sub-s)
-Γ₀ ⊦ (S t)[σ] ≐ S t[σ] : ℕ
-
-Γ₁ ⊦ A : 𝕌ℓ
-σ : Γ₀ ⇒ Γ₁
------------------------------------- (el-sub-squash)
-Γ₀ ⊦ ∥A∥[σ] ≐ ∥A[σ]∥ : Ω
-
-Γ₁ ▷ A ⊦ f : B
-σ : Γ₀ ⇒ Γ₁
----------------------------------------------- (el-sub-lam)
-Γ₀ ⊦ (λ f)[σ] ≐ λ f[σ ▷ A] : A[σ] → B[σ ▷ A]
-
-Γ₁ ▷ A ⊦ B : 𝕌ℓ
-Γ₁ ⊦ f : A → B
-Γ₁ ⊦ e : A
-σ : Γ₀ ⇒ Γ₁
------------------------------------------- (el-sub-app)
-Γ₀ ⊦ (f e)[σ] ≐ f[σ] e[σ] : B[σ, e[σ]]
-
-Γ₁ ⊦ a : A
-Γ₁ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b : B
-σ : Γ₀ ⇒ Γ₁
-------------------------------------------------------- (el-sub-let)
-Γ₀ ⊦ (let a b)[σ] ≐ let a[σ] b[σ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑])] : B[σ, a[σ], ⋆]
-// (coherent: ☐₀[σ ▷ A] ≐ ☐₀ and a[↑][σ ▷ A] ≐ a[σ][↑], so the equation entry
-// lands as the unfolding equation OF a[σ] — the RHS is the let at
-// a[σ] — and ⋆[σ] ≐ ⋆ keeps the conclusion type in shape)
-
-Γ₁ ▷ A ⊦ B : 𝕌ℓ
-Γ₁ ⊦ a : A
-Γ₁ ⊦ b : B[id, a]
-σ : Γ₀ ⇒ Γ₁
------------------------------------------------------- (el-sub-pair)
-Γ₀ ⊦ (a , b)[σ] ≐ a[σ] , b[σ] : A[σ] × B[σ ▷ A]
-
-Γ₁ ⊦ t : A × B
-σ : Γ₀ ⇒ Γ₁
------------------------------------------- (el-sub-proj₁)
-Γ₀ ⊦ (t .π₁)[σ] ≐ t[σ] .π₁ : A[σ]
-
-Γ₁ ⊦ t : A × B
-σ : Γ₀ ⇒ Γ₁
-------------------------------------------------------- (el-sub-proj₂)
-Γ₀ ⊦ (t .π₂)[σ] ≐ t[σ] .π₂ : B[σ, t[σ] .π₁]
-
-Γ₁ ⊦ B : 𝕌ℓ
-Γ₁ ⊦ a : A
-σ : Γ₀ ⇒ Γ₁
------------------------------------------------- (el-sub-inj₁)
-Γ₀ ⊦ (inj₁ a)[σ] ≐ inj₁ a[σ] : A[σ] ⊎ B[σ]
-
-Γ₁ ⊦ A : 𝕌ℓ
-Γ₁ ⊦ b : B
-σ : Γ₀ ⇒ Γ₁
------------------------------------------------- (el-sub-inj₂)
-Γ₀ ⊦ (inj₂ b)[σ] ≐ inj₂ b[σ] : A[σ] ⊎ B[σ]
-
-Γ ▷ A ⊎ B ⊦ C : 𝕌ℓ
-Γ ▷ A ⊦ u : C[↑, inj₁ ☐₀]
-Γ ▷ B ⊦ v : C[↑, inj₂ ☐₀]
-Γ ⊦ t : A ⊎ B
-σ : Θ ⇒ Γ
-------------------------------------------------------------------- (el-sub-sum-e)
-Θ ⊦ (⊎-elim u v t)[σ] ≐ ⊎-elim u[σ ▷ A] v[σ ▷ B] t[σ] : C[σ, t[σ]]
-
-Γ₁ ⊦ a₀ : A
-Γ₁ ⊦ a₁ : A
-σ : Γ₀ ⇒ Γ₁
------------------------------------------------------ (el-sub-eq)
-Γ₀ ⊦ (a₀ ≡ a₁ ∈ A)[σ] ≐ (a₀[σ] ≡ a₁[σ] ∈ A[σ]) : Ω
-
-Γ₁ ⊦ p : Ω
-Γ₁ ⊦ ⋆ : p
-σ : Γ₀ ⇒ Γ₁
---------------------------------- (el-sub-star)
-Γ₀ ⊦ ⋆[σ] ≐ ⋆ : p[σ]
-
-Γ ▷ ℕ ⊦ A : 𝕌ℓ
-Γ ⊦ z : A[id, Z]
-Γ ▷ ℕ ▷ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
-Γ ⊦ t : ℕ
-σ : Θ ⇒ Γ
-------------------------------------------------------------------- (el-sub-nat-e)
-Θ ⊦ (ℕ-elim z s t)[σ] ≐ ℕ-elim z[σ] s[σ ▷ ℕ ▷ A] t[σ] : A[σ, t[σ]]
-
-Γ ▷ A ▷ A[↑] ⊦ R : Ω
-Γ ⊦ a : A
-σ : Θ ⇒ Γ
----------------------------------------------------- (el-sub-class)
-Θ ⊦ (class a)[σ] ≐ class a[σ] : A[σ] / R[σ ▷ A ▷ A[↑]]
-
-Γ ▷ (A / R) ⊦ B : 𝕌ℓ
-Γ ▷ A ⊦ f : B[↑, class ☐₀]
-Γ ▷ A ▷ A[↑] ▷ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
-Γ ⊦ q : A / R
-σ : Θ ⇒ Γ
------------------------------------------------------------------- (el-sub-quot-e)
-Θ ⊦ (quot-elim f q)[σ] ≐ quot-elim f[σ ▷ A] q[σ] : B[σ, q[σ]]
-
-Γ ⊦ A : 𝕌ℓ
-Γ ⊦ t : 𝟘
-σ : Θ ⇒ Γ
---------------------------------------------- (el-sub-zero-e)
-Θ ⊦ (𝟘-elim t)[σ] ≐ 𝟘-elim t[σ] : A[σ]
-
-Γ ⊦ A : 𝕌ℓ
-σ : Θ ⇒ Γ
-Θ ⊦ t : A[σ]
-------------------------------- (var-sub-hit)   // A the type ☐₀ names in Γ ▷ A
-Θ ⊦ ☐₀[σ, t] ≐ t : A[σ]
-
-Γ ⊦ A : 𝕌ℓ
-Γ ⊦ ☐ₙ : B
-σ : Θ ⇒ Γ
-Θ ⊦ t : A[σ]
---------------------------------------- (var-sub-miss)   // A the extension type
-Θ ⊦ ☐ₙ₊₁[σ, t] ≐ ☐ₙ[σ] : B[σ]
-
-Γ ⊦ ☐ₙ : B
-Γ ⊦ A : 𝕌ℓ
------------------------------------ (var-sub-wk)
-Γ ▷ A ⊦ ☐ₙ[↑] ≐ ☐ₙ₊₁ : B[↑]
-
-Γ ⊦ ☐ₙ : B
---------------------------- (var-sub-id)
-Γ ⊦ ☐ₙ[id] ≐ ☐ₙ : B
-
-Γ ⊦ ☐ₙ : B
-τ : Θ ⇒ Γ
-σ : Ξ ⇒ Θ
------------------------------------------- (var-sub-comp)
-Ξ ⊦ ☐ₙ[τ ∘ σ] ≐ ☐ₙ[τ][σ] : B[τ][σ]
-
-(Γ ⊦ x ≔ a : A) ∈ Σ
-ρ : Γ₁ ⇒ Γ norm
-σ : Γ₀ ⇒ Γ₁
----------------------------------------------- (el-sub-sig-var)
-Σ Γ₀ ⊦ x[ρ][σ] ≐ x[ρ ∘ σ] : A[ρ ∘ σ]
-(Γ ⊦ x : A) ∈ Σ
-ρ : Γ₁ ⇒ Γ norm
-σ : Γ₀ ⇒ Γ₁
----------------------------------------------- (el-sub-sig-decl)
-Σ Γ₀ ⊦ x[ρ][σ] ≐ x[ρ ∘ σ] : A[ρ ∘ σ]
-
-## Coercion
-
-Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
-Γ ⊦ a : A₀
--------------------- (el-ty-coe)
-Γ ⊦ a : A₁
-
-Γ ⊦ A₀ ≐ A₁ : 𝕌ℓ
-Γ ⊦ a₀ ≐ a₁ : A₀
--------------------- (el-eq-ty-coe)
-Γ ⊦ a₀ ≐ a₁ : A₁
-
-Γ₀ ≐ Γ₁ ctx
-Γ₀ ⊦ a : A
---------------- (el-coe-ctx)     // at A = 𝕌ℓ: coercion of a TYPE
-Γ₁ ⊦ a : A
-
-Γ₀ ≐ Γ₁ ctx
-Γ₀ ⊦ a₀ ≐ a₁ : A
--------------------- (el-eq-coe-ctx)   // at A = 𝕌ℓ: of a type equation
-Γ₁ ⊦ a₀ ≐ a₁ : A
-
-// The master congruence el-sub at one substitution:
-
-Γ₁ ⊦ t₀ ≐ t₁ : A
-σ : Γ₀ ⇒ Γ₁
---------------------------------- (el-sub-fix) // the σ₀ = σ₁ instance
-Γ₀ ⊦ t₀[σ] ≐ t₁[σ] : A[σ]
-
-// One equation about a former is STRONGER than its congruence and is
-// a rule of its own: under an inhabitant of 𝟘 every equation holds,
-// so 𝟘-elim needs no premise relating its two arguments.
-
-Γ ⊦ A : 𝕌ℓ
-Γ ⊦ t₀ : 𝟘
-Γ ⊦ t₁ : 𝟘
------------------------------------- (el-zero-e-cong) // ADMISSIBLE: el-zero-e at the
-Γ ⊦ 𝟘-elim t₀ ≐ 𝟘-elim t₁ : A                         //   equation's prop, then
-                                                      //   el-reflect
 
 # Coinductive types (polynomial codes)
 //
