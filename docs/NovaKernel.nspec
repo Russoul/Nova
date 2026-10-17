@@ -22,9 +22,15 @@
 // hypothesis ☐ᵢ proves ☐ᵢ ≐ ☐ᵢ at P and serves there. Only a conclusion
 // mints ⋆. A TYPE is a term at a SORT: a universe 𝒰 of the foundation's
 // Syntax, Ω or a 𝕌ℓ, with its level |𝒰|. So "T is a type" is Γ ⊦ T ⇒ 𝒰,
-// and an equation of types is an equation at a sort. There is no
-// judgement of types, and no judgement of type equations, beside the two
-// above.
+// and an equation of types is an equation at a sort. The foundation's
+// type judgements, Γ ⊦ T type ℓ and Γ ⊦ T₀ ≐ T₁ type, are realised by
+// the two judgements above at a sort, through the universe bridge
+// (univ-i, univ-e, univ-eq-i, univ-eq-e): a former SYNTHESISES its
+// least sort, which is the least ℓ with T type ℓ, and Ω for a
+// proposition (prop-lift); the level-free Γ ⊦ T type, the foundation's
+// ω instance, is never a sort here — the kernel always knows a finite
+// one. There is no judgement of types, and no judgement of type
+// equations, beside the two above.
 
 # Syntax
 
@@ -97,8 +103,9 @@ I ::= (Γ ⊦ x : t) | (Γ ⊦ x ≔ t : t) | (Γ ⊦ x ≔ Φ qsig ℓ)
 //   every blow-up the corpus shows is δ, and it now happens on the untrusted
 //   side and is recorded.
 
-// * SORTS ARE CUMULATIVE, Ω ≼ 𝕌₀ ≼ 𝕌₁ ≼ … (the foundation's order on
-//   universes): a proposition is a small type, a small type is a large one.
+// * SORTS ARE CUMULATIVE, Ω ≼ 𝕌₀ ≼ 𝕌₁ ≼ … (the order the foundation's
+//   prop-lift and ty-lift induce on sorts, through the universe bridge):
+//   a proposition is a small type, a small type is a large one.
 //   Cumulativity enters through exactly two proof forms, lift and restrict
 //   (the modal section) — never silently — and acts at the ROOT only:
 //   A → Ω is not A → 𝕌₀ (write λx. f x). Levels are
@@ -150,7 +157,7 @@ I ::= (Γ ⊦ x : t) | (Γ ⊦ x ≔ t : t) | (Γ ⊦ x ≔ Φ qsig ℓ)
 // is a definition of ⋆ at an equation type, its proof a reify …).
 
 Θ ctx      Θ ⊦ Φ qctx ℓ
------------------------------- (sig-qsig)
+------------------------------ (sig-qctx)
 Σ ⊦ (Θ ⊦ x ≔ Φ qsig ℓ) item
 // A QIIT signature: a qiit-context, checked ONCE, here, at the level ℓ it
 // names. A former of it carries the NAME x and arguments for Θ (the QIIT
@@ -365,15 +372,16 @@ I ::= (Γ ⊦ x : t) | (Γ ⊦ x ≔ t : t) | (Γ ⊦ x ≔ Φ qsig ℓ)
 // A telescope is compared from its head, each entry a type equation
 // over the RIGHT-hand entries before it, and INFERS its least level: the
 // join of the sorts its entries infer, 0 at the empty telescope (|Ω| = 0:
-// a proposition costs nothing). This is the foundation's Γ ⊦ Δ₀ ≐ Δ₁ tel ℓ
-// at the least such ℓ; a higher one is reached at the former, by lift.
+// a proposition costs nothing). This is the foundation's Γ ⊦ Δ tel ℓ
+// (its equation tel-ext-cong) at the least such ℓ; a higher one is
+// reached at the former, by lift.
 
-------------------- (tel-lvl-empty)
+------------------- (tel-empty)
 Γ ⊦ [·] ε ≐ ε tel 0
 
 Γ ⊦ [α] A₀ ≐ A₁ ⇒ 𝒰
 Γ ▷ A₁ ⊦ [ᾱ] Δ₀ ≐ Δ₁ tel ℓ
---------------------------------------------- (tel-lvl-ext)
+--------------------------------------------- (tel-ext)
 Γ ⊦ [α, ᾱ] A₀ ◁ Δ₀ ≐ A₁ ◁ Δ₁ tel (|𝒰| ⊔ ℓ)
 // At the least level.
 
@@ -467,19 +475,23 @@ T ≡β T'
 
 Γ ⊦ [α] a₀ ≐ a₁ ⇒ 𝒰
 𝒰 ≼ 𝒰′
--------------------------- (code-lift-eq prop-lift-eq)
+-------------------------- (ty-lift prop-lift-eq)
 Γ ⊦ [lift α] a₀ ≐ a₁ ⇐ 𝒰′
 // The switch at a sort: cumulativity, the target sort READ off the
-// position; on a term, [lift T] T ≐ T ⇐ 𝒰′.
+// position; on a term, [lift T] T ≐ T ⇐ 𝒰′. In the foundation: out of
+// Ω by prop-lift-eq and prop-lift; between universes by univ-eq-e,
+// ty-lift at both sides and univ-eq-i.
 
 Γ ⊦ [α] a₀ ≐ a₁ ⇒ 𝒰′
 𝒰 ≼ 𝒰′
 Γ ⊦ [γ₀] a₀′ ⇐ 𝒰      Γ ⊦ [γ₁] a₁′ ⇐ 𝒰      a₀ ≡β a₀′      a₁ ≡β a₁′
-------------------------------------------------------------------- (code-restrict prop-restrict)
+------------------------------------------------------------------- (univ-eq-i prop-restrict)
 Γ ⊦ [restrict γ₀ γ₁ α] a₀ ≐ a₁ ⇐ 𝒰
 // MANDATORY: equal types that are codes are equal codes, equal codes that
 // are propositions are equivalent propositions — (a₀ ≡ a₁ ∈ 𝒰) and
-// (a₀ ≡ a₁ ∈ 𝒰′) equi-true; the sides' membership of 𝒰 is WITNESSED.
+// (a₀ ≡ a₁ ∈ 𝒰′) equi-true; the sides' membership of 𝒰 is WITNESSED. In
+// the foundation: univ-eq-e then univ-eq-i at the lower level, the
+// witnesses its two bounds; prop-restrict into Ω.
 
 Γ ⊦ [β] A ≐ B ⇒ 𝒰
 Γ ⊦ [α] t₀ ≐ t₁ ⇐ A
@@ -570,8 +582,8 @@ a₁ ≡β a₁'
 // (out of a corec runs the coalgebra one step), as it includes the
 // ι-rules and let-β. A polynomial INFERS its least level, the join of
 // the sorts its embedded codes infer (|Ω| = 0: a proposition costs
-// nothing); ν 𝔽 lives at that level, and a corec's carrier is checked
-// at it.
+// nothing); ν 𝔽 lives at that level. A corec's carrier is any type
+// (the foundation's el-nu-i), at any sort.
 
 -------------------- (poly-hole)
 Γ ⊦ [𝕏] 𝕏 ≐ 𝕏 poly 0
@@ -598,7 +610,7 @@ a₁ ≡β a₁'
 ---------------------------------- (el-nu-e)
 Γ ⊦ [out α] out t₀ ≐ out t₁ ⇒ ⌊𝔽⌋(ν 𝔽)
 
-Γ ⊦ 𝔽 poly ℓ      Γ ⊦ a ⇐ 𝕌ℓ
+Γ ⊦ 𝔽 poly ℓ      Γ ⊦ a ⇒ 𝒰
 Γ ▷ a ⊦ [φ] f₀ ≐ f₁ ⇐ ⌊𝔽⌋(a)[↑]
 Γ ⊦ [χ] x₀ ≐ x₁ ⇐ a
 -------------------------------------------------------------------- (el-nu-i)
@@ -608,7 +620,7 @@ a₁ ≡β a₁'
 
 ## Leaves: uniqueness and coinduction
 
-Γ ⊦ 𝔽 poly ℓ      Γ ⊦ a ⇐ 𝕌ℓ
+Γ ⊦ 𝔽 poly ℓ      Γ ⊦ a ⇒ 𝒰
 Γ ▷ a ⊦ f ⇐ ⌊𝔽⌋(a)[↑]
 Γ ▷ a ⊦ h ⇐ (ν 𝔽)[↑]
 Γ ▷ a ⊦ [α] out h ≐ map_𝔽 ((λ h)[↑]) f ⇐ ⌊𝔽⌋(ν 𝔽)[↑]
@@ -631,7 +643,7 @@ a₁ ≡β a₁'
 // (Θ ⊦ x ≔ Φ qsig ℓ) of Σ over its parameters Θ. A core term carries the
 // item's NAME and arguments for its parameters, never a context:
 // x[e˲].𝕤 ē, x[e˲].𝕔 θ, x[e˲].𝕤-elim m̄ ē w. QIIT equality is NOMINAL — one
-// item at equal arguments, the foundation's qsig-eq-ref — which is
+// item at equal arguments, the foundation's qctx-ref-cong — which is
 // conservative and incomplete (THE FRAGMENT, at the end); β reads the
 // item (el-qiit-beta recurses by the constructor's arity). A context is
 // WRITTEN in the theory of signatures below — the grammar is the
@@ -767,9 +779,9 @@ a₁ ≡β a₁'
 
 (Θ ⊦ x ≔ Φ qsig ℓ) ∈ Σ      [π̄] e˲₀ ≐ e˲₁ : Γ ⇒ Θ norm
 Φ(𝕤) = 𝔎      Γ ⊦ [ᾱ] ē₀ ≐ ē₁ ⇐ ⟦𝔎⟧ᵗ[e˲₁, ι]
----------------------------------------------------- (ty-qiit qsig-eq-ref)
+---------------------------------------------------- (ty-qiit qctx-ref)
 Γ ⊦ [x[π̄].𝕤 ᾱ] x[e˲₀].𝕤 ē₀ ≐ x[e˲₁].𝕤 ē₁ ⇒ 𝕌ℓ
-// ty-qiit in full (by qsig-eq-ref): a sort is a type at the
+// ty-qiit-cong (by qctx-ref-cong): a sort is a type at the
 // level its item records. The spine equation is at the arity instantiated
 // by ē₁'s prefix.
 
@@ -823,7 +835,7 @@ a₁ ≡β a₁'
 // Equality of QIIT formers here is NOMINAL: the same item
 // at equal arguments, and nothing else. That is CONSERVATIVE — every
 // equation the kernel accepts is the foundation's by-name pathway,
-// qsig-eq-ref — and INCOMPLETE: the foundation also lets a former carry
+// qctx-ref-cong — and INCOMPLETE: the foundation also lets a former carry
 // a signature written out, lets an item be defined by a reference (an
 // alias, an instance), and equates signatures by content. The kernel
 // has none of the three. Its syntax has no signature beside the context
