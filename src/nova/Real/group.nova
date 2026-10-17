@@ -80,11 +80,16 @@ infixl 6 -
 (-) = λu v. u + realNeg v
 
 realSubSelf : {u : Real} → u - u ≡ realZero
-  using (Real.Real.unfold, Real.add.+.eq, Real.group.-.eq, Real.neg.realNeg.eq)
+  using (Real.Real.unfold, Real.add.+.eq, Real.add.rAddL.eq, Real.group.-.eq, Real.neg.realNeg.eq)
 realSubSelf = λu. realAddNegR u
 
 realSubZero : (u : Real) → u - realZero ≡ u
-  using (Real.Real.unfold, Real.realZero.eq, Real.add.+.eq, Real.group.-.eq, Real.neg.realNeg.eq)
+  using (Real.Real.unfold,
+    Real.realZero.eq,
+    Real.add.+.eq,
+    Real.add.rAddL.eq,
+    Real.group.-.eq,
+    Real.neg.realNeg.eq)
 realSubZero = λu. trans _ _ _ (cong (λw. Real) (λw. u + w) Real.neg.realNegZero) (realAddZeroR u)
 
 -- (u − v) + (v − w) ≡ u − w : the three-term split

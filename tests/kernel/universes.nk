@@ -1,0 +1,51 @@
+-- the tower: 𝕌₀ : 𝕌₁ : 𝕌₂ : …, literal levels, formers at their least
+-- sort, cumulativity only through lift and restrict and only at the root
+
+u0 : 𝕌₁ := 𝕌₀
+u1 : 𝕌₂ := 𝕌₁
+u0-not-u0 : 𝕌₀ := 𝕌₀
+u0-lifted : 𝕌₂ := lift 𝕌₀
+u0-lifted-twice : 𝕌₃ := lift (lift 𝕌₀)
+u0-lifted-twice-annot : 𝕌₃ := lift (lift 𝕌₀ : 𝕌₂)
+
+-- a statement over (A : 𝕌₀) lives at 𝕌₁; over (A : 𝕌₁) at 𝕌₂
+poly-id-ty : 𝕌₁ := (A : 𝕌₀) → A → A
+poly-id-ty-large : 𝕌₂ := (A : 𝕌₁) → A → A
+poly-id-ty-too-small : 𝕌₀ := (A : 𝕌₀) → A → A
+pair-of-universes : 𝕌₁ := 𝕌₀ × 𝕌₀
+family-of-large : 𝕌₂ := ℕ → 𝕌₁
+sigma-large : 𝕌₂ := (A : 𝕌₁) × A
+
+-- an equation stated without the lifts is rejected at the statement
+unlifted (A : 𝕌₀) (B : 𝕌₀) (h : A ≡ B ∈ 𝕌₁) : ℕ := Z
+
+-- a large type can be used as a code only one level up, never down
+poly-id (A : 𝕌₀) (x : A) : A := x
+poly-id-at-large : 𝕌₂ := lift ((A : 𝕌₀) → A → A)
+
+-- cumulativity acts at the ROOT only: ℕ → Ω is not ℕ → 𝕌₀, though its
+-- values are 𝕌₀ codes — write λx. lift (f x)
+props-as-family (f : ℕ → Ω) : ℕ → 𝕌₀ := f
+props-as-family-ok (f : ℕ → Ω) : ℕ → 𝕌₀ := λx. lift (f x)
+const-prop (p : Ω) : ℕ → 𝕌₀ := λx. lift p
+
+-- restrict: an equation of small codes proved one level up descends,
+-- each side witnessed as a code of the lower sort. Stating it one level
+-- up already needs the lifts: cumulativity is never silent
+restr (A : 𝕌₀) (B : 𝕌₀) (h : lift A ≡ lift B ∈ 𝕌₁) : A ≡ B ∈ 𝕌₀ :=
+  ⌜restrict A B ⌞h⌟ : 𝕌₀⌝
+
+restr-props (p : Ω) (q : Ω) (h : lift p ≡ lift q ∈ 𝕌₀) : p ≡ q ∈ Ω :=
+  ⌜restrict p q ⌞h⌟ : Ω⌝
+
+restr-wrong-way (A : 𝕌₀) (B : 𝕌₀) (h : A ≡ B ∈ 𝕌₀) : lift A ≡ lift B ∈ 𝕌₁ :=
+  ⌜restrict A B ⌞h⌟ : 𝕌₁⌝
+
+restr-not-a-code (p : Ω) (h : lift p ≡ ℕ ∈ 𝕌₀) : Ω := restrict p ℕ ⌞h⌟
+
+-- the same equation states at every level above through lift
+lift-eq (A : 𝕌₀) (B : 𝕌₀) (h : A ≡ B ∈ 𝕌₀) : lift A ≡ lift B ∈ 𝕌₁ :=
+  ⌜lift ⌞h⌟ : 𝕌₁⌝
+
+-- a level is written in subscript digits only: 𝕌0 is an ordinary name
+plain-digit : 𝕌0 := ℕ

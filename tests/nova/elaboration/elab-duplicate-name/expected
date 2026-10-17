@@ -1,5 +1,0 @@
-defined x
-input.nova:3:1: error: def x: duplicate signature name
-3 | x : ℕ
-  | ^^^^^
-Error: 1 item failed to elaborate

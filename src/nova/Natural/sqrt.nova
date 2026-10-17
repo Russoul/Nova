@@ -11,7 +11,7 @@
 -- k² ≤ m, so `isqrt m = isqrtAux m m` is correct because k² ≤ m
 -- forces k ≤ m. The test is `S f * S f ∸ m ≡ Z`, decided by natCase:
 -- monus is a FUNCTION, so the branch taken is unambiguous even when
--- the two sides are equal — using leTotal here would be wrong, since
+-- the two sides are equal — here would be wrong, since
 -- at k² = m both disjuncts hold and the wrong one loses the answer.
 -- ===== strict comparison =====
 -- a ≤ b splits into "b ≤ a is an equality" and "b < a", by casing on

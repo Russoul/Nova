@@ -1,0 +1,153 @@
+-- Records: Rec l̄ Δ, a telescope with a label per entry. Formation and
+-- its level, introduction against the type's own label list,
+-- projection at a label, β by lookup, the η leaf, congruence, and what
+-- is NOT equal.
+
+plus (n : ℕ) (m : ℕ) : ℕ := ℕ-elim 𝕌₀ (_. ℕ) n (k ih. S ih) m
+
+-- ---- formation: the record is at the level of its telescope ----
+
+Empty : 𝕌₀ := Rec
+Point : 𝕌₀ := Rec (x : ℕ) (y : ℕ)
+-- a later entry refers to an earlier one by its label
+Dep : 𝕌₀ := Rec (n : ℕ) (m : ℕ) (h : n ≡ m ∈ ℕ)
+-- an entry at 𝕌₁ puts the record at 𝕌₁, and no lower
+Big : 𝕌₁ := Rec (A : 𝕌₀) (a : A)
+Big-too-low : 𝕌₀ := Rec (A : 𝕌₀) (a : A)
+-- a record of propositions is a small type, never a proposition
+Props : 𝕌₀ := Rec (p : Z ≡ Z ∈ ℕ) (q : ∥𝟙∥)
+Props-at-omega : Ω := Rec (p : Z ≡ Z ∈ ℕ)
+-- the least level is inferred; a higher one is reached by lift
+Small-lifted : 𝕌₁ := lift (Rec (x : ℕ))
+Small-unlifted : 𝕌₁ := Rec (x : ℕ)
+-- labels are distinct, and an entry is a type
+Dup : 𝕌₀ := Rec (x : ℕ) (x : ℕ)
+Not-a-type : 𝕌₀ := Rec (x : Z)
+-- a label shadows a parameter of the same name in the later entries;
+-- a parameter stays visible under the telescope
+Shadow (x : 𝟙) : 𝕌₀ := Rec (x : ℕ) (h : x ≡ Z ∈ ℕ)
+Outer (n : ℕ) : 𝕌₀ := Rec (x : ℕ) (h : x ≡ n ∈ ℕ)
+
+-- ---- introduction: a spine of the telescope, at the type's labels ----
+
+origin : Rec (x : ℕ) (y : ℕ) := ⟨x ↪ Z, y ↪ S Z⟩
+-- a later component is checked at its entry instantiated by the earlier ones
+dep : Rec (A : 𝕌₀) (a : A) := ⟨A ↪ ℕ, a ↪ Z⟩
+dep-bad : Rec (A : 𝕌₀) (a : A) := ⟨A ↪ ℕ, a ↪ ()⟩
+proofs : Rec (n : ℕ) (m : ℕ) (h : n ≡ m ∈ ℕ) := ⟨n ↪ S Z, m ↪ plus[Z, S Z], h ↪ ⌜δ plus[Z, S Z]⁻¹ : ℕ⌝⟩
+-- the labels are the type's, in its order: never permuted, none missing, none extra
+swapped : Rec (x : ℕ) (y : ℕ) := ⟨y ↪ S Z, x ↪ Z⟩
+missing : Rec (x : ℕ) (y : ℕ) := ⟨x ↪ Z⟩
+extra : Rec (x : ℕ) := ⟨x ↪ Z, y ↪ Z⟩
+renamed : Rec (x : ℕ) := ⟨z ↪ Z⟩
+-- the empty record
+unit : Rec := ⟨⟩
+-- a record only checks; an annotation makes it synthesise
+no-synth : ℕ := ⟨x ↪ Z⟩ .x
+annotated : ℕ := (⟨x ↪ Z⟩ : Rec (x : ℕ)) .x
+-- a record is not a pair, a record type not a Σ-type
+not-record : ℕ := ⟨x ↪ Z⟩
+pair-at-rec : Rec (x : ℕ) (y : 𝟙) := (Z, ())
+rec-at-sigma : ℕ × 𝟙 := ⟨x ↪ Z, y ↪ ()⟩
+-- a record at an item's type: the item is stuck, conversion exposes it
+at-item : Point := ⟨x ↪ Z, y ↪ Z⟩
+at-item-exposed : Point := conv ⟨x ↪ Z, y ↪ Z⟩ (δ Point⁻¹ : 𝕌₀)
+
+-- ---- elimination: the entry at the label, over the earlier projections ----
+
+fst-ty (p : Rec (A : 𝕌₀) (a : A)) : 𝕌₀ := p .A
+snd-el (p : Rec (A : 𝕌₀) (a : A)) : p .A := p .a
+third (r : Rec (n : ℕ) (m : ℕ) (h : n ≡ m ∈ ℕ)) : r .n ≡ r .m ∈ ℕ := r .h
+absent (r : Rec (x : ℕ)) : ℕ := r .y
+non-record (n : ℕ) : ℕ := n .x
+-- a postfix applies to the whole spine before it; projections chain
+on-spine (f : ℕ → Rec (x : ℕ)) : ℕ := f Z .x
+glued-to-paren (f : ℕ → Rec (x : ℕ)) : ℕ := (f Z).x
+in-argument (f : ℕ → ℕ) (r : Rec (x : ℕ)) : ℕ := f (r .x)
+chain (r : Rec (inner : Rec (x : ℕ)) (k : ℕ)) : ℕ := r .inner .x
+applied (m : Rec (carrier : 𝕌₀) (op : carrier → carrier → carrier)) (a : m .carrier) : m .carrier := m .op a a
+-- at an item's type the projection is stuck until the type is exposed
+stuck (p : Point) : ℕ := p .x
+exposed (p : Point) : ℕ := (conv p (δ Point) : Rec (x : ℕ) (y : ℕ)) .x
+-- congruence: equal records have equal projections
+proj-cong (r : Rec (x : ℕ)) (s : Rec (x : ℕ)) (h : r ≡ s ∈ Rec (x : ℕ)) : r .x ≡ s .x ∈ ℕ := ⌜⌞h⌟ .x⌝
+
+-- ---- computation: a projection of a literal, by lookup ----
+
+beta-x : (⟨x ↪ Z, y ↪ S Z⟩ : Rec (x : ℕ) (y : ℕ)) .x ≡ Z ∈ ℕ := ⌜Z : ℕ⌝
+beta-y : (⟨x ↪ Z, y ↪ S Z⟩ : Rec (x : ℕ) (y : ℕ)) .y ≡ S Z ∈ ℕ := ⌜S Z : ℕ⌝
+beta-wrong : (⟨x ↪ Z, y ↪ S Z⟩ : Rec (x : ℕ) (y : ℕ)) .y ≡ Z ∈ ℕ := ⌜Z : ℕ⌝
+-- the type of a projection computes too: the entry a : A at A ↪ ℕ
+beta-in-type : ℕ := (⟨A ↪ ℕ, a ↪ S Z⟩ : Rec (A : 𝕌₀) (a : A)) .a
+-- never δ: an item is stuck, and unfolds only through the δ leaf
+no-delta : origin .y ≡ S Z ∈ ℕ := ⌜S Z : ℕ⌝
+with-delta : origin .y ≡ S Z ∈ ℕ := ⌜δ origin .y : ℕ⌝
+-- a neutral projection does not compute
+neutral (r : Rec (x : ℕ)) : r .x ≡ r .x ∈ ℕ := ⌜r .x⌝
+
+-- ---- uniqueness: the η leaf ----
+
+eta (r : Rec (x : ℕ) (y : ℕ)) : r ≡ ⟨x ↪ r .x, y ↪ r .y⟩ ∈ Rec (x : ℕ) (y : ℕ) :=
+  ⌜ηRec r : Rec (x : ℕ) (y : ℕ)⌝
+eta-dep (p : Rec (A : 𝕌₀) (a : A)) : p ≡ ⟨A ↪ p .A, a ↪ p .a⟩ ∈ Rec (A : 𝕌₀) (a : A) :=
+  ⌜ηRec p : Rec (A : 𝕌₀) (a : A)⌝
+eta-not-record (n : ℕ) : n ≡ n ∈ ℕ := ⌜ηRec n : ℕ⌝
+-- extensionality is derived: η, the congruence of the literal, η back
+ext (r : Rec (x : ℕ) (y : ℕ)) (s : Rec (x : ℕ) (y : ℕ)) (hx : r .x ≡ s .x ∈ ℕ) (hy : r .y ≡ s .y ∈ ℕ) : r ≡ s ∈ Rec (x : ℕ) (y : ℕ) :=
+  ⌜ηRec r ; ⟨x ↪ ⌞hx⌟, y ↪ ⌞hy⌟⟩ ; (ηRec s)⁻¹ : Rec (x : ℕ) (y : ℕ)⌝
+-- with a dependent field: the second equation lives at the right record's type
+ext-dep (p : Rec (A : 𝕌₀) (a : A)) (q : Rec (A : 𝕌₀) (a : A)) (hA : p .A ≡ q .A ∈ 𝕌₀) (ha : conv (p .a) ⌞hA⌟ ≡ q .a ∈ q .A) : p ≡ q ∈ Rec (A : 𝕌₀) (a : A) :=
+  ⌜ηRec p ; ⟨A ↪ ⌞hA⌟, a ↪ ⌞ha⌟⟩ ; (ηRec q)⁻¹ : Rec (A : 𝕌₀) (a : A)⌝
+-- the empty record is a unit type
+unit-unique (a : Rec) (b : Rec) : a ≡ b ∈ Rec := ⌜ηRec a ; (ηRec b)⁻¹ : Rec⌝
+
+-- ---- congruence of the former, and what is not equal ----
+
+T : 𝕌₀ := ℕ
+rec-cong : Rec (x : T) ≡ Rec (x : ℕ) ∈ 𝕌₀ := ⌜Rec (x : δ T)⌝
+via-cong : Rec (x : T) := conv ⟨x ↪ Z⟩ ((Rec (x : δ T))⁻¹ : 𝕌₀)
+dep-cong (A : 𝕌₀) (B : 𝕌₀) (h : A ≡ B ∈ 𝕌₀) : Rec (X : 𝕌₀) (a : A) ≡ Rec (X : 𝕌₀) (a : B) ∈ 𝕌₁ :=
+  ⌜Rec (X : 𝕌₀) (a : ⌞h⌟)⌝
+lit-cong : ⟨x ↪ T⟩ ≡ ⟨x ↪ ℕ⟩ ∈ Rec (x : 𝕌₀) := ⌜⟨x ↪ δ T⟩ : Rec (x : 𝕌₀)⌝
+-- the label list is part of the type's identity
+labels-differ : Rec (x : ℕ) ≡ Rec (y : ℕ) ∈ 𝕌₀ := ⌜Rec (x : ℕ)⌝
+order-differs : Rec (x : ℕ) (y : ℕ) ≡ Rec (y : ℕ) (x : ℕ) ∈ 𝕌₀ := ⌜Rec (x : ℕ) (y : ℕ)⌝
+not-sigma : Rec (x : ℕ) (y : ℕ) ≡ (ℕ × ℕ) ∈ 𝕌₀ := ⌜Rec (x : ℕ) (y : ℕ)⌝
+not-one : Rec ≡ 𝟙 ∈ 𝕌₀ := ⌜Rec⌝
+
+-- ---- substitution through a telescope ----
+
+mk (n : ℕ) : Rec (x : ℕ) (h : x ≡ n ∈ ℕ) := ⟨x ↪ n, h ↪ ⌜n : ℕ⌝⟩
+use : Rec (x : ℕ) (h : x ≡ S Z ∈ ℕ) := mk[S Z]
+use-x : mk[S Z] .x ≡ S Z ∈ ℕ := ⌜δ mk[S Z] .x : ℕ⌝
+use-h : mk[S Z] .x ≡ S Z ∈ ℕ := mk[S Z] .h
+family : (n : ℕ) → Rec (x : ℕ) (h : x ≡ n ∈ ℕ) := λn. ⟨x ↪ n, h ↪ ⌜n : ℕ⌝⟩
+at-two (f : (n : ℕ) → Rec (x : ℕ) (h : x ≡ n ∈ ℕ)) : f (S (S Z)) .x ≡ S (S Z) ∈ ℕ := f (S (S Z)) .h
+deep (n : ℕ) (m : ℕ) : Rec (a : ℕ) (b : a ≡ n ∈ ℕ) (c : a ≡ m ∈ ℕ) → n ≡ m ∈ ℕ :=
+  λr. ⌜⌞r .b⌟⁻¹ ; ⌞r .c⌟ : ℕ⌝
+under-let : ℕ := let r e := (⟨x ↪ S Z⟩ : Rec (x : ℕ)) in r .x
+
+-- ---- records among the other formers ----
+
+stream-of-points : 𝕌₀ := ν (K (Rec (x : ℕ) (y : ℕ)) × 𝕏)
+sum-of-records (s : Rec (x : ℕ) ⊎ Rec (y : 𝟙)) : ℕ := ⊎-elim 𝕌₀ (_. ℕ) (a. a .x) (b. Z) s
+pair-of : Rec (x : ℕ) × Rec := (⟨x ↪ Z⟩, ⟨⟩)
+record-of-pairs : Rec (p : ℕ × ℕ) (q : p .π₁ ≡ p .π₂ ∈ ℕ) := ⟨p ↪ (Z, Z), q ↪ ⌜Z : ℕ⌝⟩
+mixed-postfix (p : Rec (q : ℕ × ℕ)) (f : ℕ → ℕ) : ℕ := f (p .q .π₁)
+record-in-record : Rec (inner : Rec (x : ℕ)) (same : inner .x ≡ Z ∈ ℕ) :=
+  ⟨inner ↪ ⟨x ↪ Z⟩, same ↪ ⌜Z : ℕ⌝⟩
+
+-- ---- a structure, its instance, and a function over any instance ----
+
+nat-magma : Rec (carrier : 𝕌₀) (unit : carrier) (op : carrier → carrier → carrier) :=
+  ⟨carrier ↪ ℕ, unit ↪ Z, op ↪ λa b. plus[a, b]⟩
+-- nat-magma .carrier is stuck: no δ, so S Z is not known to inhabit it
+two-stuck : ℕ := nat-magma .op (S Z) (S Z)
+carrier-is-nat : nat-magma .carrier ≡ ℕ ∈ 𝕌₀ := ⌜δ nat-magma .carrier⌝
+one-in : nat-magma .carrier := conv (S Z) (⌞carrier-is-nat⌟⁻¹ : 𝕌₀)
+two : ℕ := conv (nat-magma .op one-in one-in) ⌞carrier-is-nat⌟
+square (m : Rec (carrier : 𝕌₀) (unit : carrier) (op : carrier → carrier → carrier)) (a : m .carrier) : m .carrier :=
+  m .op a a
+four : ℕ := square[(⟨carrier ↪ ℕ, unit ↪ Z, op ↪ λa b. plus[a, b]⟩ : Rec (carrier : 𝕌₀) (unit : carrier) (op : carrier → carrier → carrier)), S (S Z)]
+four-is-four : four ≡ S (S (S (S Z))) ∈ ℕ :=
+  ⌜δ four ; δ square[(⟨carrier ↪ ℕ, unit ↪ Z, op ↪ λa b. plus[a, b]⟩ : Rec (carrier : 𝕌₀) (unit : carrier) (op : carrier → carrier → carrier)), S (S Z)] ; δ plus[S (S Z), S (S Z)] : ℕ⌝

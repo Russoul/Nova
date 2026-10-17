@@ -1,4 +1,0 @@
--- squashed reflection: a squashed equality hypothesis reflects into a
--- judgemental equality (el-squash-e-eq + el-reflect), so ⋆ checks
-sr : (a : ℕ) (b : ℕ) (h : ∥a ≡ b ∈ ℕ∥) → a ≡ b ∈ ℕ
-sr = λa. λb. λh. ⋆

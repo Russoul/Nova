@@ -1,0 +1,59 @@
+-- ν: streams of naturals, ν (K ℕ × 𝕏). The polynomial is carried by
+-- the type, out observes, corec builds from any coalgebra; every
+-- computation lemma is one or two β steps
+
+hd (t : ν (K ℕ × 𝕏)) : ℕ := out t .π₁
+tl (t : ν (K ℕ × 𝕏)) : ν (K ℕ × 𝕏) := out t .π₂
+
+-- cons by corecursion at the one-step carrier ℕ × Stream
+cons (x : ℕ) (s : ν (K ℕ × 𝕏)) : ν (K ℕ × 𝕏) :=
+  corec (K ℕ × 𝕏) (p : ℕ × ν (K ℕ × 𝕏). (p .π₁, out (p .π₂))) (x, s)
+
+iterate (f : ℕ → ℕ) (x : ℕ) : ν (K ℕ × 𝕏) :=
+  corec (K ℕ × 𝕏) (s : ℕ. (s, f s)) x
+
+hdCons (x : ℕ) (s : ν (K ℕ × 𝕏)) : hd[cons[x, s]] ≡ x ∈ ℕ :=
+  ⌜δ hd[cons[x, s]] ; out (δ cons[x, s]) .π₁ : ℕ⌝
+
+hdIterate (f : ℕ → ℕ) (x : ℕ) : hd[iterate[f, x]] ≡ x ∈ ℕ :=
+  ⌜δ hd[iterate[f, x]] ; out (δ iterate[f, x]) .π₁ : ℕ⌝
+
+-- two observation steps
+hdTlIterate (f : ℕ → ℕ) (x : ℕ) : hd[tl[iterate[f, x]]] ≡ f x ∈ ℕ :=
+  reify
+    δ hd[tl[iterate[f, x]]]
+      ; out (δ tl[iterate[f, x]]) .π₁
+      ; out (out (δ iterate[f, x]) .π₂) .π₁
+      : ℕ
+
+hdTlCons (x : ℕ) (s : ν (K ℕ × 𝕏)) : hd[tl[cons[x, s]]] ≡ hd[s] ∈ ℕ :=
+  reify
+    δ hd[tl[cons[x, s]]]
+      ; out (δ tl[cons[x, s]]) .π₁
+      ; out (out (δ cons[x, s]) .π₂) .π₁
+      ; δ hd[s]⁻¹
+      : ℕ
+
+-- the polynomial of a corec must match the carrier's use
+bad-coalgebra (x : ℕ) : ν (K ℕ × 𝕏) := corec (K ℕ × 𝕏) (s : ℕ. s) x
+
+-- coinduction: two corecursive zero streams are equal, by the
+-- invariant that the left is zeros and the right is zeros'
+zeros : ν (K ℕ × 𝕏) := corec (K ℕ × 𝕏) (u : 𝟙. (Z, u)) ()
+zeros' : ν (K ℕ × 𝕏) := corec (K ℕ × 𝕏) (n : ℕ. (Z, n)) Z
+
+same : zeros ≡ zeros' ∈ ν (K ℕ × 𝕏) :=
+  reify
+    coind zeros zeros'
+      (x y. ∥(x ≡ zeros ∈ ν (K ℕ × 𝕏)) × (y ≡ zeros' ∈ ν (K ℕ × 𝕏))∥)
+      (squash (⌜zeros⌝, ⌜zeros'⌝))
+      (x y h. unsquash
+        (∥(out x .π₁ ≡ out y .π₁ ∈ ℕ)
+          × ∥(out x .π₂ ≡ zeros ∈ ν (K ℕ × 𝕏)) × (out y .π₂ ≡ zeros' ∈ ν (K ℕ × 𝕏))∥∥)
+        (k. squash
+          ( ⌜out ⌞k .π₁⌟ .π₁ ; out (δ zeros) .π₁ ; (out (δ zeros') .π₁)⁻¹ ; (out ⌞k .π₂⌟ .π₁)⁻¹ : ℕ⌝
+          , squash
+              ( ⌜out ⌞k .π₁⌟ .π₂ ; out (δ zeros) .π₂ ; δ zeros⁻¹ : ν (K ℕ × 𝕏)⌝
+              , ⌜out ⌞k .π₂⌟ .π₂ ; out (δ zeros') .π₂ ; δ zeros'⁻¹ : ν (K ℕ × 𝕏)⌝ )))
+        h)
+      : ν (K ℕ × 𝕏)

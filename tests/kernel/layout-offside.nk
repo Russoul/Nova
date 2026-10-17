@@ -1,0 +1,3 @@
+-- a definiens must be indented past the item
+zero : ℕ :=
+Z

@@ -1,8 +1,0 @@
--- el-squash-i: ⋆ inhabits the squash of any inhabited type
-truth : ∥𝟙∥
-truth = ⋆
-eqSquash : (a : ℕ) → ∥a ≡ a ∈ ℕ∥
-eqSquash = λa. ⋆
--- el-prf-prop: proof irrelevance — any two proofs of a prop are equal
-irrel : (p : Ω) (x : p) (y : p) → x ≡ y ∈ p
-irrel = λp. λx. λy. ⋆

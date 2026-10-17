@@ -1,8 +1,0 @@
-input.nova:4:7: error: def bad: cannot infer the type of ⋆ ⟨witness⟩ — ascribe it: `(t : T)`
-4 | bad = (⋆ Z) Z
-  |       ^^^^^
-declared bad [+1 declaration]
-open declarations (1):
-  [bad] ⊢ ? : ℕ
-      at: input.nova:3:1: def bad
-Error: 1 item failed to elaborate

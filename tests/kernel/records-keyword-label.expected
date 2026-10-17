@@ -1,0 +1,2 @@
+records-keyword-label.nk:2:26: S is a keyword; it cannot be a label
+exit 2

@@ -49,11 +49,10 @@ invRepWDAt : {p p' : Rat}
   (v : ((e : NZ) × nzToInt e ≡ num p) ⊎ (num p ≡ intZero))
   (v' : ((e : NZ) × nzToInt e ≡ num p') ⊎ (num p' ≡ intZero))
   → num (invRepAt _ v) * dInt (invRepAt _ v') ≡ num (invRepAt _ v') * dInt (invRepAt _ v)
-  using (intMulOneR,
-    intMulZeroL,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -133,6 +132,7 @@ invRepWD : {p p' : Rat}
   using (Int.nonZero.nzOfInt.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.num.eq,
@@ -153,13 +153,8 @@ invRepWDCls : (p p' : Rat) (h : RatR p p') → class (invRep p) ≡ class (invRe
 invRepWDCls = λp p' h. clsEqOfRel _ _ (invRepWD h)
 
 qInv : Q → Q
-  using (Int.Int.unfold,
-    invRepWDCls,
-    Rat.frac.NZ.unfold,
-    Rat.frac.Rat.unfold,
-    Rat.Q.unfold,
-    Rat.RatR.unfold)
-qInv = λu. quot-elim (p. class (invRep p)) u
+  using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold, Rat.Q.unfold, Rat.RatR.unfold)
+qInv = λu. quot-elim (p. class (invRep p)) (p p' h. invRepWDCls _ _ h) u
 
 qInvCls : (p : Rat) → qInv (qcls p) ≡ qcls (invRep p)
   using (Int.Int.unfold,
@@ -215,6 +210,7 @@ invRepRel : {p : Rat}
   using (Int.Int.unfold,
     Int.intOne.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -250,18 +246,17 @@ invRepCorrectAt : {p : Rat}
   (hnz : ¬ (num p ≡ intZero))
   (v : ((e : NZ) × nzToInt e ≡ num p) ⊎ (num p ≡ intZero))
   → class (ratMul p (invRepAt _ v)) ≡ qOne
-  using (intMulZeroR,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.Int.unfold,
     Int.intOne.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Core.prop.¬.unfold,
     Core.prop.⊃.unfold,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.mkRat.eq,
     Rat.frac.num.eq,
-    Rat.frac.nzMulOneR,
     Rat.frac.ratOfInt.eq,
     Rat.frac.ratOne.eq,
     Rat.algInv.invRepAt.eq,
@@ -284,6 +279,7 @@ qMulInvR : {u : Q} (h : ¬ (u ≡ qZero)) → u * qInv u ≡ qOne
     Int.nonZero.nzOfIntAt.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     pi.eta,
     Core.prop.¬.unfold,
     Core.prop.⊃.unfold,
@@ -302,6 +298,7 @@ qMulInvR : {u : Q} (h : ¬ (u ≡ qZero)) → u * qInv u ≡ qOne
     Rat.RatR.unfold,
     Rat.dInt.eq,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.ratMul.eq)
 qMulInvR = λu. quot-elim (p. λh. invRepCorrectAt (numNonZero h) (nzOfInt (num p))) u
 
@@ -389,7 +386,7 @@ invPairCong : {u a a' : Q}
   {b' : u * a' ≡ qOne}
   (h : a ≡ a')
   → (a, b) ≡ (a', b') ∈ (v : Q) × u * v ≡ qOne
-  using (hyp.rw, Rat.Q.unfold, sigma.eta)
+  using (Rat.Q.unfold, sigma.eta)
 invPairCong = λu a a' b b' h. ⋆
 
 -- so any two inverse-witnesses are equal, given as pairs

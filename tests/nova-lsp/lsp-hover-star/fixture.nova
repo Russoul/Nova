@@ -1,8 +1,0 @@
-plus : ℕ → ℕ → ℕ
-plus = λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-
-plusZeroId : (n : ℕ) → plus n Z ≡ n using (plus.eq)
-plusZeroId = λn. ⋆
-
-sZero : plus (S Z) Z ≡ S Z
-sZero = ⋆ using (plusZeroId, plus.eq)

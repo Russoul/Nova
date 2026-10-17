@@ -201,6 +201,7 @@ posSampleLo : {p : RSeq}
     Real.realOfQ.eq,
     Real.constReg.eq,
     Real.order.≤.eq,
+    Real.order.rleL.eq,
     Real.order.RLeP.eq,
     Real.neg.seqOf.eq,
     recipLo.eq)

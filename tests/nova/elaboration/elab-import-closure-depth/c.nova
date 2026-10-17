@@ -1,4 +1,0 @@
-import base
-
-cdef : ℕ
-cdef = base.bzero

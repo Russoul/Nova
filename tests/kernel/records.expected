@@ -1,0 +1,88 @@
+accepted plus (n : ℕ) (m : ℕ) : ℕ := ℕ-elim ☐₁ (.. S ☐₀) ☐₀
+accepted Empty : 𝕌₀ := Rec
+accepted Point : 𝕌₀ := Rec (x : ℕ) (y : ℕ)
+accepted Dep : 𝕌₀ := Rec (n : ℕ) (m : ℕ) (h : ☐₁ ≡ ☐₀ ∈ ℕ)
+accepted Big : 𝕌₁ := Rec (A : 𝕌₀) (a : ☐₀)
+rejected Big-too-low (line 16): the definiens: the synthesised and the expected type do not agree
+accepted Props : 𝕌₀ := Rec (p : Z ≡ Z ∈ ℕ) (q : ∥𝟙∥)
+rejected Props-at-omega (line 19): the definiens: the synthesised and the expected type do not agree
+accepted Small-lifted : 𝕌₁ := Rec (x : ℕ)
+rejected Small-unlifted (line 22): the definiens: the synthesised and the expected type do not agree
+rejected Dup (line 24): the definiens: Rec: the label x is repeated
+rejected Not-a-type (line 25): the definiens: a telescope entry: this proof only checks; annotate it to synthesise
+accepted Shadow (x : 𝟙) : 𝕌₀ := Rec (x : ℕ) (h : ☐₀ ≡ Z ∈ ℕ)
+accepted Outer (n : ℕ) : 𝕌₀ := Rec (x : ℕ) (h : ☐₀ ≡ ☐₁ ∈ ℕ)
+accepted origin : Rec (x : ℕ) (y : ℕ) := ⟨x ↪ Z, y ↪ S Z⟩
+accepted dep : Rec (A : 𝕌₀) (a : ☐₀) := ⟨A ↪ ℕ, a ↪ Z⟩
+rejected dep-bad (line 36): the definiens: (): the type is not 𝟙
+accepted proofs : Rec (n : ℕ) (m : ℕ) (h : ☐₁ ≡ ☐₀ ∈ ℕ) := ⟨n ↪ S Z, m ↪ plus[Z, S Z], h ↪ ⋆⟩
+rejected swapped (line 39): the definiens: record: the labels are y x, the type's are x y
+rejected missing (line 40): the definiens: record: the labels are x, the type's are x y
+rejected extra (line 41): the definiens: record: the labels are x y, the type's are x
+rejected renamed (line 42): the definiens: record: the labels are z, the type's are x
+accepted unit : Rec := ⟨⟩
+rejected no-synth (line 46): the definiens: this proof only checks; annotate it to synthesise
+accepted annotated : ℕ := ⟨x ↪ Z⟩ .x
+rejected not-record (line 49): the definiens: record: the type is not a record type
+rejected pair-at-rec (line 50): the definiens: pair: the type is not a Σ-type
+rejected rec-at-sigma (line 51): the definiens: record: the type is not a record type
+rejected at-item (line 53): the definiens: record: the type is not a record type
+accepted at-item-exposed : Point := ⟨x ↪ Z, y ↪ Z⟩
+accepted fst-ty (p : Rec (A : 𝕌₀) (a : ☐₀)) : 𝕌₀ := ☐₀ .A
+accepted snd-el (p : Rec (A : 𝕌₀) (a : ☐₀)) : ☐₀ .A := ☐₀ .a
+accepted third (r : Rec (n : ℕ) (m : ℕ) (h : ☐₁ ≡ ☐₀ ∈ ℕ)) : ☐₀ .n ≡ ☐₀ .m ∈ ℕ := ☐₀ .h
+rejected absent (line 61): the definiens: .y: the record type has no such label
+rejected non-record (line 62): the definiens: .x: the type is not a record type
+accepted on-spine (f : ℕ → Rec (x : ℕ)) : ℕ := (☐₀ Z) .x
+accepted glued-to-paren (f : ℕ → Rec (x : ℕ)) : ℕ := (☐₀ Z) .x
+accepted in-argument (f : ℕ → ℕ) (r : Rec (x : ℕ)) : ℕ := ☐₁ (☐₀ .x)
+accepted chain (r : Rec (inner : Rec (x : ℕ)) (k : ℕ)) : ℕ := ☐₀ .inner .x
+accepted applied (m : Rec (carrier : 𝕌₀) (op : ☐₀ → ☐₁ → ☐₂)) (a : ☐₀ .carrier) : ☐₁ .carrier := ☐₁ .op ☐₀ ☐₀
+rejected stuck (line 70): the definiens: .x: the type is not a record type
+accepted exposed (p : Point) : ℕ := ☐₀ .x
+accepted proj-cong (r : Rec (x : ℕ)) (s : Rec (x : ℕ)) (h : ☐₁ ≡ ☐₀ ∈ Rec (x : ℕ)) : ☐₂ .x ≡ ☐₁ .x ∈ ℕ := ⋆
+accepted beta-x : ⟨x ↪ Z, y ↪ S Z⟩ .x ≡ Z ∈ ℕ := ⋆
+accepted beta-y : ⟨x ↪ Z, y ↪ S Z⟩ .y ≡ S Z ∈ ℕ := ⋆
+rejected beta-wrong (line 79): the definiens: the synthesised and the expected type do not agree
+accepted beta-in-type : ℕ := ⟨A ↪ ℕ, a ↪ S Z⟩ .a
+rejected no-delta (line 83): the definiens: the synthesised and the expected type do not agree
+accepted with-delta : origin .y ≡ S Z ∈ ℕ := ⋆
+accepted neutral (r : Rec (x : ℕ)) : ☐₀ .x ≡ ☐₀ .x ∈ ℕ := ⋆
+accepted eta (r : Rec (x : ℕ) (y : ℕ)) : ☐₀ ≡ ⟨x ↪ ☐₀ .x, y ↪ ☐₀ .y⟩ ∈ Rec (x : ℕ) (y : ℕ) := ⋆
+accepted eta-dep (p : Rec (A : 𝕌₀) (a : ☐₀)) : ☐₀ ≡ ⟨A ↪ ☐₀ .A, a ↪ ☐₀ .a⟩ ∈ Rec (A : 𝕌₀) (a : ☐₀) := ⋆
+rejected eta-not-record (line 94): the definiens: ηRec: the type is not a record type
+accepted ext (r : Rec (x : ℕ) (y : ℕ)) (s : Rec (x : ℕ) (y : ℕ)) (hx : ☐₁ .x ≡ ☐₀ .x ∈ ℕ) (hy : ☐₂ .y ≡ ☐₁ .y ∈ ℕ) : ☐₃ ≡ ☐₂ ∈ Rec (x : ℕ) (y : ℕ) := ⋆
+accepted ext-dep (p : Rec (A : 𝕌₀) (a : ☐₀)) (q : Rec (A : 𝕌₀) (a : ☐₀)) (hA : ☐₁ .A ≡ ☐₀ .A ∈ 𝕌₀) (ha : ☐₂ .a ≡ ☐₁ .a ∈ ☐₁ .A) : ☐₃ ≡ ☐₂ ∈ Rec (A : 𝕌₀) (a : ☐₀) := ⋆
+accepted unit-unique (a : Rec) (b : Rec) : ☐₁ ≡ ☐₀ ∈ Rec := ⋆
+accepted T : 𝕌₀ := ℕ
+accepted rec-cong : Rec (x : T) ≡ Rec (x : ℕ) ∈ 𝕌₀ := ⋆
+accepted via-cong : Rec (x : T) := ⟨x ↪ Z⟩
+accepted dep-cong (A : 𝕌₀) (B : 𝕌₀) (h : ☐₁ ≡ ☐₀ ∈ 𝕌₀) : Rec (X : 𝕌₀) (a : ☐₃) ≡ Rec (X : 𝕌₀) (a : ☐₂) ∈ 𝕌₁ := ⋆
+accepted lit-cong : ⟨x ↪ T⟩ ≡ ⟨x ↪ ℕ⟩ ∈ Rec (x : 𝕌₀) := ⋆
+rejected labels-differ (line 113): the definiens: the synthesised and the expected type do not agree
+rejected order-differs (line 114): the definiens: the synthesised and the expected type do not agree
+rejected not-sigma (line 115): the definiens: the synthesised and the expected type do not agree
+rejected not-one (line 116): the definiens: the synthesised and the expected type do not agree
+accepted mk (n : ℕ) : Rec (x : ℕ) (h : ☐₀ ≡ ☐₁ ∈ ℕ) := ⟨x ↪ ☐₀, h ↪ ⋆⟩
+accepted use : Rec (x : ℕ) (h : ☐₀ ≡ S Z ∈ ℕ) := mk[S Z]
+accepted use-x : mk[S Z] .x ≡ S Z ∈ ℕ := ⋆
+accepted use-h : mk[S Z] .x ≡ S Z ∈ ℕ := mk[S Z] .h
+accepted family : ℕ → Rec (x : ℕ) (h : ☐₀ ≡ ☐₁ ∈ ℕ) := λ. ⟨x ↪ ☐₀, h ↪ ⋆⟩
+accepted at-two (f : ℕ → Rec (x : ℕ) (h : ☐₀ ≡ ☐₁ ∈ ℕ)) : (☐₀ (S (S Z))) .x ≡ S (S Z) ∈ ℕ := (☐₀ (S (S Z))) .h
+accepted deep (n : ℕ) (m : ℕ) : Rec (a : ℕ) (b : ☐₀ ≡ ☐₂ ∈ ℕ) (c : ☐₁ ≡ ☐₂ ∈ ℕ) → ☐₂ ≡ ☐₁ ∈ ℕ := λ. ⋆
+accepted under-let : ℕ := let ⟨x ↪ S Z⟩ (.. ☐₁ .x)
+accepted stream-of-points : 𝕌₀ := ν (K (Rec (x : ℕ) (y : ℕ)) × 𝕏)
+accepted sum-of-records (s : Rec (x : ℕ) ⊎ Rec (y : 𝟙)) : ℕ := ⊎-elim (. ☐₀ .x) (. Z) ☐₀
+accepted pair-of : Rec (x : ℕ) × Rec := (⟨x ↪ Z⟩, ⟨⟩)
+accepted record-of-pairs : Rec (p : ℕ × ℕ) (q : ☐₀ .π₁ ≡ ☐₀ .π₂ ∈ ℕ) := ⟨p ↪ (Z, Z), q ↪ ⋆⟩
+accepted mixed-postfix (p : Rec (q : ℕ × ℕ)) (f : ℕ → ℕ) : ℕ := ☐₀ (☐₁ .q .π₁)
+accepted record-in-record : Rec (inner : Rec (x : ℕ)) (same : ☐₀ .x ≡ Z ∈ ℕ) := ⟨inner ↪ ⟨x ↪ Z⟩, same ↪ ⋆⟩
+accepted nat-magma : Rec (carrier : 𝕌₀) (unit : ☐₀) (op : ☐₁ → ☐₂ → ☐₃) := ⟨carrier ↪ ℕ, unit ↪ Z, op ↪ λ. λ. plus[☐₁, ☐₀]⟩
+rejected two-stuck (line 145): the definiens: S: the type is not ℕ
+accepted carrier-is-nat : nat-magma .carrier ≡ ℕ ∈ 𝕌₀ := ⋆
+accepted one-in : nat-magma .carrier := S Z
+accepted two : ℕ := nat-magma .op one-in one-in
+accepted square (m : Rec (carrier : 𝕌₀) (unit : ☐₀) (op : ☐₁ → ☐₂ → ☐₃)) (a : ☐₀ .carrier) : ☐₁ .carrier := ☐₁ .op ☐₀ ☐₀
+accepted four : ℕ := square[⟨carrier ↪ ℕ, unit ↪ Z, op ↪ λ. λ. plus[☐₁, ☐₀]⟩, S (S Z)]
+accepted four-is-four : four ≡ S (S (S (S Z))) ∈ ℕ := ⋆
+exit 1

@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run surface-elem "ℕ-elim (n. ℕ) Z (n ih. S ih) (S Z)"

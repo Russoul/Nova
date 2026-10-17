@@ -1,6 +1,0 @@
-plus : ℕ → ℕ → ℕ
-plus = λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
-
--- a let is always a redex: nf contracts it and shares nothing
-four : ℕ
-four = let two = S (S Z) in plus two two

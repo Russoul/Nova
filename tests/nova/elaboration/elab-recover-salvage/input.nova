@@ -1,4 +1,0 @@
--- the holes a FAILED item reached before it broke are rendered at
--- the failure: nothing it built survives, but the goals do
-broken : ℕ × ℕ
-broken = (?reached, noSuchName)

@@ -334,7 +334,7 @@ rDistrib =
       seqBoundPos
 
 realDistribL : (u v w : Real) → u * (v + w) ≡ u * v + u * w
-  using (Real.Real.unfold, Real.add.+.eq, Real.mul.*.eq)
+  using (Real.Real.unfold, Real.add.+.eq, Real.add.rAddL.eq, Real.mul.*.eq, Real.mul.rMulL.eq)
 realDistribL =
   λu v w. quot-elim (p. quot-elim (q. quot-elim (r. realEqOfREq _ _ (rDistrib p q r)) w) v) u
 
@@ -473,7 +473,8 @@ rAssoc =
       seqBoundPos
       seqBoundPos
 
-realMulAssoc : (u v w : Real) → u * v * w ≡ u * (v * w) using (Real.Real.unfold, Real.mul.*.eq)
+realMulAssoc : (u v w : Real) → u * v * w ≡ u * (v * w)
+  using (Real.Real.unfold, Real.mul.*.eq, Real.mul.rMulL.eq)
 realMulAssoc =
   λu v w. quot-elim (p. quot-elim (q. quot-elim (r. realEqOfREq _ _ (rAssoc p q r)) w) v) u
 

@@ -1,1 +1,0 @@
-data (B : U ; nil : El (B@⬡0) ; ins : (x : ext ℕc) → (m : El B@⬡1) → El (B@⬡2) ; swp : (x : ext ℕc) → (y : ext ℕc) → (m : El B@⬡2) → Eq (AppI (AppE (ins@⬡1) (x@1)) (AppI (AppE (ins@⬡1) (y@0)) (m@⬡0))) (AppI (AppE (ins@⬡1) (y@0)) (AppI (AppE (ins@⬡1) (x@1)) (m@⬡0))) (B@⬡3))

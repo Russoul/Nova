@@ -1,0 +1,27 @@
+rejected Z-at-unit (line 3): the definiens: Z: the type is not ℕ
+rejected unit-at-nat (line 4): the definiens: (): the type is not 𝟙
+rejected class-at-nat (line 5): the definiens: class: the type is not a quotient
+rejected squash-at-nat (line 6): the definiens: squash: the type is not a squash
+rejected lam-at-nat (line 7): the definiens: λ: the type is not a Π-type
+rejected pair-at-nat (line 8): the definiens: pair: the type is not a Σ-type
+rejected inj-at-nat (line 9): the definiens: inj₁: the type is not a ⊎-type
+rejected proj-of-nat (line 10): the definiens: .π₂: the type is not a Σ-type
+rejected app-of-nat (line 11): the definiens: application: the head's type is not a Π-type
+rejected motive-sort (line 12): the definiens: ℕ-elim: the motive: the synthesised and the expected type do not agree
+rejected sum-motive-sort (line 13): the definiens: ⊎-elim: the motive: the synthesised and the expected type do not agree
+rejected lift-at-nat (line 14): the definiens: lift: the target: its type is not a sort
+rejected conv-not-a-type-equation (line 15): the definiens: conv: the type equation: its type is not a sort
+rejected reflect-not-eq (line 16): the definiens: reflect: the proof's type is not an equality
+rejected unsquash-not-squash (line 17): the definiens: unsquash: the proof's type is not a squash
+rejected unsquash-target-not-prop (line 18): the definiens: unsquash: the target: the synthesised and the expected type do not agree
+rejected irrel-at-nat (line 19): the definiens: irrel: the type is neither 𝟙 nor 𝟘
+rejected prop-irrel-not-prop (line 20): the definiens: prop-irrel: the witness: the synthesised and the expected type do not agree
+rejected propext-not-prop (line 21): the type: the synthesised and the expected type do not agree
+rejected eta-not-pi (line 22): the definiens: η→: the type is not a Π-type
+rejected context-not-a-type (line 23): a context entry: its type is not a sort
+rejected type-not-a-type (line 24): the type: its type is not a sort
+rejected var-out-of-scope (line 25): the definiens: unknown item 'y'
+rejected pi-domain-not-a-type (line 26): the definiens: Π: the domain: its type is not a sort
+rejected eq-type-not-a-type (line 27): the definiens: ≡: the type: its type is not a sort
+rejected refl-needs-synthesis (line 28): the definiens: this proof only checks; annotate it to synthesise
+exit 1

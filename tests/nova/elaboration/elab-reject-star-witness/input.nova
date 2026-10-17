@@ -1,4 +1,0 @@
--- `⋆ ⟨witness⟩` still demands a ∥∥-shaped code: an opaque prop
--- variable is not a squash, whatever the witness
-bad : (p : Ω) → p
-bad = λp. ⋆ ()

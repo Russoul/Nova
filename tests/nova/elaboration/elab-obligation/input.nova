@@ -1,5 +1,0 @@
-plus : ℕ → ℕ → ℕ
-plus = λx. λy. ℕ-elim (n. ℕ) x (n ih. S ih) y
--- surfaces as an obligation: not provable by computation alone
-needsLemma : (n : ℕ) → plus Z n ≡ n ∈ ℕ
-needsLemma = λn. ⋆

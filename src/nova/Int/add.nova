@@ -6,70 +6,77 @@
 
 import Natural (+, plusZeroId, plusSucId, zeroPlusId, sucPlus, plusComm, plusAssoc, swapLeft)
 import Int (Int)
-import Core.equality (cong)
+import Core.equality (cong, sym)
 
 intAddWD : (a1 a2 b1 b2 c1 c2 : ℕ)
   (h : b1 + c2 ≡ b2 + c1)
   → a1 + b1 + (a2 + c2) ≡ a2 + b2 + (a1 + c1)
-  using (hyp.rw,
-    plusAssoc,
-    plusAssoc.rw,
-    plusSucId,
-    plusSucId.rw,
-    sucPlus,
-    sucPlus.rw,
-    swapLeft,
-    swapLeft.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
-intAddWD = λa1 a2 b1 b2 c1 c2 h. ℕ-elim ⋆ (k ih. ⋆) a2
+intAddWD =
+  λa1 a2 b1 b2 c1 c2 h. ℕ-elim
+    a1 + b1 + (Z + c2)
+      ≡⟨ cong (λu. ℕ) (λu. a1 + b1 + u) (zeroPlusId c2) ⟩ a1 + b1 + c2
+      ≡⟨ plusAssoc a1 b1 c2 ⟩ a1 + (b1 + c2)
+      ≡⟨ cong (λu. ℕ) (λu. a1 + u) h ⟩ a1 + (b2 + c1)
+      ≡⟨ swapLeft a1 b2 c1 ⟩ b2 + (a1 + c1)
+      ≡⟨ cong (λu. ℕ) (λu. u + (a1 + c1)) (sym _ _ (zeroPlusId b2)) ⟩ Z + b2 + (a1 + c1)
+    k ih. a1 + b1 + (S k + c2)
+      ≡⟨ cong (λu. ℕ) (λu. a1 + b1 + u) (sucPlus k c2) ⟩ a1 + b1 + S (k + c2)
+      ≡⟨ plusSucId (a1 + b1) (k + c2) ⟩ S (a1 + b1 + (k + c2))
+      ≡⟨ cong (λu. ℕ) (λu. S u) ih ⟩ S (k + b2 + (a1 + c1))
+      ≡⟨ sym _ _ (sucPlus (k + b2) (a1 + c1)) ⟩ S (k + b2) + (a1 + c1)
+      ≡⟨ cong (λu. ℕ) (λu. u + (a1 + c1)) (sym _ _ (sucPlus k b2)) ⟩ S k + b2 + (a1 + c1)
+    a2
 
 -- cross-sum well-definedness in the OUTER argument, conditional on h
 intAddCross : (a1 a2 b1 b2 c1 c2 : ℕ)
   (h : a1 + b2 ≡ a2 + b1)
   → a1 + c1 + (b2 + c2) ≡ a2 + c2 + (b1 + c1)
-  using (hyp.rw,
-    plusAssoc,
-    plusComm,
-    plusSucId,
-    plusSucId.rw,
-    plusZeroId,
-    sucPlus,
-    sucPlus.rw,
-    swapLeft)
 intAddCross =
   λa1 a2 b1 b2 c1 c2 h. ℕ-elim
     a1 + c1 + (b2 + Z)
-      ≡⟨ plusZeroId b2 ⟩ a1 + c1 + b2
+      ≡⟨ cong (λu. ℕ) (λu. a1 + c1 + u) (plusZeroId b2) ⟩ a1 + c1 + b2
       ≡⟨ plusAssoc a1 c1 b2 ⟩ a1 + (c1 + b2)
       ≡⟨ swapLeft a1 c1 b2 ⟩ c1 + (a1 + b2)
       ≡⟨ h ⟩ c1 + (a2 + b1)
       ≡⟨ swapLeft c1 a2 b1 ⟩ a2 + (c1 + b1)
       ≡⟨ plusComm b1 c1 ⟩ a2 + (b1 + c1)
-      ≡⟨ plusZeroId a2 ⟩ a2 + Z + (b1 + c1)
-    k ih. ⋆
+      ≡⟨ cong (λu. ℕ) (λu. u + (b1 + c1)) (sym _ _ (plusZeroId a2)) ⟩ a2 + Z + (b1 + c1)
+    k ih. a1 + c1 + (b2 + S k)
+      ≡⟨ cong (λu. ℕ) (λu. a1 + c1 + u) (plusSucId b2 k) ⟩ a1 + c1 + S (b2 + k)
+      ≡⟨ plusSucId (a1 + c1) (b2 + k) ⟩ S (a1 + c1 + (b2 + k))
+      ≡⟨ cong (λu. ℕ) (λu. S u) ih ⟩ S (a2 + k + (b1 + c1))
+      ≡⟨ sym _ _ (sucPlus (a2 + k) (b1 + c1)) ⟩ S (a2 + k) + (b1 + c1)
+      ≡⟨ cong (λu. ℕ) (λu. u + (b1 + c1)) (sym _ _ (plusSucId a2 k)) ⟩ a2 + S k + (b1 + c1)
     c2
 
--- the same, one level up: the inner elimination is well-defined in the
--- OUTER argument — proven by quotient elimination with an ≡-motive
-intAddWDOuter : (a b : ℕ × ℕ)
-  (h : a .π₁ + b .π₂ ≡ a .π₂ + b .π₁)
-  (zy : Int)
-  → quot-elim (z. Int) (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)) zy
-    ≡ quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) zy
-  using (intAddCross, intAddWD, Int.Int.unfold, plusAssoc)
-intAddWDOuter =
-  λa b h zy. quot-elim
-    q. quot-elim (z. Int) (x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)) q
-      ≡ quot-elim (x. class (b .π₁ + x .π₁, b .π₂ + x .π₂)) q
-    c. ⋆
+-- ===== the descended operation, one argument at a time =====
+--
+-- Addition of a fixed representative on the left, descended to the
+-- quotient; its well-definedness in the right argument stated once,
+-- here, as the local claim the eliminator reads.
+intAddL : ℕ × ℕ → Int → Int using (Int.Int.unfold)
+intAddL =
+  λa zy. quot-elim
+    x. class (a .π₁ + x .π₁, a .π₂ + x .π₂)
+    x x' h. intAddWD (a .π₁) (a .π₂) _ _ _ _ h
     zy
 
-infixl 6 +
-+ : Int → Int → Int using (intAddWD, intAddWDOuter, Int.Int.unfold, plusAssoc)
-(+) = λzx zy. quot-elim (a. quot-elim (b. class (a .π₁ + b .π₁, a .π₂ + b .π₂)) zy) zx
+-- the outer half as the descent asks for it: the two left additions
+-- agree on every element of the quotient — a quot-elim at an
+-- ≡-motive whose case is the cross-sum lemma
+intAddWDOuter : (a a' : ℕ × ℕ)
+  (h : a .π₁ + a' .π₂ ≡ a .π₂ + a' .π₁)
+  (zy : Int)
+  → intAddL a zy ≡ intAddL a' zy
+  using (Int.Int.unfold, Int.add.intAddL.eq)
+intAddWDOuter = λa a' h zy. quot-elim (c. intAddCross _ _ _ _ (c .π₁) (c .π₂) h) zy
 
-intAddTest : class (Z, Z) + class (S Z, S Z) ≡ class (S Z, S Z) using (Int.Int.unfold, Int.add.+.eq)
+infixl 6 +
++ : Int → Int → Int using (Int.Int.unfold)
+(+) = λzx zy. quot-elim (a. intAddL a zy) (a a' h. intAddWDOuter _ _ h zy) zx
+
+intAddTest : class (Z, Z) + class (S Z, S Z) ≡ class (S Z, S Z)
+  using (Int.Int.unfold, Int.add.+.eq, Int.add.intAddL.eq)
 intAddTest = ⋆
 
 -- ===== the algebra =====
@@ -84,12 +91,16 @@ crossComm =
 
 -- commutativity: two quotient eliminations at ≡-motives reduce to the
 -- representative-level cross-sum permutation
-intAddComm : (x y : Int) → x + y ≡ y + x
-  using (crossComm, Int.Int.unfold, Int.add.+.eq, Natural.swapMid, plusAssoc, plusComm, swapLeft)
-intAddComm = λx y. quot-elim (a. quot-elim (b. ⋆) y) x
+intAddComm : (x y : Int) → x + y ≡ y + x using (Int.Int.unfold, Int.add.+.eq, Int.add.intAddL.eq)
+intAddComm = λx y. quot-elim (a. quot-elim (b. crossComm (a .π₁) (b .π₁) (b .π₂) (a .π₂)) y) x
 
 -- associativity: three eliminations; the representatives reassociate
 -- by plusAssoc and close by commutativity of the cross sum
 intAddAssoc : (x y z : Int) → x + y + z ≡ x + (y + z)
-  using (hyp.rw, Int.add.+.eq, Int.Int.eq, Int.Int.unfold, plusAssoc, plusAssoc.rw)
-intAddAssoc = λx y z. quot-elim (a. quot-elim (b. quot-elim (c. ⋆) z) y) x
+  using (Int.add.+.eq, Int.add.intAddL.eq, Int.Int.eq, Int.Int.unfold)
+intAddAssoc =
+  λx y z. quot-elim
+    a. quot-elim
+      b. quot-elim (c. ⋆ by plusAssoc (a .π₁) (b .π₁) (c .π₁), plusAssoc (a .π₂) (b .π₂) (c .π₂)) z
+      y
+    x

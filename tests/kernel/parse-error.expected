@@ -1,0 +1,2 @@
+parse-error.nk:1:17: expected an expression
+exit 2

@@ -1,0 +1,21 @@
+-- declarations: assumed types, elements, functions and equations,
+-- used like any item; a declaration has no definiens to unfold
+
+A : 𝕌₀
+a : A
+f : A → A
+ax : a ≡ f a ∈ A
+
+fa : A := f a
+use-ax : f a ≡ f (f a) ∈ A := ⌜f ⌞ax⌟⌝
+no-delta : A := δ A
+twice : A → A := λx. f (f x)
+twice-a : twice a ≡ f (f a) ∈ A := ⌜(δ twice) a : A⌝
+
+-- a declared PROPOSITION and a declared proof of it
+p : Ω
+h : p
+h-serves : h ≡ h ∈ p := ⌜prop-irrel p h h⌝
+
+-- an item may not be declared twice
+A : 𝕌₀

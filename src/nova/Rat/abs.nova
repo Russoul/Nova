@@ -52,6 +52,7 @@ bndAbs : (u : Q) → Bnd (qAbs u) u
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq)
 bndAbs =
   λu. ⊎-elim
@@ -80,6 +81,7 @@ absLeOfBnd : {b u : Q} → Bnd b u → qAbs u ≤ b
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq)
 absLeOfBnd =
   λb u h. ⊎-elim
@@ -105,6 +107,7 @@ leQZeroAbs : (u : Q) → qZero ≤ qAbs u
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Rat.qZero.eq)
 leQZeroAbs =
@@ -226,6 +229,7 @@ qAbsMul : (u v : Q) → qAbs (u * v) ≡ qAbs u * qAbs v
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.qNeg.eq)
 qAbsMul =
   λu v. ⊎-elim

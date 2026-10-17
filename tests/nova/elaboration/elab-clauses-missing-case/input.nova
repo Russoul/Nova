@@ -1,2 +1,0 @@
-pred : ℕ → ℕ
-pred (S m) = m

@@ -25,6 +25,7 @@ qInvNatPos : (n : ℕ) → sgnQ (qInvNat n) ≡ sPos
     Int.nonZero.nzOfIntAt.eq,
     Int.intOne.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.denInt.eq,
     Rat.frac.mkRat.eq,
     Rat.frac.num.eq,
@@ -55,7 +56,8 @@ qInvNatPos =
 rBound : ℕ → ℕ → Q using (Rat.Q.unfold)
 rBound = λm n. qInvNat m + qInvNat n
 
-rBoundPos : {m n : ℕ} → sgnQ (rBound m n) ≡ sPos using (Rat.+.eq, Real.qInvNat.eq, Real.rBound.eq)
+rBoundPos : {m n : ℕ} → sgnQ (rBound m n) ≡ sPos
+  using (Rat.+.eq, Rat.qAddL.eq, Real.qInvNat.eq, Real.rBound.eq)
 rBoundPos = λm n. sgnQAddPos _ _ (qInvNatPos m) (qInvNatPos n)
 
 qNegZero : qNeg qZero ≡ qZero

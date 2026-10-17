@@ -19,13 +19,13 @@ import Natural (+, *, multZeroId, plusZeroId, zeroPlusId, sucPlus, multComm, zer
 import Int (Int, intZero, intOne, intNeg)
 import Int.add (+)
 import Int.mul (*, intMulZeroL, intMulNegL, intMulNegR, intNegNeg)
-import Int.order (intOfNat, intOfNatMul)
+import Int.order (intOfNat, intOfNatMul, intOfNatZero)
 import Int.nonZero (nzOfInt)
 import Rat.frac (NZ, nzPos, nzNeg, nzToInt, nzMul, Rat, mkRat, num, den, denInt, ratNeg, ratEta, intScale)
 import Rat (Q, qcls, +, qNeg, qZero, RatR, clsEqOfRel, nzToIntMul, dInt, qAddAssoc, qAddComm, qAddZeroR, qAddNegR, qAddNegL)
 import Rat.order (Sign, sZero, sPos, sNeg, sgnFlip, sgnQ, ratSgn, intSgn, intSgnZero, intSgnPos, intSgnNeg, NonNegS, ≤, sgnQCls, sgnQZero, sgnCases, sgnQNegFlip, qSubNeg, leQTrans, leQAntisym, sZeroNotPos, sZeroNotNeg, sNegNotPos, leQPlusMono, leQPlusMonoL, qNegAdd, qPairSwap)
 import Rat.bound (Bnd, qSubFlip, leQSelfAdd, nonNegNotNeg)
-import Rat.half (dbl, qInvHalf, leQInvDbl, leQZeroInvNat)
+import Rat.half (dbl, qInvHalf, leQInvDbl, leQZeroInvNat, nzPosInt)
 import Real (qInvNat, qInvNatPos)
 import Core.prop (⊥, absurdP)
 import Core.equality (trans, sym, cong, transport)
@@ -48,13 +48,13 @@ qFracOne = λb. ⋆
 
 -- the sign of a natural is never negative
 intSgnOfNatNonNeg : {k : ℕ} → NonNegS (intSgn (intOfNat k))
-  using (Int.order.intOfNatZero,
-    Int.Int.unfold,
-    Rat.half.nzPosInt,
-    Rat.order.NonNegS.unfold,
-    Rat.order.Sign.unfold)
+  using (Int.Int.unfold, Rat.order.NonNegS.unfold, Rat.order.Sign.unfold)
 intSgnOfNatNonNeg =
-  λk. ℕ-elim (inj₁ (eqToId _ _ intSgnZero)) (j ih. inj₂ (eqToId _ _ (intSgnPos j))) k
+  λk. ℕ-elim
+    inj₁ (eqToId _ _ (trans _ _ _ (cong (λu. Sign) (λu. intSgn u) intOfNatZero) intSgnZero))
+    j ih. inj₂
+      eqToId _ _ (trans _ _ _ (cong (λu. Sign) (λu. intSgn u) (sym _ _ (nzPosInt j))) (intSgnPos j))
+    k
 
 -- ...so a fraction with a natural numerator over a positive
 -- denominator is never negative: its sign is that of the natural a·(b+1)
@@ -72,6 +72,7 @@ sgnQFrac : (a b : ℕ) → sgnQ (qFrac a b) ≡ intSgn (intOfNat (a * S b))
     Int.intZero.eq,
     Int.mul.classPairEta.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Int.normalize.normPair.eq,
     Rat.arch.qFrac.eq,
     Rat.frac.denInt.eq,
@@ -99,26 +100,26 @@ nonNegSgnFrac = λa b. transport NonNegS (sym _ _ (sgnQFrac a b)) intSgnOfNatNon
 -- equal (nzMul computes), so only the numerators have to be matched
 fracNumEq : {a b : ℕ}
   → intScale (nzPos b) (intOfNat (S a)) + intScale (nzPos b) (intNeg intOne) ≡ intOfNat (S b * a)
-  using (multZeroId.rw,
-    zeroPlusId.rw,
-    plusZeroId.rw,
-    multSucId.rw,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.IntR.eq,
     Int.intNeg.eq,
     Int.intOne.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.order.intOfNat.eq,
     Rat.frac.intScale.eq,
     Rat.frac.intScaleN.eq,
     Rat.frac.nzPos.eq)
-fracNumEq = λa b. ⋆
+fracNumEq =
+  λa b. ⋆
+    by multZeroId (S b), zeroPlusId (S b * S Z), plusZeroId (S b * S a), multSucId (S b) a, multSucId (S b) Z, plusZeroId (S b), plusZeroId (S b + S b * a)
 
 qDiffFracInv : (a b : ℕ) → qFrac (S a) b + qNeg (qInvNat b) ≡ qFrac (S b * a) (b * b + b + b)
   using (Int.order.intOfNat.eq,
     Int.intNeg.eq,
     Int.intOne.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Rat.arch.qFrac.eq,
     Rat.frac.den.eq,
     Rat.frac.intScale.eq,
@@ -130,6 +131,7 @@ qDiffFracInv : (a b : ℕ) → qFrac (S a) b + qNeg (qInvNat b) ≡ qFrac (S b *
     Rat.frac.ratAdd.eq,
     Rat.frac.ratNeg.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Rat.qcls.eq,
     Real.qInvNat.eq)
@@ -200,6 +202,7 @@ sgnNegOverPos : {a b : ℕ} → sgnQ (qcls (mkRat (nzToInt (nzNeg a)) (nzPos b))
     Int.nonZero.nzOfInt.eq,
     Int.nonZero.nzOfIntAt.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.denInt.eq,
     Rat.frac.mkRat.eq,
     Rat.frac.num.eq,
@@ -232,6 +235,7 @@ sgnZeroOverPos : {b : ℕ} → sgnQ (qcls (mkRat intZero (nzPos b))) ≡ sZero
     Int.nonZero.nzOfIntAt.eq,
     Int.intZero.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.denInt.eq,
     Rat.frac.mkRat.eq,
     Rat.frac.num.eq,
@@ -346,6 +350,7 @@ qArch : (u : Q) → (sgnQ u ≡ sPos) → ∥ArchWit u∥
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Rat.qcls.eq,
     Real.qInvNat.eq)
@@ -421,7 +426,6 @@ qInvNatNotZero =
 archContra : (a b : Q) → ((k : ℕ) → a ≤ b + qInvNat k) → Id _ (sgnQ (b + qNeg a)) sNeg → ⊥
   using (Core.equality.cong.eq,
     Core.equality.trans.eq,
-    hyp.rw,
     Core.id.Id.eq,
     Core.id.Id.unfold,
     Core.id.idToEq.eq,
@@ -439,6 +443,7 @@ archContra : (a b : Q) → ((k : ℕ) → a ≤ b + qInvNat k) → Id _ (sgnQ (b
     Rat.Q.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Real.qInvNat.eq,
     sgnQSubFlip.eq)

@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run surface-elem "{a b : 𝕌} (x : a) → a"

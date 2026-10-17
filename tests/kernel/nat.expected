@@ -1,0 +1,10 @@
+accepted plus (n : ℕ) (m : ℕ) : ℕ := ℕ-elim ☐₁ (.. S ☐₀) ☐₀
+accepted two : ℕ := plus[S Z, S Z]
+accepted two-is-SSZ : two ≡ S (S Z) ∈ ℕ := ⋆
+rejected two-stuck (line 20): the definiens: the synthesised and the expected type do not agree
+accepted S-cong (n : ℕ) (h : ☐₀ ≡ Z ∈ ℕ) : S ☐₁ ≡ S Z ∈ ℕ := ⋆
+accepted plus-0-3 : plus[Z, S (S (S Z))] ≡ S (S (S Z)) ∈ ℕ := ⋆
+accepted plus-n-0 (n : ℕ) : plus[☐₀, Z] ≡ ☐₀ ∈ ℕ := ⋆
+accepted plus-0-n (n : ℕ) : plus[Z, ☐₀] ≡ ☐₀ ∈ ℕ := ℕ-elim ⋆ (.. ⋆) ☐₀
+rejected plus-0-n-stuck (line 45): the definiens: the chain's middles do not agree
+exit 1

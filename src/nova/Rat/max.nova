@@ -28,6 +28,7 @@ leQMaxL : (u v : Q) → u ≤ qMax u v
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq)
 leQMaxL =
   λu v. ⊎-elim
@@ -50,6 +51,7 @@ leQMaxR : (u v : Q) → v ≤ qMax u v
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq)
 leQMaxR =
   λu v. ⊎-elim
@@ -79,6 +81,7 @@ qMaxLub : {u v w : Q} → u ≤ w → v ≤ w → qMax u v ≤ w
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq)
 qMaxLub =
   λu v w h1 h2. ⊎-elim
@@ -136,6 +139,7 @@ leQMinL : (u v : Q) → qMin u v ≤ u
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq)
 leQMinL =
   λu v. transport (λw. qMin u v ≤ w) (qNegNeg u) (leQNegFlip _ _ (leQMaxL (qNeg u) (qNeg v)))
@@ -152,6 +156,7 @@ leQMinR : (u v : Q) → qMin u v ≤ v
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq)
 leQMinR =
   λu v. transport (λw. qMin u v ≤ w) (qNegNeg v) (leQNegFlip _ _ (leQMaxR (qNeg u) (qNeg v)))
@@ -168,6 +173,7 @@ qMinGlb : {u v w : Q} → w ≤ u → w ≤ v → w ≤ qMin u v
     Rat.order.sgnQ.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq)
 qMinGlb =
   λu v w h1 h2. transport
@@ -193,6 +199,7 @@ bndMinSub : (b a c a' c' : Q)
     Rat.order.NonNegS.unfold,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq)
 bndMinSub =
   λb a c a' c' h1 h2. bndEq

@@ -1,0 +1,205 @@
+
+// ===================================
+// ============ Syntax ===============
+// ===================================
+
+// Signature
+Σ ::= ε | (Γ ⊦ x I) Σ
+
+// Signature item
+I ::= T
+    | t : T
+    | module Σ
+
+// Path
+Π ::= ε | Π (Γ ⊦ x I) | Π (Γ ⊦ x module)
+
+ρ ::= x | ρ.y | ρ[σ]
+
+// ===================================
+// ========= Judgement forms =========
+// ===================================
+
+// everything is natural in Γ
+
+Π path
+
+π : Π₀ ⇒ Π₁
+
+Π path
+---------
+Π ⊦ Γ ctx
+
+Π ⊦ Γ ctx
+--------------
+Π Γ ⊦ x I item
+
+Π path
+-----------   // a signature's entries are over the context of the innermost frame
+Π ⊦ Σ sig     //   of Π, implicitly: every Γ in Π Γ ⊦ … is relative to that frame
+
+Π ⊦ Γ ctx
+-----------
+Π Γ ⊦ ρ ∷ I
+
+// ===================================
+// =========== Derivations ===========
+// ===================================
+
+ε path
+
+Π ⊦ Γ ctx
+Π Γ ⊦ x I item
+x ∉ Π
+------------------
+Π (Γ ⊦ x I) path
+
+Π path
+Π ⊦ Γ ctx
+x ∉ Π
+-----------------------
+Π (Γ ⊦ x module) path
+
+// the frame's name denotes the PROJECTION onto the module's parameters,
+// as a substitution from the current context (Γ extended by whatever the
+// body has opened) to Γ: a sibling y over Γ Δ_y is used from a context
+// Γ Δ as y[M, ē], and in nested modules each enclosing name is the
+// projection onto its own parameters
+Π₀ (Γ ⊦ M module) Π₁ ⊦ M : (Γ Δ) ⇒ Γ
+
+Π ⊦ Γ ctx
+Π Γ ⊦ T type
+---------------
+Π Γ ⊦ x T item
+
+Π ⊦ Γ ctx
+Π Γ ⊦ T type
+Π Γ ⊦ t : T
+--------------------
+Π Γ ⊦ x (t : T) item
+
+Π ⊦ Γ ctx
+Π (Γ ⊦ x module) ⊦ Σ sig    // the body is a signature over Γ, checked under the frame
+---------------------------
+Π Γ ⊦ x (module Σ) item
+
+Π ⊦ ε sig
+
+Π Δ ⊦ x I item
+Π (Δ ⊦ x I) ⊦ Σ sig
+---------------------
+Π ⊦ (Δ ⊦ x I) Σ sig
+
+Π path
+----------
+id : Π ⇒ Π
+
+Π path
+---------
+· : Π ⇒ ε
+
+// a morphism assigns to each item a lookup over the item's translated
+// context
+π : Π₀ ⇒ Π₁
+Π₁ Γ ⊦ x I item
+Π₀ Γ⟨π⟩ ⊦ ρ ∷ I⟨π⟩
+x ∉ Π₁
+----------------------------
+π, ρ / x : Π₀ ⇒ Π₁ (Γ ⊦ x I)
+
+// a morphism extends over a frame: the open module is carried across
+// with its context translated and its name kept, so the body on the
+// Π₁ side is read on the Π₀ side under the translated frame (a frame
+// is a context, not an item: nothing is assigned to it)
+π : Π₀ ⇒ Π₁
+Π₁ ⊦ Γ ctx
+x ∉ Π₀      x ∉ Π₁
+---------------------------------------------------
+π : Π₀ (Γ⟨π⟩ ⊦ x module) ⇒ Π₁ (Γ ⊦ x module)
+
+
+Π₁ ⊦ Γ ctx
+π : Π₀ ⇒ Π₁
+----------- // by meta-level induction
+Π₀ ⊦ Γ⟨π⟩ ctx
+     ε⟨π⟩ ≜ ε
+     (Γ ▷ A)⟨π⟩ ≜ Γ⟨π⟩ ▷ A⟨π⟩
+
+Π₁ ⊦ Γ ctx
+Π₁ Γ ⊦ A type
+π : Π₀ ⇒ Π₁
+------------------- // by meta-level induction
+Π₀ Γ⟨π⟩ ⊦ A⟨π⟩ type
+
+Π₁ ⊦ Γ ctx
+Π₁ Γ ⊦ A type
+Π₁ Γ ⊦ t : A
+π : Π₀ ⇒ Π₁
+-------------------------- // by meta-level induction
+Π₀ Γ⟨π⟩ ⊦ t⟨π⟩ : A⟨π⟩
+
+Π₁ Γ ⊦ x I item
+π : Π₀ ⇒ Π₁
+--------------------- // by meta-level induction
+Π₀ Γ⟨π⟩ ⊦ x I⟨π⟩ item
+          T⟨π⟩ ≜ T⟨π⟩ // term-level action
+          (t : T)⟨π⟩ ≜ (t⟨π⟩ : T⟨π⟩)
+          (module Σ)⟨π⟩ ≜ module Σ⟨π⟩
+
+Π₁ ⊦ Σ sig
+π : Π₀ ⇒ Π₁
+------------------- // by meta-level induction; for a signature inside a module, Π₁
+Π₀ ⊦ Σ⟨π⟩ sig       //   ends in a frame and π is its extension over that frame
+          ε⟨π⟩ ≜ ε
+          ((Δ ⊦ x I) ◁ Σ)⟨π⟩ ≜ (Δ⟨π⟩ ⊦ x I⟨π⟩) ◁ Σ⟨π⟩
+
+Π₁ Γ ⊦ ρ ∷ I
+π : Π₀ ⇒ Π₁
+------------------------------------ // by meta-level induction; a morphism acts at the
+Π₀ Γ⟨π⟩ ⊦ ρ⟨π⟩ ∷ I⟨π⟩
+          x⟨π₀, ρ / x, π₁⟩ ≜ ρ
+          (ρ.y)⟨π⟩ ≜ ρ⟨π⟩.y
+          (ρ[σ])⟨π⟩ ≜ ρ⟨π⟩[σ⟨π⟩]
+   // TODO: the commutation of ⟨π⟩ with the projection substitution,
+   //   I⟨ρ.x̄/x̄⟩⟨π⟩ ≐ I⟨π⟩⟨ρ⟨π⟩.x̄/x̄⟩
+
+// ---------- the lookup judgement ----------
+
+(Δ ⊦ x I) ∈ Π
+------------------------ (look-name)
+Π Δ ⊦ x ∷ I
+
+Π Γ ⊦ ρ ∷ I
+Π ⊦ σ : Δ ⇒ Γ
+------------------------------ (look-inst)
+Π Δ ⊦ ρ[σ] ∷ I[σ]
+
+Π Γ ⊦ ρ ∷ module Σ
+Σ = (Δ₁ ⊦ x₁ I₁) … (Δₖ ⊦ xₖ Iₖ) (Δ ⊦ y I) Σ′
+----------------------------------------------- (look-proj)
+Π (Γ Δ⟨ρ.x̄/x̄⟩) ⊦ ρ.y ∷ I⟨ρ.x̄/x̄⟩
+
+// inside a module body a sibling already checked is reached directly, as
+// itself: there is no self instance, and nothing needs the frame's name
+// but the entry it becomes on closing
+
+// [σ] on a lookup is the substitution OPERATION frozen into syntax: a
+// lookup has no structure for the operation to proceed into, so its
+// clause is ρ[σ] ≜ ρ[σ]. The laws the operation would have satisfied are
+// therefore EQUATIONS on lookups, part of ρ₀ ≐ ρ₁ ∷ I:
+//   ρ[id] ≐ ρ
+//   ρ[σ][τ] ≐ ρ[σ ∘ τ]
+//   (ρ.y)[σ₁, σ₂] ≐ (ρ[σ₁].y)[id, σ₂]      // σ split along Γ and Δ⟨ρ.x̄/x̄⟩
+// (the kernel keeps lookups in the normal form these laws produce —
+// a substitution at every step, composed — and compares them as such)
+
+// ---------- lookups as terms ----------
+// a lookup of a term-shaped entry is a term over its context; a module is not
+
+Π Γ ⊦ ρ ∷ T                       Π Γ ⊦ ρ ∷ (t : T)
+------------------ (ref)          ------------------------ (ref)
+Π Γ ⊦ ρ ≐ ρ : T                   Π Γ ⊦ ρ ≐ ρ : T
+
+Π Γ ⊦ ρ ∷ (t : T)
+------------------- (δ)
+Π Γ ⊦ ρ ≐ t : T

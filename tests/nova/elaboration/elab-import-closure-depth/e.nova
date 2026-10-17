@@ -1,4 +1,0 @@
-import base
-
-esym : (n : ℕ) (m : ℕ) → (n ≡ m ∈ ℕ) → m ≡ n ∈ ℕ
-esym = λn. λm. λh. ⋆

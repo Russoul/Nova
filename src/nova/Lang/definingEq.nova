@@ -15,7 +15,7 @@ plus (S m) n = S (plus m n)
 
 -- the generated clause lemmas are ordinary accepted lemmas: an
 -- induction cites plusZ/plusS silently, through E's lemma source
-plusZr : (n : ℕ) → plus n Z ≡ n using (Lang.definingEq.plusZ, plus.eq)
+plusZr : (n : ℕ) → plus n Z ≡ n using (plus.eq)
 plusZr = λn. ℕ-elim ⋆ (k ih. ⋆) n
 
 -- the uniqueness lemma is the recursor's universal property: any
@@ -62,7 +62,7 @@ pred (S m) = m
 -- a recursive call NESTED under another application: mulEta's
 -- ih-rewrite lands inside an argument of a stuck eliminator spine —
 -- discharged through the kernel's NEUTRAL-SUBTERM rule
--- (docs/NovaKernel.txt §6) and the unknown-type congruence descent
+-- (docs/NovaKernel.nspec §6) and the unknown-type congruence descent
 mul : ℕ → ℕ → ℕ
 mul Z n = Z
 mul (S m) n = plus n (mul m n)

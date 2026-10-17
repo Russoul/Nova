@@ -21,19 +21,23 @@ intScaleIsMul : (d : NZ) (z : Int) → intScale d z ≡ nzToInt d * z
     Int.Int.unfold,
     Int.intNeg.eq,
     Int.mul.*.eq,
-    plusZeroId.rw,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.intScale.eq,
     Rat.frac.intScaleN.eq,
     Rat.frac.nzNeg.eq,
     Rat.frac.nzPos.eq,
-    Rat.frac.nzToInt.eq,
-    zeroMult.rw,
-    zeroPlusId.rw)
+    Rat.frac.nzToInt.eq)
 intScaleIsMul =
   λd z. ⊎-elim
-    n. quot-elim (v. intScale (nzPos n) v ≡ nzToInt (nzPos n) * v) (p. ⋆) z
-    n. quot-elim (v. intScale (nzNeg n) v ≡ nzToInt (nzNeg n) * v) (p. ⋆) z
+    n. quot-elim
+      v. intScale (nzPos n) v ≡ nzToInt (nzPos n) * v
+      p. ⋆ by zeroMult (p .π₂), zeroMult (p .π₁), plusZeroId (S n * p .π₁), plusZeroId (S n * p .π₂)
+      z
+    n. quot-elim
+      v. intScale (nzNeg n) v ≡ nzToInt (nzNeg n) * v
+      p. ⋆ by zeroMult (p .π₁), zeroMult (p .π₂), zeroPlusId (S n * p .π₂), zeroPlusId (S n * p .π₁)
+      z
     d
 
 -- (m+1)(k+1) = mk + m + k + 1: the magnitude law behind nzMul
@@ -54,24 +58,28 @@ sucMulSuc =
 nzToIntMul : (d e : NZ) → nzToInt (nzMul d e) ≡ nzToInt d * nzToInt e
   using (Int.Int.eq,
     Int.mul.*.eq,
-    multZeroId.rw,
-    Natural.sucPlus,
-    plusAssoc,
-    plusZeroId.rw,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.nzMul.eq,
     Rat.frac.nzNeg.eq,
     Rat.frac.nzPos.eq,
-    Rat.frac.nzToInt.eq,
-    sucMulSuc,
-    zeroMult,
-    zeroMult.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
+    Rat.frac.nzToInt.eq)
 nzToIntMul =
   λd e. ⊎-elim
-    m. ⊎-elim (v. nzToInt (nzMul (nzPos m) v) ≡ nzToInt (nzPos m) * nzToInt v) (k. ⋆) (k. ⋆) e
-    m. ⊎-elim (v. nzToInt (nzMul (nzNeg m) v) ≡ nzToInt (nzNeg m) * nzToInt v) (k. ⋆) (k. ⋆) e
+    m. ⊎-elim
+      v. nzToInt (nzMul (nzPos m) v) ≡ nzToInt (nzPos m) * nzToInt v
+      k. ⋆
+        by plusZeroId (S (m * k + m + k)), sucMulSuc m k, zeroPlusId (S m * S k), zeroMult Z, zeroMult (S k), multZeroId (S m), zeroPlusId Z, plusZeroId (S m * S k)
+      k. ⋆
+        by zeroPlusId (S m * S k), sucMulSuc m k, plusZeroId (S (m * k + m + k)), zeroMult (S k), zeroMult Z, multZeroId (S m), zeroPlusId Z, plusZeroId (S m * S k)
+      e
+    m. ⊎-elim
+      v. nzToInt (nzMul (nzNeg m) v) ≡ nzToInt (nzNeg m) * nzToInt v
+      k. ⋆
+        by zeroPlusId (S m * S k), sucMulSuc m k, plusZeroId (S (m * k + m + k)), zeroMult (S k), zeroMult Z, multZeroId (S m), zeroPlusId Z
+      k. ⋆
+        by plusZeroId (S (m * k + m + k)), sucMulSuc m k, zeroPlusId (S m * S k), zeroMult Z, zeroMult (S k), multZeroId (S m), zeroPlusId Z
+      e
     d
 
 -- ===== rearranging four-fold products =====
@@ -80,14 +88,14 @@ nzToIntMul =
 -- rewrite; every rearrangement has to be a chain of explicit
 -- congruences. These three build the one permutation the descent
 -- needs: swapping the outer two factors of (a·b)·(c·d).
-mulCongL : (x y z : Int) → (x ≡ y) → x * z ≡ y * z using (Int.Int.unfold, Int.mul.intMulCong2)
-mulCongL = λx y z h. ⋆
+mulCongL : (x y z : Int) → (x ≡ y) → x * z ≡ y * z using (Int.Int.unfold)
+mulCongL = λx y z h. intMulCong2 _ _ _ _ h ⋆
 
-mulCongR : (x y z : Int) → (y ≡ z) → x * y ≡ x * z using (Int.Int.unfold, Int.mul.intMulCong2)
+mulCongR : (x y z : Int) → (y ≡ z) → x * y ≡ x * z using (Int.Int.unfold)
 mulCongR = λx y z h. ⋆
 
 -- x·(y·z) ≡ y·(x·z)
-mulSwapHead : (x y z : Int) → x * (y * z) ≡ y * (x * z) using (intMulAssoc)
+mulSwapHead : (x y z : Int) → x * (y * z) ≡ y * (x * z)
 mulSwapHead =
   λx y z. trans
     _
@@ -145,6 +153,7 @@ qHalfTest : qcls half ≡ qcls (mkRat (class (2, Z)) (nzPos 3))
     Int.Int.unfold,
     Int.intOne.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Natural.*.eq,
     Natural.+.eq,
     Rat.frac.Rat.eq,
@@ -206,7 +215,9 @@ ratAddNumMul : (p q : Rat) → num (ratAdd p q) ≡ dInt q * num p + dInt p * nu
   using (Int.Int.unfold,
     Int.intNeg.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -224,8 +235,9 @@ ratAddNumMul =
 ratAddDenMul : (p q : Rat) → dInt (ratAdd p q) ≡ dInt p * dInt q
   using (Int.Int.unfold,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.*.eq,
-    nzToIntMul,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -279,6 +291,7 @@ qAddWDInnerCls : {p q q' : Rat} (h : RatR q q') → class (ratAdd p q) ≡ class
   using (Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.num.eq,
@@ -307,33 +320,23 @@ qAddWDOuterCls =
       qAddWDInnerCls h
       cong (λu. Q) (λr. class r) (sym _ _ (ratAddComm p' c))
 
--- ...in the quot-elim shape the elaborator asks for
-qAddWDOuter : (p p' : Rat)
-  (h : RatR p p')
-  (v : Q)
-  → quot-elim (w. Q) (x. class (ratAdd p x)) v ≡ quot-elim (x. class (ratAdd p' x)) v
-  using (Int.Int.unfold,
-    qAddWDInnerCls,
-    Rat.frac.NZ.unfold,
-    Rat.frac.Rat.unfold,
-    Rat.Q.unfold,
-    Rat.RatR.unfold)
-qAddWDOuter =
-  λp p' h v. quot-elim
-    w. quot-elim (z. Q) (x. class (ratAdd p x)) w ≡ quot-elim (x. class (ratAdd p' x)) w
-    c. qAddWDOuterCls h
-    v
+-- ===== the descended operation, one argument at a time =====
+--
+-- Addition of a fixed p on the left, descended to the quotient; its
+-- well-definedness (the inner half, at class level) stated once, here,
+-- as the local claim the eliminator reads.
+qAddL : Rat → Q → Q using (Rat.Q.unfold, Rat.RatR.unfold)
+qAddL = λp v. quot-elim (x. class (ratAdd p x)) (x x' h. qAddWDInnerCls {p} {x} {x'} h) v
+
+-- the outer half as the descent asks for it: the two left additions
+-- agree on every element of the quotient
+qAddWDOuter : (p p' : Rat) (h : RatR p p') (v : Q) → qAddL p v ≡ qAddL p' v
+  using (Rat.Q.unfold, Rat.RatR.unfold, Rat.qAddL.eq)
+qAddWDOuter = λp p' h v. quot-elim (c. qAddWDOuterCls h) v
 
 infixl 6 +
-+ : Q → Q → Q
-  using (Int.Int.unfold,
-    qAddWDInnerCls,
-    qAddWDOuter,
-    Rat.frac.NZ.unfold,
-    Rat.frac.Rat.unfold,
-    Rat.Q.unfold,
-    Rat.RatR.unfold)
-(+) = λu v. quot-elim (p. quot-elim (q. class (ratAdd p q)) v) u
++ : Q → Q → Q using (Rat.Q.unfold, Rat.RatR.unfold)
+(+) = λu v. quot-elim (p. qAddL p v) (p p' h. qAddWDOuter _ _ h v) u
 
 -- ===== ℚ, at last =====
 qZero : Q using (Rat.Q.unfold)
@@ -350,16 +353,18 @@ qAddCls : (p q : Rat) → qcls p + qcls q ≡ qcls (ratAdd p q)
     Rat.frac.ratAdd.eq,
     Rat.Q.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qcls.eq)
 qAddCls = λp q. ⋆
 
 -- ½ + ½ = 1. On Rat this was 4/4; the quotient identifies it with 1/1
 qAddHalves : qcls half + qcls half ≡ qOne
-  using (clsEqOfRel,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.intOne.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Natural.*.eq,
     Natural.+.eq,
     Rat.frac.Rat.eq,
@@ -380,18 +385,20 @@ qAddHalves : qcls half + qcls half ≡ qOne
     Rat.RatR.eq,
     Rat.dInt.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qOne.eq,
     Rat.qcls.eq)
 qAddHalves = ⋆
 
 -- ⅓ + ⅓ = ⅔
 qAddThirds : qcls third + qcls third ≡ qcls (mkRat (class (2, Z)) (nzPos 2))
-  using (clsEqOfRel,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.Int.unfold,
     Int.intOne.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Natural.*.eq,
     Natural.+.eq,
     Rat.frac.Rat.eq,
@@ -409,6 +416,7 @@ qAddThirds : qcls third + qcls third ≡ qcls (mkRat (class (2, Z)) (nzPos 2))
     Rat.RatR.eq,
     Rat.dInt.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qcls.eq)
 qAddThirds = ⋆
 
@@ -419,14 +427,15 @@ qAddComm : (u v : Q) → u + v ≡ v + u
     Rat.frac.ratAdd.eq,
     Rat.Q.unfold,
     Rat.RatR.unfold,
-    Rat.+.eq)
+    Rat.+.eq,
+    Rat.qAddL.eq)
 qAddComm = λu v. quot-elim (p. quot-elim (q. cong (λx. Q) (λr. class r) (ratAddComm p q)) v) u
 
 qAddZeroL : (u : Q) → qZero + u ≡ u
   using (Int.Int.unfold,
     Int.intZero.eq,
     Int.add.+.eq,
-    nzMulOneL,
+    Int.add.intAddL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -440,6 +449,7 @@ qAddZeroL : (u : Q) → qZero + u ≡ u
     Rat.Q.unfold,
     Rat.RatR.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qZero.eq,
     Rat.qcls.eq)
 qAddZeroL = λu. quot-elim (p. cong (λx. Q) (λr. class r) {ratAdd ratZero p} {p} ratAddZeroL) u
@@ -448,7 +458,7 @@ qAddZeroR : (u : Q) → u + qZero ≡ u
   using (Int.Int.unfold,
     Int.intZero.eq,
     Int.add.+.eq,
-    nzMulOneR,
+    Int.add.intAddL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -462,6 +472,7 @@ qAddZeroR : (u : Q) → u + qZero ≡ u
     Rat.Q.unfold,
     Rat.RatR.unfold,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qZero.eq,
     Rat.qcls.eq)
 qAddZeroR = λu. quot-elim (p. cong (λx. Q) (λr. class r) {ratAdd p ratZero} {p} ratAddZeroR) u
@@ -474,7 +485,6 @@ qAddZeroR = λu. quot-elim (p. cong (λx. Q) (λr. class r) {ratAdd p ratZero} {
 -- (Natural/eq.nova's predEq).
 magAssoc : {m k l : ℕ}
   → (m * k + m + k) * l + (m * k + m + k) + l ≡ m * (k * l + k + l) + m + (k * l + k + l)
-  using (plusAssoc, Natural.sucPlus, zeroPlusId)
 magAssoc =
   λm k l. predEq
     {Z + ((m * k + m + k) * l + (m * k + m + k) + l)}
@@ -495,15 +505,11 @@ magAssoc =
           cong (λu. ℕ) (λw. w * S l) (sym _ _ (sucMulSuc m k))
           multAssoc (S m) (S k) (S l)
         trans _ _ _ (cong (λu. ℕ) (λw. S m * w) (sucMulSuc k l)) (sucMulSuc m (k * l + k + l))
+    by zeroPlusId ((m * k + m + k) * l + (m * k + m + k) + l), zeroPlusId (m * (k * l + k + l) + m + (k * l + k + l))
 
 -- eight sign cases, one magnitude law
 nzMulAssoc : (x y z : NZ) → nzMul (nzMul x y) z ≡ nzMul x (nzMul y z)
-  using (magAssoc,
-    plusAssoc,
-    Rat.frac.NZ.unfold,
-    Rat.frac.nzMul.eq,
-    Rat.frac.nzNeg.eq,
-    Rat.frac.nzPos.eq)
+  using (Rat.frac.NZ.unfold, Rat.frac.nzMul.eq, Rat.frac.nzNeg.eq, Rat.frac.nzPos.eq)
 nzMulAssoc =
   λx y z. ⊎-elim
     m. ⊎-elim
@@ -578,7 +584,6 @@ nzMulAssoc =
 -- outer factor on both sides and match the three monomials
 crossAssocNum : {n1 d1 n2 d2 n3 d3 : Int}
   → d3 * (d2 * n1 + d1 * n2) + d1 * d2 * n3 ≡ d2 * d3 * n1 + d1 * (d3 * n2 + d2 * n3)
-  using (intMulAssoc)
 crossAssocNum =
   λn1 d1 n2 d2 n3 d3. trans
     _
@@ -613,7 +618,6 @@ crossAssocNum =
 ratAddNumMulL : {p q r : Rat}
   → num (ratAdd (ratAdd p q) r)
     ≡ dInt r * (dInt q * num p + dInt p * num q) + dInt p * dInt q * num r
-  using (intMulAssoc, nzToIntMul)
 ratAddNumMulL =
   λp q r. trans
     _
@@ -631,7 +635,6 @@ ratAddNumMulL =
 ratAddNumMulR : (p q r : Rat)
   → num (ratAdd p (ratAdd q r))
     ≡ dInt q * dInt r * num p + dInt p * (dInt r * num q + dInt q * num r)
-  using (intMulAssoc, nzToIntMul)
 ratAddNumMulR =
   λp q r. trans
     _
@@ -664,6 +667,7 @@ ratAddAssocNum =
 ratAddAssocDen : {p q r : Rat} → den (ratAdd (ratAdd p q) r) ≡ den (ratAdd p (ratAdd q r))
   using (Int.Int.unfold,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -678,7 +682,7 @@ ratAddAssocDen = λp q r. nzMulAssoc (den p) (den q) (den r)
 
 -- so addition is associative already on Rat — no quotient needed
 ratAddAssoc : {p q r : Rat} → ratAdd (ratAdd p q) r ≡ ratAdd p (ratAdd q r)
-  using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold, Rat.frac.ratEta)
+  using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold)
 ratAddAssoc =
   λp q r. trans
     _
@@ -696,6 +700,7 @@ ratAddAssoc =
       {den (ratAdd (ratAdd p q) r)}
       {den (ratAdd p (ratAdd q r))}
       ratAddAssocDen
+    by ratEta {ratAdd (ratAdd p q) r}, ratEta {ratAdd p (ratAdd q r)}
 
 qAddAssoc : (u v w : Q) → u + v + w ≡ u + (v + w)
   using (Int.Int.unfold,
@@ -704,7 +709,8 @@ qAddAssoc : (u v w : Q) → u + v + w ≡ u + (v + w)
     Rat.frac.ratAdd.eq,
     Rat.Q.unfold,
     Rat.RatR.unfold,
-    Rat.+.eq)
+    Rat.+.eq,
+    Rat.qAddL.eq)
 qAddAssoc =
   λu v w. quot-elim
     p. quot-elim
@@ -716,11 +722,12 @@ qAddAssoc =
 
 -- ⅓ + (⅓ + ⅓) = 1, the associated way round
 qAddThirdsAssoc : qcls third + (qcls third + qcls third) ≡ qOne
-  using (clsEqOfRel,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.intOne.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Natural.*.eq,
     Natural.+.eq,
     Rat.frac.Rat.eq,
@@ -741,6 +748,7 @@ qAddThirdsAssoc : qcls third + (qcls third + qcls third) ≡ qOne
     Rat.RatR.eq,
     Rat.dInt.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qOne.eq,
     Rat.qcls.eq)
 qAddThirdsAssoc = ⋆
@@ -750,11 +758,11 @@ qAddThirdsAssoc = ⋆
 ratNegWD : {p p' : Rat}
   (h : RatR p p')
   → num (ratNeg p) * dInt (ratNeg p') ≡ num (ratNeg p') * dInt (ratNeg p)
-  using (intMulNegL,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.Int.unfold,
     Int.intNeg.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -779,10 +787,10 @@ ratNegWD =
       sym _ _ (intMulNegL (num p') (dInt p))
 
 ratNegWDCls : (p p' : Rat) (h : RatR p p') → class (ratNeg p) ≡ class (ratNeg p') ∈ Q
-  using (intMulNegL,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.num.eq,
@@ -794,13 +802,8 @@ ratNegWDCls : (p p' : Rat) (h : RatR p p') → class (ratNeg p) ≡ class (ratNe
 ratNegWDCls = λp p' h. clsEqOfRel _ _ (ratNegWD h)
 
 qNeg : Q → Q
-  using (Int.Int.unfold,
-    ratNegWDCls,
-    Rat.frac.NZ.unfold,
-    Rat.frac.Rat.unfold,
-    Rat.Q.unfold,
-    Rat.RatR.unfold)
-qNeg = λu. quot-elim (p. class (ratNeg p)) u
+  using (Int.Int.unfold, Rat.frac.NZ.unfold, Rat.frac.Rat.unfold, Rat.Q.unfold, Rat.RatR.unfold)
+qNeg = λu. quot-elim (p. class (ratNeg p)) (p p' h. ratNegWDCls _ _ h) u
 
 qNegCls : (p : Rat) → qNeg (qcls p) ≡ qcls (ratNeg p)
   using (Int.Int.unfold,
@@ -815,12 +818,12 @@ qNegCls = λp. ⋆
 -- p + (−p) has numerator zero: collect the common denominator and use
 -- z + (−z) ≡ 0 in Int
 ratAddNegNum : (p : Rat) → num (ratAdd p (ratNeg p)) ≡ intZero
-  using (intAddNegR,
-    intMulZeroR,
-    Int.Int.unfold,
+  using (Int.Int.unfold,
     Int.intNeg.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -850,8 +853,9 @@ ratAddNegRel : (p : Rat)
     Int.intNeg.eq,
     Int.intZero.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.*.eq,
-    ratAddNegNum,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -878,7 +882,7 @@ qAddNegR : (u : Q) → u + qNeg u ≡ qZero
     Int.Int.unfold,
     Int.intZero.eq,
     Int.mul.*.eq,
-    ratAddNegNum,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.num.eq,
@@ -891,20 +895,19 @@ qAddNegR : (u : Q) → u + qNeg u ≡ qZero
     Rat.RatR.unfold,
     Rat.dInt.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Rat.qZero.eq,
     Rat.qcls.eq)
 qAddNegR = λu. quot-elim (p. clsEqOfRel (ratAdd p (ratNeg p)) ratZero (ratAddNegRel p)) u
 
-qAddNegL : (u : Q) → qNeg u + u ≡ qZero using (qAddNegR)
+qAddNegL : (u : Q) → qNeg u + u ≡ qZero
 qAddNegL = λu. trans _ _ _ (qAddComm (qNeg u) u) (qAddNegR u)
 
 -- negation is involutive, and ½ − ⅓ = ⅙
 qNegNeg : (u : Q) → qNeg (qNeg u) ≡ u
-  using (intNegNeg,
-    Int.Int.unfold,
+  using (Int.Int.unfold,
     Int.intNeg.eq,
-    ratEta,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -927,7 +930,9 @@ qHalfMinusThird : qcls half + qNeg (qcls third) ≡ qcls (mkRat intOne (nzPos 5)
     Int.intNeg.eq,
     Int.intOne.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Natural.*.eq,
     Natural.+.eq,
     Rat.frac.Rat.eq,
@@ -947,6 +952,7 @@ qHalfMinusThird : qcls half + qNeg (qcls third) ≡ qcls (mkRat intOne (nzPos 5)
     Rat.RatR.eq,
     Rat.dInt.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qNeg.eq,
     Rat.qcls.eq)
 qHalfMinusThird = ⋆
@@ -960,6 +966,7 @@ ratMul = λp q. mkRat (num p * num q) (nzMul (den p) (den q))
 ratMulComm : (p q : Rat) → ratMul p q ≡ ratMul q p
   using (Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -981,9 +988,9 @@ ratMulComm =
       nzMulComm
 
 ratMulAssoc : {p q r : Rat} → ratMul (ratMul p q) r ≡ ratMul p (ratMul q r)
-  using (intMulAssoc,
-    Int.Int.unfold,
+  using (Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -1003,12 +1010,10 @@ ratMulAssoc =
     cong (λu. Rat) (λd. mkRat (num p * (num q * num r)) d) (nzMulAssoc (den p) (den q) (den r))
 
 ratMulOneR : {p : Rat} → ratMul p ratOne ≡ p
-  using (intMulOneR,
-    Int.Int.unfold,
+  using (Int.Int.unfold,
     Int.intOne.eq,
     Int.mul.*.eq,
-    nzMulOneR,
-    ratEta,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -1048,6 +1053,7 @@ qMulWDInner : (p : Rat)
   using (Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -1095,6 +1101,7 @@ qMulWDInnerCls : {p q q' : Rat} (h : RatR q q') → class (ratMul p q) ≡ class
   using (Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.num.eq,
@@ -1121,32 +1128,18 @@ qMulWDOuterCls =
       qMulWDInnerCls h
       cong (λu. Q) (λr. class r) (sym _ _ (ratMulComm p' c))
 
-qMulWDOuter : (p p' : Rat)
-  (h : RatR p p')
-  (v : Q)
-  → quot-elim (w. Q) (x. class (ratMul p x)) v ≡ quot-elim (x. class (ratMul p' x)) v
-  using (Int.Int.unfold,
-    qMulWDInnerCls,
-    Rat.frac.NZ.unfold,
-    Rat.frac.Rat.unfold,
-    Rat.Q.unfold,
-    Rat.RatR.unfold)
-qMulWDOuter =
-  λp p' h v. quot-elim
-    w. quot-elim (z. Q) (x. class (ratMul p x)) w ≡ quot-elim (x. class (ratMul p' x)) w
-    c. qMulWDOuterCls h
-    v
+-- multiplication by a fixed p on the left, descended; well-definedness
+-- stated once
+qMulL : Rat → Q → Q using (Rat.Q.unfold, Rat.RatR.unfold)
+qMulL = λp v. quot-elim (x. class (ratMul p x)) (x x' h. qMulWDInnerCls {p} {x} {x'} h) v
+
+qMulWDOuter : (p p' : Rat) (h : RatR p p') (v : Q) → qMulL p v ≡ qMulL p' v
+  using (Rat.Q.unfold, Rat.RatR.unfold, Rat.qMulL.eq)
+qMulWDOuter = λp p' h v. quot-elim (c. qMulWDOuterCls h) v
 
 infixl 7 *
-* : Q → Q → Q
-  using (Int.Int.unfold,
-    qMulWDInnerCls,
-    qMulWDOuter,
-    Rat.frac.NZ.unfold,
-    Rat.frac.Rat.unfold,
-    Rat.Q.unfold,
-    Rat.RatR.unfold)
-(*) = λu v. quot-elim (p. quot-elim (q. class (ratMul p q)) v) u
+* : Q → Q → Q using (Rat.Q.unfold, Rat.RatR.unfold)
+(*) = λu v. quot-elim (p. qMulL p v) (p p' h. qMulWDOuter _ _ h v) u
 
 qMulCls : (p q : Rat) → qcls p * qcls q ≡ qcls (ratMul p q)
   using (Int.Int.unfold,
@@ -1154,6 +1147,7 @@ qMulCls : (p q : Rat) → qcls p * qcls q ≡ qcls (ratMul p q)
     Rat.frac.Rat.unfold,
     Rat.Q.unfold,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.qcls.eq,
     Rat.ratMul.eq)
 qMulCls = λp q. ⋆
@@ -1165,17 +1159,18 @@ qMulComm : (u v : Q) → u * v ≡ v * u
     Rat.Q.unfold,
     Rat.RatR.unfold,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.ratMul.eq)
 qMulComm = λu v. quot-elim (p. quot-elim (q. cong (λx. Q) (λt. class t) (ratMulComm p q)) v) u
 
 qMulAssoc : (u v w : Q) → u * v * w ≡ u * (v * w)
-  using (intMulAssoc,
-    Int.Int.unfold,
+  using (Int.Int.unfold,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.Q.unfold,
     Rat.RatR.unfold,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.ratMul.eq)
 qMulAssoc =
   λu v w. quot-elim
@@ -1187,12 +1182,10 @@ qMulAssoc =
     u
 
 qMulOneR : (u : Q) → u * qOne ≡ u
-  using (intMulOneR,
-    Int.Int.unfold,
+  using (Int.Int.unfold,
     Int.intOne.eq,
     Int.mul.*.eq,
-    nzMulOneR,
-    ratEta,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -1204,18 +1197,20 @@ qMulOneR : (u : Q) → u * qOne ≡ u
     Rat.Q.unfold,
     Rat.RatR.unfold,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.qOne.eq,
     Rat.qcls.eq,
     Rat.ratMul.eq)
 qMulOneR = λu. quot-elim (p. cong (λx. Q) (λt. class t) {ratMul p ratOne} {p} ratMulOneR) u
 
-qMulOneL : (u : Q) → qOne * u ≡ u using (qMulOneR)
+qMulOneL : (u : Q) → qOne * u ≡ u
 qMulOneL = λu. trans _ _ _ (qMulComm qOne u) (qMulOneR u)
 
 -- ⅓ · ½ = ⅙
 qMulTest : qcls third * qcls half ≡ qcls (mkRat intOne (nzPos 5))
   using (Int.intOne.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Natural.*.eq,
     Natural.+.eq,
     Rat.frac.den.eq,
@@ -1227,6 +1222,7 @@ qMulTest : qcls third * qcls half ≡ qcls (mkRat intOne (nzPos 5))
     Rat.frac.third.eq,
     Rat.Q.unfold,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.qcls.eq,
     Rat.ratMul.eq)
 qMulTest = ⋆
@@ -1243,15 +1239,16 @@ mulHoist : (a b c d : Int) → a * b * (c * d) ≡ a * (c * (b * d))
 mulHoist = λa b c d. trans _ _ _ (intMulAssoc a b (c * d)) (mulCongR a _ _ (mulSwapHead b c d))
 
 -- x·(a·y) ≡ (a·x)·y
-mulShiftL : {x a y : Int} → x * (a * y) ≡ a * x * y using (intMulAssoc)
+mulShiftL : {x a y : Int} → x * (a * y) ≡ a * x * y
 mulShiftL = λx a y. trans _ _ _ (sym _ _ (intMulAssoc x a y)) (mulCongL _ _ y (intMulComm x a))
 
 -- dInt of the product-of-sums denominator, expanded
 dIntMul3 : (p q r : Rat) → dInt (ratMul p (ratAdd q r)) ≡ dInt p * (dInt q * dInt r)
   using (Int.Int.unfold,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.*.eq,
-    nzToIntMul,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -1277,8 +1274,9 @@ distribDen : (p q r : Rat)
   → dInt (ratAdd (ratMul p q) (ratMul p r)) ≡ dInt p * dInt (ratMul p (ratAdd q r))
   using (Int.Int.unfold,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Int.mul.*.eq,
-    nzToIntMul,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -1318,6 +1316,7 @@ distribNum : (p q r : Rat)
   → num (ratAdd (ratMul p q) (ratMul p r)) ≡ dInt p * num (ratMul p (ratAdd q r))
   using (Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -1378,7 +1377,6 @@ distribNum =
 qDistribRel : (p q r : Rat)
   → num (ratMul p (ratAdd q r)) * dInt (ratAdd (ratMul p q) (ratMul p r))
     ≡ num (ratAdd (ratMul p q) (ratMul p r)) * dInt (ratMul p (ratAdd q r))
-  using (distribNum)
 qDistribRel =
   λp q r. trans
     _
@@ -1393,10 +1391,10 @@ qDistribRel =
       mulCongL _ _ (dInt (ratMul p (ratAdd q r))) (sym _ _ (distribNum p q r))
 
 qDistribL : (u v w : Q) → u * (v + w) ≡ u * v + u * w
-  using (distribNum,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.Int.unfold,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.num.eq,
@@ -1406,7 +1404,9 @@ qDistribL : (u v w : Q) → u * (v + w) ≡ u * v + u * w
     Rat.RatR.unfold,
     Rat.dInt.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.ratMul.eq)
 qDistribL =
   λu v w. quot-elim
@@ -1441,10 +1441,10 @@ qDistribR =
 -- with 0/1
 ratMulZeroRel : (p : Rat)
   → num (ratMul ratZero p) * dInt ratZero ≡ num ratZero * dInt (ratMul ratZero p)
-  using (intMulZeroL,
-    Int.Int.unfold,
+  using (Int.Int.unfold,
     Int.intZero.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -1470,12 +1470,11 @@ ratMulZeroRel =
     sym _ _ (intMulZeroL (dInt (ratMul ratZero p)))
 
 qMulZeroL : {u : Q} → qZero * u ≡ qZero
-  using (intMulZeroL,
-    Int.Int.eq,
+  using (Int.Int.eq,
     Int.Int.unfold,
     Int.intZero.eq,
     Int.mul.*.eq,
-    nzMulOneL,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.Rat.unfold,
     Rat.frac.den.eq,
@@ -1489,12 +1488,13 @@ qMulZeroL : {u : Q} → qZero * u ≡ qZero
     Rat.RatR.unfold,
     Rat.dInt.eq,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.qZero.eq,
     Rat.qcls.eq,
     Rat.ratMul.eq)
 qMulZeroL = λu. quot-elim (p. clsEqOfRel (ratMul ratZero p) ratZero (ratMulZeroRel p)) u
 
-qMulZeroR : (u : Q) → u * qZero ≡ qZero using (qMulZeroL)
+qMulZeroR : (u : Q) → u * qZero ≡ qZero
 qMulZeroR = λu. trans _ _ _ (qMulComm u qZero) qMulZeroL
 
 -- Reciprocals. A rational has an inverse exactly when its NUMERATOR is
@@ -1526,7 +1526,7 @@ nzqInvRel : (x : NZQ)
     ≡ num ratOne * dInt (ratMul (nzqToRat x) (nzqToRat (nzqInv x)))
   using (Int.intOne.eq,
     Int.mul.*.eq,
-    nzToIntMul,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.den.eq,
     Rat.frac.mkRat.eq,
@@ -1565,6 +1565,7 @@ qMulInv : {x : NZQ} → qOfNzq x * qOfNzq (nzqInv x) ≡ qOne
   using (Int.Int.eq,
     Int.intOne.eq,
     Int.mul.*.eq,
+    Int.mul.intMulL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.den.eq,
     Rat.frac.mkRat.eq,
@@ -1579,6 +1580,7 @@ qMulInv : {x : NZQ} → qOfNzq x * qOfNzq (nzqInv x) ≡ qOne
     Rat.nzqInv.eq,
     Rat.nzqToRat.eq,
     Rat.*.eq,
+    Rat.qMulL.eq,
     Rat.qOfNzq.eq,
     Rat.qOne.eq,
     Rat.qcls.eq,
@@ -1619,6 +1621,5 @@ nzqInvThird : qOfNzq (nzqInv nzqThird) ≡ qcls (mkRat (class (3, Z)) nzOne)
     Rat.qcls.eq)
 nzqInvThird = ⋆
 
-qMulInvThird : qOfNzq nzqThird * qOfNzq (nzqInv nzqThird) ≡ qOne
-  using (clsEqOfRel, Rat.Q.unfold, Rat.qMulInv)
-qMulInvThird = ⋆
+qMulInvThird : qOfNzq nzqThird * qOfNzq (nzqInv nzqThird) ≡ qOne using (Rat.Q.unfold)
+qMulInvThird = qMulInv {nzqThird}

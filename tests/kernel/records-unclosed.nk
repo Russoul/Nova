@@ -1,0 +1,2 @@
+-- a bracket is closed
+bad : Rec (x : ℕ) (y : ℕ) := ⟨x ↪ Z, y ↪ Z

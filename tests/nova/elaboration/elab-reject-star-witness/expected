@@ -1,8 +1,0 @@
-input.nova:4:11: error: def bad: ⋆ ⟨witness⟩ checked against p, which is not an evident proposition
-4 | bad = λp. ⋆ ()
-  |           ^^^^
-declared bad [+1 declaration]
-open declarations (1):
-  [bad] ⊢ ? : (p : Ω) → p
-      at: input.nova:3:1: def bad
-Error: 1 item failed to elaborate

@@ -1,0 +1,14 @@
+accepted plus (n : ℕ) (m : ℕ) : ℕ := ℕ-elim ☐₁ (.. S ☐₀) ☐₀
+accepted Magma : 𝕌₁ := Rec (carrier : 𝕌₀) (unit : ☐₀) (op : ☐₁ → ☐₂ → ☐₃)
+accepted nat-magma : Rec (carrier : 𝕌₀) (unit : ☐₀) (op : ☐₁ → ☐₂ → ☐₃) := ⟨carrier ↪ ℕ, unit ↪ Z, op ↪ λ. λ. plus[☐₁, ☐₀]⟩
+accepted keyword-form : Rec (x : ℕ) (y : ℕ) := ⟨x ↪ Z, y ↪ S Z⟩
+accepted nested : Rec (inner : Rec (x : ℕ) (y : ℕ)) (more : Rec (z : ℕ)) := ⟨inner ↪ ⟨x ↪ Z, y ↪ S Z⟩, more ↪ ⟨z ↪ S (S Z)⟩⟩
+accepted dependent : Rec (A : 𝕌₀) (a : ☐₀) (h : ☐₀ ≡ ☐₀ ∈ ☐₁) := ⟨A ↪ ℕ, a ↪ Z, h ↪ ⋆⟩
+accepted empty-type : 𝕌₀ := Rec
+accepted empty : Rec := ⟨⟩
+accepted mixed : 𝕌₀ := Rec (a : ℕ) (b : ℕ) (c : ☐₁ ≡ ☐₀ ∈ ℕ)
+accepted project (f : ℕ → Rec (x : ℕ → ℕ)) : ℕ := (☐₀ Z) .x (S Z)
+accepted eta (r : Rec (x : ℕ) (y : ℕ)) : ☐₀ ≡ ⟨x ↪ ☐₀ .x, y ↪ ☐₀ .y⟩ ∈ Rec (x : ℕ) (y : ℕ) := ⋆
+accepted ext (r : Rec (x : ℕ)) (s : Rec (x : ℕ)) (hx : ☐₁ .x ≡ ☐₀ .x ∈ ℕ) : ☐₂ ≡ ☐₁ ∈ Rec (x : ℕ) := ⋆
+accepted in-binder : ℕ → Rec (x : ℕ) (h : ☐₀ ≡ ☐₀ ∈ ℕ) := λ. ⟨x ↪ ☐₀, h ↪ ⋆⟩
+exit 0

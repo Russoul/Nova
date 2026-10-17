@@ -1,6 +1,0 @@
-ok : ℕ
-ok = Z
-broken : ℕ
-broken = S S ((
-after : ℕ
-after = Z

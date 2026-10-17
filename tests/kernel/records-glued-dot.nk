@@ -1,0 +1,2 @@
+-- a projection is written with a space before the dot
+bad (r : Rec (x : ℕ)) : ℕ := r.x

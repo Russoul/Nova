@@ -5,8 +5,8 @@
 This file specifies the PERFECT SURFACE programme: a pretty-printer of
 elaborated artifacts whose output is readable to a human, elides
 everything a specified recovery procedure can reconstruct, and — the
-hard constraint — RE-ELABORATES to equivalent foundation terms,
-certificates and skeletons, so the kernel re-checks it. The printer
+hard constraint — RE-ELABORATES to equivalent foundation terms and
+derivations, so the kernel re-checks it. The printer
 and the elaborator extensions it presupposes are ONE design (the
 pairing), built in lock-step; this file is their contract.
 
@@ -47,9 +47,9 @@ trivial, and it forbids the printer from silently drifting terms
 (η-contraction, folding a goal into an abbreviation — the ProvingFeedback
 B-18 hazard — or converting between a calc chain and a trans spine —
 the B-21b hazard: the two are NOT interchangeable, since chains run
-with an empty Σ-scope). Skeletons and certificates may differ freely
-across the round trip — they are regenerated each run, and the kernel
-verdict is the equalizer.
+with an empty Σ-scope). Derivations may differ freely across the
+round trip — they are regenerated each run, and the kernel verdict
+is the equalizer.
 
 Whole-file form (what the implementation actually checks): distilling
 a module closure and re-elaborating it must (a) re-parse to
@@ -82,13 +82,14 @@ Two printer MODES over one engine:
 
 ////////// The printer's input //////////
 
-Not the erasure. The erasure has strictly less information than the
-surface needs (bare core has no motives; ⋆-payloads — squash
-witnesses, coind invariants, propext implications — live in the
-skeleton; the using clause determines whether discharge re-succeeds).
-The DISTILL printer's input is the ANNOTATED TREE — core plus
-skeleton — together with the item's discharge-scope data (using
-clause, site-local scopes) and display names. Equivalent formulation,
+Not the erasure alone. The erasure has strictly less information
+than the surface needs (bare core has no motives; the witnesses of
+⋆ — squash witnesses, coind invariants, propext implications — live
+in the derivation; the using clause determines whether discharge
+re-succeeds). The DISTILL printer's input is the elaborated tree with
+what the derivation carries beyond the erasure, together with the
+item's discharge-scope data (using clause, site-local scopes) and
+display names. Equivalent formulation,
 and the implementation's Phase-1 shape: the elaborated (indexed)
 surface tree IS an annotation-carrying spelling of the core term —
 docs/NovaElaboration.txt: "the distance between surface and core is

@@ -1,0 +1,2 @@
+-- a keyword cannot be a label
+bad : 𝕌₀ := Rec (x : ℕ) (S : ℕ)

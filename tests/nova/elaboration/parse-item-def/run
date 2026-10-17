@@ -1,3 +1,0 @@
-#!/bin/sh
-"$1" run surface-item "plus_zero : (n : ℕ) → plus n Z ≡ n ∈ ℕ
-plus_zero = λn. ⋆"

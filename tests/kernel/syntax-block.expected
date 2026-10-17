@@ -1,0 +1,23 @@
+accepted plus (n : ℕ) (m : ℕ) : ℕ := ℕ-elim ☐₁ (.. S ☐₀) ☐₀
+accepted sum-case (s : ℕ ⊎ 𝟙) : ℕ := ⊎-elim (. ☐₀) (. Z) ☐₀
+accepted Q : 𝕌₀ := ℕ / (.. ∥𝟙∥)
+accepted q-const (q : Q) : ℕ := quot-elim (. Z) ☐₀
+accepted unsq (h : ∥ℕ∥) : ∥𝟙∥ := ⋆
+accepted pe (p : Ω) (q : Ω) (f : ☐₁ → ☐₁) (g : ☐₁ → ☐₃) : ☐₃ ≡ ☐₂ ∈ Ω := ⋆
+accepted restr (A : 𝕌₀) (B : 𝕌₀) (h : ☐₁ ≡ ☐₀ ∈ 𝕌₁) : ☐₂ ≡ ☐₁ ∈ 𝕌₀ := ⋆
+accepted pirr (p : Ω) (h : ☐₀) (k : ☐₁) : ☐₁ ≡ ☐₀ ∈ ☐₂ := ⋆
+accepted uirr (a : 𝟙) (b : 𝟙) : ☐₁ ≡ ☐₀ ∈ 𝟙 := ⋆
+accepted qeq : class Z ≡ class (S Z) ∈ (ℕ / (.. ∥𝟙∥)) := ⋆
+accepted coe (A : 𝕌₀) (B : 𝕌₀) (h : ☐₁ ≡ ☐₀ ∈ 𝕌₀) (a : ☐₂) : ☐₂ := ☐₀
+accepted chain (n : ℕ) : plus[☐₀, S Z] ≡ S plus[☐₀, Z] ∈ ℕ := ⋆
+accepted lam-app : ℕ := (λ. ☐₀) Z
+accepted pair-proj : ℕ := (Z, S Z) .π₂
+accepted let-in : ℕ := let (S Z) (.. S Z)
+accepted absurd (e : 𝟘) : ℕ := 𝟘-elim ☐₀
+accepted eta (f : ℕ → ℕ) : ☐₀ ≡ (λ. ☐₁ ☐₀) ∈ (ℕ → ℕ) := ⋆
+accepted eta-pair (p : ℕ × ℕ) : ☐₀ ≡ (☐₀ .π₁, ☐₀ .π₂) ∈ (ℕ × ℕ) := ⋆
+accepted formers : 𝕌₁ := (𝕌₀ → ☐₀ → ☐₁) × (ℕ ⊎ 𝟙) × (ℕ / (.. ∥𝟙∥)) × Z ≡ Z ∈ ℕ
+accepted inj : ℕ ⊎ 𝟙 := inj₁ (S Z)
+accepted lifted : 𝕌₁ := ℕ
+accepted sym-app (n : ℕ) (h : plus[☐₀, Z] ≡ ☐₀ ∈ ℕ) : ☐₁ ≡ plus[☐₁, Z] ∈ ℕ := ⋆
+exit 0

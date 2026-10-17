@@ -2,6 +2,7 @@
 
 import Natural (+, plusZeroId, plusSucId, zeroPlusId)
 import Int (Int)
+import Core.equality (sym)
 
 normPair : ℕ → ℕ → ℕ × ℕ
 normPair = λa. ℕ-elim (λb. Z, b) (n ih. λb. ℕ-elim (S n, Z) (m ihb. ih m) b) a
@@ -19,27 +20,30 @@ normPairSucSuc = λn m. ⋆
 
 -- normPair a b is R-related to (a, b)
 normSound : (a b : ℕ) → normPair a b .π₁ + b ≡ normPair a b .π₂ + a
-  using (hyp.rw,
-    normPairZero,
-    normPairZero.rw,
-    normPairSucZero,
-    normPairSucZero.rw,
-    normPairSucSuc,
-    normPairSucSuc.rw,
-    plusSucId,
-    plusSucId.rw,
-    plusZeroId,
-    plusZeroId.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
-normSound = λa. ℕ-elim (λb. ⋆) (n ih. λb. ℕ-elim ⋆ (m ihb. ⋆) b) a
+normSound =
+  λa. ℕ-elim
+    λb. plusZeroId b by normPairZero b, zeroPlusId b
+    n ih. λb. ℕ-elim
+      ⋆ by normPairSucZero n, plusZeroId (S n), zeroPlusId (S n)
+      m ihb. ⋆
+        by normPairSucSuc n m, plusSucId (normPair n m .π₁) m, ih m, plusSucId (normPair n m .π₂) n
+      b
+    a
 
 -- at the quotient, normalization is invisible
-normClass : (a b : ℕ) → class (normPair a b) ≡ class (a, b) ∈ Int using (Int.Int.unfold, normSound)
-normClass = λa b. ⋆
+normClass : (a b : ℕ) → class (normPair a b) ≡ class (a, b) ∈ Int using (Int.Int.unfold)
+normClass = λa b. normSound a b
 
-intNormalize : Int → Int using (hyp.rw, Int.Int.unfold, normClass, normClass.rw)
-intNormalize = λz. quot-elim (rep. class (normPair (rep .π₁) (rep .π₂))) z
+intNormalize : Int → Int using (Int.Int.unfold, Int.IntR.unfold)
+intNormalize =
+  λz. quot-elim
+    rep. class (normPair (rep .π₁) (rep .π₂))
+    rep rep' h. class (normPair (rep .π₁) (rep .π₂))
+      ≡⟨ normClass (rep .π₁) (rep .π₂) ⟩ class (rep .π₁, rep .π₂)
+      ≡⟨ (⋆ : class (rep .π₁, rep .π₂) ≡ class (rep' .π₁, rep' .π₂) ∈ Int) ⟩
+        class (rep' .π₁, rep' .π₂)
+      ≡⟨ sym _ _ (normClass (rep' .π₁) (rep' .π₂)) ⟩ class (normPair (rep' .π₁) (rep' .π₂))
+    z
 
 intNormalizeTest1 : intNormalize (class (S Z, Z)) ≡ class (S Z, Z)
   using (Int.Int.unfold, Int.normalize.intNormalize.eq, Int.normalize.normPair.eq)

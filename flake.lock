@@ -1,39 +1,5 @@
 {
   "nodes": {
-    "just-a-parser": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1788109665,
-        "narHash": "sha256-lzFEq5uRT/71CeAfuEU7LSUj4dDufZI4FxhYzwzGdmg=",
-        "owner": "Russoul",
-        "repo": "Just-a-Parser",
-        "rev": "bd6acd473ef0f3fcd1bdc5fba0032b96a7b9313b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "Russoul",
-        "repo": "Just-a-Parser",
-        "rev": "bd6acd473ef0f3fcd1bdc5fba0032b96a7b9313b",
-        "type": "github"
-      }
-    },
-    "lsp-lib": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1788180988,
-        "narHash": "sha256-UlSM5Q6EwPgBaCe9TfDZ2VSq0pvEo0V+5d2tZDZ109Y=",
-        "owner": "idris-community",
-        "repo": "lsp-lib",
-        "rev": "512504c6680f9ee45d82f1cc06c596cc0be7c4ea",
-        "type": "github"
-      },
-      "original": {
-        "owner": "idris-community",
-        "repo": "lsp-lib",
-        "rev": "512504c6680f9ee45d82f1cc06c596cc0be7c4ea",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1787498568,
@@ -52,8 +18,6 @@
     },
     "root": {
       "inputs": {
-        "just-a-parser": "just-a-parser",
-        "lsp-lib": "lsp-lib",
         "nixpkgs": "nixpkgs"
       }
     }

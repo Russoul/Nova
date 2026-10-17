@@ -1,4 +1,4 @@
-/build
+/_build
 src/text/Tmp*
 src/text/Private
 /result

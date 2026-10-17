@@ -1,9 +1,0 @@
-defined uncurry
-defined sumOfProd
-defined prodThenSum
-defined prodAssoc
-defined binderBodyArrow
-defined binderBodyEq
-defined binderBeatsAscription
-defined ascription
-Accepted.

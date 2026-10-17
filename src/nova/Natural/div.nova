@@ -44,13 +44,12 @@ natCaseElimEq : (C : 𝕌)
 natCaseElimEq = λC P z s n. ℕ-elim (λh0 h1. h0 ⋆) (k' rec. λh0 h1. h1 k' ⋆) n
 
 -- ===== comparison, read off monus =====
-leOfMonusZero : {a b : ℕ} → (a ∸ b ≡ Z) → a ≤ b
-  using (Natural.more.monusZeroR, Natural.order.≤.unfold)
+leOfMonusZero : {a b : ℕ} → (a ∸ b ≡ Z) → a ≤ b using (Natural.order.≤.unfold)
 leOfMonusZero =
   λa. ℕ-elim
     λb h. leZero _
     a' ih. λb. ℕ-elim
-      λh. 𝟘-elim (zNotS (sym (S a') Z h))
+      λh. 𝟘-elim (zNotS {a'} (sym (S a') Z h by monusZeroR {S a'}))
       b' rec. λh. leSucMono (ih b' (trans _ _ _ (sym _ _ (sucMonusSuc a' b')) h))
       b
     a
@@ -120,25 +119,17 @@ modN = λa b. dmAux a a b .π₂
 
 -- ===== the specification =====
 dmAuxEq : {f a b : ℕ} → a ≤ f → a ≡ dmAux f a b .π₁ * S b + dmAux f a b .π₂
-  using (hyp.rw,
-    Core.id.Id.unfold,
-    Natural.div.dmAux.eq,
-    Natural.div.natCase.eq,
-    Natural.order.≤.unfold,
-    zeroMult,
-    zeroMult.rw,
-    zeroPlusId,
-    zeroPlusId.rw)
+  using (Core.id.Id.unfold, Natural.div.dmAux.eq, Natural.div.natCase.eq, Natural.order.≤.unfold)
 dmAuxEq =
   λf. ℕ-elim
-    λa b le. ⋆
+    λa b le. zeroPlusId a by zeroMult (S b)
     f' ih. λa b le. natCaseElimEq
       ℕ × ℕ
       λp. a ≡ p .π₁ * S b + p .π₂
       Z, a
       λm. S (dmAux f' (a ∸ S b) b .π₁), dmAux f' (a ∸ S b) b .π₂
       a ∸ b
-      λh0. ⋆
+      λh0. zeroPlusId a by zeroMult (S b)
       λm hm. trans
         _
         _
@@ -209,8 +200,7 @@ modTest = ⋆
 
 -- ===== uniqueness of the quotient =====
 -- no natural is below its own successor's floor
-leSucNotSelf : (a : ℕ) → S a ≤ a → 𝟘
-  using (Core.id.Id.unfold, Natural.plusSucId, Natural.order.≤.unfold)
+leSucNotSelf : (a : ℕ) → S a ≤ a → 𝟘 using (Core.id.Id.unfold, Natural.order.≤.unfold)
 leSucNotSelf =
   λa le. zNotS
     sym
@@ -228,12 +218,12 @@ leSucNotSelf =
             _
             _
             _
-            sym _ _ (trans _ _ (a + S (le .π₁)) (sucPlus a (le .π₁)) ⋆)
+            sym _ _ (trans _ _ (a + S (le .π₁)) (sucPlus a (le .π₁)) (plusSucId a (le .π₁)))
             idToEq _ _ _ (le .π₂)
           sym _ _ (plusZeroId a)
 
 -- d·(d'+1) is strictly below (d+1)·(d'+1)
-ltProdSuc : (d d' : ℕ) → S (d * S d') ≤ S d * S d' using (Natural.plusSucId, Natural.order.≤.unfold)
+ltProdSuc : (d d' : ℕ) → S (d * S d') ≤ S d * S d' using (Natural.order.≤.unfold)
 ltProdSuc =
   λd d'. (,)
     d'
@@ -244,7 +234,7 @@ ltProdSuc =
         _
         _
         _
-        trans _ _ (d * S d' + S d') (sucPlus (d * S d') d') ⋆
+        trans _ _ (d * S d' + S d') (sucPlus (d * S d') d') (plusSucId (d * S d') d')
         trans _ _ _ (plusComm (S d') (d * S d')) (sym _ _ (sucMult d (S d')))
 
 -- the two quotients' common part cancels, leaving the remainders

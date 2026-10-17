@@ -1,2 +1,0 @@
-refl3 : (A : 𝕌) (a : A) → a ≡ a
-refl3 = λA. λa. ⋆

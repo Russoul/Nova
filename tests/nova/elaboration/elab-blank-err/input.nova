@@ -1,7 +1,0 @@
-cst : (A B : 𝕌) → A → B → A
-cst = λA. λB. λa. λb. a
-
--- the second blank has no source: B occurs only at the b position,
--- and b itself is the blank — a structural error naming the remedy
-bad : ℕ → ℕ
-bad = λn. cst _ _ n

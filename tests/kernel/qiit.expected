@@ -1,0 +1,15 @@
+accepted plusQ (a : ⟨3@𝕌₀⟩.⬡₂) (b : ⟨3@𝕌₀⟩.⬡₂) : ⟨3@𝕌₀⟩.⬡₂ := ⟨3@𝕌₀⟩.⬡₂-elim[☐₀, λ. λ. ⟨3@𝕌₀⟩.⬡₀[☐₀]] ☐₁
+accepted plusQzl (b : ⟨3@𝕌₀⟩.⬡₂) : plusQ[⟨3@𝕌₀⟩.⬡₁, ☐₀] ≡ ☐₀ ∈ ⟨3@𝕌₀⟩.⬡₂ := ⋆
+accepted plusQsl (a : ⟨3@𝕌₀⟩.⬡₂) (b : ⟨3@𝕌₀⟩.⬡₂) : plusQ[⟨3@𝕌₀⟩.⬡₀[☐₁], ☐₀] ≡ ⟨3@𝕌₀⟩.⬡₀[plusQ[☐₁, ☐₀]] ∈ ⟨3@𝕌₀⟩.⬡₂ := ⋆
+accepted swap (x : ℕ) (y : ℕ) (m : ⟨4@𝕌₀⟩.⬡₃) : ⟨4@𝕌₀⟩.⬡₁[☐₂, ⟨4@𝕌₀⟩.⬡₁[☐₁, ☐₀]] ≡ ⟨4@𝕌₀⟩.⬡₁[☐₁, ⟨4@𝕌₀⟩.⬡₁[☐₂, ☐₀]] ∈ ⟨4@𝕌₀⟩.⬡₃ := ⋆
+accepted size (m : ⟨4@𝕌₀⟩.⬡₃) : ℕ := ⟨4@𝕌₀⟩.⬡₃-elim[Z, λ. λ. λ. S ☐₀] ☐₀
+accepted sizeTwo : size[⟨4@𝕌₀⟩.⬡₁[Z, ⟨4@𝕌₀⟩.⬡₁[S Z, ⟨4@𝕌₀⟩.⬡₂]]] ≡ S (S Z) ∈ ℕ := ⋆
+rejected first (line 43): the definiens: 𝒮.𝕤-elim: the displayed spine: the synthesised and the expected type do not agree
+accepted vlen (n : ℕ) (v : ⟨3@𝕌₀⟩.⬡₂[☐₀]) : ℕ := ⟨3@𝕌₀⟩.⬡₂-elim[Z, λ. λ. λ. λ. S ☐₀][☐₁] ☐₀
+accepted single : ⟨3@𝕌₀⟩.⬡₂[S Z] := ⟨3@𝕌₀⟩.⬡₀[Z, S (S (S Z)), ⟨3@𝕌₀⟩.⬡₁]
+accepted vlenSingle : vlen[S Z, single] ≡ S Z ∈ ℕ := ⋆
+accepted clen (g : ⟨6@𝕌₀⟩.⬡₅) : ℕ := ⟨6@𝕌₀⟩.⬡₅-elim[Z, λ. λ. λ. λ. S ☐₂, λ. λ. S Z, λ. λ. λ. λ. λ. λ. S ☐₂] ☐₀
+accepted tsize (g : ⟨6@𝕌₀⟩.⬡₅) (t : ⟨6@𝕌₀⟩.⬡₄[☐₀]) : ℕ := ⟨6@𝕌₀⟩.⬡₄-elim[Z, λ. λ. λ. λ. S ☐₂, λ. λ. S Z, λ. λ. λ. λ. λ. λ. S ☐₂][☐₁] ☐₀
+accepted g1 : ⟨6@𝕌₀⟩.⬡₅ := ⟨6@𝕌₀⟩.⬡₂[⟨6@𝕌₀⟩.⬡₃, ⟨6@𝕌₀⟩.⬡₁[⟨6@𝕌₀⟩.⬡₃]]
+accepted clenG1 : clen[g1] ≡ S Z ∈ ℕ := ⋆
+exit 1

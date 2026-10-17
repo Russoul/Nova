@@ -1,0 +1,2 @@
+records-glued-dot.nk:2:31: a '.' glued to the name before it: a record projection is written with a space before the dot (r .l), and a data entry needs a declared data name
+exit 2

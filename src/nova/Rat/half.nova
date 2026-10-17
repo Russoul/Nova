@@ -42,8 +42,8 @@ nzPosInt : (k : ℕ) → nzToInt (nzPos k) ≡ intOfNat (S k)
 nzPosInt = λk. ⋆
 
 -- S (dbl n) is 2·(n+1) — one successor moved across a sum
-sucDbl : (n : ℕ) → S (dbl n) ≡ S n + S n using (sucPlus.rw, plusSucId.rw, Rat.half.dbl.eq)
-sucDbl = λn. ⋆
+sucDbl : (n : ℕ) → S (dbl n) ≡ S n + S n using (Rat.half.dbl.eq)
+sucDbl = λn. plusSucId n n by sucPlus n (S n)
 
 -- the doubled denominator IS the original one, doubled in Int
 nzPosDbl : (n : ℕ) → nzToInt (nzPos (dbl n)) ≡ nzToInt (nzPos n) + nzToInt (nzPos n)
@@ -69,6 +69,7 @@ unitAddNum : {d : NZ} → num (ratAdd (mkRat intOne d) (mkRat intOne d)) ≡ nzT
   using (Int.intNeg.eq,
     Int.intOne.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.den.eq,
     Rat.frac.intScale.eq,
@@ -82,6 +83,7 @@ unitAddNum = λd. cong (λw. Int) (λw. w + w) {intScale d intOne} {nzToInt d} s
 unitAddDen : {d : NZ} → dInt (ratAdd (mkRat intOne d) (mkRat intOne d)) ≡ nzToInt d * nzToInt d
   using (Int.intOne.eq,
     Int.add.+.eq,
+    Int.add.intAddL.eq,
     Rat.frac.NZ.unfold,
     Rat.frac.den.eq,
     Rat.frac.intScale.eq,
@@ -152,6 +154,7 @@ qInvHalf : (n : ℕ) → qInvNat (dbl n) + qInvNat (dbl n) ≡ qInvNat n
     Rat.frac.nzPos.eq,
     Rat.frac.ratAdd.eq,
     Rat.+.eq,
+    Rat.qAddL.eq,
     Rat.qcls.eq,
     Real.qInvNat.eq)
 qInvHalf =

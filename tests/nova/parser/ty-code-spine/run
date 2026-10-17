@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run surface-ty "Vect {ℕ} n .π₁ → C"

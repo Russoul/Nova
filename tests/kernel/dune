@@ -1,0 +1,9 @@
+(rule
+ (alias runtest)
+ (deps
+  run.sh
+  (glob_files *.nk)
+  (glob_files *.expected)
+  %{exe:../../src/ocaml/bin/main.exe})
+ (action
+  (run bash %{dep:run.sh} %{exe:../../src/ocaml/bin/main.exe} .)))

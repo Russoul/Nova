@@ -1,5 +1,0 @@
--- out at a corec head runs one coalgebra step (el-nu-beta)
-nats : (ν (K ℕ × 𝕏))
-nats = corec (s : ℕ. (s , S s)) Z
-val : ℕ
-val = (out ((out nats) .π₂)) .π₁

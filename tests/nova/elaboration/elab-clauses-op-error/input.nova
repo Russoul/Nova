@@ -1,4 +1,0 @@
-infixl 6 +
-+ : ℕ → ℕ → ℕ
-Z + n = n
-S m + n = S (m + n)

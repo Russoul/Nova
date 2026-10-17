@@ -1,4 +1,0 @@
--- Π is co-data (the total exception): El-(→) decodes one layer and
--- nf leaves BOTH components exactly as whnf produced them
-PiCode : 𝕌
-PiCode = (𝟘 → 𝟙)

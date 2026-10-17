@@ -1,0 +1,41 @@
+# The pen editor's iPad app. The Xcode project is generated from this file:
+#   nix run nixpkgs#xcodegen -- generate     (in tools/pen/app)
+# then open NovaPen.xcodeproj, choose a signing team, and run on the iPad.
+name: NovaPen
+options:
+  bundleIdPrefix: org.nova
+  deploymentTarget:
+    iOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0" # tiled drawing runs off the main thread; Swift 6's isolation checks would trap it
+    TARGETED_DEVICE_FAMILY: "2"
+targets:
+  NovaPen:
+    type: application
+    platform: iOS
+    configFiles:
+      Debug: Config.xcconfig
+      Release: Config.xcconfig
+    sources:
+      - path: Sources
+      - path: ../glyphs.json # tools/pen/glyphs.py's output, bundled as is
+        buildPhase: resources
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Nova Pen
+        NovaPenRelay: $(PEN_RELAY) # the relay to connect to until another is entered
+        NSMicrophoneUsageDescription: Hold a squeeze of the Pencil and speak to move around the text or give a command.
+        NSSpeechRecognitionUsageDescription: What you say while holding a squeeze is turned into text on the iPad, to find what you asked for.
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true # plain http to the relay on this Mac, from the simulator
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.nova.pen

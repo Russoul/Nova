@@ -1,6 +1,0 @@
-defined pf by clauses (pf, pfEq, pfEta)
-defined sq by clauses (sq, sqEq, sqEta)
-defined P
-defined pIsProp by clauses (pIsProp, pIsPropEq, pIsPropEta)
-defined pUnit by clauses (pUnit, pUnitEq, pUnitEta)
-Accepted.

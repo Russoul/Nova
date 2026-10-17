@@ -1,0 +1,18 @@
+-- the record forms INLINE: parenthesised entries, the bracket ⟨…⟩ and
+-- the keyword record with parenthesised fields. records-block.nk
+-- spells the same items with layout; the runner requires the two
+-- outputs to coincide.
+
+plus (n : ℕ) (m : ℕ) : ℕ := ℕ-elim 𝕌₀ (_. ℕ) n (k ih. S ih) m
+Magma : 𝕌₁ := Rec (carrier : 𝕌₀) (unit : carrier) (op : carrier → carrier → carrier)
+nat-magma : Rec (carrier : 𝕌₀) (unit : carrier) (op : carrier → carrier → carrier) := ⟨carrier ↪ ℕ, unit ↪ Z, op ↪ λa b. plus[a, b]⟩
+keyword-form : Rec (x : ℕ) (y : ℕ) := record (x ↪ Z) (y ↪ S Z)
+nested : Rec (inner : Rec (x : ℕ) (y : ℕ)) (more : Rec (z : ℕ)) := ⟨inner ↪ ⟨x ↪ Z, y ↪ S Z⟩, more ↪ ⟨z ↪ S (S Z)⟩⟩
+dependent : Rec (A : 𝕌₀) (a : A) (h : a ≡ a ∈ A) := ⟨A ↪ ℕ, a ↪ Z, h ↪ ⌜Z : ℕ⌝⟩
+empty-type : 𝕌₀ := Rec
+empty : Rec := ⟨⟩
+mixed : 𝕌₀ := Rec (a : ℕ) (b : ℕ) (c : a ≡ b ∈ ℕ)
+project (f : ℕ → Rec (x : ℕ → ℕ)) : ℕ := f Z .x (S Z)
+eta (r : Rec (x : ℕ) (y : ℕ)) : r ≡ ⟨x ↪ r .x, y ↪ r .y⟩ ∈ Rec (x : ℕ) (y : ℕ) := ⌜ηRec r : Rec (x : ℕ) (y : ℕ)⌝
+ext (r : Rec (x : ℕ)) (s : Rec (x : ℕ)) (hx : r .x ≡ s .x ∈ ℕ) : r ≡ s ∈ Rec (x : ℕ) := ⌜ηRec r ; ⟨x ↪ ⌞hx⌟⟩ ; (ηRec s)⁻¹ : Rec (x : ℕ)⌝
+in-binder : ℕ → Rec (x : ℕ) (h : x ≡ x ∈ ℕ) := λn. ⟨x ↪ n, h ↪ ⌜n : ℕ⌝⟩

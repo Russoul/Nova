@@ -1,2 +1,0 @@
-#!/bin/sh
-"$1" run elem "⊎-elim ☐₀ ☐₀ ☐₁"

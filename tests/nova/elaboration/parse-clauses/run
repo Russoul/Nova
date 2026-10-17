@@ -1,5 +1,0 @@
-#!/bin/sh
-"$1" run surface-item "plus : ℕ → ℕ → ℕ [pe]
-plus = Z
-plus Z n = n [pz]
-plus (S m) n = S (plus m n)"
