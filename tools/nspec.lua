@@ -168,6 +168,12 @@ local function defined()
   return out
 end
 
+-- Is x a defined rule name? A name X-cong is stated by X (the CONGRUENCE
+-- convention of the foundation) unless the foundation displays it itself.
+local function known(names, x)
+  return names[x] or (x:match('%-cong$') and names[x:sub(1, -6)]) or nil
+end
+
 -- Grammar ------------------------------------------------------------------
 
 local function lex(s, roots)
@@ -457,7 +463,7 @@ function M.analyse(lines, path, pause_)
       report(row.n, 1, 'bar without a conclusion')
     end
     for _, x in ipairs(row.names) do
-      if cites and not names[x] then report(row.n, row.formal:find(x, 1, true), 'no foundation rule ' .. x) end
+      if cites and not known(names, x) then report(row.n, row.formal:find(x, 1, true), 'no foundation rule ' .. x) end
       if not cites and names[x] ~= row.n then report(row.n, 1, x .. ' is already defined at line ' .. names[x]) end
     end
     local shift, seen = #lines[row.n] - #row.prose, 1
@@ -468,7 +474,7 @@ function M.analyse(lines, path, pause_)
       for name in pairs(row.prose:sub(to + 1, to + 2) == '-*' and names or {}) do
         family = family or name:sub(1, #x + 1) == x .. '-'
       end
-      if names[x] then
+      if known(names, x) then
         token(row.n, shift + from, shift + to, 'rule')
       elseif not family and prefixes[x:match('^[^-]+')] and dashes > 1 then
         report(row.n, shift + from, 'no foundation rule ' .. x)
@@ -529,7 +535,7 @@ function M.analyse(lines, path, pause_)
 end
 
 function M.where(name)
-  local line = defined()[name]
+  local line = known(defined(), name)
   return line and M.foundation(), line
 end
 
@@ -636,7 +642,7 @@ local function main(args)
         for n, line in ipairs(read(path)) do
           for _, x in ipairs(names_in(line)) do
             local _, dashes = x:gsub('%-', '')
-            if not names[x] and prefixes[x:match('^[^-]+')] and dashes > 1 then
+            if not known(names, x) and prefixes[x:match('^[^-]+')] and dashes > 1 then
               report(path, n, line:find(x, 1, true), 'no foundation rule ' .. x)
             end
           end
