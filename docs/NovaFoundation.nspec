@@ -280,11 +280,12 @@ J ::= Σ sig | Γ ctx | Γ ≐ Γ ctx | Σ Γ ctx
 //   of its parts (the displays in Judgements): Γ ⊦ a₀ ≐ a₁ : A
 //   presupposes Γ ⊦ a₀ : A and Γ ⊦ a₁ : A, which presuppose
 //   Γ ⊦ A type, which presupposes Γ ctx. A derivation of a form takes
-//   its presuppositions for granted, and the rules PRESERVE them (THE
-//   PRESERVATION THEOREM, with its companion THE INVERSION LEMMA,
-//   stated after the judgement forms): the premises of every rule are
-//   those from which the presuppositions of its conclusion are
-//   derivable. A premise is therefore omitted when another premise
+//   its presuppositions for granted, and a rule is WELL-FORMED only if
+//   its premises, with their own presuppositions, yield the
+//   presuppositions of its conclusion — an obligation met by
+//   construction, rule by rule, some of them through THE INVERSION
+//   LEMMA, the one meta-theorem proved by induction (after the
+//   judgement forms). A premise is therefore omitted when another premise
 //   presupposes it or inversion recovers it — `Γ ▷ A ⊦ f : B` carries
 //   `Γ ctx`, `Γ ⊦ A type` and `Γ ▷ A ⊦ B type` — and a rule in which a
 //   part of the conclusion is mentioned by no premise's judgement
@@ -422,8 +423,8 @@ J ::= Σ sig | Γ ctx | Γ ≐ Γ ctx | Σ Γ ctx
 
 // Each judgement form, displayed with its PRESUPPOSITIONS above the
 // bar: the well-formedness of its parts, which a derivation of the form
-// below takes for granted and which the rules preserve (THE
-// PRESERVATION THEOREM below). These displays are NOT rules — nothing
+// below takes for granted and which every rule's premises yield (a
+// rule's WELL-FORMEDNESS, below). These displays are NOT rules — nothing
 // is derived from the forms above — they are the forms' contracts,
 // read as "the form below presupposes the forms above". A unary form
 // presupposes the well-formedness of its context and its type; a
@@ -545,30 +546,36 @@ J ::= Σ sig | Γ ctx | Γ ≐ Γ ctx | Σ Γ ctx
 l̄ distinct      |l̄| = |Δ|      l ∈ l̄      l ∉ l̄
 𝒰̄‖ᵢ = 𝒰      ℓ ≼ ℓ′
 
-## The preservation theorem
+## Inversion, and the well-formedness of the rules
 
-// (meta-theorem, by mutual induction on derivations): the rules
-// PRESERVE the presuppositions — whenever the premises of a rule
-// instance have derivable presuppositions, so does its conclusion. So
-// every derivable judgement has derivably well-formed parts: if
-// Γ ⊦ a₀ ≐ a₁ : A then Γ ⊦ a₀ : A, Γ ⊦ a₁ : A, Γ ⊦ A type and Γ ctx;
-// if σ₀ ≐ σ₁ : Γ ⇒ Θ then both are substitutions Γ ⇒ Θ; and so on
-// for every form. Its companion, THE INVERSION LEMMA: a derivable type
-// of a former's shape has derivably well-formed components at that
-// former's arities — if Γ ⊦ A → B type then Γ ⊦ A type and
-// Γ ▷ A ⊦ B type, if Γ ⊦ (a₀ ≡ a₁ ∈ A) : Ω then Γ ⊦ a₀ : A and
-// Γ ⊦ a₁ : A, and likewise for ×, ⊎, /, ∥·∥, the QIIT sorts and ν; if
-// Γ ⊦ Rec l̄ Δ type then Γ ⊦ Δ tel, l̄ distinct and |l̄| = |Δ| — and,
-// for an EQUATION with a former on either side, the same for that
-// side (the left- and right-hand forms of the lemma are proved
-// together). The two are what let a rule omit a premise:
-// el-sigma-e₂ concludes at B[id, t .π₁] from t : A × B alone because
-// inversion of A × B type gives B; el-reflect concludes a₀ ≐ a₁ : A
-// from s : (a₀ ≡ a₁ ∈ A) alone because inversion of the proposition
-// gives the sides at A; an injectivity rule hypothesises the equation
-// of the composites alone, because it presupposes the composites and
-// inversion gives their components. PROOF SKETCH. Induction on the
-// derivation, all forms at once. The former rules pass their
+// A judgement form is MEANINGFUL only when its presuppositions hold
+// (the displays above): a derivation of Γ ⊦ a₀ ≐ a₁ : A takes Γ ctx,
+// Γ ⊦ A type, Γ ⊦ a₀ : A and Γ ⊦ a₁ : A for granted, and a rule is
+// applicable only where its conclusion is meaningful. So nothing about
+// derivations needs proving to KNOW that a derivable judgement has
+// well-formed parts: that is what the form says. A RULE IS WELL-FORMED
+// when its premises, with their own presuppositions, yield the
+// presuppositions of its conclusion — so that it applies whenever its
+// premises hold — and every rule below is well-formed BY CONSTRUCTION:
+// the obligation is met where the rule is written, not proved about
+// the system afterwards. Some of these obligations are discharged by
+// one genuine meta-theorem.
+//
+// THE INVERSION LEMMA (by mutual induction on derivations, all forms
+// at once, assuming nothing of the rules' well-formedness — each rule
+// is a case, and an ill-formed one would be a failing case): a
+// derivable type of a former's shape has derivably
+// well-formed components at that former's arities — if
+// Γ ⊦ A → B type then Γ ⊦ A type and Γ ▷ A ⊦ B type, if
+// Γ ⊦ (a₀ ≡ a₁ ∈ A) : Ω then Γ ⊦ a₀ : A and Γ ⊦ a₁ : A, and likewise
+// for ×, ⊎, /, ∥·∥, the QIIT sorts and ν; if Γ ⊦ Rec l̄ Δ type then
+// Γ ⊦ Δ tel, l̄ distinct and |l̄| = |Δ| — and, for an EQUATION with a
+// former on either side, the same for that side (the two forms of the
+// lemma are proved together). This is not evident: Γ ⊦ A → B type
+// need not come from ty-pi — it may come from ty-coe along an
+// equation that el-reflect read off a hypothesis, from ty-lift, or
+// from a substitution equation — so the components are recovered by
+// following every rule. PROOF SKETCH. The former rules pass their
 // components through their premises. The delicate cases are the ones
 // every extensional theory has: el-reflect, where the equation comes
 // from an inhabitant s of a proposition and the parts are read off
@@ -583,8 +590,21 @@ l̄ distinct      |l̄| = |Δ|      l ∈ l̄      l ∉ l̄
 // slot; absurdity (el-zero-e at an equality prop), where the
 // components are the prop's formation premises; and the
 // theory-of-signatures zone, whose Nova pieces are read off the ToS
-// derivation. No case consults the meaning of a term: the theorem is
-// about derivations and holds in every model. The setoid model
+// derivation. No case consults the meaning of a term: the lemma is
+// about derivations and holds in every model.
+//
+// WELL-FORMEDNESS, by construction: with inversion in hand, each rule's
+// premises and their presuppositions give its conclusion's. This is
+// what lets a rule omit a premise: el-pi-e
+// concludes at B[id, e] from f : A → B and e : A alone because
+// inversion of A → B type gives Γ ▷ A ⊦ B type; el-sigma-e₂ concludes
+// at B[id, t .π₁] from t : A × B alone because inversion of A × B type
+// gives B; el-reflect concludes a₀ ≐ a₁ : A from s : (a₀ ≡ a₁ ∈ A)
+// alone because inversion of the proposition gives the sides at A; an
+// injectivity rule hypothesises the equation of the composites alone,
+// because it presupposes the composites and inversion gives their
+// components. The premises kept although well-formedness would not
+// need them are the handles of the CONGRUENCE convention. The setoid model
 // validates the same entailments semantically — a true equation has a
 // type for its type slot and sides that are members of it — which is
 // the reading PRESUPPOSITIONS in the conventions describes.
@@ -616,15 +636,8 @@ x ∉ Σ
 
 Σ Γ ⊦ A type
 x ∉ Σ
------------------- (sig-decl)
+------------------ (sig-decl)    // at A = 𝕌ℓ (ty-univ): a TYPE hole
 Σ (Γ ⊦ x : A) sig
-
-Σ Γ ctx
-x ∉ Σ
-------------------- (sig-ty-decl)   // the A = 𝕌ℓ declaration (a TYPE
-Σ (Γ ⊦ x : 𝕌ℓ) sig                  //   hole): the sig-decl INSTANCE
-                                    //   at Σ Γ ⊦ 𝕌ℓ type (ty-univ),
-                                    //   displayed under its own name
 
 Σ Γ ⊦ 𝒮 qctx ℓ
 x ∉ Σ
