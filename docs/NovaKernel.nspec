@@ -175,8 +175,8 @@ I ::= (Γ ⊦ x : t) | (Γ ⊦ x ≔ t : t) | (Γ ⊦ x ≔ Φ qsig ℓ)
 
 // The syntax of normal substitutions e˲, telescopes Δ and spines ē, and
 // the operations on them — Γ · Δ, ↑Δ, Δ[σ], the derived snoc Δ ▷ A and
-// the instantiation X[ē] — are the foundation's (Syntax; Rules (tel);
-// the QIIT section's plumbing). Only their checking rules are stated
+// the instantiation X[ē] — are the foundation's (Syntax; Telescopes;
+// Spines). Only their checking rules are stated
 // here.
 
 ---------------------- (sub-norm-empty)

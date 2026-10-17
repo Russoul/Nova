@@ -332,22 +332,9 @@ J ::= Σ sig | Γ ctx | Γ ≐ Γ ctx | Σ Γ ctx
 //   (sub-extensional, qsub-extensional).
 //
 //   THE EQUIVALENCE structure of the element judgement is three RULES,
-//   stated once here; the type judgement's are ty-refl, ty-sym and
-//   ty-trans (Rules (types)) —
-
-Γ ⊦ a : A
---------------- (el-refl)
-Γ ⊦ a ≐ a : A
-
-Γ ⊦ a₀ ≐ a₁ : A
------------------ (el-sym)
-Γ ⊦ a₁ ≐ a₀ : A
-
-Γ ⊦ a₀ ≐ a₁ : A      Γ ⊦ a₁ ≐ a₂ : A
--------------------------------------- (el-trans) // via a₁
-Γ ⊦ a₀ ≐ a₂ : A
-
-//   (transitivity's middle subject a₁, with its typing, is an input).
+//   el-refl, el-sym and el-trans (Elements); the type judgement's are
+//   ty-refl, ty-sym and ty-trans (Types). Transitivity's middle
+//   subject, with its typing, is an input.
 //   For the pointwise sorts, refl/sym/trans are ADMISSIBLE, pointwise
 //   from these. Pointwise equality of constants and atoms (ε ≐ ε ctx,
 //   id ≐ id, ↑ ≐ ↑, · ≐ ·, x[σ] ≐ x[σ], ...) are refl instances and
@@ -624,7 +611,7 @@ l̄ distinct      |l̄| = |Δ|      l ∈ l̄      l ∉ l̄
 // universe of all universes, no 𝕌ω, and Γ ⊦ 𝕌ℓ : 𝕌ℓ is not derivable
 // (Girard) — a universe is typed one level up and nowhere below.
 
-# Rules (sig)
+# Signatures
 
 --------- (sig-empty)
 ε sig
@@ -701,7 +688,7 @@ x ∉ Σ
 //   derivable in its prefix (el-eq-i) — one open-entry kind, one
 //   closing move.
 
-# Rules (ctx)
+# Contexts
 
 --------- (ctx-empty)
 ε ctx
@@ -711,7 +698,8 @@ x ∉ Σ
 --------------- (ctx-ext)      // ctx-ext-cong (CONGRUENCE, conventions) is
 Γ ▷ A ctx                      //   the DEFINING clause of the pointwise equation
 
-# Rules (ctx substitution)
+# Substitutions
+
 //
 // SUBSTITUTION EQUALITY IS EXTENSIONAL (sub-extensional below, with
 // sub-empty-unique): σ₀ ≐ σ₁ : Γ ⇒ Θ says the variable images agree.
@@ -844,7 +832,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 ----------------------------------------------------------- (sub-tel-comp)   // ADM, by induction on Δ
 (σ · Δ) ∘ (τ · Δ[σ]) ≐ (σ ∘ τ) · Δ : Ξ · Δ[σ][τ] ⇒ Γ₁ · Δ                   //   (σ · Δ: Telescopes)
 
-# Rules (normal substitution)
+## Normal substitutions
 
 // σ : Γ ⇒ Θ norm: σ is NORMAL — built from · and extension alone (one
 // syntax of substitutions, two judgements); what a reference x[σ] takes.
@@ -903,12 +891,15 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 ------------------------- (sub-norm-eq-coe-cod)
 σ₀ ≐ σ₁ : Γ ⇒ Θ' norm
 
-# Rules (types)
+# Types
 
 // THE TOWER. The types are the terms Γ ⊦ A type ℓ, formed by the
-// clauses of this section — one per former, stating its formation and
-// its level in one rule, ℓ ∈ ℕ ∪ {ω} (LEVEL INDICES) — and related to
-// the universes by the BRIDGE below.
+// formation clause of each former (in the former's own section below)
+// — one per former, stating its formation and its level in one rule,
+// ℓ ∈ ℕ ∪ {ω} (LEVEL INDICES) — and related to the universes by the
+// BRIDGE below. This section holds what is GENERIC to types: the
+// universe former and the bridge, cumulativity, type equality,
+// substitution, coercion, and the injectivity commitment.
 //
 //  * A CUMULATIVE TOWER 𝕌₀ : 𝕌₁ : 𝕌₂ : … — each universe a type one
 //    level up, never at its own level (Girard), and each a
@@ -941,44 +932,8 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 //    equations included.)
 
 Γ ctx
------------- (ty-zero)
-Γ ⊦ 𝟘 type 0
-
-Γ ctx
------------- (ty-one)
-Γ ⊦ 𝟙 type 0
-
-Γ ctx
------------- (ty-nat)
-Γ ⊦ ℕ type 0
-
-Γ ctx
 --------------- (ty-univ) // one level up, never at its own
 Γ ⊦ 𝕌ℓ type ℓ₊₁
-
-Γ ctx
------------- (ty-prop) // and NOT Γ ⊦ Ω : 𝕌₀ — see THE TOWER
-Γ ⊦ Ω type 1
-
-Γ ⊦ A type ℓ
-Γ ▷ A ⊦ B type ℓ
------------------- (ty-pi)
-Γ ⊦ A → B type ℓ
-
-Γ ⊦ A type ℓ
-Γ ▷ A ⊦ B type ℓ
------------------- (ty-sigma)
-Γ ⊦ A × B type ℓ
-
-Γ ⊦ A type ℓ
-Γ ⊦ B type ℓ
------------------- (ty-sum)     // non-dependent: B over Γ, not Γ ▷ A
-Γ ⊦ A ⊎ B type ℓ
-
-Γ ⊦ A type ℓ
-Γ ▷ A ▷ A[↑] ⊦ R : Ω
---------------------- (ty-quot)   // the relation slot is Ω, at any level of A:
-Γ ⊦ A / R type ℓ                  //   a quotient is at the level of its carrier
 
 ## Universes
 
@@ -1027,58 +982,6 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 --------------- (ty-lift)   // cumulativity: ℓ′ any level above ℓ, ω included
 Γ ⊦ A type ℓ′
 
-## Prop-cumulativity
-
-// There is no proof-type former: a proposition IS
-// its type of proofs, by the lift below — a type of level 0, the
-// bottom of the tower, whence of every level by ty-lift — and its
-// equality lifts (prop-lift-eq) and restricts (prop-restrict).
-// prop-restrict is MANDATORY for the same reason univ-eq-i is (it
-// keeps the props (p ≡ q ∈ Ω) and (p ≡ q ∈ 𝕌₀) equi-true at props, so
-// the ∈-slot stays well-defined). THE ASYMMETRY with the universe
-// bridge, stated plainly: univ-eq-e imports nothing (a level's
-// equality is the restriction of type equality on the nose), but
-// prop-lift-eq imports PROPOSITIONAL EXTENSIONALITY into type
-// equality at level 0 — on the prop cluster, type equality is mere
-// equivalence (code-prop-eq).
-// Type equality at EVERY universe is thereafter MIXED: structural on
-// the code cluster, extensional on the prop cluster. This is no cost
-// of the lift: with the quotient slot Ω-valued, the 𝕌₀-code
-// prf r ≔ Id (ℕ / r̂) (class Z) (class (S Z)) carries every
-// proposition into 𝕌₀ up to iff (see the impredicativity note in the
-// Ω block), and prf r ≐ prf r′ : 𝕌₀ whenever r ⟺ r′ — the small
-// universe's equality is mixed without the lift, which only makes it
-// so directly. prop-lift-eq is PRIMITIVE, not an el-sub-cong
-// instance (the master congruence at ☐₀ over Γ ▷ Ω concludes at Ω,
-// not at type — nothing else lifts the coarse equality). CROSS-CLUSTER equations
-// are underivable by absence: ∥𝟙∥ ≐ 𝟙 type has no derivation —
-// prop-restrict needs both sides at Ω (𝟙 is not: Ω's only formers
-// are ≡ and ∥·∥), and no structural rule reaches a prop-headed side
-// — and the model refutes them (disjoint summands, see SEMANTICS
-// below). Both are contractible; the theory keeps them intensionally
-// distinct, exactly as A / R vs A / R⁺. SEMANTICS: each universe's
-// codes gain a PROP summand, disjoint from the structural codes,
-// whose constructor argument is QUOTIENTED by iff — the PER of 𝕌ℓ is
-// constructor-structural on one summand and extensional on the
-// other; no-confusion BETWEEN the summands is the meta-property that
-// refutes cross-cluster equalities. Ω ITSELF has
-// no 𝕌₀ code (THE TOWER): the lift is of propositions, never of
-// their universe.
-
-Γ ⊦ p : Ω
----------------- (prop-lift)
-Γ ⊦ p type 0
-
-Γ ⊦ p₀ ≐ p₁ : Ω
--------------------- (prop-lift-eq)
-Γ ⊦ p₀ ≐ p₁ type
-
-Γ ⊦ p₀ : Ω
-Γ ⊦ p₁ : Ω
-Γ ⊦ p₀ ≐ p₁ type
--------------------- (prop-restrict)
-Γ ⊦ p₀ ≐ p₁ : Ω
-
 ## Type equality
 
 // Γ ⊦ A₀ ≐ A₁ type is an EQUIVALENCE, level-free, presupposing that
@@ -1104,11 +1007,55 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 ------------------ (ty-coe)
 Γ ⊦ A₁ type ℓ
 
-# Type constructor injectivity
+## Substitution
+
+// A substitution moves no level: levels are literals. The action on
+// each former's types is at the former (ty-sub-pi and its kin); the
+// atoms are inert.
+
+Γ₁ ⊦ A type ℓ
+σ : Γ₀ ⇒ Γ₁
+--------------------- (ty-sub)   // ty-sub-cong: Γ₁ ⊦ A₀ ≐ A₁ type and
+Γ₀ ⊦ A[σ] type ℓ                 //   σ₀ ≐ σ₁ give Γ₀ ⊦ A₀[σ₀] ≐ A₁[σ₁] type
+
+Γ ⊦ A type
+----------------------- (ty-sub-id) // ADM, as el-sub-id
+Γ ⊦ A[id] ≐ A type
+
+Γ₂ ⊦ A type
+σ : Γ₁ ⇒ Γ₂
+τ : Γ₀ ⇒ Γ₁
+--------------------------------------- (ty-sub-comp) // ADM, as el-sub-comp
+Γ₀ ⊦ A[σ ∘ τ] ≐ A[σ][τ] type
+
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------------------------- (ty-sub-atoms)
+Γ₀ ⊦ 𝟘[σ] ≐ 𝟘 type
+Γ₀ ⊦ 𝟙[σ] ≐ 𝟙 type
+Γ₀ ⊦ ℕ[σ] ≐ ℕ type
+Γ₀ ⊦ 𝕌ℓ[σ] ≐ 𝕌ℓ type
+Γ₀ ⊦ Ω[σ] ≐ Ω type
+
+## Coercion
+
+Γ₀ ≐ Γ₁ ctx
+Γ₀ ⊦ A type ℓ
+--------------- (ty-coe-ctx)
+Γ₁ ⊦ A type ℓ
+
+Γ₀ ≐ Γ₁ ctx
+Γ₀ ⊦ A₀ ≐ A₁ type
+-------------------- (ty-eq-coe-ctx)
+Γ₁ ⊦ A₀ ≐ A₁ type
+
+## Injectivity
+
 //
-// The congruence rules above run downward: equal components give equal
-// composites. The rules below run upward: equal composites give equal
-// components. They are NOT derivable from the rest of the theory — in
+// The congruence rules run downward: equal components give equal
+// composites. The INJECTIVITY rules — ty-pi-inj, ty-sigma-inj,
+// ty-sum-inj and ty-quot-inj at their formers below, ty-rec-inj,
+// ty-qiit-inj and ty-nu-inj at theirs — run upward: equal composites
+// give equal components. They are NOT derivable from the rest of the theory — in
 // the plain set-theoretic model (types as sets, function types as sets
 // of graphs) the hypothesis h : ((𝟙 → 𝟘) ≡ (ℕ → 𝟘) ∈ 𝕌₀) is satisfiable
 // (both function spaces are the empty set), yet 𝟙 ≐ ℕ is refuted, so
@@ -1168,30 +1115,154 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 //    right case returns a fixed default (the compared element itself
 //    serves), disjointness by a ⊎-elim discriminator at constant
 //    motive ℕ (Z left, S Z right) followed by the standard Z ≐ S Z
-//    refutation. The TYPE former ⊎ is injective by rule below, like
-//    every other structural former.
+//    refutation. The TYPE former ⊎ is injective by rule (ty-sum-inj),
+//    like every other structural former.
 
-Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ type
------------------------------- (ty-pi-inj)
+# Elements
+
+## Equality
+
+// The binary element judgement is an equivalence (UNARY AND BINARY,
+// conventions); its congruences are the -cong rules of the formers.
+
+Γ ⊦ a : A
+--------------- (el-refl)
+Γ ⊦ a ≐ a : A
+
+Γ ⊦ a₀ ≐ a₁ : A
+----------------- (el-sym)
+Γ ⊦ a₁ ≐ a₀ : A
+
+Γ ⊦ a₀ ≐ a₁ : A      Γ ⊦ a₁ ≐ a₂ : A
+-------------------------------------- (el-trans) // via a₁
+Γ ⊦ a₀ ≐ a₂ : A
+
+## Variables
+
+// Γ‖ₙ, the type ☐ₙ names in Γ: the (n+1)-th entry from the right,
+// weakened to Γ.
+
+Γ ⊦ A type
+------------------------------ (ty-lookup-zero)
+Γ ▷ A ⊦ (Γ ▷ A)‖₀ ≐ A[↑] type
+
+Γ ⊦ Γ‖ₙ type
+Γ ⊦ A type
+---------------------------------- (ty-lookup-suc)
+Γ ▷ A ⊦ (Γ ▷ A)‖ₙ₊₁ ≐ Γ‖ₙ[↑] type
+
+Γ ⊦ Γ‖ₙ type
+------------------ (el-var)
+Γ ⊦ ☐ₙ : Γ‖ₙ
+
+## Signature references
+
+(Γ ⊦ x ≔ a : A) ∈ Σ
+σ : Θ ⇒ Γ norm
+------------------------ (el-sig-var)
+Σ Θ ⊦ x[σ] : A[σ]
+
+(Γ ⊦ x ≔ a : A) ∈ Σ
+σ : Θ ⇒ Γ norm
+------------------------------ (el-sig-beta)
+Σ Θ ⊦ x[σ] ≐ a[σ] : A[σ]
+
+(Γ ⊦ x : A) ∈ Σ
+σ : Θ ⇒ Γ norm
+--------------------- (el-sig-decl)
+Σ Θ ⊦ x[σ] : A[σ]
+
+(Γ ⊦ x ≔ a : A) ∈ Σ
+ρ : Γ₁ ⇒ Γ norm
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------------- (el-sub-sig-var)
+Σ Γ₀ ⊦ x[ρ][σ] ≐ x[ρ ∘ σ] : A[ρ ∘ σ]
+(Γ ⊦ x : A) ∈ Σ
+ρ : Γ₁ ⇒ Γ norm
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------------- (el-sub-sig-decl)
+Σ Γ₀ ⊦ x[ρ][σ] ≐ x[ρ ∘ σ] : A[ρ ∘ σ]
+
+## Substitution
+
+// The action of a substitution: el-sub is its typing, el-sub-cong the
+// master congruence; the clauses at each former's constructors are at
+// the former; the atoms are inert, and the variables are the
+// calculus's own clauses.
+
+Γ₁ ⊦ t : A
+σ : Γ₀ ⇒ Γ₁
+--------------------- (el-sub)   // el-sub-cong (CONGRUENCE) is the MASTER
+Γ₀ ⊦ t[σ] : A[σ]                 //   congruence: Γ₁ ⊦ t₀ ≐ t₁ : A and
+                                 //   σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁ give
+                                 //   Γ₀ ⊦ t₀[σ₀] ≐ t₁[σ₁] : A[σ₁]
+
+Γ ⊦ t : A
+----------------------- (el-sub-id) // ADM, by induction on the derivation
+Γ ⊦ t[id] ≐ t : A
+
+Γ₂ ⊦ t : A
+σ : Γ₁ ⇒ Γ₂
+τ : Γ₀ ⇒ Γ₁
+--------------------------------------- (el-sub-comp) // ADM, by induction on the derivation
+Γ₀ ⊦ t[σ ∘ τ] ≐ t[σ][τ] : A[σ][τ]
+
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------------------------------------ (el-sub-atoms)
+Γ₀ ⊦ ()[σ] ≐ () : 𝟙
+Γ₀ ⊦ Z[σ] ≐ Z : ℕ
+
+Γ ⊦ A type
+σ : Θ ⇒ Γ
+Θ ⊦ t : A[σ]
+------------------------------- (var-sub-hit)   // A the type ☐₀ names in Γ ▷ A
+Θ ⊦ ☐₀[σ, t] ≐ t : A[σ]
+
+Γ ⊦ A type
+Γ ⊦ ☐ₙ : B
+σ : Θ ⇒ Γ
+Θ ⊦ t : A[σ]
+--------------------------------------- (var-sub-miss)   // A the extension type
+Θ ⊦ ☐ₙ₊₁[σ, t] ≐ ☐ₙ[σ] : B[σ]
+
+Γ ⊦ ☐ₙ : B
+Γ ⊦ A type
+----------------------------------- (var-sub-wk)
+Γ ▷ A ⊦ ☐ₙ[↑] ≐ ☐ₙ₊₁ : B[↑]
+
+Γ ⊦ ☐ₙ : B
+--------------------------- (var-sub-id)
+Γ ⊦ ☐ₙ[id] ≐ ☐ₙ : B
+
+Γ ⊦ ☐ₙ : B
+τ : Θ ⇒ Γ
+σ : Ξ ⇒ Θ
+------------------------------------------ (var-sub-comp)
+Ξ ⊦ ☐ₙ[τ ∘ σ] ≐ ☐ₙ[τ][σ] : B[τ][σ]
+
+## Coercion
+
 Γ ⊦ A₀ ≐ A₁ type
-Γ ▷ A₁ ⊦ B₀ ≐ B₁ type
+Γ ⊦ a : A₀
+-------------------- (el-ty-coe)
+Γ ⊦ a : A₁
 
-Γ ⊦ A₀ × B₀ ≐ A₁ × B₁ type
------------------------------- (ty-sigma-inj)
 Γ ⊦ A₀ ≐ A₁ type
-Γ ▷ A₁ ⊦ B₀ ≐ B₁ type
+Γ ⊦ a₀ ≐ a₁ : A₀
+-------------------- (el-eq-ty-coe)
+Γ ⊦ a₀ ≐ a₁ : A₁
 
-Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ type
------------------------------- (ty-sum-inj)   // non-dependent: both
-Γ ⊦ A₀ ≐ A₁ type                              //   components over Γ
-Γ ⊦ B₀ ≐ B₁ type
+Γ₀ ≐ Γ₁ ctx
+Γ₀ ⊦ a : A
+--------------- (el-coe-ctx)
+Γ₁ ⊦ a : A
 
-Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type
---------------------------------- (ty-quot-inj)
-Γ ⊦ A₀ ≐ A₁ type
-Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
+Γ₀ ≐ Γ₁ ctx
+Γ₀ ⊦ a₀ ≐ a₁ : A
+-------------------- (el-eq-coe-ctx)
+Γ₁ ⊦ a₀ ≐ a₁ : A
 
-# Rules (tel)
+# Telescopes
 
 Γ ctx
 --------------- (tel-empty)
@@ -1273,25 +1344,225 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 //     hold at every level, as stated: levels are literals, a
 //     substitution moves none.
 
-# Rules (elem)
+## Operations on telescopes
 
-// Γ‖ₙ, the type ☐ₙ names in Γ: the (n+1)-th entry from the right,
-// weakened to Γ.
+// A substitution lifted along a telescope σ · Δ, the snoc Δ ▷ B, the
+// iterated Π Δ → B with its λ Δ. t, and application to a spine.
+
+Γ₁ ⊦ Δ tel
+σ : Γ₀ ⇒ Γ₁
+--------------------------
+σ · Δ : Γ₀ · Δ[σ] ⇒ Γ₁ · Δ
+
+σ : Γ₀ ⇒ Γ₁
+-------------------
+σ · ε ≐ σ : Γ₀ ⇒ Γ₁
+
+Γ₁ ⊦ A ◁ Δ tel
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------------------------
+σ · (A ◁ Δ) ≐ (σ ▷ A) · Δ : (Γ₀ ▷ A[σ]) · Δ[σ ▷ A] ⇒ (Γ₁ ▷ A) · Δ
+
+Γ ⊦ Δ tel
+Γ · Δ ⊦ B type
+--------------
+Γ ⊦ Δ ▷ B tel
+
+Γ ⊦ B type
+---------------------
+Γ ⊦ ε ▷ B ≐ B ◁ ε tel
+
+Γ ⊦ A ◁ Δ tel
+(Γ ▷ A) · Δ ⊦ B type
+---------------------------------
+Γ ⊦ (A ◁ Δ) ▷ B ≐ A ◁ (Δ ▷ B) tel
+
+Γ ⊦ Δ tel
+Γ · Δ ⊦ B type
+Γ ⊦ ē : Δ
+Γ ⊦ t : B[id, ē]
+--------------------
+Γ ⊦ ē, t : Δ ▷ B
+
+Γ ⊦ B type
+Γ ⊦ t : B
+-----------------------
+Γ ⊦ ·, t ≐ t, · : B ◁ ε
+
+Γ ⊦ A ◁ Δ tel
+(Γ ▷ A) · Δ ⊦ B type
+Γ ⊦ e : A
+Γ ⊦ ē : Δ[id, e]
+Γ ⊦ t : B[(id, e) · Δ][id, ē]
+---------------------------------------
+Γ ⊦ (e, ē), t ≐ e, (ē, t) : A ◁ (Δ ▷ B)
+
+Γ ⊦ Δ tel ℓ
+Γ · Δ ⊦ B type ℓ
+--------------
+Γ ⊦ Δ → B type ℓ
+
+Γ ⊦ B type
+-----------------
+Γ ⊦ ε → B ≐ B type
+
+Γ ⊦ A ◁ Δ tel
+(Γ ▷ A) · Δ ⊦ B type
+----------------------------------
+Γ ⊦ (A ◁ Δ) → B ≐ A → Δ → B type
+
+Γ ⊦ Δ tel      Γ · Δ ⊦ t : B      // iterated λ
+------------------------------
+Γ ⊦ λ Δ. t : Δ → B
+
+Γ ⊦ t : B
+------------------
+Γ ⊦ λ ε. t ≐ t : B
+
+Γ ⊦ A ◁ Δ tel      (Γ ▷ A) · Δ ⊦ t : B
+------------------------------------------
+Γ ⊦ λ (A ◁ Δ). t ≐ λ (λ Δ. t) : A → Δ → B
+
+Γ ⊦ f : Δ → B      Γ ⊦ ē : Δ
+----------------------------      // application to a spine
+Γ ⊦ f ē : B[id, ē]
+
+Γ ⊦ f : ε → B
+-----------------------
+Γ ⊦ f · ≐ f : B
+
+Γ ⊦ f : (A ◁ Δ) → B      Γ ⊦ e, ē : A ◁ Δ
+-----------------------------------------------------
+Γ ⊦ f (e, ē) ≐ (f e) ē : B[id, e, ē]
+
+# Spines
+
+Γ ctx
+------------- (sp-empty)
+Γ ⊦ · : ε
+
+Γ ▷ A ⊦ Δ tel
+Γ ⊦ e : A
+Γ ⊦ ē : Δ[id, e]
+---------------------- (sp-ext)        // sp-ext-cong is the defining clause
+Γ ⊦ (e, ē) : A ◁ Δ                     //   of the pointwise equation
+
+Γ₁ ⊦ ē : Δ
+σ : Γ₀ ⇒ Γ₁
+--------------------- (sp-sub) // the action: sp-sub-empty, sp-sub-ext
+Γ₀ ⊦ ē[σ] : Δ[σ]
+
+σ : Γ₀ ⇒ Γ₁
+----------------------- (sp-sub-empty)
+Γ₀ ⊦ ·[σ] ≐ · : ε
+
+Γ₁ ⊦ e : A
+Γ₁ ▷ A ⊦ Δ tel
+Γ₁ ⊦ ē : Δ[id, e]
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------ (sp-sub-ext)
+Γ₀ ⊦ (e, ē)[σ] ≐ e[σ], ē[σ] : A[σ] ◁ Δ[σ ▷ A]
+
+Γ ⊦ ē : Δ
+------------------------ (sp-eta)   // ADM: a spine is the spine of its
+Γ ⊦ ē ≐ ☐(Δ)[id, ē] : Δ            //   components — by induction on the
+                                   //   derivation; at 𝒮-elim, el-qiit-eta
+
+Γ ≐ Γ' ctx
+Γ ⊦ ē : Δ
+--------------- (sp-coe-ctx)
+Γ' ⊦ ē : Δ
+
+Γ ⊦ Δ ≐ Δ' tel
+Γ ⊦ ē : Δ
+------------------ (sp-coe-tel)
+Γ ⊦ ē : Δ'
+
+Γ ≐ Γ' ctx
+Γ ⊦ ē ≐ ē' : Δ
+-------------------- (sp-eq-coe-ctx)
+Γ' ⊦ ē ≐ ē' : Δ
+
+Γ ⊦ Δ₀ ≐ Δ₁ tel
+Γ ⊦ ē₀ ≐ ē₁ : Δ₀
+-------------------- (sp-eq-coe-tel)
+Γ ⊦ ē₀ ≐ ē₁ : Δ₁
+
+## Operations on spines
+
+// A substitution extended by a spine, and the spine of a telescope's
+// variables: the plumbing of the QIIT readings (Γ · Δ and ↑Δ are in
+// Telescopes).
+
+//   (⇛ is the ToS's Π, NOT Nova's →. The variable discipline is
+//   NAMELESS, like Nova's own: ⬡ᵢ counts inductive binders and context
+//   entries ONLY — ToS variables are ORTHOGONAL to Nova's ☐ᵢ, and the
+//   two calculi never touch each other's variables. In examples, named
+//   binders (x : A) ⇛ …, (𝕧 : El 𝕥) ⇛ … and named entries are DISPLAY
+//   SUGAR for the indexed core. There is no inductive λ: terms of
+//   inductive-Π type arise only as partial applications, which is all
+//   signatures need.)
+//
+// Strict positivity and externality are GRAMMATICAL, by two features
+// working together. First, Π domains are only Nova types or El-codes —
+// U and Π-types never occur left of a ⇛. Second, the two Π's bind into
+// DIFFERENT ZONES of the dual-zone judgements below: an external
+// binder grows the NOVA zone Γ, an inductive binder the ToS zone Φ;
+// Nova types are typed over Γ alone, so they cannot mention an
+// inductive variable — sort-free automatically, with no projection and
+// no side condition.
+//
+// Entry classification, by the END of the entry's type (𝔄ᵉ, Arity
+// and end; every qiit-type ends in U or El, so the classification is
+// exhaustive — there are no other entry forms to exclude):
+//     … ⇛ U               a SORT (its Πs are the index arity)
+//     … ⇛ El (𝕤 ī)        a POINT constructor into sort 𝕤
+//     … ⇛ El (𝕝 ≡ 𝕣)      an EQUATION constructor (imposes 𝕝 ≐ 𝕣)
+//
+// THE READING ⟦·⟧ interprets checked ToS syntax as Nova syntax over
+// the ALGEBRA CONTEXT Γ·⟦Φ⟧ — a signature as a telescope, its entries
+// as the telescope's variables; the ToS system itself never reads.
+//
+σ : Γ ⇒ Ξ
+Ξ ⊦ Δ tel
+Γ ⊦ ē : Δ[σ]
+----------------- (sub-ext-sp)
+σ , ē : Γ ⇒ Ξ · Δ
+
+σ : Γ ⇒ Ξ
+----------------- (sub-ext-sp-empty)
+σ , · ≐ σ : Γ ⇒ Ξ
+
+σ : Γ ⇒ Ξ
+Ξ ⊦ A type
+Ξ ▷ A ⊦ Δ tel
+Γ ⊦ e : A[σ]
+Γ ⊦ ē : Δ[σ, e]
+---------------------------------------- (sub-ext-sp-ext)
+σ , (e, ē) ≐ (σ, e), ē : Γ ⇒ (Ξ ▷ A) · Δ
+
+Γ ⊦ Δ tel
+-------------------- (sp-var)
+Γ · Δ ⊦ ☐(Δ) : Δ[↑Δ]
+
+Γ ctx
+-------------------- (sp-var-empty)
+Γ ⊦ ☐(ε) ≐ · : ε
 
 Γ ⊦ A type
------------------------------- (ty-lookup-zero)
-Γ ▷ A ⊦ (Γ ▷ A)‖₀ ≐ A[↑] type
+Γ ▷ A ⊦ Δ tel
+--------------------------------------------------------- (sp-var-ext)
+(Γ ▷ A) · Δ ⊦ ☐(A ◁ Δ) ≐ ☐₀[↑Δ], ☐(Δ) : (A ◁ Δ)[↑(A ◁ Δ)]
 
-Γ ⊦ Γ‖ₙ type
-Γ ⊦ A type
----------------------------------- (ty-lookup-suc)
-Γ ▷ A ⊦ (Γ ▷ A)‖ₙ₊₁ ≐ Γ‖ₙ[↑] type
+# 𝟘 and 𝟙
 
-Γ ⊦ Γ‖ₙ type
------------------- (el-var)
-Γ ⊦ ☐ₙ : Γ‖ₙ
+Γ ctx
+------------ (ty-zero)
+Γ ⊦ 𝟘 type 0
 
-## 𝟘 and 𝟙
+Γ ctx
+------------ (ty-one)
+Γ ⊦ 𝟙 type 0
 
 Γ ⊦ A type
 Γ ⊦ t : 𝟘
@@ -1323,7 +1594,17 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 ------------------- (el-one-prop)
 Γ ⊦ t₀ ≐ t₁ : 𝟙
 
-## ℕ
+Γ ⊦ A type
+Γ ⊦ t : 𝟘
+σ : Θ ⇒ Γ
+--------------------------------------------- (el-sub-zero-e)
+Θ ⊦ (𝟘-elim t)[σ] ≐ 𝟘-elim t[σ] : A[σ]
+
+# ℕ
+
+Γ ctx
+------------ (ty-nat)
+Γ ⊦ ℕ type 0
 
 Γ ctx
 ------------- (el-nat-z)
@@ -1367,7 +1648,25 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 
 // Corollary: f₀[id, t] ≐ ℕ-elim z s t ≐ f₁[id, t] : A[id, t]
 
-## Π
+Γ₁ ⊦ t : ℕ
+σ : Γ₀ ⇒ Γ₁
+--------------------------------- (el-sub-s)
+Γ₀ ⊦ (S t)[σ] ≐ S t[σ] : ℕ
+
+Γ ▷ ℕ ⊦ A type
+Γ ⊦ z : A[id, Z]
+Γ ▷ ℕ ▷ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
+Γ ⊦ t : ℕ
+σ : Θ ⇒ Γ
+------------------------------------------------------------------- (el-sub-nat-e)
+Θ ⊦ (ℕ-elim z s t)[σ] ≐ ℕ-elim z[σ] s[σ ▷ ℕ ▷ A] t[σ] : A[σ, t[σ]]
+
+# Π
+
+Γ ⊦ A type ℓ
+Γ ▷ A ⊦ B type ℓ
+------------------ (ty-pi)
+Γ ⊦ A → B type ℓ
 
 Γ ▷ A ⊦ f : B
 ---------------------- (el-pi-i)
@@ -1428,7 +1727,43 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 ---------------------------------------------- (el-let-beta)
 Γ ⊦ let a b ≐ b[id, a, ⋆] : B[id, a, ⋆]
 
-## Σ
+Γ ⊦ A₀ → B₀ ≐ A₁ → B₁ type
+------------------------------ (ty-pi-inj)
+Γ ⊦ A₀ ≐ A₁ type
+Γ ▷ A₁ ⊦ B₀ ≐ B₁ type
+
+Γ₁ ⊦ A type
+Γ₁ ▷ A ⊦ B type
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------- (ty-sub-pi)
+Γ₀ ⊦ (A → B)[σ] ≐ A[σ] → B[σ ▷ A] type
+
+Γ₁ ▷ A ⊦ f : B
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------------- (el-sub-lam)
+Γ₀ ⊦ (λ f)[σ] ≐ λ f[σ ▷ A] : A[σ] → B[σ ▷ A]
+
+Γ₁ ⊦ f : A → B
+Γ₁ ⊦ e : A
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------ (el-sub-app)
+Γ₀ ⊦ (f e)[σ] ≐ f[σ] e[σ] : B[σ, e[σ]]
+
+Γ₁ ⊦ a : A
+Γ₁ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b : B
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------- (el-sub-let)
+Γ₀ ⊦ (let a b)[σ] ≐ let a[σ] b[σ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑])] : B[σ, a[σ], ⋆]
+// (coherent: ☐₀[σ ▷ A] ≐ ☐₀ and a[↑][σ ▷ A] ≐ a[σ][↑], so the equation entry
+// lands as the unfolding equation OF a[σ] — the RHS is the let at
+// a[σ] — and ⋆[σ] ≐ ⋆ keeps the conclusion type in shape)
+
+# Σ
+
+Γ ⊦ A type ℓ
+Γ ▷ A ⊦ B type ℓ
+------------------ (ty-sigma)
+Γ ⊦ A × B type ℓ
 
 Γ ▷ A ⊦ B type
 Γ ⊦ a : A
@@ -1459,6 +1794,41 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 Γ ⊦ t : A × B
 ------------------------------------ (el-sigma-eta)
 Γ ⊦ (t .π₁ , t .π₂) ≐ t : A × B
+
+Γ ⊦ A₀ × B₀ ≐ A₁ × B₁ type
+------------------------------ (ty-sigma-inj)
+Γ ⊦ A₀ ≐ A₁ type
+Γ ▷ A₁ ⊦ B₀ ≐ B₁ type
+
+Γ₁ ⊦ A type
+Γ₁ ▷ A ⊦ B type
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------- (ty-sub-sigma)
+Γ₀ ⊦ (A × B)[σ] ≐ A[σ] × B[σ ▷ A] type
+
+Γ₁ ▷ A ⊦ B type
+Γ₁ ⊦ a : A
+Γ₁ ⊦ b : B[id, a]
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------ (el-sub-pair)
+Γ₀ ⊦ (a , b)[σ] ≐ a[σ] , b[σ] : A[σ] × B[σ ▷ A]
+
+Γ₁ ⊦ t : A × B
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------ (el-sub-proj₁)
+Γ₀ ⊦ (t .π₁)[σ] ≐ t[σ] .π₁ : A[σ]
+
+Γ₁ ⊦ t : A × B
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------------- (el-sub-proj₂)
+Γ₀ ⊦ (t .π₂)[σ] ≐ t[σ] .π₂ : B[σ, t[σ] .π₁]
+
+# ⊎
+
+Γ ⊦ A type ℓ
+Γ ⊦ B type ℓ
+------------------ (ty-sum)     // non-dependent: B over Γ, not Γ ▷ A
+Γ ⊦ A ⊎ B type ℓ
 
 Γ ⊦ B type
 Γ ⊦ a : A
@@ -1505,7 +1875,43 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 // agree on both injections are equal — chain el-sum-eta through the
 // eliminator they both equal.
 
-## Quotients
+Γ ⊦ A₀ ⊎ B₀ ≐ A₁ ⊎ B₁ type
+------------------------------ (ty-sum-inj)   // non-dependent: both
+Γ ⊦ A₀ ≐ A₁ type                              //   components over Γ
+Γ ⊦ B₀ ≐ B₁ type
+
+Γ₁ ⊦ A type
+Γ₁ ⊦ B type
+σ : Γ₀ ⇒ Γ₁
+--------------------------------------- (ty-sub-sum)
+Γ₀ ⊦ (A ⊎ B)[σ] ≐ A[σ] ⊎ B[σ] type
+
+Γ₁ ⊦ B type
+Γ₁ ⊦ a : A
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------ (el-sub-inj₁)
+Γ₀ ⊦ (inj₁ a)[σ] ≐ inj₁ a[σ] : A[σ] ⊎ B[σ]
+
+Γ₁ ⊦ A type
+Γ₁ ⊦ b : B
+σ : Γ₀ ⇒ Γ₁
+------------------------------------------------ (el-sub-inj₂)
+Γ₀ ⊦ (inj₂ b)[σ] ≐ inj₂ b[σ] : A[σ] ⊎ B[σ]
+
+Γ ▷ A ⊎ B ⊦ C type
+Γ ▷ A ⊦ u : C[↑, inj₁ ☐₀]
+Γ ▷ B ⊦ v : C[↑, inj₂ ☐₀]
+Γ ⊦ t : A ⊎ B
+σ : Θ ⇒ Γ
+------------------------------------------------------------------- (el-sub-sum-e)
+Θ ⊦ (⊎-elim u v t)[σ] ≐ ⊎-elim u[σ ▷ A] v[σ ▷ B] t[σ] : C[σ, t[σ]]
+
+# Quotients
+
+Γ ⊦ A type ℓ
+Γ ▷ A ▷ A[↑] ⊦ R : Ω
+--------------------- (ty-quot)   // the relation slot is Ω, at any level of A:
+Γ ⊦ A / R type ℓ                  //   a quotient is at the level of its carrier
 
 Γ ▷ A ▷ A[↑] ⊦ R : Ω
 Γ ⊦ a : A
@@ -1550,13 +1956,41 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 // quot-elim motive, which is why B ranges over TYPES here and Ω is one
 // (ty-prop).
 
-// Ω: equality, squash, proof irrelevance, propositional
-// extensionality.
-//
+Γ ⊦ A₀ / R₀ ≐ A₁ / R₁ type
+--------------------------------- (ty-quot-inj)
+Γ ⊦ A₀ ≐ A₁ type
+Γ ▷ A₁ ▷ A₁[↑] ⊦ R₀ ≐ R₁ : Ω
+
+Γ₁ ⊦ A type
+Γ₁ ▷ A ▷ A[↑] ⊦ R : Ω
+σ : Γ₀ ⇒ Γ₁
+---------------------------------------- (ty-sub-quot)
+Γ₀ ⊦ (A / R)[σ] ≐ A[σ] / R[σ ▷ A ▷ A[↑]] type
+
+Γ ▷ A ▷ A[↑] ⊦ R : Ω
+Γ ⊦ a : A
+σ : Θ ⇒ Γ
+---------------------------------------------------- (el-sub-class)
+Θ ⊦ (class a)[σ] ≐ class a[σ] : A[σ] / R[σ ▷ A ▷ A[↑]]
+
+Γ ▷ (A / R) ⊦ B type
+Γ ▷ A ⊦ f : B[↑, class ☐₀]
+Γ ▷ A ▷ A[↑] ▷ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
+Γ ⊦ q : A / R
+σ : Θ ⇒ Γ
+------------------------------------------------------------------ (el-sub-quot-e)
+Θ ⊦ (quot-elim f q)[σ] ≐ quot-elim f[σ ▷ A] q[σ] : B[σ, q[σ]]
+
+# Ω: the propositions
+
+Γ ctx
+------------ (ty-prop) // and NOT Γ ⊦ Ω : 𝕌₀ — see THE TOWER
+Γ ⊦ Ω type 1
+
 // Ω is the universe of mere propositions, below the tower's bottom
 // (Ω : 𝕌₁, THE TOWER); its equality discipline is the mirror image
 // of the structural universes'. Structural codes are compared
-// STRUCTURALLY (the injectivity block); Ω's codes are compared by
+// STRUCTURALLY (Injectivity, under Types); Ω's codes are compared by
 // INHABITATION alone (code-prop-eq). Each discipline is sound only on
 // its own cluster, and the two COEXIST at every 𝕌ℓ on disjoint
 // clusters (PROP-CUMULATIVITY: a proposition is a 𝕌₀ code; Ω itself
@@ -1833,165 +2267,64 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 ------------------------ (el-squash-e-prf)
 Γ ⊦ ⋆ : q
 
-# Rules (substitution action)
+## Prop-cumulativity
 
-// Signature references.
+// There is no proof-type former: a proposition IS
+// its type of proofs, by the lift below — a type of level 0, the
+// bottom of the tower, whence of every level by ty-lift — and its
+// equality lifts (prop-lift-eq) and restricts (prop-restrict).
+// prop-restrict is MANDATORY for the same reason univ-eq-i is (it
+// keeps the props (p ≡ q ∈ Ω) and (p ≡ q ∈ 𝕌₀) equi-true at props, so
+// the ∈-slot stays well-defined). THE ASYMMETRY with the universe
+// bridge, stated plainly: univ-eq-e imports nothing (a level's
+// equality is the restriction of type equality on the nose), but
+// prop-lift-eq imports PROPOSITIONAL EXTENSIONALITY into type
+// equality at level 0 — on the prop cluster, type equality is mere
+// equivalence (code-prop-eq).
+// Type equality at EVERY universe is thereafter MIXED: structural on
+// the code cluster, extensional on the prop cluster. This is no cost
+// of the lift: with the quotient slot Ω-valued, the 𝕌₀-code
+// prf r ≔ Id (ℕ / r̂) (class Z) (class (S Z)) carries every
+// proposition into 𝕌₀ up to iff (see the impredicativity note in the
+// Ω block), and prf r ≐ prf r′ : 𝕌₀ whenever r ⟺ r′ — the small
+// universe's equality is mixed without the lift, which only makes it
+// so directly. prop-lift-eq is PRIMITIVE, not an el-sub-cong
+// instance (the master congruence at ☐₀ over Γ ▷ Ω concludes at Ω,
+// not at type — nothing else lifts the coarse equality). CROSS-CLUSTER equations
+// are underivable by absence: ∥𝟙∥ ≐ 𝟙 type has no derivation —
+// prop-restrict needs both sides at Ω (𝟙 is not: Ω's only formers
+// are ≡ and ∥·∥), and no structural rule reaches a prop-headed side
+// — and the model refutes them (disjoint summands, see SEMANTICS
+// below). Both are contractible; the theory keeps them intensionally
+// distinct, exactly as A / R vs A / R⁺. SEMANTICS: each universe's
+// codes gain a PROP summand, disjoint from the structural codes,
+// whose constructor argument is QUOTIENTED by iff — the PER of 𝕌ℓ is
+// constructor-structural on one summand and extensional on the
+// other; no-confusion BETWEEN the summands is the meta-property that
+// refutes cross-cluster equalities. Ω ITSELF has
+// no 𝕌₀ code (THE TOWER): the lift is of propositions, never of
+// their universe.
 
-(Γ ⊦ x ≔ a : A) ∈ Σ
-σ : Θ ⇒ Γ norm
------------------------- (el-sig-var)
-Σ Θ ⊦ x[σ] : A[σ]
+Γ ⊦ p : Ω
+---------------- (prop-lift)
+Γ ⊦ p type 0
 
-(Γ ⊦ x ≔ a : A) ∈ Σ
-σ : Θ ⇒ Γ norm
------------------------------- (el-sig-beta)
-Σ Θ ⊦ x[σ] ≐ a[σ] : A[σ]
+Γ ⊦ p₀ ≐ p₁ : Ω
+-------------------- (prop-lift-eq)
+Γ ⊦ p₀ ≐ p₁ type
 
-(Γ ⊦ x : A) ∈ Σ
-σ : Θ ⇒ Γ norm
---------------------- (el-sig-decl)
-Σ Θ ⊦ x[σ] : A[σ]
+Γ ⊦ p₀ : Ω
+Γ ⊦ p₁ : Ω
+Γ ⊦ p₀ ≐ p₁ type
+-------------------- (prop-restrict)
+Γ ⊦ p₀ ≐ p₁ : Ω
 
-// Substitution action.
-
-Γ₁ ⊦ t : A
-σ : Γ₀ ⇒ Γ₁
---------------------- (el-sub)   // el-sub-cong (CONGRUENCE) is the MASTER
-Γ₀ ⊦ t[σ] : A[σ]                 //   congruence: Γ₁ ⊦ t₀ ≐ t₁ : A and
-                                 //   σ₀ ≐ σ₁ : Γ₀ ⇒ Γ₁ give
-                                 //   Γ₀ ⊦ t₀[σ₀] ≐ t₁[σ₁] : A[σ₁]
-
-Γ ⊦ t : A
------------------------ (el-sub-id) // ADM, by induction on the derivation
-Γ ⊦ t[id] ≐ t : A
-
-Γ₂ ⊦ t : A
-σ : Γ₁ ⇒ Γ₂
-τ : Γ₀ ⇒ Γ₁
---------------------------------------- (el-sub-comp) // ADM, by induction on the derivation
-Γ₀ ⊦ t[σ ∘ τ] ≐ t[σ][τ] : A[σ][τ]
-
-// The same for types. A substitution moves no level: levels are
-// literals.
-
-Γ₁ ⊦ A type ℓ
-σ : Γ₀ ⇒ Γ₁
---------------------- (ty-sub)   // ty-sub-cong: Γ₁ ⊦ A₀ ≐ A₁ type and
-Γ₀ ⊦ A[σ] type ℓ                 //   σ₀ ≐ σ₁ give Γ₀ ⊦ A₀[σ₀] ≐ A₁[σ₁] type
-
-Γ ⊦ A type
------------------------ (ty-sub-id) // ADM, as el-sub-id
-Γ ⊦ A[id] ≐ A type
-
-Γ₂ ⊦ A type
-σ : Γ₁ ⇒ Γ₂
-τ : Γ₀ ⇒ Γ₁
---------------------------------------- (ty-sub-comp) // ADM, as el-sub-comp
-Γ₀ ⊦ A[σ ∘ τ] ≐ A[σ][τ] type
-
-σ : Γ₀ ⇒ Γ₁
-------------------------------------------------------------------------- (ty-sub-atoms)
-Γ₀ ⊦ 𝟘[σ] ≐ 𝟘 type
-Γ₀ ⊦ 𝟙[σ] ≐ 𝟙 type
-Γ₀ ⊦ ℕ[σ] ≐ ℕ type
-Γ₀ ⊦ 𝕌ℓ[σ] ≐ 𝕌ℓ type
-Γ₀ ⊦ Ω[σ] ≐ Ω type
-
-Γ₁ ⊦ A type
-Γ₁ ▷ A ⊦ B type
-σ : Γ₀ ⇒ Γ₁
---------------------------------------- (ty-sub-pi)
-Γ₀ ⊦ (A → B)[σ] ≐ A[σ] → B[σ ▷ A] type
-
-Γ₁ ⊦ A type
-Γ₁ ▷ A ⊦ B type
-σ : Γ₀ ⇒ Γ₁
---------------------------------------- (ty-sub-sigma)
-Γ₀ ⊦ (A × B)[σ] ≐ A[σ] × B[σ ▷ A] type
-
-Γ₁ ⊦ A type
-Γ₁ ⊦ B type
-σ : Γ₀ ⇒ Γ₁
---------------------------------------- (ty-sub-sum)
-Γ₀ ⊦ (A ⊎ B)[σ] ≐ A[σ] ⊎ B[σ] type
-
-Γ₁ ⊦ A type
-Γ₁ ▷ A ▷ A[↑] ⊦ R : Ω
-σ : Γ₀ ⇒ Γ₁
----------------------------------------- (ty-sub-quot)
-Γ₀ ⊦ (A / R)[σ] ≐ A[σ] / R[σ ▷ A ▷ A[↑]] type
-
-σ : Γ₀ ⇒ Γ₁
------------------------------------------------------------------------------------- (el-sub-atoms)
-Γ₀ ⊦ ()[σ] ≐ () : 𝟙
-Γ₀ ⊦ Z[σ] ≐ Z : ℕ
-
-Γ₁ ⊦ t : ℕ
-σ : Γ₀ ⇒ Γ₁
---------------------------------- (el-sub-s)
-Γ₀ ⊦ (S t)[σ] ≐ S t[σ] : ℕ
+## Substitution action
 
 Γ₁ ⊦ A type
 σ : Γ₀ ⇒ Γ₁
 ------------------------------------ (el-sub-squash)
 Γ₀ ⊦ ∥A∥[σ] ≐ ∥A[σ]∥ : Ω
-
-Γ₁ ▷ A ⊦ f : B
-σ : Γ₀ ⇒ Γ₁
----------------------------------------------- (el-sub-lam)
-Γ₀ ⊦ (λ f)[σ] ≐ λ f[σ ▷ A] : A[σ] → B[σ ▷ A]
-
-Γ₁ ⊦ f : A → B
-Γ₁ ⊦ e : A
-σ : Γ₀ ⇒ Γ₁
------------------------------------------- (el-sub-app)
-Γ₀ ⊦ (f e)[σ] ≐ f[σ] e[σ] : B[σ, e[σ]]
-
-Γ₁ ⊦ a : A
-Γ₁ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑]) ⊦ b : B
-σ : Γ₀ ⇒ Γ₁
-------------------------------------------------------- (el-sub-let)
-Γ₀ ⊦ (let a b)[σ] ≐ let a[σ] b[σ ▷ A ▷ (☐₀ ≡ a[↑] ∈ A[↑])] : B[σ, a[σ], ⋆]
-// (coherent: ☐₀[σ ▷ A] ≐ ☐₀ and a[↑][σ ▷ A] ≐ a[σ][↑], so the equation entry
-// lands as the unfolding equation OF a[σ] — the RHS is the let at
-// a[σ] — and ⋆[σ] ≐ ⋆ keeps the conclusion type in shape)
-
-Γ₁ ▷ A ⊦ B type
-Γ₁ ⊦ a : A
-Γ₁ ⊦ b : B[id, a]
-σ : Γ₀ ⇒ Γ₁
------------------------------------------------------- (el-sub-pair)
-Γ₀ ⊦ (a , b)[σ] ≐ a[σ] , b[σ] : A[σ] × B[σ ▷ A]
-
-Γ₁ ⊦ t : A × B
-σ : Γ₀ ⇒ Γ₁
------------------------------------------- (el-sub-proj₁)
-Γ₀ ⊦ (t .π₁)[σ] ≐ t[σ] .π₁ : A[σ]
-
-Γ₁ ⊦ t : A × B
-σ : Γ₀ ⇒ Γ₁
-------------------------------------------------------- (el-sub-proj₂)
-Γ₀ ⊦ (t .π₂)[σ] ≐ t[σ] .π₂ : B[σ, t[σ] .π₁]
-
-Γ₁ ⊦ B type
-Γ₁ ⊦ a : A
-σ : Γ₀ ⇒ Γ₁
------------------------------------------------- (el-sub-inj₁)
-Γ₀ ⊦ (inj₁ a)[σ] ≐ inj₁ a[σ] : A[σ] ⊎ B[σ]
-
-Γ₁ ⊦ A type
-Γ₁ ⊦ b : B
-σ : Γ₀ ⇒ Γ₁
------------------------------------------------- (el-sub-inj₂)
-Γ₀ ⊦ (inj₂ b)[σ] ≐ inj₂ b[σ] : A[σ] ⊎ B[σ]
-
-Γ ▷ A ⊎ B ⊦ C type
-Γ ▷ A ⊦ u : C[↑, inj₁ ☐₀]
-Γ ▷ B ⊦ v : C[↑, inj₂ ☐₀]
-Γ ⊦ t : A ⊎ B
-σ : Θ ⇒ Γ
-------------------------------------------------------------------- (el-sub-sum-e)
-Θ ⊦ (⊎-elim u v t)[σ] ≐ ⊎-elim u[σ ▷ A] v[σ ▷ B] t[σ] : C[σ, t[σ]]
 
 Γ₁ ⊦ a₀ : A
 Γ₁ ⊦ a₁ : A
@@ -2005,104 +2338,130 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 --------------------------------- (el-sub-star)
 Γ₀ ⊦ ⋆[σ] ≐ ⋆ : p[σ]
 
-Γ ▷ ℕ ⊦ A type
-Γ ⊦ z : A[id, Z]
-Γ ▷ ℕ ▷ A ⊦ s : A[↑ ∘ ↑, S ☐₁]
-Γ ⊦ t : ℕ
-σ : Θ ⇒ Γ
-------------------------------------------------------------------- (el-sub-nat-e)
-Θ ⊦ (ℕ-elim z s t)[σ] ≐ ℕ-elim z[σ] s[σ ▷ ℕ ▷ A] t[σ] : A[σ, t[σ]]
+# Record types (labelled telescopes)
 
-Γ ▷ A ▷ A[↑] ⊦ R : Ω
-Γ ⊦ a : A
-σ : Θ ⇒ Γ
----------------------------------------------------- (el-sub-class)
-Θ ⊦ (class a)[σ] ≐ class a[σ] : A[σ] / R[σ ▷ A ▷ A[↑]]
+// Rec l̄ Δ is a telescope Δ with a label per entry. The labels are a
+// parallel list — Δ stays an ordinary nameless telescope, so a label
+// never binds and the tel-/sp- machinery is reused as is.
 
-Γ ▷ (A / R) ⊦ B type
-Γ ▷ A ⊦ f : B[↑, class ☐₀]
-Γ ▷ A ▷ A[↑] ▷ R ⊦ f[↑ ∘ ↑ ∘ ↑, ☐₂] ≐ f[↑ ∘ ↑ ∘ ↑, ☐₁] : B[↑ ∘ ↑ ∘ ↑, class ☐₂]
-Γ ⊦ q : A / R
-σ : Θ ⇒ Γ
------------------------------------------------------------------- (el-sub-quot-e)
-Θ ⊦ (quot-elim f q)[σ] ≐ quot-elim f[σ ▷ A] q[σ] : B[σ, q[σ]]
+// SIDE CONDITIONS on label lists — meta-level, context-free.
 
-Γ ⊦ A type
-Γ ⊦ t : 𝟘
-σ : Θ ⇒ Γ
---------------------------------------------- (el-sub-zero-e)
-Θ ⊦ (𝟘-elim t)[σ] ≐ 𝟘-elim t[σ] : A[σ]
+· distinct
 
-Γ ⊦ A type
-σ : Θ ⇒ Γ
-Θ ⊦ t : A[σ]
-------------------------------- (var-sub-hit)   // A the type ☐₀ names in Γ ▷ A
-Θ ⊦ ☐₀[σ, t] ≐ t : A[σ]
+l̄ distinct
+l ∉ l̄
+------------
+l l̄ distinct
 
-Γ ⊦ A type
-Γ ⊦ ☐ₙ : B
-σ : Θ ⇒ Γ
-Θ ⊦ t : A[σ]
---------------------------------------- (var-sub-miss)   // A the extension type
-Θ ⊦ ☐ₙ₊₁[σ, t] ≐ ☐ₙ[σ] : B[σ]
+// |l̄| = |Δ|: the lists have the same length
 
-Γ ⊦ ☐ₙ : B
-Γ ⊦ A type
------------------------------------ (var-sub-wk)
-Γ ▷ A ⊦ ☐ₙ[↑] ≐ ☐ₙ₊₁ : B[↑]
+## Fields
 
-Γ ⊦ ☐ₙ : B
---------------------------- (var-sub-id)
-Γ ⊦ ☐ₙ[id] ≐ ☐ₙ : B
+// Γ ⊦ t / l̄ ↪ Δ: the fields l̄ of t have the types Δ — a SUFFIX of t's
+// record, over Γ, the earlier fields instantiated at t's projections.
+// A projection and the spine of projections t.l̄ are typed by it.
 
-Γ ⊦ ☐ₙ : B
-τ : Θ ⇒ Γ
-σ : Ξ ⇒ Θ
------------------------------------------- (var-sub-comp)
-Ξ ⊦ ☐ₙ[τ ∘ σ] ≐ ☐ₙ[τ][σ] : B[τ][σ]
+Γ ⊦ t : Rec l̄ Δ
+---------------- (rec-fields)
+Γ ⊦ t / l̄ ↪ Δ
 
-(Γ ⊦ x ≔ a : A) ∈ Σ
-ρ : Γ₁ ⇒ Γ norm
+Γ ⊦ t / l l̄ ↪ A ◁ Δ
+----------------------- (rec-fields-step)
+Γ ⊦ t / l̄ ↪ Δ[id, t.l]
+
+Γ ⊦ t₀ ≐ t₁ : Rec l̄′ Δ′      Γ ⊦ Δ₀ ≐ Δ₁ tel      Γ ⊦ t₀ / l̄ ↪ Δ₀
+----------------------------------------------------------------- (rec-fields-coe)
+Γ ⊦ t₁ / l̄ ↪ Δ₁
+
+Γ ⊦ t / l̄ ↪ Δ
+--------------- (sp-rec-proj)
+Γ ⊦ t.l̄ : Δ
+
+Γ ⊦ t / · ↪ ε
+----------------- (sp-rec-proj-empty)
+Γ ⊦ t.· ≐ · : ε
+
+Γ ⊦ t / l l̄ ↪ A ◁ Δ
+--------------------------------- (sp-rec-proj-ext)
+Γ ⊦ t.(l l̄) ≐ t.l, t.l̄ : A ◁ Δ
+
+## Rules
+
+// Γ ⊦ ē : Δ gives Γ ⊦ Δ tel ℓ at some ℓ (existence); Γ ⊦ t : Rec l̄ Δ
+// gives Δ at a level, l̄ distinct and |l̄| = |Δ| by inversion.
+
+Γ ⊦ Δ tel ℓ
+l̄ distinct
+|l̄| = |Δ|
+------------------ (ty-rec)
+Γ ⊦ Rec l̄ Δ type ℓ
+
+Γ ⊦ ē : Δ
+l̄ distinct
+|l̄| = |Δ|
+----------------------- (el-rec-i)
+Γ ⊦ ⟨l̄ ↪ ē⟩ : Rec l̄ Δ
+
+Γ ⊦ t / l l̄ ↪ A ◁ Δ
+-------------------- (el-rec-e)   // congruence: at t₀, then rec-fields-coe
+Γ ⊦ t.l : A
+
+// Computation: by the position of the label. The premises are
+// el-rec-i's — the components typed, as in el-sigma-beta₁/₂ — not the
+// typing of the record: that a typed record has typed components is no
+// lemma of the theory, and the rule must not assert it. The miss step
+// is well-typed by induction along l̄: the fields of the two records
+// agree at the earlier labels by this rule.
+
+Γ ⊦ e, ē : A ◁ Δ
+l l̄ distinct
+|l l̄| = |A ◁ Δ|
+---------------------------- (el-rec-beta)
+Γ ⊦ ⟨l l̄ ↪ e, ē⟩.l ≐ e : A
+
+Γ ⊦ e, ē : A ◁ Δ
+l′ l̄ distinct
+|l′ l̄| = |A ◁ Δ|
+Γ ⊦ ⟨l̄ ↪ ē⟩.l : B
+--------------------------------------- (el-rec-beta-miss)
+Γ ⊦ ⟨l′ l̄ ↪ e, ē⟩.l ≐ ⟨l̄ ↪ ē⟩.l : B
+
+// Uniqueness, in el-sigma-eta's form and orientation. At l̄ = · this is
+// ⟨⟩ ≐ t : Rec · ε — the empty record is a unit type.
+
+Γ ⊦ t : Rec l̄ Δ
+---------------------------- (el-rec-eta)
+Γ ⊦ ⟨l̄ ↪ t.l̄⟩ ≐ t : Rec l̄ Δ
+
+// Injectivity, at ONE label list: labels are syntax and compare
+// syntactically. That records with different label lists are different
+// types is no-confusion — like Π against Σ, not a rule, and a
+// meta-property of consistent contexts only.
+
+Γ ⊦ Rec l̄ Δ₀ ≐ Rec l̄ Δ₁ type
+------------------------------ (ty-rec-inj)
+Γ ⊦ Δ₀ ≐ Δ₁ tel
+
+// Substitution action.
+
+Γ₁ ⊦ Δ tel
+l̄ distinct
+|l̄| = |Δ|
 σ : Γ₀ ⇒ Γ₁
----------------------------------------------- (el-sub-sig-var)
-Σ Γ₀ ⊦ x[ρ][σ] ≐ x[ρ ∘ σ] : A[ρ ∘ σ]
-(Γ ⊦ x : A) ∈ Σ
-ρ : Γ₁ ⇒ Γ norm
+------------------------------------ (ty-sub-rec)
+Γ₀ ⊦ (Rec l̄ Δ)[σ] ≐ Rec l̄ Δ[σ] type
+
+Γ₁ ⊦ ē : Δ
+l̄ distinct
+|l̄| = |Δ|
 σ : Γ₀ ⇒ Γ₁
----------------------------------------------- (el-sub-sig-decl)
-Σ Γ₀ ⊦ x[ρ][σ] ≐ x[ρ ∘ σ] : A[ρ ∘ σ]
+------------------------------------------- (el-sub-record)
+Γ₀ ⊦ ⟨l̄ ↪ ē⟩[σ] ≐ ⟨l̄ ↪ ē[σ]⟩ : Rec l̄ Δ[σ]
 
-# Rules (coercion)
-
-Γ ⊦ A₀ ≐ A₁ type
-Γ ⊦ a : A₀
--------------------- (el-ty-coe)
-Γ ⊦ a : A₁
-
-Γ ⊦ A₀ ≐ A₁ type
-Γ ⊦ a₀ ≐ a₁ : A₀
--------------------- (el-eq-ty-coe)
-Γ ⊦ a₀ ≐ a₁ : A₁
-
-Γ₀ ≐ Γ₁ ctx
-Γ₀ ⊦ a : A
---------------- (el-coe-ctx)
-Γ₁ ⊦ a : A
-
-Γ₀ ≐ Γ₁ ctx
-Γ₀ ⊦ a₀ ≐ a₁ : A
--------------------- (el-eq-coe-ctx)
-Γ₁ ⊦ a₀ ≐ a₁ : A
-
-Γ₀ ≐ Γ₁ ctx
-Γ₀ ⊦ A type ℓ
---------------- (ty-coe-ctx)
-Γ₁ ⊦ A type ℓ
-
-Γ₀ ≐ Γ₁ ctx
-Γ₀ ⊦ A₀ ≐ A₁ type
--------------------- (ty-eq-coe-ctx)
-Γ₁ ⊦ A₀ ≐ A₁ type
+Γ₁ ⊦ t.l : A
+σ : Γ₀ ⇒ Γ₁
+------------------------------- (el-sub-rec-proj)
+Γ₀ ⊦ (t.l)[σ] ≐ t[σ].l : A[σ]
 
 # Quotient inductive-inductive types (signatures)
 //
@@ -2134,70 +2493,6 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 // SIGNATURE is nothing but a closed qiit-context: sorts, point
 // constructors and equation constructors are ordinary entries,
 // distinguished by the HEAD of their type alone.
-
-//   (⇛ is the ToS's Π, NOT Nova's →. The variable discipline is
-//   NAMELESS, like Nova's own: ⬡ᵢ counts inductive binders and context
-//   entries ONLY — ToS variables are ORTHOGONAL to Nova's ☐ᵢ, and the
-//   two calculi never touch each other's variables. In examples, named
-//   binders (x : A) ⇛ …, (𝕧 : El 𝕥) ⇛ … and named entries are DISPLAY
-//   SUGAR for the indexed core. There is no inductive λ: terms of
-//   inductive-Π type arise only as partial applications, which is all
-//   signatures need.)
-//
-// Strict positivity and externality are GRAMMATICAL, by two features
-// working together. First, Π domains are only Nova types or El-codes —
-// U and Π-types never occur left of a ⇛. Second, the two Π's bind into
-// DIFFERENT ZONES of the dual-zone judgements below: an external
-// binder grows the NOVA zone Γ, an inductive binder the ToS zone Φ;
-// Nova types are typed over Γ alone, so they cannot mention an
-// inductive variable — sort-free automatically, with no projection and
-// no side condition.
-//
-// Entry classification, by the END of the entry's type (𝔄ᵉ, Arity
-// and end; every qiit-type ends in U or El, so the classification is
-// exhaustive — there are no other entry forms to exclude):
-//     … ⇛ U               a SORT (its Πs are the index arity)
-//     … ⇛ El (𝕤 ī)        a POINT constructor into sort 𝕤
-//     … ⇛ El (𝕝 ≡ 𝕣)      an EQUATION constructor (imposes 𝕝 ≐ 𝕣)
-//
-// THE READING ⟦·⟧ interprets checked ToS syntax as Nova syntax over
-// the ALGEBRA CONTEXT Γ·⟦Φ⟧ — a signature as a telescope, its entries
-// as the telescope's variables; the ToS system itself never reads.
-//
-// Nova plumbing (Γ · Δ and ↑Δ in Rules (tel); snoc, Δ → B and λ Δ. t
-// in Telescopes): a substitution extended by a spine, and the spine of
-// a telescope's variables.
-
-σ : Γ ⇒ Ξ
-Ξ ⊦ Δ tel
-Γ ⊦ ē : Δ[σ]
------------------ (sub-ext-sp)
-σ , ē : Γ ⇒ Ξ · Δ
-
-σ : Γ ⇒ Ξ
------------------ (sub-ext-sp-empty)
-σ , · ≐ σ : Γ ⇒ Ξ
-
-σ : Γ ⇒ Ξ
-Ξ ⊦ A type
-Ξ ▷ A ⊦ Δ tel
-Γ ⊦ e : A[σ]
-Γ ⊦ ē : Δ[σ, e]
----------------------------------------- (sub-ext-sp-ext)
-σ , (e, ē) ≐ (σ, e), ē : Γ ⇒ (Ξ ▷ A) · Δ
-
-Γ ⊦ Δ tel
--------------------- (sp-var)
-Γ · Δ ⊦ ☐(Δ) : Δ[↑Δ]
-
-Γ ctx
--------------------- (sp-var-empty)
-Γ ⊦ ☐(ε) ≐ · : ε
-
-Γ ⊦ A type
-Γ ▷ A ⊦ Δ tel
---------------------------------------------------------- (sp-var-ext)
-(Γ ▷ A) · Δ ⊦ ☐(A ◁ Δ) ≐ ☐₀[↑Δ], ☐(Δ) : (A ◁ Δ)[↑(A ◁ Δ)]
 
 // INSTANTIATION is not a bespoke operation — both binder
 // instantiations are calculus instances:
@@ -2361,7 +2656,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 // The ToS substitution calculus, mirroring Nova's (𝕚𝕕/⇑/∘/ext; the
 // lift is derived). ς₀ ≐ ς₁ : Φ₀ ⇒ Φ₁ is EXTENSIONAL, as σ₀ ≐ σ₁
 // (qsub-extensional, qsub-empty-unique): the other equations of the
-// calculus are admissible, as at Rules (ctx substitution).
+// calculus are admissible, as at Substitutions.
 
 Γ ⊦ Φ qctx
 ------------------- (qsub-id)
@@ -2891,94 +3186,6 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 -------------------------------------------------- (refl-end-pi-ind)
 (Γ · ⟦𝒮⟧ ▷ ⟦𝕥⟧) · ⟦𝔄⟧ᵗ ⊦ ⟦El 𝕥 ⇛ 𝔄⟧ᵉ ≐ ⟦𝔄⟧ᵉ type
 
-### Telescopes
-
-Γ₁ ⊦ Δ tel
-σ : Γ₀ ⇒ Γ₁
---------------------------
-σ · Δ : Γ₀ · Δ[σ] ⇒ Γ₁ · Δ
-
-σ : Γ₀ ⇒ Γ₁
--------------------
-σ · ε ≐ σ : Γ₀ ⇒ Γ₁
-
-Γ₁ ⊦ A ◁ Δ tel
-σ : Γ₀ ⇒ Γ₁
----------------------------------------------------------
-σ · (A ◁ Δ) ≐ (σ ▷ A) · Δ : (Γ₀ ▷ A[σ]) · Δ[σ ▷ A] ⇒ (Γ₁ ▷ A) · Δ
-
-Γ ⊦ Δ tel
-Γ · Δ ⊦ B type
---------------
-Γ ⊦ Δ ▷ B tel
-
-Γ ⊦ B type
----------------------
-Γ ⊦ ε ▷ B ≐ B ◁ ε tel
-
-Γ ⊦ A ◁ Δ tel
-(Γ ▷ A) · Δ ⊦ B type
----------------------------------
-Γ ⊦ (A ◁ Δ) ▷ B ≐ A ◁ (Δ ▷ B) tel
-
-Γ ⊦ Δ tel
-Γ · Δ ⊦ B type
-Γ ⊦ ē : Δ
-Γ ⊦ t : B[id, ē]
---------------------
-Γ ⊦ ē, t : Δ ▷ B
-
-Γ ⊦ B type
-Γ ⊦ t : B
------------------------
-Γ ⊦ ·, t ≐ t, · : B ◁ ε
-
-Γ ⊦ A ◁ Δ tel
-(Γ ▷ A) · Δ ⊦ B type
-Γ ⊦ e : A
-Γ ⊦ ē : Δ[id, e]
-Γ ⊦ t : B[(id, e) · Δ][id, ē]
----------------------------------------
-Γ ⊦ (e, ē), t ≐ e, (ē, t) : A ◁ (Δ ▷ B)
-
-Γ ⊦ Δ tel ℓ
-Γ · Δ ⊦ B type ℓ
---------------
-Γ ⊦ Δ → B type ℓ
-
-Γ ⊦ B type
------------------
-Γ ⊦ ε → B ≐ B type
-
-Γ ⊦ A ◁ Δ tel
-(Γ ▷ A) · Δ ⊦ B type
-----------------------------------
-Γ ⊦ (A ◁ Δ) → B ≐ A → Δ → B type
-
-Γ ⊦ Δ tel      Γ · Δ ⊦ t : B      // iterated λ
-------------------------------
-Γ ⊦ λ Δ. t : Δ → B
-
-Γ ⊦ t : B
-------------------
-Γ ⊦ λ ε. t ≐ t : B
-
-Γ ⊦ A ◁ Δ tel      (Γ ▷ A) · Δ ⊦ t : B
-------------------------------------------
-Γ ⊦ λ (A ◁ Δ). t ≐ λ (λ Δ. t) : A → Δ → B
-
-Γ ⊦ f : Δ → B      Γ ⊦ ē : Δ
-----------------------------      // application to a spine
-Γ ⊦ f ē : B[id, ē]
-
-Γ ⊦ f : ε → B
------------------------
-Γ ⊦ f · ≐ f : B
-
-Γ ⊦ f : (A ◁ Δ) → B      Γ ⊦ e, ē : A ◁ Δ
------------------------------------------------------
-Γ ⊦ f (e, ē) ≐ (f e) ē : B[id, e, ē]
-
 ## Signatures
 
 // What the formers carry. A signature is a closed
@@ -3067,7 +3274,7 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 // needs no equirecursive/coinductive machinery. (Signature equality is
 // finer than initial-algebra isomorphism — it distinguishes entry
 // reorderings — but SOUND; choosing a syntactic granularity over the
-// semantic one is the commitment the injectivity block already
+// semantic one is the commitment Injectivity, under Types already
 // makes: models collapsing structurally-distinct types are excluded.)
 //
 // THE TWO PATHWAYS. By-name (qctx-ref-cong) is ADMISSIBLE from
@@ -3970,181 +4177,3 @@ id ∘ σ ≐ σ : Γ₀ ⇒ Γ₁
 //   ⊎-elim; constructors (cons, and Cotree's leaf/node) are in
 //   instances. Surface codata declarations elaborate to
 //   ν-polynomials — the elaborator's business.
-
-# Rules (elem list)
-
-Γ ctx
-------------- (sp-empty)
-Γ ⊦ · : ε
-
-Γ ▷ A ⊦ Δ tel
-Γ ⊦ e : A
-Γ ⊦ ē : Δ[id, e]
----------------------- (sp-ext)        // sp-ext-cong is the defining clause
-Γ ⊦ (e, ē) : A ◁ Δ                     //   of the pointwise equation
-
-Γ₁ ⊦ ē : Δ
-σ : Γ₀ ⇒ Γ₁
---------------------- (sp-sub) // the action: sp-sub-empty, sp-sub-ext
-Γ₀ ⊦ ē[σ] : Δ[σ]
-
-σ : Γ₀ ⇒ Γ₁
------------------------ (sp-sub-empty)
-Γ₀ ⊦ ·[σ] ≐ · : ε
-
-Γ₁ ⊦ e : A
-Γ₁ ▷ A ⊦ Δ tel
-Γ₁ ⊦ ē : Δ[id, e]
-σ : Γ₀ ⇒ Γ₁
------------------------------------------------- (sp-sub-ext)
-Γ₀ ⊦ (e, ē)[σ] ≐ e[σ], ē[σ] : A[σ] ◁ Δ[σ ▷ A]
-
-Γ ⊦ ē : Δ
------------------------- (sp-eta)   // ADM: a spine is the spine of its
-Γ ⊦ ē ≐ ☐(Δ)[id, ē] : Δ            //   components — by induction on the
-                                   //   derivation; at 𝒮-elim, el-qiit-eta
-
-Γ ≐ Γ' ctx
-Γ ⊦ ē : Δ
---------------- (sp-coe-ctx)
-Γ' ⊦ ē : Δ
-
-Γ ⊦ Δ ≐ Δ' tel
-Γ ⊦ ē : Δ
------------------- (sp-coe-tel)
-Γ ⊦ ē : Δ'
-
-Γ ≐ Γ' ctx
-Γ ⊦ ē ≐ ē' : Δ
--------------------- (sp-eq-coe-ctx)
-Γ' ⊦ ē ≐ ē' : Δ
-
-Γ ⊦ Δ₀ ≐ Δ₁ tel
-Γ ⊦ ē₀ ≐ ē₁ : Δ₀
--------------------- (sp-eq-coe-tel)
-Γ ⊦ ē₀ ≐ ē₁ : Δ₁
-
-# Record types (labelled telescopes)
-
-// Rec l̄ Δ is a telescope Δ with a label per entry. The labels are a
-// parallel list — Δ stays an ordinary nameless telescope, so a label
-// never binds and the tel-/sp- machinery is reused as is.
-
-// SIDE CONDITIONS on label lists — meta-level, context-free.
-
-· distinct
-
-l̄ distinct
-l ∉ l̄
-------------
-l l̄ distinct
-
-// |l̄| = |Δ|: the lists have the same length
-
-## Fields
-
-// Γ ⊦ t / l̄ ↪ Δ: the fields l̄ of t have the types Δ — a SUFFIX of t's
-// record, over Γ, the earlier fields instantiated at t's projections.
-// A projection and the spine of projections t.l̄ are typed by it.
-
-Γ ⊦ t : Rec l̄ Δ
----------------- (rec-fields)
-Γ ⊦ t / l̄ ↪ Δ
-
-Γ ⊦ t / l l̄ ↪ A ◁ Δ
------------------------ (rec-fields-step)
-Γ ⊦ t / l̄ ↪ Δ[id, t.l]
-
-Γ ⊦ t₀ ≐ t₁ : Rec l̄′ Δ′      Γ ⊦ Δ₀ ≐ Δ₁ tel      Γ ⊦ t₀ / l̄ ↪ Δ₀
------------------------------------------------------------------ (rec-fields-coe)
-Γ ⊦ t₁ / l̄ ↪ Δ₁
-
-Γ ⊦ t / l̄ ↪ Δ
---------------- (sp-rec-proj)
-Γ ⊦ t.l̄ : Δ
-
-Γ ⊦ t / · ↪ ε
------------------ (sp-rec-proj-empty)
-Γ ⊦ t.· ≐ · : ε
-
-Γ ⊦ t / l l̄ ↪ A ◁ Δ
---------------------------------- (sp-rec-proj-ext)
-Γ ⊦ t.(l l̄) ≐ t.l, t.l̄ : A ◁ Δ
-
-## Rules
-
-// Γ ⊦ ē : Δ gives Γ ⊦ Δ tel ℓ at some ℓ (existence); Γ ⊦ t : Rec l̄ Δ
-// gives Δ at a level, l̄ distinct and |l̄| = |Δ| by inversion.
-
-Γ ⊦ Δ tel ℓ
-l̄ distinct
-|l̄| = |Δ|
------------------- (ty-rec)
-Γ ⊦ Rec l̄ Δ type ℓ
-
-Γ ⊦ ē : Δ
-l̄ distinct
-|l̄| = |Δ|
------------------------ (el-rec-i)
-Γ ⊦ ⟨l̄ ↪ ē⟩ : Rec l̄ Δ
-
-Γ ⊦ t / l l̄ ↪ A ◁ Δ
--------------------- (el-rec-e)   // congruence: at t₀, then rec-fields-coe
-Γ ⊦ t.l : A
-
-// Computation: by the position of the label. The premises are
-// el-rec-i's — the components typed, as in el-sigma-beta₁/₂ — not the
-// typing of the record: that a typed record has typed components is no
-// lemma of the theory, and the rule must not assert it. The miss step
-// is well-typed by induction along l̄: the fields of the two records
-// agree at the earlier labels by this rule.
-
-Γ ⊦ e, ē : A ◁ Δ
-l l̄ distinct
-|l l̄| = |A ◁ Δ|
----------------------------- (el-rec-beta)
-Γ ⊦ ⟨l l̄ ↪ e, ē⟩.l ≐ e : A
-
-Γ ⊦ e, ē : A ◁ Δ
-l′ l̄ distinct
-|l′ l̄| = |A ◁ Δ|
-Γ ⊦ ⟨l̄ ↪ ē⟩.l : B
---------------------------------------- (el-rec-beta-miss)
-Γ ⊦ ⟨l′ l̄ ↪ e, ē⟩.l ≐ ⟨l̄ ↪ ē⟩.l : B
-
-// Uniqueness, in el-sigma-eta's form and orientation. At l̄ = · this is
-// ⟨⟩ ≐ t : Rec · ε — the empty record is a unit type.
-
-Γ ⊦ t : Rec l̄ Δ
----------------------------- (el-rec-eta)
-Γ ⊦ ⟨l̄ ↪ t.l̄⟩ ≐ t : Rec l̄ Δ
-
-// Injectivity, at ONE label list: labels are syntax and compare
-// syntactically. That records with different label lists are different
-// types is no-confusion — like Π against Σ, not a rule, and a
-// meta-property of consistent contexts only.
-
-Γ ⊦ Rec l̄ Δ₀ ≐ Rec l̄ Δ₁ type
------------------------------- (ty-rec-inj)
-Γ ⊦ Δ₀ ≐ Δ₁ tel
-
-// Substitution action.
-
-Γ₁ ⊦ Δ tel
-l̄ distinct
-|l̄| = |Δ|
-σ : Γ₀ ⇒ Γ₁
------------------------------------- (ty-sub-rec)
-Γ₀ ⊦ (Rec l̄ Δ)[σ] ≐ Rec l̄ Δ[σ] type
-
-Γ₁ ⊦ ē : Δ
-l̄ distinct
-|l̄| = |Δ|
-σ : Γ₀ ⇒ Γ₁
-------------------------------------------- (el-sub-record)
-Γ₀ ⊦ ⟨l̄ ↪ ē⟩[σ] ≐ ⟨l̄ ↪ ē[σ]⟩ : Rec l̄ Δ[σ]
-
-Γ₁ ⊦ t.l : A
-σ : Γ₀ ⇒ Γ₁
-------------------------------- (el-sub-rec-proj)
-Γ₀ ⊦ (t.l)[σ] ≐ t[σ].l : A[σ]
